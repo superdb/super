@@ -13,7 +13,7 @@ outputs:
       | output main
   - name: stderr
     data: |
-      no such field "x" at line 1, column 5:
+      no such field "x": . applied to null at line 1, column 5:
       cut x
           ~
       no such field "y" at line 1, column 22:

@@ -1,5 +1,7 @@
 spq: cut r:={x:a+b,y:a-b},a1:=[a],a2:=[a+b,a-b]
 
+flags: -dynamic
+
 input: |
   {a:2,b:1}
   {a:4,b:3}
@@ -11,5 +13,48 @@ output: |
   {r:{x:3,y:1},a1:[2],a2:[3,1]}
   {r:{x:7,y:1},a1:[4],a2:[7,1]}
   {r:{x:error({message:"+: error value encountered",on:error("no such field b")}),y:error({message:"-: error value encountered",on:error("no such field b")})},a1:["hello"],a2:[error({message:"+: error value encountered",on:error("no such field b")}),error({message:"-: error value encountered",on:error("no such field b")})]}
+  {r:{x:11,y:1},a1:[6],a2:[11,1]}
+  {r:{x:3,y:1},a1:[2]::[int64|null],a2:[3,1]}
+
+---
+
+spq: cut r:={x:a+b,y:a-b},a1:=[a],a2:=[a+b,a-b]
+
+input: |
+  {a:2,b:1}
+  {a:4,b:3}
+  {a:"hello"}
+  {a:6,b:5}
+  {a:2::(int64|null),b:1::(int64|null)}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 13:
+  cut r:={x:a+b,y:a-b},a1:=[a],a2:=[a+b,a-b]
+              ~
+  field may be missing (consider ok()) at line 1, column 19:
+  cut r:={x:a+b,y:a-b},a1:=[a],a2:=[a+b,a-b]
+                    ~
+  field may be missing (consider ok()) at line 1, column 37:
+  cut r:={x:a+b,y:a-b},a1:=[a],a2:=[a+b,a-b]
+                                      ~
+  field may be missing (consider ok()) at line 1, column 41:
+  cut r:={x:a+b,y:a-b},a1:=[a],a2:=[a+b,a-b]
+                                          ~
+
+---
+
+spq: cut r:={x:a+(b.ok()??1000),y:a-(b.ok()??2000)},a1:=[a],a2:=[a+(b.ok()??3000),a-(b.ok()??4000)]
+
+input: |
+  {a:2,b:1}
+  {a:4,b:3}
+  {a:"hello"}
+  {a:6,b:5}
+  {a:2::(int64|null),b:1::(int64|null)}
+
+output: |
+  {r:{x:3,y:1},a1:[2],a2:[3,1]}
+  {r:{x:7,y:1},a1:[4],a2:[7,1]}
+  {r:{x:error("incompatible types"),y:error("incompatible types")},a1:["hello"],a2:[error("incompatible types"),error("incompatible types")]}
   {r:{x:11,y:1},a1:[6],a2:[11,1]}
   {r:{x:3,y:1},a1:[2]::[int64|null],a2:[3,1]}

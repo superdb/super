@@ -1,0 +1,172 @@
+spq: values x+1
+
+flags: -dynamic
+
+input: |
+  {x:1}
+  {y:1}
+
+output: |
+  2
+  error({message:"+: error value encountered",on:error("no such field x")})
+
+---
+
+spq: values x+1
+
+input: |
+  {x:1}
+  {y:1}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 8:
+  values x+1
+         ~
+
+---
+
+spq: values (x.ok()??123)+1
+
+input: |
+  {x:1}
+  {y:1}
+
+output: |
+  2
+  124
+
+---
+
+spq: values {w?:x.ok() ?? none::int64}
+
+input: |
+  {x:1}
+  {y:1}
+
+output: |
+  {w?:1}
+  {w?:none::int64}
+
+---
+
+spq: values {w?:x.ok()::int64}
+
+input: |
+  {x:1}
+  {y:1}
+
+output: |
+  {w?:1}
+  {w?:none::int64}
+
+---
+
+spq: values {w?:x.ok()::option(int64)}
+
+input: |
+  {x:1}
+  {y:1}
+
+output: |
+  {w?:1}
+  {w?:none::int64}
+
+---
+
+# ok() turns a missing field into none, so its type is an option of the
+# field's other types, and ?? unwraps the option.
+spq: values (b.ok() ?? 1000) + a
+
+input: |
+  {a:1,b:2}
+  {a:3}
+
+output: |
+  3
+  1003
+
+---
+
+# ?? handles none but not a field that may be missing.
+spq: values b ?? 1000
+
+input: |
+  {a:1,b:2}
+  {a:3}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 8:
+  values b ?? 1000
+         ~
+
+---
+
+# The none of an option must be handled before arithmetic.
+spq: values b.ok() + 1
+
+input: |
+  {a:1,b:2}
+  {a:3}
+
+error: |
+  int64|none: none not handled (consider ?? or ?.) at line 1, column 8:
+  values b.ok() + 1
+         ~~~~~~
+
+---
+
+# A field of an option must be accessed with ?. ...
+spq: values r.ok().f
+
+input: |
+  {r:{f:1}}
+  {s:1}
+
+error: |
+  none|{f:int64}: none not handled (consider ?? or ?.) at line 1, column 15:
+  values r.ok().f
+                ~
+
+---
+
+# ... which yields none when the option is none.
+spq: values r.ok()?.f, (r.ok()?.f ?? 0) + 1
+
+input: |
+  {r:{f:1}}
+  {s:1}
+
+output: |
+  1
+  2
+  none
+  1
+
+---
+
+# The runtime ?. passes the none from ok() through.
+spq: values r.ok()?.f
+
+flags: -dynamic
+
+input: |
+  {r:{f:1}}
+  {s:1}
+
+output: |
+  1
+  none
+
+---
+
+# A field of a value that may be missing may be missing too.
+spq: values r.f + 1
+
+input: |
+  {r:{f:1}}
+  {s:1}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 8:
+  values r.f + 1
+         ~~~

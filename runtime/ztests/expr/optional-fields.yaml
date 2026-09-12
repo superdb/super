@@ -173,7 +173,7 @@ input: |
 
 output: |
   1
-  none::{b:int64}
+  none::int64
 
 ---
 
@@ -187,7 +187,7 @@ input: |
 
 output: |
   missing
-  none::int64
+  error("cannot access field 'x' of int64")
   1
   some(1)
 
@@ -205,8 +205,30 @@ input: |
 
 output: |
   missing
-  none::int64
+  error("cannot access field 'x' of int64")
   error("cannot access field 'y' of int64")
   error("cannot access field 'y' of int64")
   some(1)
   none::int64
+
+---
+
+# A none from ?. keeps the type of the field so a record built from it
+# has an optional field rather than dropping the field.
+spq: values {y:x?.z}, typeof(x?.z)
+
+input: |
+  {x:{z:1}}
+  {x:none::{z:int64}}
+  {x:{z?:2}}
+  {x:{z?:none::int64}}
+
+output: |
+  {y:1}
+  <int64>
+  {y?:none::int64}
+  <option(int64)>
+  {y?:2}
+  <option(int64)>
+  {y?:none::int64}
+  <option(int64)>

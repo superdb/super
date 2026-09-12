@@ -1,0 +1,122 @@
+# An aggregate function argument that may be missing must use ok().
+spq: aggregate count(y)
+
+input: |
+  {x:1,y:"a"}
+  {x:2}
+  {x:3,y:"a"}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 17:
+  aggregate count(y)
+                  ~
+
+---
+
+# With ok(), the absent values are none, which aren't counted.
+spq: aggregate count(y.ok())
+
+input: |
+  {x:1,y:"a"}
+  {x:2}
+  {x:3,y:"a"}
+
+output: |
+  2
+
+---
+
+# The same goes for the aggregate function shortcut.
+spq: count(y)
+
+input: |
+  {x:1,y:"a"}
+  {x:2}
+  {x:3,y:"a"}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 7:
+  count(y)
+        ~
+
+---
+
+# A filter that may be missing must use ok().
+spq: aggregate count() filter (b)
+
+input: |
+  {x:1,b:true}
+  {x:2}
+  {x:3,b:false}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 27:
+  aggregate count() filter (b)
+                            ~
+
+---
+
+# A grouping expression that may be missing must use ok().
+spq: aggregate sum(x) by y
+
+input: |
+  {x:1,y:"a"}
+  {x:2}
+  {x:3,y:"a"}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 21:
+  aggregate sum(x) by y
+                      ~
+
+---
+
+# ...including a grouping with no aggregate functions.
+spq: aggregate by y
+
+input: |
+  {x:1,y:"a"}
+  {x:2}
+  {x:3,y:"a"}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 14:
+  aggregate by y
+               ~
+
+---
+
+# With ok(), the absent values form the none group.
+spq: aggregate sum(x) by y.ok() | sort y
+
+input: |
+  {x:1,y:"a"}
+  {x:2}
+  {x:3,y:"a"}
+
+output: |
+  {y:"a",sum:4}
+  {y:none,sum:2}
+
+---
+
+# A SQL column reference is null where the field is absent so count and
+# GROUP BY need no ok().
+spq: 'select y, count(y) as c, count() as n from (values {x:1,y:"a"},{x:2},{x:3,y:"a"}) group by y order by y'
+
+output: |
+  {y:"a",c:2,n:2}
+  {y:null,c:0,n:1}
+
+---
+
+# A filter clause takes any expression, including ?? and ?:.
+spq: "aggregate a:=count() filter (b.ok() ?? false), c:=count() filter (x > 1 ? true : false)"
+
+input: |
+  {x:1,b:true}
+  {x:2}
+  {x:3,b:false}
+
+output: |
+  {a:1,c:2}

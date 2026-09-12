@@ -3,6 +3,6 @@ spq: |
   values x
 
 error: |
-  no such field "a b" at line 1, column 11:
+  no such field "a b": . applied to null at line 1, column 11:
   const x = `a b`.`c d`
             ~~~~~

@@ -215,6 +215,7 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 				e, typ := t.expr(elem.Value, inType)
 				if elem.Opt {
 					e = &sem.CallExpr{Node: elem.Value, Tag: "some", Args: []sem.Expr{e}}
+					typ = t.checker.optionize(typ)
 				}
 				out = append(out, &sem.FieldElem{
 					Node:  elem,
@@ -252,7 +253,7 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 		return &sem.RecordExpr{
 			Node:  e,
 			Elems: out,
-		}, t.checker.fuseRecordElems(out, types)
+		}, t.checker.formRecordElems(out, types)
 	case *ast.RegexpExpr:
 		return &sem.RegexpSearchExpr{
 			Node:    e,
@@ -441,7 +442,7 @@ func (t *translator) dottedBaseCase(loc ast.Node, lhs *ast.IDExpr, rhs *ast.IDEx
 }
 
 func (t *translator) deref(loc ast.Node, lhs sem.Expr, id *ast.IDExpr, noneish bool, inType super.Type) (sem.Expr, super.Type) {
-	typ, _ := t.checker.deref(id, inType, id.Name)
+	typ := t.checker.deref(id, inType, id.Name, noneish)
 	if lhs, ok := lhs.(*sem.ThisExpr); ok {
 		lhs.Chain = lhs.Chain.Append(id.Name, noneish)
 		lhs.Node = loc
@@ -688,11 +689,21 @@ func (t *translator) semCall(call *ast.CallExpr, inType super.Type) (sem.Expr, s
 	if e, typ := t.maybeConvertAgg(call, inType); e != nil {
 		return e, typ
 	}
-	args, argTypes := t.exprs(call.Args, inType)
 	switch f := call.Func.(type) {
 	case *ast.FuncNameExpr:
+		if f.Name == "ok" {
+			if len(call.Args) != 1 {
+				panic(call)
+			}
+			t.checker.pushErrs()
+			e, typ := t.expr(call.Args[0], inType)
+			call := sem.NewCall(call, "ok", []sem.Expr{e})
+			return call, t.checker.checkOk(typ, call, t.checker.popErrs())
+		}
+		args, argTypes := t.exprs(call.Args, inType)
 		return t.semCallByName(call, f.Name, args, argTypes, inType)
 	case *ast.LambdaExpr:
+		args, argTypes := t.exprs(call.Args, inType)
 		return t.semCallLambda(f, args, argTypes)
 	default:
 		panic(f)
@@ -786,9 +797,6 @@ func (t *translator) semCallByName(call *ast.CallExpr, name string, args []sem.E
 		return &sem.BinaryExpr{
 			Node: call,
 			Op:   "!=",
-			// Comparing none result of ok requires a noneish operator to turn
-			// option nones into untyped nones since comparing nones is type sensitive.
-			//XXX fix type sensitivity?
 			LHS: &sem.BinaryExpr{
 				Node: call,
 				Op:   "??",
@@ -1237,11 +1245,21 @@ func (t *translator) arrayElems(elems []ast.ArrayElem, inType super.Type) ([]sem
 		case *ast.SpreadElem:
 			elemExpr, elemType := t.expr(elem.Expr, inType)
 			out = append(out, &sem.SpreadElem{Node: elem, Expr: elemExpr})
-			types = append(types, elemType)
+			var spreadType super.Type
+			if arrayType, ok := elemType.(*super.TypeArray); ok {
+				spreadType = arrayType.Type
+			} else {
+				spreadType = t.checker.unknown
+			}
+			types = append(types, spreadType)
 		case *ast.ExprElem:
 			elemExpr, elemType := t.expr(elem.Expr, inType)
 			out = append(out, &sem.ExprElem{Node: elem, Expr: elemExpr})
-			types = append(types, elemType)
+			// A none element is dropped from the array at runtime so it
+			// doesn't contribute to the element type.
+			if !isNoneType(elemType) {
+				types = append(types, elemType)
+			}
 		default:
 			panic(elem)
 		}

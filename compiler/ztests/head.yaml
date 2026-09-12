@@ -27,6 +27,6 @@ outputs:
       expected integer at line 1, column 6:
       head x
            ~
-      no such field "x" at line 1, column 6:
+      no such field "x": . applied to null at line 1, column 6:
       head x
            ~

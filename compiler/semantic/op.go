@@ -691,6 +691,9 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 	case *ast.AggregateOp:
 		keys, keyPaths := t.assignments(o.Keys, inType)
 		t.checkStaticAssignment(o.Keys, keys)
+		for k, path := range keyPaths {
+			t.checker.groupKey(o.Keys[k].RHS, path.typ)
+		}
 		if len(keys) == 0 && len(o.Aggs) == 1 {
 			if seq, typ := t.singletonAgg(&o.Aggs[0], seq, inType); seq != nil {
 				return seq, typ
