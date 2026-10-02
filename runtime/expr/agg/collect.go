@@ -1,6 +1,8 @@
 package agg
 
 import (
+	"slices"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/vector"
@@ -19,7 +21,48 @@ func newCollect(sctx *super.Context) *collect {
 func (c *collect) NoRip() bool { return true }
 
 func (c *collect) Consume(vec vector.Any) {
-	vector.Apply(vector.ApplyRipUnions, c.consume, c.defuse.Eval(vec))
+	vec = vector.Apply(vector.ApplyRipUnions, func(vecs ...vector.Any) vector.Any {
+		return vecs[0]
+	}, c.defuse.Eval(vec))
+	if vector.IsDynamic(vec) {
+		vec = filterNonesFromDynamic(vec.(*vector.Dynamic))
+	}
+	if vec.Kind() == vector.KindNone {
+		return
+	}
+	if c.builder == nil {
+		c.builder = vbuild.NewDynamicBuilder()
+	}
+	c.builder.Write(vec)
+}
+
+func filterNonesFromDynamic(d *vector.Dynamic) vector.Any {
+	var vecs []vector.Any
+	newTags := slices.Repeat([]int{-1}, len(d.Values))
+	var n uint32
+	for i, vec := range d.Values {
+		if vec.Kind() == vector.KindNone {
+			continue
+		}
+		newTags[i] = len(vecs)
+		vecs = append(vecs, vec)
+		n += vec.Len()
+	}
+	if len(vecs) == len(d.Values) {
+		return d
+	}
+	if n == 0 {
+		return vector.NewNone(0)
+	}
+	index := make([]uint32, n, 0)
+	for _, tag := range d.Tags {
+		ntag := newTags[tag]
+		if ntag == -1 {
+			continue
+		}
+		index = append(index, uint32(ntag))
+	}
+	return vector.NewDynamic(index, vecs)
 }
 
 func (c *collect) consume(vecs ...vector.Any) vector.Any {
