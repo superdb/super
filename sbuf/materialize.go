@@ -32,7 +32,7 @@ func (m *Materializer) Pull(done bool) (Batch, error) {
 }
 
 func Materialize(vec vector.Any) Batch {
-	if vec == nil {
+	if vec == nil || vec.Len() == 0 {
 		return nil
 	}
 	// Labels are emitted by the query API and should be peeled off before

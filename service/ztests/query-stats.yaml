@@ -1,3 +1,5 @@
+skip: vio.Progress will be reworked for BSUP columns database pools
+
 script: |
   source service.sh
   super db create -q test

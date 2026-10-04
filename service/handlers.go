@@ -111,6 +111,7 @@ func handleQuery(c *Core, w *ResponseWriter, r *Request) {
 			}
 		case r := <-resultCh:
 			vec, err := r.vec, r.err
+			//fmt.Println("Q", vector.Format(vec))
 			if err != nil {
 				if !errors.Is(err, journal.ErrEmpty) {
 					w.Logger.Warn("Error pulling batch", zap.Error(err))

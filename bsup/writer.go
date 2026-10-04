@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"runtime/debug"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/scode"
@@ -67,6 +68,18 @@ func (c *ColumnWriter) Close() error {
 
 func (c *ColumnWriter) Push(vec vector.Any) error {
 	if vec.Len() != 0 {
+		if _, ok := vec.(*vector.Control); ok {
+			fmt.Println("CTRL")
+			debug.PrintStack()
+		}
+		if _, ok := vec.(*vector.Labeled); ok {
+			fmt.Println("LABEL")
+			debug.PrintStack()
+		}
+		//fmt.Println("VEC", vector.Format(vec))
+		if d, ok := vec.(*vector.Dynamic); ok {
+			fmt.Println("TAGS", d.Tags)
+		}
 		c.dynamic.Write(vec)
 		if c.dynamic.Len() >= maxFrameSize {
 			return c.pushFrame(false)

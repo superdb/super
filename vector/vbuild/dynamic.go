@@ -1,6 +1,9 @@
 package vbuild
 
 import (
+	"fmt"
+	"runtime/debug"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/vector"
 )
@@ -16,10 +19,16 @@ func NewDynamicBuilder() *DynamicBuilder {
 }
 
 func (d *DynamicBuilder) Write(vec vector.Any) {
+	fmt.Println("D", vector.Format(vec))
 	if dynamic, ok := vec.(*vector.Dynamic); ok {
+		debug.PrintStack()
 		tagMap := make([]uint32, len(dynamic.Values))
 		for i, vec := range dynamic.Values {
 			if vec != nil {
+				if _, ok := vec.(*vector.Dynamic); ok {
+					fmt.Println("=== D ===")
+					debug.PrintStack()
+				}
 				tagMap[i] = d.write(vec)
 			}
 		}
