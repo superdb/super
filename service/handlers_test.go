@@ -11,12 +11,17 @@ import (
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/superdb/super"
 	"github.com/superdb/super/api"
 	"github.com/superdb/super/api/client"
+	"github.com/superdb/super/compiler/parser"
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/storage"
+	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
 	"github.com/superdb/super/service"
+	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/vbuild"
 )
 
 func TestQuery(t *testing.T) {
@@ -212,4 +217,29 @@ func promCounterValue(g prometheus.Gatherer, name string) any {
 		}
 	}
 	return errors.New("metric not found")
+}
+
+func TestMergeOfMerge(t *testing.T) {
+	server, conn := newCore(t)
+	pool1ID := conn.TestPoolPost(api.PoolPostRequest{Name: "pool1"})
+	conn.TestLoad(pool1ID, "main", strings.NewReader(`"1"`))
+	pool2ID := conn.TestPoolPost(api.PoolPostRequest{Name: "pool2"})
+	conn.TestLoad(pool2ID, "main", strings.NewReader(`"2"`))
+	ast, err := parser.ParseText("from * | sort this")
+	require.NoError(t, err)
+	sctx := super.NewContext()
+	flowgraph, err := runtime.CompileQueryForDB(t.Context(), sctx, server.Compiler(), ast)
+	require.NoError(t, err)
+	puller := flowgraph.(*exec.Query).Puller
+	builder := vbuild.NewDynamicBuilder()
+	for {
+		vec, err := puller.Pull(false)
+		require.NoError(t, err)
+		vec, _ = vector.Unlabel(vec)
+		if vec == nil {
+			return
+		}
+		// This will panic without the stitch at the output of merge.
+		builder.Write(vec)
+	}
 }

@@ -74,7 +74,7 @@ func (m *Merge) Pull(done bool) (vector.Any, error) {
 			return nil, err
 		}
 		if len(views) > 0 {
-			return vector.NewDynamic(tags, views), nil
+			return vector.Stitch(vector.NewDynamic(tags, views)), nil
 		}
 	}
 }
