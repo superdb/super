@@ -31,7 +31,7 @@ func FuzzQuery(f *testing.F) {
 
 		var bsupRowsBuf bytes.Buffer
 		fuzz.WriteBSUPRows(t, values, &bsupRowsBuf)
-		resultBSUPRows := fuzz.RunQueryBSUPRows(t, &bsupRowsBuf, querySource)
+		resultBSUPRows := fuzz.RunQueryBSUP(t, &bsupRowsBuf, querySource)
 
 		var bsupBuf bytes.Buffer
 		fuzz.WriteBSUP(t, sctx, values, &bsupBuf)
@@ -77,12 +77,12 @@ func BenchmarkReadBSUP(b *testing.B) {
 
 	for b.Loop() {
 		bytesReader := bytes.NewReader(bs)
-		container := bsup.NewSeekable(sctx, bytesReader)
-		reader, err := container.Next()
+		fit := bsup.NewSeekable(sctx, bytesReader)
+		frame, err := fit.Next()
 		if err != nil {
 			panic(err)
 		}
-		_ = reader
+		_ = frame
 		// TODO Expose a cheap way to get values out of vectors.
 		//if intsIn[N-1] != intsOut[N-1] {
 		//    panic("oh no")

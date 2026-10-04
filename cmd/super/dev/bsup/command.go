@@ -251,7 +251,7 @@ func (c *Command) rowFrame(header *bsup.RowHeader) error {
 }
 
 func (c *Command) superFooter(header *bsup.SuperFooter) error {
-	fusedTypeBytes := make([]byte, header.TypedefsSize())
+	fusedTypeBytes := make([]byte, header.FusedTypeSize())
 	if _, err := io.ReadFull(c.reader, fusedTypeBytes); err != nil {
 		return err
 	}

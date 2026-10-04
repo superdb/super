@@ -11,6 +11,10 @@ func NewColumnWriter(w io.WriteCloser) *bsup.ColumnWriter {
 	return bsup.NewColumnWriter(w)
 }
 
+func NewNewRowWriter(w io.WriteCloser) *bsup.RowWriter {
+	return bsup.NewRowWriter(w)
+}
+
 // XXX RowWriter provides a wrapper to the old BSUP format encapsulated by
 // the new framing design.  This is here because we'll integrate BSUP ROWS into
 // BSUP in a future PR.

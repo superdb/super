@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -24,13 +25,13 @@ import (
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
-	"github.com/superdb/super/runtime/sam/op"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/service/auth"
 	"github.com/superdb/super/service/srverr"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/anyio"
 	"github.com/superdb/super/sio/csvio"
+	"github.com/superdb/super/vector"
 	"go.uber.org/zap"
 )
 
@@ -84,11 +85,15 @@ func handleQuery(c *Core, w *ResponseWriter, r *Request) {
 		writer.WriteError(err)
 		status.setError(err)
 	}
-	results := make(chan op.Result)
+	type result struct {
+		vec vector.Any
+		err error
+	}
+	resultCh := make(chan result)
 	go func() {
 		for {
 			vec, err := flowgraph.Pull(false)
-			results <- op.Result{Batch: sbuf.Materialize(vec), Err: err}
+			resultCh <- result{vec, err}
 			if vec == nil || err != nil {
 				return
 			}
@@ -101,40 +106,50 @@ func handleQuery(c *Core, w *ResponseWriter, r *Request) {
 		select {
 		case <-timer.C:
 			if err := writer.WriteProgress(meter.Progress()); err != nil {
-				w.Logger.Warn("Error writing progress", zap.Error(err))
+				w.Logger.Warn("Error writing progress to client", zap.Error(err))
 				handleError(err)
 				return
 			}
-		case r := <-results:
-			batch, err := r.Batch, r.Err
+		case r := <-resultCh:
+			vec, err := r.vec, r.err
 			if err != nil {
 				if !errors.Is(err, journal.ErrEmpty) {
-					w.Logger.Warn("Error pulling batch", zap.Error(err))
+					w.Logger.Warn("Error from query", zap.Error(err))
 					handleError(err)
 				}
 				return
 			}
-			if batch == nil {
-				if err := writer.WriteProgress(meter.Progress()); err != nil {
-					w.Logger.Warn("Error writing progress", zap.Error(err))
-					handleError(err)
-				}
-				return
-			}
-			if len(batch.Values()) == 0 {
-				if eoc, ok := batch.(*sbuf.EndOfChannel); ok {
-					if err := writer.WhiteChannelEnd(string(*eoc)); err != nil {
-						w.Logger.Warn("Error writing channel end", zap.Error(err))
+			var label string
+			if labeled, ok := vec.(*vector.Labeled); ok {
+				label = labeled.Label
+				vec = labeled.Any
+				// A label with a null vector signals end of output channel.
+				if vec == nil {
+					if err := writer.WriteChannelEnd(label); err != nil {
+						w.Logger.Warn("Error writing channel end to client", zap.Error(err))
 						handleError(err)
 						return
 					}
+					continue
 				}
-				continue
 			}
-			var label string
-			batch, label = sbuf.Unlabel(batch)
-			if err := writer.WriteBatch(label, batch); err != nil {
-				w.Logger.Warn("Error writing batch", zap.Error(err))
+			if vec == nil {
+				// query is done
+				if err := writer.WriteProgress(meter.Progress()); err != nil {
+					w.Logger.Warn("Error writing progress to client", zap.Error(err))
+					handleError(err)
+				}
+				return
+			}
+			if d, ok := vec.(*vector.Dynamic); ok {
+				for _, v := range d.Values {
+					if _, ok := v.(*vector.Dynamic); ok {
+						fmt.Println("YO DAWG!!!")
+					}
+				}
+			}
+			if err := writer.Push(label, vec); err != nil {
+				w.Logger.Warn("Error writing data to client", zap.Error(err))
 				handleError(err)
 				return
 			}

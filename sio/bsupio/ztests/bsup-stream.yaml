@@ -1,0 +1,15 @@
+script: |
+  super -o t.bsup in.sup
+  cat t.bsup | super -s -i bsup -
+
+inputs:
+  - name: in.sup
+    data: |
+      ["hello","world"]
+      {a:["hello","world"]}
+
+outputs:
+  - name: stdout
+    data: |
+      ["hello","world"]
+      {a:["hello","world"]}

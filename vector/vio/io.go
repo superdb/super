@@ -91,6 +91,13 @@ func Copy(dst Pusher, src Puller) error {
 		if err != nil || vec == nil {
 			return err
 		}
+		if _, ok := vec.(*vector.Control); ok {
+			continue
+		}
+		vec, _ = vector.Unlabel(vec)
+		if vec == nil {
+			continue
+		}
 		if err := dst.Push(vec); err != nil {
 			return err
 		}
@@ -102,6 +109,9 @@ func CopyMux(outputs map[string]Pusher, parent Puller) error {
 		vec, err := parent.Pull(false)
 		if vec == nil || err != nil {
 			return err
+		}
+		if _, ok := vec.(*vector.Control); ok {
+			continue
 		}
 		var label string
 		vec, label = vector.Unlabel(vec)

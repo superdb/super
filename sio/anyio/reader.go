@@ -41,7 +41,7 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, opts Reade
 
 	track := NewTrack(r)
 
-	bsupErr := isBSUPStream(track)
+	bsupErr := bsup.Probe(track)
 	if bsupErr == nil {
 		return bsupio.NewReader(ctx, sctx, track.Reader(), opts.Pushdown, opts.ConcurrentReaders)
 	}
@@ -159,21 +159,6 @@ func isArrowStream(track *Track) error {
 	defer zrc.Close()
 	_, err = zrc.Read()
 	return err
-}
-
-func isBSUPStream(track *Track) error {
-	if err := bsup.Probe(track); err != nil {
-		return err
-	}
-	if track.recorder != nil {
-		track.Reset()
-		b, err := io.ReadAll(track)
-		if err != nil {
-			return err
-		}
-		*track = *NewTrack(bytes.NewReader(b))
-	}
-	return nil
 }
 
 func isCSVStream(track *Track, delim rune, name string) error {
