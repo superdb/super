@@ -77,7 +77,7 @@ func BenchmarkReadBSUP(b *testing.B) {
 
 	for b.Loop() {
 		bytesReader := bytes.NewReader(bs)
-		container := bsup.NewContainer(sctx, bytesReader)
+		container := bsup.NewSeekable(sctx, bytesReader)
 		reader, err := container.Next()
 		if err != nil {
 			panic(err)

@@ -107,7 +107,7 @@ func (c *Command) emitFused() error {
 	if !ok {
 		return errors.New("need seekable input for -fused")
 	}
-	container := bsup.NewContainer(c.sctx, r)
+	container := bsup.NewSeekable(c.sctx, r)
 	typ, err := container.FusedType(c.sctx)
 	if err != nil {
 		return err
@@ -162,16 +162,24 @@ func (c *Command) columnFrame(header *bsup.ColumnHeader) error {
 	if err != nil {
 		return err
 	}
-	metaReader := bsup.NewContainer(c.sctx, bytes.NewReader(metaBytes))
+	fit := bsup.NewSeekable(c.sctx, bytes.NewReader(metaBytes))
 	for {
-		vec, err := metaReader.PullRow()
+		frame, err := fit.Next()
 		if err != nil {
 			return err
 		}
-		if vec == nil {
+		if frame == nil {
 			break
 		}
-		for _, val := range sbuf.Materialize(vec).Values() {
+		rowframe, ok := frame.(*bsup.RowFrame)
+		if !ok {
+			return errors.New("non-row data in column metadata")
+		}
+		vals, err := rowframe.DeserializeValues()
+		if err != nil {
+			return err
+		}
+		for _, val := range vals {
 			c.emit(val.Copy())
 		}
 	}

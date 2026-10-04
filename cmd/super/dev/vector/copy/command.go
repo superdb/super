@@ -63,11 +63,16 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	reader, err := bsup.NewColumnReader(r)
+	fit := bsup.NewSeekable(super.NewContext(), r)
+	frame, err := fit.Next()
 	if err != nil {
 		return err
 	}
-	object := vcache.NewReader(reader)
+	colfame, ok := frame.(*bsup.ColFrame)
+	if !ok {
+		return errors.New("input not in BSUP column form")
+	}
+	object := vcache.NewReader(colfame)
 	defer object.Close()
 	writer, err := c.outputFlags.Open(ctx, local)
 	if err != nil {
