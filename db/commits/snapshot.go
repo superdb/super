@@ -3,7 +3,6 @@ package commits
 import (
 	"errors"
 	"fmt"
-	"io"
 	"maps"
 
 	"github.com/segmentio/ksuid"
@@ -137,25 +136,22 @@ func (s *Snapshot) Copy() *Snapshot {
 // during deserialization.  Deleted entities are serialized as an add-delete
 // sequence to meet the requirements of DeleteObject.
 func (s *Snapshot) serialize() ([]byte, error) {
-	zs := bsupbytes.NewSerializer()
-	zs.Decorate(super.StylePackage)
+	writer := bsupbytes.NewBytesWriterWithStyle(super.StylePackage)
 	for _, o := range s.objects {
-		if err := zs.Write(&Add{Object: *o}); err != nil {
+		if err := writer.Write(&Add{Object: *o}); err != nil {
 			return nil, err
 		}
 	}
-	if err := zs.Close(); err != nil {
+	if err := writer.Close(); err != nil {
 		return nil, err
 	}
-	return zs.Bytes(), nil
+	return writer.Bytes(), nil
 }
 
-func decodeSnapshot(r io.Reader) (*Snapshot, error) {
+func decodeSnapshot(reader bsupbytes.Reader) (*Snapshot, error) {
 	s := NewSnapshot()
-	zd := bsupbytes.NewDeserializer(r, ActionTypes)
-	defer zd.Close()
 	for {
-		entry, err := zd.Read()
+		entry, err := reader.Read()
 		if err != nil {
 			return nil, err
 		}

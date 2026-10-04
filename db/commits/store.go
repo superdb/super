@@ -14,7 +14,6 @@ import (
 	arc "github.com/hashicorp/golang-lru/arc/v2"
 	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
-	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/bsupbytes"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/pkg/nano"
@@ -71,7 +70,11 @@ func (s *Store) Get(ctx context.Context, commit ksuid.KSUID) (*Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	o, err := DecodeObject(r)
+	reader, err := bsupio.NewValueReader(ctx, super.NewContext(), r)
+	if err != nil {
+		return nil, err
+	}
+	o, err := DecodeObject(reader)
 	if err == ErrBadCommitObject {
 		err = fmt.Errorf("system error: %s: %w", s.pathOf(commit), ErrBadCommitObject)
 	}
@@ -86,7 +89,7 @@ func (s *Store) Get(ctx context.Context, commit ksuid.KSUID) (*Object, error) {
 }
 
 func (s *Store) pathOf(commit ksuid.KSUID) *storage.URI {
-	return s.path.JoinPath(commit.String() + ".bsuprows")
+	return s.path.JoinPath(commit.String() + ".bsup")
 }
 
 func (s *Store) Put(ctx context.Context, o *Object) error {
@@ -182,12 +185,15 @@ func (s *Store) buildSnapshot(ctx context.Context, leaf ksuid.KSUID) (*Snapshot,
 }
 
 func (s *Store) getSnapshot(ctx context.Context, commit ksuid.KSUID) (*Snapshot, error) {
-	r, err := s.engine.Get(ctx, s.snapshotPathOf(commit))
+	reader, err := bsupbytes.Get(ctx, s.engine, s.snapshotPathOf(commit), ActionTypes)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
-	return decodeSnapshot(r)
+	snap, err := decodeSnapshot(reader)
+	if closeErr := reader.Close(); err == nil {
+		err = closeErr
+	}
+	return snap, err
 }
 
 func (s *Store) putSnapshot(ctx context.Context, commit ksuid.KSUID, snap *Snapshot) error {
@@ -199,16 +205,16 @@ func (s *Store) putSnapshot(ctx context.Context, commit ksuid.KSUID, snap *Snaps
 }
 
 func (s *Store) snapshotPathOf(commit ksuid.KSUID) *storage.URI {
-	return s.path.JoinPath(commit.String() + ".snap.bsuprows")
+	return s.path.JoinPath(commit.String() + ".snap.bsup")
 }
 
 func (s *Store) getBase(ctx context.Context, commit ksuid.KSUID) (*Snapshot, error) {
-	r, err := s.engine.Get(ctx, s.basePathOf(commit))
+	reader, err := bsupbytes.Get(ctx, s.engine, s.basePathOf(commit), ActionTypes)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
-	return decodeSnapshot(r)
+	defer reader.Close()
+	return decodeSnapshot(reader)
 }
 
 func (s *Store) putBase(ctx context.Context, snap *Snapshot, commit ksuid.KSUID) error {
@@ -220,7 +226,7 @@ func (s *Store) putBase(ctx context.Context, snap *Snapshot, commit ksuid.KSUID)
 }
 
 func (s *Store) basePathOf(commit ksuid.KSUID) *storage.URI {
-	return s.path.JoinPath(commit.String() + ".base.bsuprows")
+	return s.path.JoinPath(commit.String() + ".base.bsup")
 }
 
 // Path return the entire path from the commit object to the root
@@ -275,8 +281,7 @@ func (s *Store) GetBytes(ctx context.Context, commit ksuid.KSUID) ([]byte, *Comm
 	if err != nil {
 		return nil, nil, err
 	}
-	reader := bsupbytes.NewDeserializer(bytes.NewReader(b), ActionTypes)
-	defer reader.Close()
+	reader, err := bsupbytes.NewBytesReader(ctx, b, ActionTypes)
 	entry, err := reader.Read()
 	if err != nil {
 		return nil, nil, err
@@ -318,12 +323,12 @@ func (s *Store) Open(ctx context.Context, commit, stop ksuid.KSUID) (io.Reader, 
 	return bytes.NewReader(b), nil
 }
 
-func (s *Store) OpenAsBSUPRows(ctx context.Context, sctx *super.Context, commit, stop ksuid.KSUID) (*oldbsup.Reader, error) {
+func (s *Store) OpenAsBSUP(ctx context.Context, sctx *super.Context, commit, stop ksuid.KSUID) (sio.Reader, error) {
 	r, err := s.Open(ctx, commit, stop)
 	if err != nil {
 		return nil, err
 	}
-	return oldbsup.NewReader(sctx, r), nil
+	return bsupio.NewValueReader(ctx, sctx, r)
 }
 
 func (s *Store) OpenCommitLog(ctx context.Context, sctx *super.Context, commit, stop ksuid.KSUID) sio.Reader {

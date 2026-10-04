@@ -22,15 +22,15 @@ func TestClientRedirectReplay(t *testing.T) {
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 	mux.HandleFunc("/auth/method", func(w http.ResponseWriter, r *http.Request) {
-		s := bsupbytes.NewNewSerializer()
-		s.Write(api.AuthMethodResponse{
+		writer := bsupbytes.NewBytesWriter()
+		writer.Write(api.AuthMethodResponse{
 			Kind: api.AuthMethodAuth0,
 			Auth0: &api.AuthMethodAuth0Details{
 				Domain: ts.URL,
 			},
 		})
-		s.Close()
-		w.Write(s.Bytes())
+		writer.Close()
+		w.Write(writer.Bytes())
 	})
 	mux.HandleFunc("/oauth/token", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(struct {

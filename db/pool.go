@@ -12,7 +12,6 @@ import (
 
 	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
-	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/db/branches"
 	"github.com/superdb/super/db/commits"
 	"github.com/superdb/super/db/data"
@@ -116,8 +115,8 @@ func (p *Pool) OpenCommitLog(ctx context.Context, sctx *super.Context, commit ks
 	return p.commits.OpenCommitLog(ctx, sctx, commit, ksuid.Nil)
 }
 
-func (p *Pool) OpenCommitLogAsBSUP(ctx context.Context, sctx *super.Context, commit ksuid.KSUID) (*oldbsup.Reader, error) {
-	return p.commits.OpenAsBSUPRows(ctx, sctx, commit, ksuid.Nil)
+func (p *Pool) OpenCommitLogAsBSUP(ctx context.Context, sctx *super.Context, commit ksuid.KSUID) (sio.Reader, error) {
+	return p.commits.OpenAsBSUP(ctx, sctx, commit, ksuid.Nil)
 }
 
 func (p *Pool) Storage() storage.Engine {
