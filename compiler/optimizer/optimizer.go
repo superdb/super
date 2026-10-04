@@ -246,6 +246,19 @@ func (o *Optimizer) optimizeSourcePaths(seq dag.Seq) (dag.Seq, error) {
 				Filter:    filter,
 				KeyPruner: lister.KeyPruner,
 			})
+			// XXX Even though we jut pulled the filter up into SeqScan we
+			// add it back here since the new BSUP rows reader ignores the filter
+			// pushdown.  This will change when we change the pool format to
+			// BSUP columns so rather than attempt anything special here we
+			// are leaving until then.  (There will be a string-finder pushdown
+			// to skip creation of vectors whose string tables don't have the
+			// required search pattern.)
+			if filter != nil {
+				seq = append(seq, &dag.FilterOp{
+					Kind: "FilterOp",
+					Expr: filter,
+				})
+			}
 			seq = append(seq, chain...)
 		case *dag.FileScan:
 			o.nent++
