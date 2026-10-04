@@ -253,7 +253,7 @@ func (o *Optimizer) optimizeSourcePaths(seq dag.Seq) (dag.Seq, error) {
 			// are leaving until then.  (There will be a string-finder pushdown
 			// to skip creation of vectors whose string tables don't have the
 			// required search pattern.)
-			if filter != nil {
+			if filter != nil && false {
 				seq = append(seq, &dag.FilterOp{
 					Kind: "FilterOp",
 					Expr: filter,

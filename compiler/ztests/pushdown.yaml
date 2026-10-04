@@ -127,36 +127,30 @@ outputs:
       lister
       | slicer
       | seqscan fields a,x filter (x=="hello" or x==1.)
-      | where x=="hello" or x==1.
       | values a
       | output main
       ===
       lister
       | slicer
       | seqscan filter (x>1 and y<=1.)
-      | where x>1 and y<=1.
       | output main
       ===
       lister
       | slicer
       | seqscan filter (x=="hello" or x!=1.)
-      | where x=="hello" or x!=1.
       | output main
       ===
       lister
       | slicer
       | seqscan filter (x=="hello" or !(y==2 or y==3))
-      | where x=="hello" or !(y==2 or y==3)
       | output main
       ===
       lister pruner (compare(0, defuse(max), true)>0 or compare(2, defuse(min), true)<0)
       | slicer
       | seqscan pruner (compare(0, defuse(max), true)>0 or compare(2, defuse(min), true)<0) filter (ts>=0 and ts<=2)
-      | where ts>=0 and ts<=2
       | output main
       ===
       lister pruner (compare(0, defuse(max), true)>0 or compare(2, defuse(min), true)<0)
       | slicer
       | seqscan pruner (compare(0, defuse(max), true)>0 or compare(2, defuse(min), true)<0) filter (ts>=0 and ts<=2 and x=="hello")
-      | where ts>=0 and ts<=2 and x=="hello"
       | output main

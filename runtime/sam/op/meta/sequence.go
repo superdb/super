@@ -200,10 +200,21 @@ func newObjectScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, o
 	if err != nil {
 		return nil, err
 	}
+	// XXX
+	// This is here because the BSUP rows format no longer supports filter pushdown.
+	// This will all go away when we change pools to use BSUP columns.
+	var filter expr.Evaluator
+	if pushdown != nil {
+		filter, err = pushdown.DataFilter()
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &statScanner{
 		scanner:  scanner.(sbuf.Scanner),
 		closer:   rc,
 		progress: progress,
+		filter:   filter,
 	}, nil
 }
 
@@ -212,6 +223,7 @@ type statScanner struct {
 	closer   io.Closer
 	err      error
 	progress *vio.Progress
+	filter   expr.Evaluator
 }
 
 func (s *statScanner) Pull(done bool) (sbuf.Batch, error) {
@@ -219,6 +231,9 @@ func (s *statScanner) Pull(done bool) (sbuf.Batch, error) {
 		return nil, s.err
 	}
 	batch, err := s.scanner.Pull(done)
+	if s.filter != nil && batch != nil {
+		batch = filter(batch, s.filter)
+	}
 	if batch == nil || err != nil {
 		s.progress.Add(s.scanner.Progress())
 		if err2 := s.closer.Close(); err == nil {
@@ -228,4 +243,15 @@ func (s *statScanner) Pull(done bool) (sbuf.Batch, error) {
 		s.scanner = nil
 	}
 	return batch, err
+}
+
+func filter(batch sbuf.Batch, filter expr.Evaluator) sbuf.Batch {
+	var out []super.Value
+	vals := batch.Values()
+	for _, val := range vals {
+		if expr.IsTrue(filter.Eval(val)) {
+			out = append(out, val.Copy())
+		}
+	}
+	return sbuf.NewArray(out)
 }

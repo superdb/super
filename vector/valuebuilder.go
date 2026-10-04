@@ -47,6 +47,12 @@ func (d *DynamicValueBuilder) Build(sctx *super.Context) Any {
 	if len(vecs) == 1 {
 		return vecs[0]
 	}
+	if len(vecs) == 0 {
+		// This can happen when dematerialize is called with an empty batch
+		// (due to filtering in scanner) and zero length dynamic causes panic
+		// on typeof.
+		return NewEmpty(super.TypeNone)
+	}
 	return NewDynamic(d.tags, vecs)
 }
 

@@ -164,6 +164,9 @@ type mergeParent struct {
 func (m *mergeParent) run() {
 	for {
 		vec, err := m.parent.Pull(false)
+		if vec != nil && vec.Len() == 0 {
+			continue
+		}
 	Select:
 		select {
 		case m.resultCh <- result{vec, err}:

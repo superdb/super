@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"runtime/debug"
 
 	"github.com/superdb/super/sup"
 )
@@ -377,7 +376,6 @@ func readNextHeader(r io.ReaderAt, off int64) (Header, error) {
 		header.Deserialize(bytes)
 		return &header, header.check()
 	default:
-		debug.PrintStack()
 		return nil, fmt.Errorf("unknown header magic: %s", sup.QuotedString(magic))
 	}
 }
