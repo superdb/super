@@ -9,4 +9,4 @@ script: |
 outputs:
   - name: stderr
     regexp: |
-      .*unsupported database version: found version 1 while expecting 6
+      .*unsupported database version at .*: found version 1 while expecting 6
