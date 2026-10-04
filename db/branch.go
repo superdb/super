@@ -234,7 +234,7 @@ func (b *Branch) Revert(ctx context.Context, commit ksuid.KSUID, author, message
 	})
 }
 
-func (b *Branch) CommitCompact(ctx context.Context, src, rollup []*data.Object, rollupVecs []ksuid.KSUID, author, message, meta string) (ksuid.KSUID, error) {
+func (b *Branch) CommitCompact(ctx context.Context, src, rollup []*data.Object, author, message, meta string) (ksuid.KSUID, error) {
 	if len(rollup) < 1 {
 		return ksuid.Nil, errors.New("compact: one or more rollup objects required")
 	}
@@ -251,11 +251,6 @@ func (b *Branch) CommitCompact(ctx context.Context, src, rollup []*data.Object, 
 		patch := commits.NewPatch(base)
 		for _, o := range rollup {
 			if err := patch.AddDataObject(o); err != nil {
-				return nil, err
-			}
-		}
-		for _, id := range rollupVecs {
-			if err := patch.AddVector(id); err != nil {
 				return nil, err
 			}
 		}
@@ -427,66 +422,4 @@ func (b *Branch) LookupTags(ctx context.Context, tags []ksuid.KSUID) ([]ksuid.KS
 
 func (b *Branch) Pool() *Pool {
 	return b.pool
-}
-
-func (b *Branch) AddVectors(ctx context.Context, ids []ksuid.KSUID, author, message string) (ksuid.KSUID, error) {
-	if message == "" {
-		message = vectorMessage("add", ids)
-	}
-	// XXX We should add some parallelism here to stream the next file while
-	// the CPU is chugging away on the current file.  See issue #4015.
-	for _, id := range ids {
-		if err := data.CreateVector(ctx, b.pool.engine, b.pool.DataPath, id); err != nil {
-			return ksuid.Nil, err
-		}
-	}
-	return b.commit(ctx, func(parent *branches.Config, retries int) (*commits.Object, error) {
-		snap, err := b.pool.commits.Snapshot(ctx, parent.Commit)
-		if err != nil {
-			return nil, err
-		}
-		for _, id := range ids {
-			if !snap.Exists(id) {
-				return nil, fmt.Errorf("non-existent object %s: vector add operation aborted", id)
-			}
-			if snap.HasVector(id) {
-				return nil, fmt.Errorf("vector exists for %s: vector add operation aborted", id)
-			}
-		}
-		return commits.NewAddVectorsObject(parent.Commit, author, message, ids, retries), nil
-	})
-}
-
-func (b *Branch) DeleteVectors(ctx context.Context, ids []ksuid.KSUID, author, message string) (ksuid.KSUID, error) {
-	if message == "" {
-		message = vectorMessage("delete", ids)
-	}
-	return b.commit(ctx, func(parent *branches.Config, retries int) (*commits.Object, error) {
-		snap, err := b.pool.commits.Snapshot(ctx, parent.Commit)
-		if err != nil {
-			return nil, err
-		}
-		for _, id := range ids {
-			if !snap.Exists(id) {
-				return nil, fmt.Errorf("non-existent object %s: vector delete operation aborted", id)
-			}
-			if !snap.HasVector(id) {
-				return nil, fmt.Errorf("vector %s does not exist: vector delete operation aborted", id)
-			}
-		}
-		return commits.NewDeleteVectorsObject(parent.Commit, author, message, ids, retries), nil
-	})
-}
-
-func vectorMessage(kind string, ids []ksuid.KSUID) string {
-	var b strings.Builder
-	b.WriteString("vector ")
-	b.WriteString(kind)
-	b.WriteString("\n\n")
-	for _, id := range ids {
-		b.WriteString("    ")
-		b.WriteString(id.String())
-		b.WriteByte('\n')
-	}
-	return b.String()
 }

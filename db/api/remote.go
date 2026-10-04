@@ -85,8 +85,8 @@ func (r *remote) MergeBranch(ctx context.Context, poolID ksuid.KSUID, childBranc
 	return res.Commit, err
 }
 
-func (r *remote) Compact(ctx context.Context, poolID ksuid.KSUID, branch string, objects []ksuid.KSUID, writeVectors bool, commit api.CommitMessage) (ksuid.KSUID, error) {
-	res, err := r.conn.Compact(ctx, poolID, branch, objects, writeVectors, commit)
+func (r *remote) Compact(ctx context.Context, poolID ksuid.KSUID, branch string, objects []ksuid.KSUID, commit api.CommitMessage) (ksuid.KSUID, error) {
+	res, err := r.conn.Compact(ctx, poolID, branch, objects, commit)
 	return res.Commit, err
 }
 
@@ -135,16 +135,6 @@ func (r *remote) Delete(ctx context.Context, poolID ksuid.KSUID, branchName stri
 
 func (r *remote) DeleteWhere(ctx context.Context, poolID ksuid.KSUID, branchName, src string, commit api.CommitMessage) (ksuid.KSUID, error) {
 	res, err := r.conn.DeleteWhere(ctx, poolID, branchName, src, commit)
-	return res.Commit, err
-}
-
-func (r *remote) AddVectors(ctx context.Context, pool, revision string, objects []ksuid.KSUID, message api.CommitMessage) (ksuid.KSUID, error) {
-	res, err := r.conn.AddVectors(ctx, pool, revision, objects, message)
-	return res.Commit, err
-}
-
-func (r *remote) DeleteVectors(ctx context.Context, pool, revision string, ids []ksuid.KSUID, message api.CommitMessage) (ksuid.KSUID, error) {
-	res, err := r.conn.DeleteVectors(ctx, pool, revision, ids, message)
 	return res.Commit, err
 }
 

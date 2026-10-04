@@ -111,12 +111,6 @@ func (p *Patch) NewCommitObject(parent ksuid.KSUID, retries int, author, message
 	for _, s := range p.diff.objects {
 		o.appendAdd(s)
 	}
-	for _, id := range p.deletedVectors {
-		o.appendDeleteVector(id)
-	}
-	for id := range p.diff.vectors {
-		o.appendAddVector(id)
-	}
 	return o
 }
 

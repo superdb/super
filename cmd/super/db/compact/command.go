@@ -23,9 +23,8 @@ See https://superdb.org/command/db.html#super-db-compact
 
 type Command struct {
 	*db.Command
-	commitFlags  commitflags.Flags
-	poolFlags    poolflags.Flags
-	writeVectors bool
+	commitFlags commitflags.Flags
+	poolFlags   poolflags.Flags
 }
 
 func init() {
@@ -36,7 +35,6 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*db.Command)}
 	c.commitFlags.SetFlags(f)
 	c.poolFlags.SetFlags(f)
-	f.BoolVar(&c.writeVectors, "vectors", false, "write vectors for compacted objects")
 	return c, nil
 }
 
@@ -62,7 +60,7 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	commit, err := db.Compact(ctx, poolID, head.Branch, ids, c.writeVectors, c.commitFlags.CommitMessage())
+	commit, err := db.Compact(ctx, poolID, head.Branch, ids, c.commitFlags.CommitMessage())
 	if err == nil && !c.DBFlags.Quiet {
 		fmt.Printf("%s compaction committed\n", commit)
 	}

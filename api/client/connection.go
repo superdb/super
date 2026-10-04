@@ -310,11 +310,8 @@ func (c *Connection) Query(ctx context.Context, inputs []srcfiles.Input) (*Respo
 	return res, err
 }
 
-func (c *Connection) Compact(ctx context.Context, poolID ksuid.KSUID, branchName string, objects []ksuid.KSUID, writeVectors bool, message api.CommitMessage) (api.CommitResponse, error) {
+func (c *Connection) Compact(ctx context.Context, poolID ksuid.KSUID, branchName string, objects []ksuid.KSUID, message api.CommitMessage) (api.CommitResponse, error) {
 	path := urlPath("pool", poolID.String(), "branch", branchName, "compact")
-	if writeVectors {
-		path += "?vectors=T"
-	}
 	req := c.NewRequest(ctx, http.MethodPost, path, api.CompactRequest{ObjectIDs: objects})
 	if err := encodeCommitMessage(req, message); err != nil {
 		return api.CommitResponse{}, err
