@@ -120,12 +120,12 @@ func (r *remote) Revert(ctx context.Context, poolID ksuid.KSUID, branchName stri
 	return res.Commit, err
 }
 
-func (r *remote) Query(ctx context.Context, inputs []srcfiles.Input, ctrl bool) (vio.Scanner, error) {
-	res, err := r.conn.Query(ctx, inputs, ctrl)
+func (r *remote) Query(ctx context.Context, inputs []srcfiles.Input) (vio.Scanner, error) {
+	res, err := r.conn.Query(ctx, inputs)
 	if err != nil {
 		return nil, err
 	}
-	return queryio.NewScanner(ctx, res.Body, ctrl)
+	return queryio.NewScanner(ctx, res.Body)
 }
 
 func (r *remote) Delete(ctx context.Context, poolID ksuid.KSUID, branchName string, tags []ksuid.KSUID, commit api.CommitMessage) (ksuid.KSUID, error) {

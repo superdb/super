@@ -76,7 +76,7 @@ type objectIterator struct {
 
 func newObjectIterator(ctx context.Context, db api.Interface, head *dbid.Committish) (*objectIterator, error) {
 	query := fmt.Sprintf(iteratorQuery, head.Pool, head.Branch, head.Pool, head.Branch)
-	q, err := db.Query(ctx, srcfiles.Plain(query), false)
+	q, err := db.Query(ctx, srcfiles.Plain(query))
 	if err != nil {
 		return nil, err
 	}

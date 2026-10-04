@@ -19,6 +19,7 @@ import (
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/sio/supio"
+	"github.com/superdb/super/vector/vio"
 )
 
 type testClient struct {
@@ -47,7 +48,7 @@ func (c *testClient) TestBranchGet(id ksuid.KSUID) (config db.BranchMeta) {
 }
 
 func (c *testClient) TestPoolList() []pools.Config {
-	r, err := c.Query(c.Context(), srcfiles.Plain("from :pools"), false)
+	r, err := c.Query(c.Context(), srcfiles.Plain("from :pools"))
 	require.NoError(c, err)
 	defer r.Body.Close()
 	var confs []pools.Config
@@ -80,15 +81,14 @@ func (c *testClient) TestBranchPost(poolID ksuid.KSUID, payload api.BranchPostRe
 }
 
 func (c *testClient) TestQuery(query string) string {
-	r, err := c.Connection.Query(c.Context(), srcfiles.Plain(query), false)
+	r, err := c.Connection.Query(c.Context(), srcfiles.Plain(query))
 	require.NoError(c, err)
 	defer r.Body.Close()
-	zr, err := bsupio.NewValueReader(c.Context(), super.NewContext(), r.Body)
+	reader, err := bsupio.NewReader(c.Context(), super.NewContext(), r.Body, nil, 1)
 	require.NoError(c, err)
-	defer zr.Close()
 	var buf bytes.Buffer
-	zw := supio.NewWriter(sio.NopCloser(&buf), supio.WriterOpts{})
-	require.NoError(c, sio.Copy(zw, zr))
+	writer := supio.NewWriter(sio.NopCloser(&buf), supio.WriterOpts{})
+	require.NoError(c, vio.Copy(writer, reader))
 	return buf.String()
 }
 

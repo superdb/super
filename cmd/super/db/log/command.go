@@ -70,7 +70,7 @@ func (c *Command) Run(args []string) error {
 		return err
 	}
 	defer w.Close()
-	q, err := db.Query(ctx, srcfiles.Plain(query), false)
+	q, err := db.Query(ctx, srcfiles.Plain(query))
 	if err != nil {
 		return err
 	}

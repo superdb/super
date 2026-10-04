@@ -298,17 +298,13 @@ func (c *Connection) Revert(ctx context.Context, poolID ksuid.KSUID, branchName 
 //
 // As for Connection.Do, if the returned error is nil, the user is expected to
 // call Response.Body.Close.
-func (c *Connection) Query(ctx context.Context, inputs []srcfiles.Input, ctrl bool) (*Response, error) {
+func (c *Connection) Query(ctx context.Context, inputs []srcfiles.Input) (*Response, error) {
 	files, err := srcfiles.Concat(inputs)
 	if err != nil {
 		return nil, err
 	}
 	body := api.QueryRequest{Query: string(files.Text)}
-	endpoint := "/query"
-	if ctrl {
-		endpoint += "?ctrl=T"
-	}
-	req := c.NewRequest(ctx, http.MethodPost, endpoint, body)
+	req := c.NewRequest(ctx, http.MethodPost, "/query?ctrl=T", body)
 	res, err := c.Do(req)
 	if ae := (*api.Error)(nil); errors.As(err, &ae) && len(ae.CompilationErrors) > 0 {
 		ae.CompilationErrors.Bind(files)

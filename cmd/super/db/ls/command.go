@@ -83,7 +83,7 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	q, err := db.Query(ctx, srcfiles.Plain(query), false)
+	q, err := db.Query(ctx, srcfiles.Plain(query))
 	if err != nil {
 		w.Close()
 		return err
