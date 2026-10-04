@@ -10,6 +10,7 @@ import (
 	arc "github.com/hashicorp/golang-lru/arc/v2"
 	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
+	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/bsupbytes"
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/db/branches"
@@ -20,7 +21,6 @@ import (
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/runtime/vcache"
 	"github.com/superdb/super/sbuf"
-	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/sup"
 	"go.uber.org/zap"
 )
@@ -156,7 +156,7 @@ func (r *Root) readMagic(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	zr := bsupio.NewRowReader(super.NewContext(), reader)
+	zr := oldbsup.NewReader(super.NewContext(), reader)
 	defer zr.Close()
 	val, err := zr.Read()
 	if err != nil {

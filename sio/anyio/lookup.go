@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/superdb/super"
+	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/arrowio"
@@ -28,8 +29,7 @@ func lookupReader(ctx context.Context, sctx *super.Context, r io.Reader, opts Re
 		}
 		return newVioPuller(sctx, r), nil
 	case "bsuprows":
-		//XXX need -rows flag
-		scanner, err := bsupio.NewRowReader(sctx, r).NewScanner(ctx, opts.Pushdown)
+		scanner, err := oldbsup.NewReader(sctx, r).NewScanner(ctx, opts.Pushdown)
 		if err != nil {
 			return nil, err
 		}

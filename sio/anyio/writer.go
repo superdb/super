@@ -6,7 +6,7 @@ import (
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
-	"github.com/superdb/super/bsup/rows"
+	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/sio/arrowio"
 	"github.com/superdb/super/sio/csvio"
@@ -36,7 +36,7 @@ func NewWriter(w io.WriteCloser, opts WriterOpts) (vio.PushCloser, error) {
 	case "arrows":
 		return newDefuser(arrowio.NewWriter(w)), nil
 	case "bsuprows": // XXX this will change to use -rows flag, e.g., -f bsup -rows
-		return rows.NewWriter(w), nil
+		return oldbsup.NewWriter(w), nil
 	case "bsup":
 		return bsup.NewWriterWithOpts(w, opts.BSUP), nil
 	case "csv":

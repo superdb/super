@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"github.com/superdb/super"
+	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/bsupio"
 )
@@ -20,7 +21,7 @@ func NewSerializer() *Serializer {
 	s := &Serializer{
 		marshaler: m,
 	}
-	s.writer = bsupio.NewRowWriter(sio.NopCloser(&s.buffer))
+	s.writer = oldbsup.NewWriter(sio.NopCloser(&s.buffer))
 	return s
 }
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
+	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/arrowio"
@@ -91,12 +92,12 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, opts Reade
 	// validation to the user setting in the actual reader returned.
 	//bsupOpts := opts.BSUP
 	//bsupOpts.Validate = true
-	bsupRowsReader := bsupio.NewRowReader(super.NewContext(), track)
+	bsupRowsReader := oldbsup.NewReader(super.NewContext(), track)
 	bsupRowsErr := match(bsupRowsReader, "bsuprows", 1)
 	// Close bsupReader to ensure that it does not continue to call track.Read.
 	bsupRowsReader.Close()
 	if bsupRowsErr == nil {
-		scanner, err := bsupio.NewRowReader(sctx, track.Reader()).NewScanner(ctx, opts.Pushdown)
+		scanner, err := oldbsup.NewReader(sctx, track.Reader()).NewScanner(ctx, opts.Pushdown)
 		if err != nil {
 			return nil, err
 		}

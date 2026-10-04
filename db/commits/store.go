@@ -14,12 +14,12 @@ import (
 	arc "github.com/hashicorp/golang-lru/arc/v2"
 	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
+	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/bsupbytes"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/sio"
-	"github.com/superdb/super/sio/bsupio"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -318,12 +318,12 @@ func (s *Store) Open(ctx context.Context, commit, stop ksuid.KSUID) (io.Reader, 
 	return bytes.NewReader(b), nil
 }
 
-func (s *Store) OpenAsBSUPRows(ctx context.Context, sctx *super.Context, commit, stop ksuid.KSUID) (*bsupio.RowReader, error) {
+func (s *Store) OpenAsBSUPRows(ctx context.Context, sctx *super.Context, commit, stop ksuid.KSUID) (*oldbsup.Reader, error) {
 	r, err := s.Open(ctx, commit, stop)
 	if err != nil {
 		return nil, err
 	}
-	return bsupio.NewRowReader(sctx, r), nil
+	return oldbsup.NewReader(sctx, r), nil
 }
 
 func (s *Store) OpenCommitLog(ctx context.Context, sctx *super.Context, commit, stop ksuid.KSUID) sio.Reader {

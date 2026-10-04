@@ -4,11 +4,11 @@ import (
 	"io"
 
 	"github.com/superdb/super"
-	"github.com/superdb/super/sio/bsupio"
+	"github.com/superdb/super/bsup/oldbsup"
 )
 
 type Deserializer struct {
-	reader      *bsupio.RowReader
+	reader      *oldbsup.Reader
 	unmarshaler *super.Unmarshaler
 }
 
@@ -20,7 +20,7 @@ func NewDeserializerWithContext(sctx *super.Context, reader io.Reader, templates
 	u := super.NewUnmarshaler()
 	u.Bind(templates...)
 	return &Deserializer{
-		reader:      bsupio.NewRowReader(sctx, reader),
+		reader:      oldbsup.NewReader(sctx, reader),
 		unmarshaler: u,
 	}
 }
