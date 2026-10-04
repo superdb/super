@@ -141,6 +141,10 @@ func (r *reader) Read() (*super.Value, error) {
 			}
 			return nil, err
 		}
+		if _, ok := vec.(*vector.Control); ok {
+			continue
+		}
+		vec, _ = vector.Unlabel(vec)
 		r.vals = Materialize(vec).Values()
 	}
 }
