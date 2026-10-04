@@ -13,7 +13,7 @@ import (
 	"github.com/superdb/super/sbuf"
 )
 
-func Compact(ctx context.Context, _ *db.Root, pool *db.Pool, branchName string, objectIDs []ksuid.KSUID, writeVectors bool, author, message, info string) (ksuid.KSUID, error) {
+func Compact(ctx context.Context, _ *db.Root, pool *db.Pool, branchName string, objectIDs []ksuid.KSUID, author, message, info string) (ksuid.KSUID, error) {
 	if len(objectIDs) < 2 {
 		return ksuid.Nil, errors.New("compact: two or more source objects required")
 	}
@@ -38,7 +38,7 @@ func Compact(ctx context.Context, _ *db.Root, pool *db.Pool, branchName string, 
 	rctx := runtime.NewContext(ctx, sctx)
 	slicer := meta.NewSlicer(lister, sctx)
 	puller := meta.NewSequenceScanner(rctx, slicer, pool, nil, nil, nil)
-	w := db.NewSortedWriter(ctx, sctx, pool, writeVectors)
+	w := db.NewSortedWriter(ctx, sctx, pool)
 	if err := sbuf.CopyPuller(w, puller); err != nil {
 		puller.Pull(true)
 		w.Abort()
@@ -48,7 +48,7 @@ func Compact(ctx context.Context, _ *db.Root, pool *db.Pool, branchName string, 
 		w.Abort()
 		return ksuid.Nil, err
 	}
-	commit, err := branch.CommitCompact(ctx, compact.SelectAll(), w.Objects(), w.Vectors(), author, message, info)
+	commit, err := branch.CommitCompact(ctx, compact.SelectAll(), w.Objects(), author, message, info)
 	if err != nil {
 		w.Abort()
 		return ksuid.Nil, err

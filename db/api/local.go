@@ -99,12 +99,12 @@ func (l *local) MergeBranch(ctx context.Context, poolID ksuid.KSUID, childBranch
 	return l.db.MergeBranch(ctx, poolID, childBranch, parentBranch, message.Author, message.Body)
 }
 
-func (l *local) Compact(ctx context.Context, poolID ksuid.KSUID, branchName string, objects []ksuid.KSUID, writeVectors bool, commit api.CommitMessage) (ksuid.KSUID, error) {
+func (l *local) Compact(ctx context.Context, poolID ksuid.KSUID, branchName string, objects []ksuid.KSUID, commit api.CommitMessage) (ksuid.KSUID, error) {
 	pool, err := l.db.OpenPool(ctx, poolID)
 	if err != nil {
 		return ksuid.Nil, err
 	}
-	return exec.Compact(ctx, l.db, pool, branchName, objects, writeVectors, commit.Author, commit.Body, commit.Meta)
+	return exec.Compact(ctx, l.db, pool, branchName, objects, commit.Author, commit.Body, commit.Meta)
 }
 
 func (l *local) Query(ctx context.Context, inputs []srcfiles.Input) (vio.Scanner, error) {
@@ -181,30 +181,6 @@ func (l *local) DeleteWhere(ctx context.Context, poolID ksuid.KSUID, branchName,
 
 func (l *local) Revert(ctx context.Context, poolID ksuid.KSUID, branchName string, commitID ksuid.KSUID, message api.CommitMessage) (ksuid.KSUID, error) {
 	return l.db.Revert(ctx, poolID, branchName, commitID, message.Author, message.Body)
-}
-
-func (l *local) AddVectors(ctx context.Context, pool, revision string, ids []ksuid.KSUID, message api.CommitMessage) (ksuid.KSUID, error) {
-	poolID, err := l.PoolID(ctx, pool)
-	if err != nil {
-		return ksuid.Nil, err
-	}
-	_, branch, err := l.lookupBranch(ctx, poolID, revision)
-	if err != nil {
-		return ksuid.Nil, err
-	}
-	return branch.AddVectors(ctx, ids, message.Author, message.Body)
-}
-
-func (l *local) DeleteVectors(ctx context.Context, pool, revision string, ids []ksuid.KSUID, message api.CommitMessage) (ksuid.KSUID, error) {
-	poolID, err := l.PoolID(ctx, pool)
-	if err != nil {
-		return ksuid.Nil, err
-	}
-	_, branch, err := l.lookupBranch(ctx, poolID, revision)
-	if err != nil {
-		return ksuid.Nil, err
-	}
-	return branch.DeleteVectors(ctx, ids, message.Author, message.Body)
 }
 
 func (l *local) Vacate(ctx context.Context, pool string, ts nano.Ts, dryrun bool) ([]ksuid.KSUID, error) {

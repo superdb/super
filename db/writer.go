@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync/atomic"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/order"
@@ -167,26 +166,23 @@ func (w *Writer) Stats() ImportStats {
 }
 
 type SortedWriter struct {
-	comparator    *expr.Comparator
-	ctx           context.Context
-	sctx          *super.Context
-	pool          *Pool
-	sortKey       order.SortKey
-	lastKey       super.Value
-	writer        *data.Writer
-	vectorEnabled bool
-	vectorWriter  *data.VectorWriter
-	objects       []*data.Object
+	comparator *expr.Comparator
+	ctx        context.Context
+	sctx       *super.Context
+	pool       *Pool
+	sortKey    order.SortKey
+	lastKey    super.Value
+	writer     *data.Writer
+	objects    []*data.Object
 }
 
-func NewSortedWriter(ctx context.Context, sctx *super.Context, pool *Pool, vectorEnabled bool) *SortedWriter {
+func NewSortedWriter(ctx context.Context, sctx *super.Context, pool *Pool) *SortedWriter {
 	return &SortedWriter{
-		comparator:    ImportComparator(sctx, pool),
-		ctx:           ctx,
-		sctx:          sctx,
-		sortKey:       pool.SortKeys.Primary(),
-		pool:          pool,
-		vectorEnabled: vectorEnabled,
+		comparator: ImportComparator(sctx, pool),
+		ctx:        ctx,
+		sctx:       sctx,
+		sortKey:    pool.SortKeys.Primary(),
+		pool:       pool,
 	}
 }
 
@@ -205,24 +201,12 @@ again:
 			w.Abort()
 			return err
 		}
-		w.writer, w.vectorWriter = nil, nil
+		w.writer = nil
 		goto again
 	}
 	if err := w.writer.WriteWithKey(key, val); err != nil {
 		w.Abort()
 		return err
-	}
-
-	if w.vectorWriter != nil {
-		// XXX TBD: this is slow and creates a vector per value when writing vectors
-		// to a database.  This will change when we convert the database from
-		// BSUPROWS to BSUP.
-		builder := vector.NewValueBuilder(val.Type())
-		builder.Write(val.Bytes())
-		if err := w.vectorWriter.Push(builder.Build(w.sctx)); err != nil {
-			w.Abort()
-			return err
-		}
 	}
 	w.lastKey.CopyFrom(key)
 	return nil
@@ -232,10 +216,6 @@ func (w *SortedWriter) Abort() {
 	if w.writer != nil {
 		w.writer.Abort()
 		w.writer = nil
-	}
-	if w.vectorWriter != nil {
-		w.vectorWriter.Abort()
-		w.vectorWriter = nil
 	}
 	// Delete all created objects.
 	for _, o := range w.objects {
@@ -250,12 +230,6 @@ func (w *SortedWriter) newWriter() error {
 	if err != nil {
 		return err
 	}
-	if w.vectorEnabled {
-		w.vectorWriter, err = o.NewVectorWriter(w.ctx, w.pool.engine, w.pool.DataPath)
-		if err != nil {
-			return err
-		}
-	}
 	w.objects = append(w.objects, &o)
 	return nil
 }
@@ -264,28 +238,11 @@ func (w *SortedWriter) Objects() []*data.Object {
 	return w.objects
 }
 
-func (w *SortedWriter) Vectors() []ksuid.KSUID {
-	if !w.vectorEnabled {
-		return nil
-	}
-	var ids []ksuid.KSUID
-	for _, o := range w.objects {
-		ids = append(ids, o.ID)
-	}
-	return ids
-}
-
 func (w *SortedWriter) Close() error {
 	if w.writer == nil {
 		return nil
 	}
-	err := w.writer.Close(w.ctx)
-	if w.vectorWriter != nil {
-		if vecErr := w.vectorWriter.Close(); err == nil {
-			err = vecErr
-		}
-	}
-	return err
+	return w.writer.Close(w.ctx)
 }
 
 type ImportStats struct {

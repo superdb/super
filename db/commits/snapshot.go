@@ -144,11 +144,6 @@ func (s *Snapshot) serialize() ([]byte, error) {
 			return nil, err
 		}
 	}
-	for id := range s.vectors {
-		if err := zs.Write(&AddVector{ID: id}); err != nil {
-			return nil, err
-		}
-	}
 	if err := zs.Close(); err != nil {
 		return nil, err
 	}
@@ -189,10 +184,6 @@ func PlayAction(w Writeable, action Action) error {
 		return w.AddDataObject(&action.Object)
 	case *Delete:
 		return w.DeleteObject(action.ID)
-	case *AddVector:
-		return w.AddVector(action.ID)
-	case *DeleteVector:
-		return w.DeleteVector(action.ID)
 	case *Commit:
 		// ignore
 		return nil

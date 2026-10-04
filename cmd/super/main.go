@@ -24,7 +24,6 @@ import (
 	_ "github.com/superdb/super/cmd/super/db/use"
 	_ "github.com/superdb/super/cmd/super/db/vacate"
 	_ "github.com/superdb/super/cmd/super/db/vacuum"
-	_ "github.com/superdb/super/cmd/super/db/vector"
 	_ "github.com/superdb/super/cmd/super/dev"
 	_ "github.com/superdb/super/cmd/super/dev/bsup"
 	_ "github.com/superdb/super/cmd/super/dev/vector/copy"

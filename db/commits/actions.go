@@ -16,9 +16,7 @@ type Action interface {
 
 var ActionTypes = []any{
 	Add{},
-	AddVector{},
 	Delete{},
-	DeleteVector{},
 	Commit{},
 }
 
@@ -74,30 +72,4 @@ func (d *Delete) CommitID() ksuid.KSUID {
 
 func (d *Delete) String() string {
 	return "DEL " + d.ID.String()
-}
-
-type AddVector struct {
-	Commit ksuid.KSUID `super:"commit"`
-	ID     ksuid.KSUID `super:"id"`
-}
-
-func (a *AddVector) String() string {
-	return fmt.Sprintf("ADD_VECTOR %s", a.ID)
-}
-
-func (a *AddVector) CommitID() ksuid.KSUID {
-	return a.Commit
-}
-
-type DeleteVector struct {
-	Commit ksuid.KSUID `super:"commit"`
-	ID     ksuid.KSUID `super:"id"`
-}
-
-func (d *DeleteVector) String() string {
-	return fmt.Sprintf("DEL_VECTOR %s", d.ID)
-}
-
-func (d *DeleteVector) CommitID() ksuid.KSUID {
-	return d.Commit
 }

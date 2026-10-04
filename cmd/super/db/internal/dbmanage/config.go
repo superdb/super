@@ -25,9 +25,8 @@ func (c *Config) poolConfig(p *pools.Config) PoolConfig {
 		return pconf
 	}
 	return PoolConfig{
-		Pool:    p.Name,
-		Branch:  "main",
-		Vectors: c.Vectors,
+		Pool:   p.Name,
+		Branch: "main",
 	}
 }
 
@@ -39,7 +38,6 @@ func (c *Config) interval() time.Duration {
 }
 
 type PoolConfig struct {
-	Pool    string `yaml:"pool"`
-	Branch  string `yaml:"branch"`
-	Vectors bool   `yaml:"vectors"`
+	Pool   string `yaml:"pool"`
+	Branch string `yaml:"branch"`
 }

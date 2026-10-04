@@ -507,10 +507,6 @@ func handleCompact(c *Core, w *ResponseWriter, r *Request) {
 	if !ok {
 		return
 	}
-	writeVectors, ok := r.BoolFromQuery(w, "vectors")
-	if !ok {
-		return
-	}
 	message, ok := r.decodeCommitMessage(w)
 	if !ok {
 		return
@@ -519,7 +515,7 @@ func handleCompact(c *Core, w *ResponseWriter, r *Request) {
 	if !ok {
 		return
 	}
-	commit, err := exec.Compact(r.Context(), c.root, pool, branch, req.ObjectIDs, writeVectors, message.Author, message.Body, message.Meta)
+	commit, err := exec.Compact(r.Context(), c.root, pool, branch, req.ObjectIDs, message.Author, message.Body, message.Meta)
 	if err != nil {
 		w.Error(err)
 		return
@@ -643,58 +639,6 @@ func handleVacuum(c *Core, w *ResponseWriter, r *Request) {
 		return
 	}
 	w.Respond(http.StatusOK, api.VacuumResponse{ObjectIDs: oids})
-}
-
-func handleVectorPost(c *Core, w *ResponseWriter, r *Request) {
-	pool, ok := r.StringFromPath(w, "pool")
-	if !ok {
-		return
-	}
-	revision, ok := r.StringFromPath(w, "revision")
-	if !ok {
-		return
-	}
-	var req api.VectorRequest
-	if !r.Unmarshal(w, &req) {
-		return
-	}
-	message, ok := r.decodeCommitMessage(w)
-	if !ok {
-		return
-	}
-	db := dbapi.FromRoot(c.root)
-	commit, err := db.AddVectors(r.Context(), pool, revision, req.ObjectIDs, message)
-	if err != nil {
-		w.Error(err)
-		return
-	}
-	w.Respond(http.StatusOK, api.CommitResponse{Commit: commit})
-}
-
-func handleVectorDelete(c *Core, w *ResponseWriter, r *Request) {
-	pool, ok := r.StringFromPath(w, "pool")
-	if !ok {
-		return
-	}
-	revision, ok := r.StringFromPath(w, "revision")
-	if !ok {
-		return
-	}
-	var req api.VectorRequest
-	if !r.Unmarshal(w, &req) {
-		return
-	}
-	message, ok := r.decodeCommitMessage(w)
-	if !ok {
-		return
-	}
-	db := dbapi.FromRoot(c.root)
-	commit, err := db.DeleteVectors(r.Context(), pool, revision, req.ObjectIDs, message)
-	if err != nil {
-		w.Error(err)
-		return
-	}
-	w.Respond(http.StatusOK, api.CommitResponse{Commit: commit})
 }
 
 func handleAuthIdentityGet(c *Core, w *ResponseWriter, r *Request) {

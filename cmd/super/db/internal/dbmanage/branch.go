@@ -25,7 +25,6 @@ func newBranch(c Config, pool *pools.Config, db dbapi.Interface, logger *zap.Log
 		zap.String("name", pool.Name),
 		zap.Stringer("id", pool.ID),
 		zap.String("branch", config.Branch),
-		zap.Bool("vectors", config.Vectors),
 	)
 	return &branch{
 		config: config,
@@ -54,10 +53,9 @@ func (b *branch) run(ctx context.Context) error {
 	})
 	var found int
 	var compacted int
-	var vectors int
 	group.Go(func() error {
 		for run := range runCh {
-			commit, err := b.db.Compact(ctx, b.pool.ID, b.config.Branch, run, b.config.Vectors, api.CommitMessage{})
+			commit, err := b.db.Compact(ctx, b.pool.ID, b.config.Branch, run, api.CommitMessage{})
 			if err != nil {
 				return err
 			}
@@ -67,27 +65,10 @@ func (b *branch) run(ctx context.Context) error {
 		}
 		return nil
 	})
-	group.Go(func() error {
-		var oids []ksuid.KSUID
-		for oid := range vecCh {
-			if b.config.Vectors {
-				oids = append(oids, oid)
-			}
-		}
-		if len(oids) == 0 {
-			return nil
-		}
-		_, err := b.db.AddVectors(ctx, head.Pool, head.Branch, oids, api.CommitMessage{})
-		if err == nil {
-			vectors += len(oids)
-		}
-		return err
-	})
 	err = group.Wait()
 	b.logger.Info("compaction completed",
 		zap.Int("runs_found", found),
 		zap.Int("objects_compacted", compacted),
-		zap.Int("vectors_created", vectors),
 	)
 	return err
 }
