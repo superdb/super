@@ -20,6 +20,7 @@ import (
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/runtime/vcache"
 	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/sup"
 	"go.uber.org/zap"
 )

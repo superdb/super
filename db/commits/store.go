@@ -19,6 +19,7 @@ import (
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/sio"
+	"github.com/superdb/super/sio/bsupio"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
