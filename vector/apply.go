@@ -172,6 +172,16 @@ func stitch(tags []uint32, vecs []Any) Any {
 	return NewDynamic(newTags, newVecs)
 }
 
+func Stitch(vec Any) Any {
+	switch vec := vec.(type) {
+	case *Dynamic:
+		return stitch(vec.Tags, vec.Values)
+	case *View:
+		return NewView(Stitch(vec.Any), vec.Index)
+	}
+	return vec
+}
+
 func AddNoRip(vec Any) Any {
 	if vec == nil {
 		return vec
