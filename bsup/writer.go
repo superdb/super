@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/superdb/super"
+	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/scode"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector"
@@ -55,7 +56,7 @@ func NewWriterWithOpts(w io.WriteCloser, opt WriterOpts) vio.PushCloser {
 }
 
 func (c *ColumnWriter) Close() error {
-	firstErr := c.pushFrame()
+	firstErr := c.pushFrame(false)
 	if firstErr == nil {
 		_, firstErr = writeFooter(c.writer, c.size, c.fuser.typeBytes())
 	}
@@ -65,11 +66,19 @@ func (c *ColumnWriter) Close() error {
 	return firstErr
 }
 
+func (c *ColumnWriter) WriteControl(val super.Value) error {
+	if err := c.pushFrame(false); err != nil {
+		return err
+	}
+	c.Push(sbuf.Dematerialize(c.sctx, val))
+	return c.pushFrame(true)
+}
+
 func (c *ColumnWriter) Push(vec vector.Any) error {
 	if vec.Len() != 0 {
 		c.dynamic.Write(vec)
 		if c.dynamic.Len() >= maxFrameSize {
-			return c.pushFrame()
+			return c.pushFrame(false)
 		}
 	}
 	return nil
@@ -78,7 +87,7 @@ func (c *ColumnWriter) Push(vec vector.Any) error {
 // pushFrame encodes all of the vectors received so far and flushes a serialized
 // ColumnFrame to the writer.  All the state is flushed and reset and a new frame
 // will begin on the next Push (except for the SuperFooter size and fusion type).
-func (c *ColumnWriter) pushFrame() error {
+func (c *ColumnWriter) pushFrame(oob bool) error {
 	vec := c.dynamic.BuildDynamic()
 	if vec.Len() == 0 {
 		return nil
@@ -86,8 +95,12 @@ func (c *ColumnWriter) pushFrame() error {
 	// Compute the fused type for just the ColumnFrame.  This type is fed into
 	// the SuperFrame fuser below so we have a type for each ColumnFrame and a type
 	// for the SuperFrame.  The ColumnFrame types will useful for future frame pruning.
-	fusedType := fuse(c.fuser.sctx, vec)
-	fusedTypeBytes := c.fuser.sctx.LookupTypeValue(fusedType).Bytes()
+	var fusedTypeBytes []byte
+	var fusedType super.Type
+	if !oob {
+		fusedType = fuse(c.fuser.sctx, vec)
+		fusedTypeBytes = c.fuser.sctx.LookupTypeValue(fusedType).Bytes()
+	}
 	enc := NewDynamicEncoder(vec)
 	root, dataSectionSize, err := enc.Encode()
 	if err != nil {
@@ -112,7 +125,7 @@ func (c *ColumnWriter) pushFrame() error {
 		return err
 	}
 	typedefs := cctx.typedefs.Bytes()
-	header := newColumnHeader(false, root, uint64(metaDataSize), uint64(len(typedefs)), uint64(len(fusedTypeBytes)), dataSectionSize)
+	header := newColumnHeader(oob, root, uint64(metaDataSize), uint64(len(typedefs)), uint64(len(fusedTypeBytes)), dataSectionSize)
 	if _, err := c.writer.Write(header.Serialize()); err != nil {
 		return fmt.Errorf("system error: could not write BSUP header: %w", err)
 	}
@@ -132,7 +145,9 @@ func (c *ColumnWriter) pushFrame() error {
 	// Update SuperFrame state a create new builder so we start fresh
 	// for the next ColumnFrame.
 	c.size += header.FrameSize
-	c.fuser.fuse(fusedType)
+	if fusedType != nil {
+		c.fuser.fuse(fusedType)
+	}
 	c.dynamic = vbuild.NewDynamicBuilder()
 	return nil
 }
@@ -225,16 +240,6 @@ func (r *RowWriter) Write(val super.Value) error {
 	r.serialize(typ, val.Bytes())
 	r.fuser.fuse(typ)
 	r.superfuser.fuse(typ)
-	r.len++
-	if r.len >= maxFrameSize {
-		return r.pushFrame()
-	}
-	return nil
-}
-
-func (r *RowWriter) WriteControl(val super.Value) error {
-	typ := val.Type()
-	r.serialize(typ, val.Bytes())
 	r.len++
 	if r.len >= maxFrameSize {
 		return r.pushFrame()

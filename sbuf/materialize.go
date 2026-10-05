@@ -35,21 +35,20 @@ func Materialize(vec vector.Any) Batch {
 	if vec == nil {
 		return nil
 	}
-	vec, label := vector.Unlabel(vec)
-	if vec == nil {
-		eoc := EndOfChannel(label)
-		return &eoc
+	// Labels are emitted by the query API and should be peeled off before
+	// arriving here but some of our tests don't do so. XXX not true anymore?
+	if labeled, ok := vec.(*vector.Labeled); ok {
+		vec = labeled.Any
+	}
+	if vec == nil || vec.Len() == 0 {
+		return nil
 	}
 	var sb scode.Builder
 	vals := make([]super.Value, vec.Len())
 	for i := range vec.Len() {
 		vals[i] = vector.ValueAt(&sb, vec, i).Copy()
 	}
-	out := NewArray(vals)
-	if label != "" {
-		return Label(label, out)
-	}
-	return out
+	return NewArray(vals)
 }
 
 func Dematerialize(sctx *super.Context, vals ...super.Value) vector.Any {
@@ -117,4 +116,37 @@ func WriteVec(w sio.Writer, vec vector.Any) error {
 		}
 	}
 	return nil
+}
+
+func NewReader(p vio.Puller) sio.Reader {
+	return &reader{puller: p}
+}
+
+type reader struct {
+	puller vio.Puller
+	vals   []super.Value
+}
+
+func (r *reader) Read() (*super.Value, error) {
+	for {
+		if len(r.vals) != 0 {
+			val := &r.vals[0]
+			r.vals = r.vals[1:]
+			return val, nil
+		}
+		vec, err := r.puller.Pull(false)
+		if vec == nil {
+			if err == nil {
+				r.puller.Pull(true)
+			}
+			return nil, err
+		}
+		if _, ok := vec.(*vector.Control); ok {
+			continue
+		}
+		vec, _ = vector.Unlabel(vec)
+		if vec != nil {
+			r.vals = Materialize(vec).Values()
+		}
+	}
 }

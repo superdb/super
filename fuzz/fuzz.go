@@ -59,7 +59,7 @@ func ReadBSUP(ctx context.Context, sctx *super.Context, bs []byte) ([]super.Valu
 }
 
 func WriteBSUPRows(t testing.TB, valuesIn []super.Value, buf *bytes.Buffer) {
-	writer := bsupio.NewRowWriter(sio.NopCloser(buf))
+	writer := bsupio.NewNewRowWriter(sio.NopCloser(buf))
 	require.NoError(t, sio.Copy(writer, sbuf.NewArray(valuesIn)))
 	require.NoError(t, writer.Close())
 }
@@ -69,15 +69,6 @@ func WriteBSUP(t testing.TB, sctx *super.Context, valuesIn []super.Value, buf *b
 	vec := sbuf.Dematerialize(sctx, valuesIn...)
 	require.NoError(t, vio.Copy(pusher, vio.NewPuller(vec)))
 	require.NoError(t, pusher.Close())
-}
-
-func RunQueryBSUPRows(t testing.TB, buf *bytes.Buffer, querySource string) []super.Value {
-	sctx := super.NewContext()
-	s, err := bsupio.NewRowReader(sctx, buf).NewScanner(t.Context(), nil)
-	require.NoError(t, err)
-	p := sbuf.NewDematerializer(sctx, s)
-	defer p.Pull(true)
-	return RunQuery(t, sctx, p, querySource, func(_ demand.Demand) {})
 }
 
 func RunQueryBSUP(t testing.TB, buf *bytes.Buffer, querySource string) []super.Value {
@@ -120,6 +111,9 @@ func RunQuery(t testing.TB, sctx *super.Context, p vio.Puller, querySource strin
 		require.NoError(t, err)
 		if vec == nil {
 			break
+		}
+		if vec.Len() == 0 {
+			continue
 		}
 		for _, value := range sbuf.Materialize(vec).Values() {
 			valuesOut = append(valuesOut, value.Copy())

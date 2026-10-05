@@ -104,14 +104,14 @@ func (r *remote) RenamePool(ctx context.Context, pool ksuid.KSUID, name string) 
 func (r *remote) Load(ctx context.Context, _ *super.Context, poolID ksuid.KSUID, branchName string, reader sio.Reader, commit api.CommitMessage) (ksuid.KSUID, error) {
 	pr, pw := io.Pipe()
 	go func() {
-		w := bsupio.NewRowWriter(sio.NopCloser(pw))
+		w := bsupio.NewNewRowWriter(sio.NopCloser(pw))
 		err := sio.CopyWithContext(ctx, w, reader)
 		if err2 := w.Close(); err == nil {
 			err = err2
 		}
 		pw.CloseWithError(err)
 	}()
-	res, err := r.conn.Load(ctx, poolID, branchName, api.MediaTypeBSUPRows, pr, commit)
+	res, err := r.conn.Load(ctx, poolID, branchName, api.MediaTypeBSUP, pr, commit)
 	return res.Commit, err
 }
 

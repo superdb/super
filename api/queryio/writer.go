@@ -7,10 +7,10 @@ import (
 	"github.com/superdb/super"
 	"github.com/superdb/super/api"
 	"github.com/superdb/super/pkg/nano"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/anyio"
 	"github.com/superdb/super/sio/jsonio"
+	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 )
 
@@ -36,7 +36,7 @@ func NewWriter(sctx *super.Context, w io.WriteCloser, format string, flusher htt
 	}
 	var err error
 	switch format {
-	case "bsuprows":
+	case "bsup":
 		d.writer = NewBSUPWriter(w)
 	case "json":
 		// A JSON response is always an array.
@@ -51,18 +51,17 @@ func NewWriter(sctx *super.Context, w io.WriteCloser, format string, flusher htt
 	return d, err
 }
 
-func (w *Writer) WriteBatch(channel string, batch sbuf.Batch) error {
+func (w *Writer) Push(channel string, vec vector.Any) error {
 	if w.channel != channel {
 		w.channel = channel
 		if err := w.WriteControl(api.QueryChannelSet{Channel: channel}); err != nil {
 			return err
 		}
 	}
-	defer batch.Unref()
-	return w.writer.Push(sbuf.Dematerialize(w.sctx, batch.Values()...))
+	return w.writer.Push(vec)
 }
 
-func (w *Writer) WhiteChannelEnd(channel string) error {
+func (w *Writer) WriteChannelEnd(channel string) error {
 	return w.WriteControl(api.QueryChannelEnd{Channel: channel})
 }
 

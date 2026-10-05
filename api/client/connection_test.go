@@ -22,7 +22,7 @@ func TestClientRedirectReplay(t *testing.T) {
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 	mux.HandleFunc("/auth/method", func(w http.ResponseWriter, r *http.Request) {
-		s := bsupbytes.NewSerializer()
+		s := bsupbytes.NewNewSerializer()
 		s.Write(api.AuthMethodResponse{
 			Kind: api.AuthMethodAuth0,
 			Auth0: &api.AuthMethodAuth0Details{

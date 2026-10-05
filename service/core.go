@@ -254,11 +254,6 @@ func (c *Core) newQueryStatus(r *Request) *queryStatus {
 	return q
 }
 
-// XXX this is here only for the new merge test... delete this when we delete the test
-func (c *Core) Compiler() runtime.Compiler {
-	return c.compiler
-}
-
 type queryStatus struct {
 	wg     sync.WaitGroup
 	remove func()

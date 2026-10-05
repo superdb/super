@@ -60,7 +60,7 @@ import (
 // which simply produces a larger and still-valid Container.
 
 const (
-	Version           = 25
+	Version           = 26
 	MaxMetaSize       = 100 * 1024 * 1024
 	MaxFrameSize      = 2 * 1024 * 1024 * 1024
 	MaxSuperFrameSize = 256 * MaxFrameSize
@@ -74,16 +74,15 @@ const (
 
 type Header interface {
 	Size() uint64 // Total size of the frame including header
-	HeaderSize() uint64
 }
 
 // Structure of ColumnFrame
 //
 // S U P C (4 byte string)
 // Version (2 bytes)
+// Frame size (8 bytes) - entire frame including header to end of data section
 // OOB flag (1 byte)
 // Root ID (4 bytes)
-// Frame size (8 bytes) - entire frame including header to end of data section
 // Fused type size (8 bytes) - 0 if not present
 // Metadata section size (8 bytes)
 // [variable data]
@@ -93,9 +92,9 @@ type Header interface {
 // Data section (encoded as raw bytes with size = FrameSize - MetadataSize)
 type ColumnHeader struct {
 	Version       uint16 // off 4
-	OOB           bool   // 6
-	Root          uint32 // 7
-	FrameSize     uint64 // 11
+	FrameSize     uint64 // 6
+	OOB           bool   // 14
+	Root          uint32 // 15
 	MetadataSize  uint64 // 19
 	TypedefsSize  uint64 // 27
 	FusedTypeSize uint64 // 35
@@ -107,9 +106,9 @@ func newColumnHeader(oob bool, root ID, metadataSize, typedefsSize, fusedTypeSiz
 	frameSize := ColumnHeaderSize + metadataSize + typedefsSize + fusedTypeSize + dataSectionSize
 	return ColumnHeader{
 		Version:       Version,
+		FrameSize:     frameSize,
 		OOB:           oob,
 		Root:          uint32(root),
-		FrameSize:     frameSize,
 		MetadataSize:  metadataSize,
 		TypedefsSize:  typedefsSize,
 		FusedTypeSize: fusedTypeSize,
@@ -120,19 +119,15 @@ func (c *ColumnHeader) Size() uint64 {
 	return c.FrameSize
 }
 
-func (*ColumnHeader) HeaderSize() uint64 {
-	return ColumnHeaderSize
-}
-
 func (c ColumnHeader) Serialize() []byte {
 	var bytes [ColumnHeaderSize]byte
 	copy(bytes[0:4], []byte(ColumnMagic))
 	binary.LittleEndian.PutUint16(bytes[4:], c.Version)
+	binary.LittleEndian.PutUint64(bytes[6:], c.FrameSize)
 	if c.OOB {
-		bytes[6] = 1
+		bytes[14] = 1
 	}
-	binary.LittleEndian.PutUint32(bytes[7:], c.Root)
-	binary.LittleEndian.PutUint64(bytes[11:], c.FrameSize)
+	binary.LittleEndian.PutUint32(bytes[15:], c.Root)
 	binary.LittleEndian.PutUint64(bytes[19:], c.MetadataSize)
 	binary.LittleEndian.PutUint64(bytes[27:], c.TypedefsSize)
 	binary.LittleEndian.PutUint64(bytes[35:], c.FusedTypeSize)
@@ -141,13 +136,13 @@ func (c ColumnHeader) Serialize() []byte {
 
 func (c *ColumnHeader) Deserialize(bytes [ColumnHeaderSize]byte) {
 	c.Version = binary.LittleEndian.Uint16(bytes[4:])
-	if bytes[6] == 0 {
+	c.FrameSize = binary.LittleEndian.Uint64(bytes[6:])
+	if bytes[14] == 0 {
 		c.OOB = false
 	} else {
 		c.OOB = true
 	}
-	c.Root = binary.LittleEndian.Uint32(bytes[7:])
-	c.FrameSize = binary.LittleEndian.Uint64(bytes[11:])
+	c.Root = binary.LittleEndian.Uint32(bytes[15:])
 	c.MetadataSize = binary.LittleEndian.Uint64(bytes[19:])
 	c.TypedefsSize = binary.LittleEndian.Uint64(bytes[27:])
 	c.FusedTypeSize = binary.LittleEndian.Uint64(bytes[35:])
@@ -222,10 +217,6 @@ func (r *RowHeader) Size() uint64 {
 	return r.FrameSize
 }
 
-func (*RowHeader) HeaderSize() uint64 {
-	return RowHeaderSize
-}
-
 func (r RowHeader) Serialize() []byte {
 	var bytes [RowHeaderSize]byte
 	copy(bytes[0:4], []byte(RowMagic))
@@ -280,7 +271,7 @@ func (r RowHeader) check() error {
 //
 // S U P S (4 byte string)
 // Version (2 bytes)
-// Footer size (8 bytes) - total size of footer not counting last 8 bytes
+// Footer size (8 bytes) - total size of footer including SuperFooterPad
 // Total size of previous SuperFrame (8 bytes) - excludes this SuperFrame footer
 // Fused type value (variable bytes) - length is FooterSize - SuperFooterSize
 // Footer size (8 bytes) - same as above for backward traversal
@@ -298,21 +289,17 @@ const (
 func newSuperFooter(superFrameSize, fusedTypeSize uint64) SuperFooter {
 	return SuperFooter{
 		Version:        Version,
-		FooterSize:     fusedTypeSize + SuperFooterSize,
+		FooterSize:     fusedTypeSize + SuperFooterSize + SuperFooterPad,
 		SuperFrameSize: superFrameSize,
 	}
 }
 
 func (s *SuperFooter) Size() uint64 {
-	return s.FooterSize + SuperFooterPad
+	return s.FooterSize
 }
 
-func (s *SuperFooter) HeaderSize() uint64 {
-	return SuperFooterSize
-}
-
-func (s *SuperFooter) TypedefsSize() uint64 {
-	return s.Size() - s.HeaderSize() - SuperFooterPad
+func (s *SuperFooter) FusedTypeSize() uint64 {
+	return s.FooterSize - (SuperFooterSize + SuperFooterPad)
 }
 
 // Serialize the front part of a SuperHeader.  The caller is responsible for

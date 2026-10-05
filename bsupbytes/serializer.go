@@ -11,7 +11,7 @@ import (
 type Serializer struct {
 	marshaler *super.Marshaler
 	buffer    bytes.Buffer
-	writer    *bsupio.RowWriter
+	writer    sio.WriteCloser
 }
 
 func NewSerializer() *Serializer {
@@ -21,6 +21,18 @@ func NewSerializer() *Serializer {
 		marshaler: m,
 	}
 	s.writer = bsupio.NewRowWriter(sio.NopCloser(&s.buffer))
+	return s
+}
+
+// XXX this will be cleaned up in a subsequent PR when we change database pools
+// to also use the new BSUP so we won't need to variations here.
+func NewNewSerializer() *Serializer {
+	m := super.NewMarshaler(super.NewContext())
+	m.Decorate(super.StyleSimple)
+	s := &Serializer{
+		marshaler: m,
+	}
+	s.writer = bsupio.NewNewRowWriter(sio.NopCloser(&s.buffer))
 	return s
 }
 

@@ -60,8 +60,8 @@ func (s *Seekable) FusedType(sctx *super.Context) (super.Type, error) {
 			return nil, err
 		}
 		// Move off to the start of the footer.
-		off -= int64(footer.FooterSize) + SuperFooterPad
-		fusedTypeBytesSize := footer.FooterSize - SuperFooterSize
+		off -= int64(footer.FooterSize)
+		fusedTypeBytesSize := footer.FusedTypeSize()
 		if fusedTypeBytesSize != 0 {
 			fusedTypeBytes := make([]byte, fusedTypeBytesSize)
 			if err := readHeaderBytes(s.readerAt, off+SuperFooterSize, fusedTypeBytes, "super footer fused type"); err != nil {
@@ -99,7 +99,7 @@ func (s *Seekable) readFooterBackward(sctx *super.Context, off int64) (*SuperFoo
 		return nil, fmt.Errorf("super footer illegal size 0")
 
 	}
-	footerOff := off - int64(footerSize+SuperFooterPad)
+	footerOff := off - int64(footerSize)
 	if footerOff < 0 {
 		return nil, fmt.Errorf("super footer size %d bytes, larger than buffer %d bytes", footerSize, off)
 	}

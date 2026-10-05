@@ -16,6 +16,7 @@ import (
 	"github.com/superdb/super/db/branches"
 	"github.com/superdb/super/db/pools"
 	"github.com/superdb/super/runtime/exec"
+	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/sio/supio"
@@ -51,10 +52,11 @@ func (c *testClient) TestPoolList() []pools.Config {
 	require.NoError(c, err)
 	defer r.Body.Close()
 	var confs []pools.Config
-	zr := bsupio.NewRowReader(super.NewContext(), r.Body)
-	defer zr.Close()
+	puller, err := bsupio.NewReader(c.Context(), super.NewContext(), r.Body, nil, 1)
+	require.NoError(c, err)
+	reader := sbuf.NewReader(puller)
 	for {
-		rec, err := zr.Read()
+		rec, err := reader.Read()
 		require.NoError(c, err)
 		if rec == nil {
 			return confs
@@ -82,11 +84,11 @@ func (c *testClient) TestQuery(query string) string {
 	r, err := c.Connection.Query(c.Context(), srcfiles.Plain(query))
 	require.NoError(c, err)
 	defer r.Body.Close()
-	zr := bsupio.NewRowReader(super.NewContext(), r.Body)
-	defer zr.Close()
+	zr, err := bsupio.NewReader(c.Context(), super.NewContext(), r.Body, nil, 1)
+	require.NoError(c, err)
 	var buf bytes.Buffer
 	zw := supio.NewWriter(sio.NopCloser(&buf), supio.WriterOpts{})
-	require.NoError(c, sio.Copy(zw, zr))
+	require.NoError(c, sio.Copy(zw, sbuf.NewReader(zr)))
 	return buf.String()
 }
 

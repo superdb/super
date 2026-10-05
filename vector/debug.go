@@ -47,6 +47,20 @@ func write(w io.Writer, vec Any, indent, prefix string) {
 		io.WriteString(w, "<nil>")
 		return
 	}
+	if ctrl, ok := vec.(*Control); ok && false {
+		io.WriteString(w, "Control")
+		indent += "   "
+		write(w, ctrl.Any, indent, prefix)
+		return
+	}
+	if labeled, ok := vec.(*Labeled); ok {
+		io.WriteString(w, "Labeled ")
+		io.WriteString(w, labeled.Label)
+		indent += "   "
+		write(w, labeled.Any, indent, prefix)
+		return
+	}
+
 	_, goType, _ := strings.Cut(reflect.TypeOf(vec).String(), ".")
 	var typ string
 	if _, ok := vec.(*Dynamic); !ok {

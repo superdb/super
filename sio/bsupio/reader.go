@@ -2,7 +2,6 @@ package bsupio
 
 import (
 	"context"
-	"errors"
 	"io"
 	"runtime"
 	"sync"
@@ -17,9 +16,10 @@ import (
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/vio"
 )
 
-type Reader struct {
+type reader struct {
 	ctx  context.Context
 	sctx *super.Context
 
@@ -33,19 +33,11 @@ type Reader struct {
 	vecs          [][]vector.Any
 }
 
-var _ sio.Typer = (*Reader)(nil)
+var _ sio.Typer = (*reader)(nil)
 
-func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p sbuf.Pushdown, concurrentReaders int) (*Reader, error) {
+func newReader(ctx context.Context, sctx *super.Context, fit bsup.FrameIter, p sbuf.Pushdown, concurrentReaders int) (*reader, error) {
 	if concurrentReaders < 1 {
 		panic(concurrentReaders)
-	}
-	ra, ok := r.(io.ReaderAt)
-	if !ok {
-		return nil, errors.New("BSUP requires a seekable input")
-	}
-	var buf [1]byte
-	if _, err := ra.ReadAt(buf[:], 0); err != nil && !errors.Is(err, io.EOF) {
-		return nil, errors.New("BSUP requires a seekable input")
 	}
 	var metaFilters []*metafilter
 	if p != nil {
@@ -65,14 +57,13 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p sbuf.Pus
 	}
 	activeReaders := new(atomic.Int64)
 	activeReaders.Store(int64(concurrentReaders))
-	return &Reader{
+	return &reader{
 		ctx:           ctx,
 		sctx:          sctx,
 		activeReaders: activeReaders,
-		fit:           bsup.NewSeekable(sctx, ra),
+		fit:           fit,
 		pushdown:      p,
 		metaFilters:   metaFilters,
-		readerAt:      ra,
 		vecs:          make([][]vector.Any, concurrentReaders),
 	}, nil
 }
@@ -82,11 +73,11 @@ type metafilter struct {
 	projection field.Projection
 }
 
-func (r *Reader) Pull(done bool) (vector.Any, error) {
+func (r *reader) Pull(done bool) (vector.Any, error) {
 	return r.ConcurrentPull(done, 0)
 }
 
-func (r *Reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
+func (r *reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
 	if done {
 		return nil, nil
 	}
@@ -123,10 +114,27 @@ func (r *Reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
 				if err != nil {
 					return nil, err
 				}
+				if frame.IsControl() {
+					panic("control shouldn't happen on this path")
+				}
 			} else {
 				vec, err := vo.Fetch(r.sctx, proj)
 				if err != nil {
 					return nil, err
+				}
+				//XXX
+				// This is a little fragile but control is only every one value
+				// so only every one vector per frame so we don't need to worry
+				// about managing control messages across multiple vectors and
+				// check for OOB on just this leg.
+				// XXX also this is for reading the API and vectors in storage
+				// should never have the OOB flag set.  This is layering violating
+				// and we should move the OOB bit to a header outside the frame.
+				// Not hard and can be fixed size without a length since we can
+				// always read forward.  And scan backward can also peek back
+				// to see if it needs to skip it.
+				if frame.IsControl() {
+					vec = &vector.Control{Any: vec}
 				}
 				r.vecs[n] = append(r.vecs[n], vec)
 			}
@@ -148,7 +156,7 @@ type result struct {
 	err   error
 }
 
-func (r *Reader) next() (bsup.Frame, error) {
+func (r *reader) next() (bsup.Frame, error) {
 	r.once.Do(func() {
 		r.ch = make(chan result, runtime.GOMAXPROCS(0))
 		go func() {
@@ -190,8 +198,12 @@ func pruneObject(sctx *super.Context, mf *metafilter, o *bsup.ColFrame) bool {
 	return true
 }
 
-func (r *Reader) Type() (super.Type, error) {
+func (r *reader) Type() (super.Type, error) {
 	return r.fit.FusedType(r.sctx)
+}
+
+func (r *reader) Progress() vio.Progress {
+	return vio.Progress{}
 }
 
 type RowReader struct {

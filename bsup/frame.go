@@ -153,7 +153,11 @@ func (r *RowFrame) Deserialize() (vector.Any, error) {
 		builder.Write(super.NewValue(typ, buf[:bytesLen]))
 		buf = buf[bytesLen:]
 	}
-	return builder.Build(r.sctx), nil
+	vec := builder.Build(r.sctx)
+	if r.header.OOB {
+		vec = &vector.Control{Any: vec}
+	}
+	return vec, nil
 }
 
 func (r *RowFrame) DeserializeValues() ([]super.Value, error) {
