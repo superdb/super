@@ -7,8 +7,6 @@ import (
 	"sync"
 
 	"github.com/superdb/super"
-	"github.com/superdb/super/sbuf"
-	"github.com/superdb/super/vector"
 )
 
 type Context struct {
@@ -79,26 +77,30 @@ func (c *Context) unmarshal(id ID) error {
 }
 
 func (c *Context) readMeta(r io.ReaderAt) error {
-	reader := NewContainer(c.local, r)
-	var vecs []vector.Any
-	var numValues int
-	// XXX in a future PR we will stitch in an sio.Reader path so we don't
-	// round trip through vectors reading the row-data metas here.
+	fit := NewSeekable(c.local, r)
 	for {
-		vec, err := reader.PullRow()
+		frame, err := fit.Next()
 		if err != nil {
 			return err
 		}
-		if vec == nil {
-			c.metas = make([]Metadata, numValues)
-			c.values = make([]super.Value, 0, numValues)
-			for _, vec := range vecs {
-				c.values = append(c.values, sbuf.Materialize(vec).Values()...)
-			}
+		if frame == nil {
+			// initialize meta slots with empty values so they are
+			// unmarshaled on demand from c.values.
+			c.metas = make([]Metadata, len(c.values))
 			return nil
 		}
-		vecs = append(vecs, vec)
-		numValues += int(vec.Len())
+		// metas always stored as rows (else infinite recursion)
+		rowframe, ok := frame.(*RowFrame)
+		if !ok {
+			return errors.New("encountered non-row data in column metadata")
+		}
+		vals, err := rowframe.DeserializeValues()
+		if err != nil {
+			return err
+		}
+		// Need not copy the value bytes as the rowframe buffer will never
+		// be overwritten and is instead GC'd when we're done.
+		c.values = append(c.values, vals...)
 	}
 }
 

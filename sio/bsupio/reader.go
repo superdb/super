@@ -25,7 +25,7 @@ type Reader struct {
 
 	activeReaders *atomic.Int64
 	ch            chan result
-	container     *bsup.Container
+	fit           bsup.FrameIter
 	once          sync.Once
 	pushdown      sbuf.Pushdown
 	metaFilters   []*metafilter
@@ -69,7 +69,7 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p sbuf.Pus
 		ctx:           ctx,
 		sctx:          sctx,
 		activeReaders: activeReaders,
-		container:     bsup.NewContainer(sctx, ra),
+		fit:           bsup.NewSeekable(sctx, ra),
 		pushdown:      p,
 		metaFilters:   metaFilters,
 		readerAt:      ra,
@@ -100,20 +100,20 @@ func (r *Reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
 			r.vecs[n] = r.vecs[n][:k-1]
 			return vec, nil
 		}
-		reader, err := r.next()
-		if reader == nil || err != nil {
+		frame, err := r.next()
+		if frame == nil || err != nil {
 			return nil, err
 		}
-		switch reader := reader.(type) {
-		case *bsup.ColumnReader:
+		switch frame := frame.(type) {
+		case *bsup.ColFrame:
 			// XXX using the query context for the metadata filter unnecessarily
 			// pollutes the type context.  We should use the BSUP local context for
 			// this filtering but this will require a little compiler refactoring to be
 			// able to build runtime expressions that use different type contexts.
-			if len(r.metaFilters) > 0 && pruneObject(r.sctx, r.metaFilters[n], reader) {
+			if len(r.metaFilters) > 0 && pruneObject(r.sctx, r.metaFilters[n], frame) {
 				continue
 			}
-			vo := vcache.NewReader(reader)
+			vo := vcache.NewReader(frame)
 			var proj field.Projection
 			if r.pushdown != nil {
 				proj = r.pushdown.Projection()
@@ -130,32 +130,32 @@ func (r *Reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
 				}
 				r.vecs[n] = append(r.vecs[n], vec)
 			}
-		case *bsup.RowReader:
-			vec, err := reader.Pull()
+		case *bsup.RowFrame:
+			vec, err := frame.Deserialize()
 			if err != nil {
 				return nil, err
 			}
 			r.vecs[n] = append(r.vecs[n], vec)
 		default:
-			panic(reader)
+			panic(frame)
 		}
 
 	}
 }
 
 type result struct {
-	reader bsup.FrameReader
-	err    error
+	frame bsup.Frame
+	err   error
 }
 
-func (r *Reader) next() (bsup.FrameReader, error) {
+func (r *Reader) next() (bsup.Frame, error) {
 	r.once.Do(func() {
 		r.ch = make(chan result, runtime.GOMAXPROCS(0))
 		go func() {
 			for {
-				reader, err := r.container.Next()
+				frame, err := r.fit.Next()
 				select {
-				case r.ch <- result{reader, err}:
+				case r.ch <- result{frame, err}:
 				case <-r.ctx.Done():
 					return
 				}
@@ -174,13 +174,13 @@ func (r *Reader) next() (bsup.FrameReader, error) {
 			}
 			return nil, r.err
 		}
-		return r.reader, nil
+		return r.frame, nil
 	case <-r.ctx.Done():
 		return nil, r.ctx.Err()
 	}
 }
 
-func pruneObject(sctx *super.Context, mf *metafilter, o *bsup.ColumnReader) bool {
+func pruneObject(sctx *super.Context, mf *metafilter, o *bsup.ColFrame) bool {
 	vals := o.ProjectMetadata(sctx, mf.projection)
 	for _, val := range vals {
 		if !mf.filter.Eval(val).Equal(super.False) {
@@ -191,7 +191,7 @@ func pruneObject(sctx *super.Context, mf *metafilter, o *bsup.ColumnReader) bool
 }
 
 func (r *Reader) Type() (super.Type, error) {
-	return r.container.FusedType(r.sctx)
+	return r.fit.FusedType(r.sctx)
 }
 
 type RowReader struct {

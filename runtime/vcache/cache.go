@@ -2,9 +2,11 @@ package vcache
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/segmentio/ksuid"
+	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/pkg/storage"
 )
@@ -68,11 +70,18 @@ func (c *Cache) Fetch(ctx context.Context, uri *storage.URI, id ksuid.KSUID) (*O
 	if err != nil {
 		return nil, err
 	}
-	reader, err := bsup.NewColumnReader(r)
+	// XXX we need to refactor this interface since it's no longer aligned one
+	// cached entity per file (cache should operate on frames like parquet row groups)
+	fit := bsup.NewSeekable(super.NewContext(), r)
+	frame, err := fit.Next()
 	if err != nil {
 		return nil, err
 	}
-	object = NewReader(reader)
+	colFrame, ok := frame.(*bsup.ColFrame)
+	if !ok {
+		return nil, errors.New("input not in BSUP column form")
+	}
+	object = NewReader(colFrame)
 	c.mu.Lock()
 	c.objects[id] = object
 	c.mu.Unlock()

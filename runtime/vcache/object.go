@@ -14,16 +14,16 @@ import (
 // multiple callers of Cache and the super.Context in use is passed in for
 // each vector constructed from its in-memory shadow.
 type Object struct {
-	object *bsup.ColumnReader
+	object *bsup.ColFrame
 	root   shadow
 }
 
-func NewReader(object *bsup.ColumnReader) *Object {
-	return &Object{object: object}
+func NewReader(frame *bsup.ColFrame) *Object {
+	return &Object{object: frame}
 }
 
 func (o *Object) Close() error {
-	return o.object.Close()
+	return nil
 }
 
 // Fetch returns the indicated projection of data in this BSUP object.
