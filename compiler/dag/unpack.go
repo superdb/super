@@ -55,6 +55,7 @@ var unpacker = unpack.New(
 	RegexpMatchExpr{},
 	RegexpSearchExpr{},
 	RenameOp{},
+	RobotScan{},
 	ScatterOp{},
 	SearchExpr{},
 	SeqScan{},
