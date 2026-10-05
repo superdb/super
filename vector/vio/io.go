@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/vio"
 )
 
 type Puller interface {
@@ -156,4 +157,29 @@ func (c *concatReader) Pull(done bool) (vector.Any, error) {
 		c.pullers = c.pullers[1:]
 	}
 	return nil, nil
+}
+
+func MultiScanner(scanners ...Scanner) Scanner {
+	return &multiScanner{scanners: scanners}
+}
+
+type multiScanner struct {
+	scanners []Scanner
+	progress vio.Progress
+}
+
+func (m *multiScanner) Pull(done bool) (vector.Any, error) {
+	for len(m.scanners) > 0 {
+		batch, err := m.scanners[0].Pull(done)
+		if batch != nil || err != nil {
+			return batch, err
+		}
+		m.progress.Add(m.scanners[0].Progress())
+		m.scanners = m.scanners[1:]
+	}
+	return nil, nil
+}
+
+func (m *multiScanner) Progress() vio.Progress {
+	return m.progress.Copy()
 }

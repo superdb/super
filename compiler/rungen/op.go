@@ -129,7 +129,7 @@ func (b *Builder) lookupType(id int) (super.Type, error) {
 	return typ, nil
 }
 
-func (b *Builder) compileLeaf(o dag.Op, parent sbuf.Puller) (sbuf.Puller, error) {
+func (b *Builder) compileLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error) {
 	switch v := o.(type) {
 	//
 	// Scanners in alphatbetical order.

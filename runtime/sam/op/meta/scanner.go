@@ -11,7 +11,6 @@ import (
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sbuf"
-	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 )
@@ -73,49 +72,35 @@ func NewPoolMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, po
 	return sbuf.NewScanner(ctx, sbuf.NewArray(vals), nil)
 }
 
-func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, poolID, commit ksuid.KSUID, meta string, pruner expr.Evaluator) (sbuf.Puller, error) {
+func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, poolID, commit ksuid.KSUID, meta string, pruner expr.Evaluator) (vio.Puller, error) {
 	p, err := r.OpenPool(ctx, poolID)
 	if err != nil {
 		return nil, err
 	}
 	switch meta {
 	case "objects":
-		lister, err := NewSortedLister(ctx, sctx, p, commit, pruner)
-		if err != nil {
-			return nil, err
-		}
-		return sbuf.NewScanner(ctx, sbuf.PullerReader(lister), nil)
+		return NewSortedLister(ctx, sctx, p, commit, pruner)
 	case "partitions":
 		lister, err := NewSortedLister(ctx, sctx, p, commit, pruner)
 		if err != nil {
 			return nil, err
 		}
-		slicer, err := NewSlicer(lister, sctx), nil
-		if err != nil {
-			return nil, err
-		}
-		return sbuf.NewScanner(ctx, sbuf.PullerReader(slicer), nil)
+		return NewSlicer(lister, sctx), nil
 	case "log":
 		tips, err := p.BatchifyBranchTips(ctx, sctx, nil)
 		if err != nil {
 			return nil, err
 		}
-		tipsScanner, err := sbuf.NewScanner(ctx, sbuf.NewArray(tips), nil)
-		if err != nil {
-			return nil, err
-		}
+		tipsScanner := &progress{Puller: vio.NewPuller(sbuf.Dematerialize(sctx, tips...))}
 		log := p.OpenCommitLog(ctx, sctx, commit)
-		logScanner, err := sbuf.NewScanner(ctx, log, nil)
-		if err != nil {
-			return nil, err
-		}
-		return sbuf.MultiScanner(tipsScanner, logScanner), nil
+		logScanner := &progress{Puller: sbuf.NewDematerializer(sctx, sbuf.NewPuller(log))}
+		return vio.MultiScanner(tipsScanner, logScanner), nil
 	case "rawlog":
 		reader, err := p.OpenCommitLogAsBSUP(ctx, sctx, commit)
 		if err != nil {
 			return nil, err
 		}
-		return sbuf.NewScanner(ctx, reader, nil)
+		return &progress{Puller: sbuf.NewDematerializer(sctx, sbuf.NewPuller(reader))}, nil
 	case "vectors":
 		snap, err := p.Snapshot(ctx, commit)
 		if err != nil {
@@ -126,26 +111,26 @@ func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, 
 		if err != nil {
 			return nil, err
 		}
-		return sbuf.NewScanner(ctx, reader, nil)
+		return &progress{Puller: reader}, nil
 	default:
 		return nil, fmt.Errorf("unknown commit metadata type: %q", meta)
 	}
 }
 
-func objectReader(sctx *super.Context, snap commits.View, order order.Which) (sio.Reader, error) {
+func objectReader(sctx *super.Context, snap commits.View, order order.Which) (vio.Puller, error) {
 	objects := snap.Select(nil, order)
 	m := super.NewMarshaler(sctx)
 	m.Decorate(super.StylePackage)
-	return readerFunc(func() (*super.Value, error) {
+	return readerFunc(func() (vector.Any, error) {
 		if len(objects) == 0 {
 			return nil, nil
 		}
 		val, err := m.Marshal(objects[0])
 		objects = objects[1:]
-		return &val, err
+		return sbuf.Dematerialize(sctx, val), err
 	}), nil
 }
 
-type readerFunc func() (*super.Value, error)
+type readerFunc func() (vector.Any, error)
 
-func (r readerFunc) Read() (*super.Value, error) { return r() }
+func (r readerFunc) Pull(bool) (vector.Any, error) { return r() }

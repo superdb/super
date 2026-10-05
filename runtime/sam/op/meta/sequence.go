@@ -20,8 +20,8 @@ import (
 // SequenceScanner implements an op that pulls metadata partitions to scan
 // from its parent and for each partition, scans the object.
 type SequenceScanner struct {
-	parent      sbuf.Puller
-	scanner     sbuf.Puller
+	parent      vio.Puller
+	scanner     vio.Puller
 	pushdown    sbuf.Pushdown
 	pruner      expr.Evaluator
 	rctx        *runtime.Context
@@ -32,7 +32,7 @@ type SequenceScanner struct {
 	err         error
 }
 
-func NewSequenceScanner(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool, pushdown sbuf.Pushdown, pruner expr.Evaluator, progress *vio.Progress) *SequenceScanner {
+func NewSequenceScanner(rctx *runtime.Context, parent vio.Puller, pool *db.Pool, pushdown sbuf.Pushdown, pruner expr.Evaluator, progress *vio.Progress) *SequenceScanner {
 	return &SequenceScanner{
 		rctx:        rctx,
 		parent:      parent,
@@ -44,7 +44,7 @@ func NewSequenceScanner(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool
 	}
 }
 
-func (s *SequenceScanner) Pull(done bool) (sbuf.Batch, error) {
+func (s *SequenceScanner) Pull(done bool) (vector.Any, error) {
 	if s.done {
 		return nil, s.err
 	}
@@ -58,31 +58,31 @@ func (s *SequenceScanner) Pull(done bool) (sbuf.Batch, error) {
 	}
 	for {
 		if s.scanner == nil {
-			batch, err := s.parent.Pull(false)
-			if batch == nil || err != nil {
+			vec, err := s.parent.Pull(false)
+			if vec == nil || err != nil {
 				s.close(err)
 				return nil, err
 			}
-			vals := batch.Values()
-			if len(vals) != 1 {
+			if vec.Len() != 1 {
 				// We currently support only one partition per batch.
 				err := errors.New("system error: SequenceScanner encountered multi-valued batch")
 				s.close(err)
 				return nil, err
 			}
-			s.scanner, _, err = newScanner(s.rctx.Context, s.rctx.Sctx, s.pool, s.unmarshaler, s.pruner, s.pushdown, s.progress, vals[0])
+			val := vector.ValueAt(nil, vec, 0)
+			s.scanner, _, err = newScanner(s.rctx.Context, s.rctx.Sctx, s.pool, s.unmarshaler, s.pruner, s.pushdown, s.progress, val)
 			if err != nil {
 				s.close(err)
 				return nil, err
 			}
 		}
-		batch, err := s.scanner.Pull(false)
+		vec, err := s.scanner.Pull(false)
 		if err != nil {
 			s.close(err)
 			return nil, err
 		}
-		if batch != nil {
-			return batch, nil
+		if vec != nil {
+			return vec, nil
 		}
 		s.scanner = nil
 	}
@@ -147,7 +147,7 @@ func (s *SearchScanner) Pull(done bool) (sbuf.Batch, error) {
 	}
 }
 
-func newScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, u *super.Unmarshaler, pruner expr.Evaluator, pushdown sbuf.Pushdown, progress *vio.Progress, val super.Value) (sbuf.Puller, *data.Object, error) {
+func newScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, u *super.Unmarshaler, pruner expr.Evaluator, pushdown sbuf.Pushdown, progress *vio.Progress, val super.Value) (vio.Puller, *data.Object, error) {
 	named, ok := val.Type().(*super.TypeNamed)
 	if !ok {
 		return nil, nil, errors.New("system error: SequenceScanner encountered unnamed object")
@@ -170,8 +170,8 @@ func newScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, u *supe
 	return scanner, objects[0], err
 }
 
-func newObjectsScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, objects []*data.Object, pruner expr.Evaluator, pushdown sbuf.Pushdown, progress *vio.Progress) (sbuf.Puller, error) {
-	pullers := make([]sbuf.Puller, 0, len(objects))
+func newObjectsScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, objects []*data.Object, pruner expr.Evaluator, pushdown sbuf.Pushdown, progress *vio.Progress) (vio.Puller, error) {
+	pullers := make([]vio.Puller, 0, len(objects))
 	pullersDone := func() {
 		for _, puller := range pullers {
 			puller.Pull(true)
@@ -191,7 +191,7 @@ func newObjectsScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, 
 	return merge.New(ctx, pullers, db.ImportComparator(sctx, pool).Compare), nil
 }
 
-func newObjectScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, object *data.Object, pushdown sbuf.Pushdown, progress *vio.Progress) (sbuf.Puller, error) {
+func newObjectScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, object *data.Object, pushdown sbuf.Pushdown, progress *vio.Progress) (vio.Puller, error) {
 	rc, err := object.NewReader(ctx, pool.Storage(), pool.DataPath)
 	if err != nil {
 		return nil, err

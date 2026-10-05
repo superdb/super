@@ -12,7 +12,6 @@ import (
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/runtime/vcache"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
@@ -33,7 +32,7 @@ type Scanner struct {
 
 var _ vio.Puller = (*Scanner)(nil)
 
-func NewScanner(rctx *runtime.Context, cache *vcache.Cache, parent sbuf.Puller, pool *db.Pool, paths []field.Path, pruner expr.Evaluator, progress *vio.Progress) *Scanner {
+func NewScanner(rctx *runtime.Context, cache *vcache.Cache, parent vio.Puller, pool *db.Pool, paths []field.Path, pruner expr.Evaluator, progress *vio.Progress) *Scanner {
 	return &Scanner{
 		cache:      cache,
 		rctx:       rctx,
@@ -123,11 +122,11 @@ type result struct {
 }
 
 type objectPuller struct {
-	parent      sbuf.Puller
+	parent      vio.Puller
 	unmarshaler *super.Unmarshaler
 }
 
-func newObjectPuller(parent sbuf.Puller) *objectPuller {
+func newObjectPuller(parent vio.Puller) *objectPuller {
 	return &objectPuller{
 		parent:      parent,
 		unmarshaler: super.NewUnmarshaler(),
@@ -135,26 +134,25 @@ func newObjectPuller(parent sbuf.Puller) *objectPuller {
 }
 
 func (p *objectPuller) Pull(done bool) (*data.Object, error) {
-	batch, err := p.parent.Pull(false)
-	if batch == nil || err != nil {
+	vec, err := p.parent.Pull(false)
+	if vec == nil || err != nil {
 		return nil, err
 	}
-	defer batch.Unref()
-	vals := batch.Values()
-	if len(vals) != 1 {
+	if vec.Len() != 1 {
 		// We require exactly one data object per pull.
 		return nil, errors.New("system error: runtime.objectPuller encountered multi-valued batch")
 	}
-	named, ok := vals[0].Type().(*super.TypeNamed)
+	val := vector.ValueAt(nil, vec, 0)
+	named, ok := val.Type().(*super.TypeNamed)
 	if !ok {
-		return nil, fmt.Errorf("system error: runtime.objectPuller encountered unnamed object: %s", sup.String(vals[0]))
+		return nil, fmt.Errorf("system error: runtime.objectPuller encountered unnamed object: %s", sup.String(val))
 	}
 	if named.Name != "data.Object" {
 		return nil, fmt.Errorf("system error: runtime.objectPuller encountered unnamed object: %q", named.Name)
 	}
 	var meta data.Object
-	if err := p.unmarshaler.Unmarshal(vals[0], &meta); err != nil {
-		return nil, fmt.Errorf("system error: runtime.objectPuller could not unmarshal value: %q", sup.String(vals[0]))
+	if err := p.unmarshaler.Unmarshal(val, &meta); err != nil {
+		return nil, fmt.Errorf("system error: runtime.objectPuller could not unmarshal value: %q", sup.String(val))
 	}
 	return &meta, nil
 }

@@ -10,12 +10,13 @@ import (
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 )
 
 type Deleter struct {
-	parent      sbuf.Puller
-	scanner     sbuf.Puller
+	parent      vio.Puller
+	scanner     vio.Puller
 	pushdown    sbuf.Pushdown
 	pruner      expr.Evaluator
 	rctx        *runtime.Context
@@ -27,7 +28,7 @@ type Deleter struct {
 	deletes     *sync.Map
 }
 
-func NewDeleter(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool, pushdown sbuf.Pushdown, pruner expr.Evaluator, progress *vio.Progress, deletes *sync.Map) *Deleter {
+func NewDeleter(rctx *runtime.Context, parent vio.Puller, pool *db.Pool, pushdown sbuf.Pushdown, pruner expr.Evaluator, progress *vio.Progress, deletes *sync.Map) *Deleter {
 	return &Deleter{
 		parent:      parent,
 		pushdown:    pushdown,
@@ -40,7 +41,7 @@ func NewDeleter(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool, pushdo
 	}
 }
 
-func (d *Deleter) Pull(done bool) (sbuf.Batch, error) {
+func (d *Deleter) Pull(done bool) (vector.Any, error) {
 	if d.done {
 		return nil, d.err
 	}
@@ -61,40 +62,40 @@ func (d *Deleter) Pull(done bool) (sbuf.Batch, error) {
 			}
 			d.scanner = scanner
 		}
-		if batch, err := d.scanner.Pull(false); err != nil {
+		if vec, err := d.scanner.Pull(false); err != nil {
 			d.close(err)
 			return nil, err
-		} else if batch != nil {
-			return batch, nil
+		} else if vec != nil {
+			return vec, nil
 		}
 		d.scanner = nil
 	}
 }
 
-func (d *Deleter) nextDeletion() (sbuf.Puller, error) {
+func (d *Deleter) nextDeletion() (vio.Puller, error) {
 	for {
 		if d.parent == nil { //XXX
 			return nil, nil
 		}
 		// Pull the next object to be scanned.  It must be an object
 		// not a partition.
-		batch, err := d.parent.Pull(false)
-		if batch == nil || err != nil {
+		vec, err := d.parent.Pull(false)
+		if vec == nil || err != nil {
 			return nil, err
 		}
-		vals := batch.Values()
-		if len(vals) != 1 {
+		if vec.Len() != 1 {
 			// We currently support only one partition per batch.
 			return nil, errors.New("internal error: meta.Deleter encountered multi-valued batch")
 		}
-		if hasDeletes, err := d.hasDeletes(vals[0]); err != nil {
+		val := vector.ValueAt(nil, vec, 0)
+		if hasDeletes, err := d.hasDeletes(val); err != nil {
 			return nil, err
 		} else if !hasDeletes {
 			continue
 		}
 		// Use a no-op progress so stats are not inflated.
 		var progress vio.Progress
-		scanner, object, err := newScanner(d.rctx.Context, d.rctx.Sctx, d.pool, d.unmarshaler, d.pruner, d.pushdown, &progress, vals[0])
+		scanner, object, err := newScanner(d.rctx.Context, d.rctx.Sctx, d.pool, d.unmarshaler, d.pruner, d.pushdown, &progress, val)
 		if err != nil {
 			return nil, err
 		}
@@ -110,14 +111,14 @@ func (d *Deleter) hasDeletes(val super.Value) (bool, error) {
 	}
 	var count uint64
 	for {
-		batch, err := scanner.Pull(false)
+		vec, err := scanner.Pull(false)
 		if err != nil {
 			return false, err
 		}
-		if batch == nil {
+		if vec == nil {
 			return count != object.Count, nil
 		}
-		count += uint64(len(batch.Values()))
+		count += uint64(vec.Len())
 	}
 }
 

@@ -127,28 +127,3 @@ func (n *namedScanner) Pull(done bool) (Batch, error) {
 	}
 	return b, err
 }
-
-func MultiScanner(scanners ...Scanner) Scanner {
-	return &multiScanner{scanners: scanners}
-}
-
-type multiScanner struct {
-	scanners []Scanner
-	progress vio.Progress
-}
-
-func (m *multiScanner) Pull(done bool) (Batch, error) {
-	for len(m.scanners) > 0 {
-		batch, err := m.scanners[0].Pull(done)
-		if batch != nil || err != nil {
-			return batch, err
-		}
-		m.progress.Add(m.scanners[0].Progress())
-		m.scanners = m.scanners[1:]
-	}
-	return nil, nil
-}
-
-func (m *multiScanner) Progress() vio.Progress {
-	return m.progress.Copy()
-}

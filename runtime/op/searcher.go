@@ -10,8 +10,8 @@ import (
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/runtime/vcache"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/vio"
 )
 
 type Searcher struct {
@@ -26,7 +26,7 @@ type Searcher struct {
 	doneCh     chan struct{}
 }
 
-func NewSearcher(rctx *runtime.Context, cache *vcache.Cache, parent sbuf.Puller, pool *db.Pool, filter expr.Evaluator, project []field.Path) (*Searcher, error) {
+func NewSearcher(rctx *runtime.Context, cache *vcache.Cache, parent vio.Puller, pool *db.Pool, filter expr.Evaluator, project []field.Path) (*Searcher, error) {
 	return &Searcher{
 		cache:      cache,
 		filter:     filter,
