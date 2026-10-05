@@ -9,6 +9,7 @@ import (
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/runtime/vcache"
 	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 )
@@ -73,4 +74,12 @@ func (s *stream) Pull(done bool) (vector.Any, error) {
 func (s *stream) Progress() vio.Progress {
 	// XXX stub to be filled in on subsequent PR
 	return vio.Progress{}
+}
+
+func NewValueReader(ctx context.Context, sctx *super.Context, r io.Reader) (sio.Reader, error) {
+	reader, err := NewReader(ctx, sctx, r, nil, 1)
+	if err != nil {
+		return nil, err
+	}
+	return sbuf.NewReader(reader), nil
 }

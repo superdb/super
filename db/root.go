@@ -10,7 +10,6 @@ import (
 	arc "github.com/hashicorp/golang-lru/arc/v2"
 	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
-	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/bsupbytes"
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/db/branches"
@@ -21,6 +20,7 @@ import (
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/runtime/vcache"
 	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/sup"
 	"go.uber.org/zap"
 )
@@ -28,7 +28,7 @@ import (
 const (
 	Version     = 5
 	PoolsTag    = "pools"
-	MagicFile   = "superdb.bsuprows"
+	MagicFile   = "superdb.bsup"
 	MagicString = "SUPERDB"
 )
 
@@ -132,19 +132,18 @@ func (r *Root) writeMagic(ctx context.Context) error {
 		Magic:   MagicString,
 		Version: Version,
 	}
-	serializer := bsupbytes.NewSerializer()
-	serializer.Decorate(super.StylePackage)
-	if err := serializer.Write(magic); err != nil {
+	writer := bsupbytes.NewWriterWithStyle(super.StylePackage)
+	if err := writer.Write(magic); err != nil {
 		return err
 	}
-	if err := serializer.Close(); err != nil {
+	if err := writer.Close(); err != nil {
 		return err
 	}
 	path := r.path.JoinPath(MagicFile)
-	err := r.engine.PutIfNotExists(ctx, path, serializer.Bytes())
+	err := r.engine.PutIfNotExists(ctx, path, writer.Bytes())
 	if err == storage.ErrNotSupported {
 		//XXX workaround for now: see issue #2686
-		reader := bytes.NewReader(serializer.Bytes())
+		reader := bytes.NewReader(writer.Bytes())
 		err = storage.Put(ctx, r.engine, path, reader)
 	}
 	return err
@@ -156,13 +155,16 @@ func (r *Root) readMagic(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	zr := oldbsup.NewReader(super.NewContext(), reader)
-	defer zr.Close()
-	val, err := zr.Read()
+	bsupReader, err := bsupio.NewValueReader(ctx, super.NewContext(), reader)
 	if err != nil {
 		return err
 	}
-	last, err := zr.Read()
+	defer reader.Close()
+	val, err := bsupReader.Read()
+	if err != nil {
+		return err
+	}
+	last, err := bsupReader.Read()
 	if err != nil {
 		return err
 	}

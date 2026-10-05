@@ -3,13 +3,13 @@ package commits
 import (
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsupbytes"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/pkg/nano"
+	"github.com/superdb/super/sio"
 )
 
 var ErrEmptyTransaction = errors.New("empty transaction")
@@ -67,8 +67,7 @@ func (o *Object) appendDelete(id ksuid.KSUID) {
 }
 
 func (o Object) Serialize() ([]byte, error) {
-	writer := bsupbytes.NewSerializer()
-	writer.Decorate(super.StylePackage)
+	writer := bsupbytes.NewWriterWithStyle(super.StylePackage)
 	for _, action := range o.Actions {
 		if err := writer.Write(action); err != nil {
 			writer.Close()
@@ -85,10 +84,9 @@ func (o Object) Serialize() ([]byte, error) {
 	return b, nil
 }
 
-func DecodeObject(r io.Reader) (*Object, error) {
+func DecodeObject(r sio.Reader) (*Object, error) {
 	o := &Object{}
-	reader := bsupbytes.NewDeserializer(r, ActionTypes)
-	defer reader.Close()
+	reader := bsupbytes.NewReader(r, ActionTypes)
 	for {
 		entry, err := reader.Read()
 		if err != nil {

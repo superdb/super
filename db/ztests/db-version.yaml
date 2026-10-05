@@ -2,8 +2,8 @@ script: |
   export SUPER_DB=test
   super db init -q
   super db create -q test
-  mv test/superdb.bsuprows superdb-orig.bsuprows
-  super -o test/superdb.bsuprows -c 'version:=1' superdb-orig.bsuprows
+  mv test/superdb.bsup superdb-orig.bsup
+  super -o test/superdb.bsup -c 'version:=1' superdb-orig.bsup
   ! super db serve
 
 outputs:
