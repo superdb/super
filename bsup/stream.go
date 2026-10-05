@@ -46,7 +46,7 @@ func (s *Stream) FusedType(sctx *super.Context) (super.Type, error) {
 }
 
 func (s *Stream) scanNextFrameBuffer() (io.ReaderAt, error) {
-	// All frame types begin with magic(4), version(2), and framesize (8)
+	// All frame types begin with magic (4), version (2), and framesize (8)
 	var peek [14]byte
 	if _, err := io.ReadFull(s.reader, peek[:]); err != nil {
 		if err == io.EOF {
@@ -56,7 +56,7 @@ func (s *Stream) scanNextFrameBuffer() (io.ReaderAt, error) {
 	}
 	size := binary.LittleEndian.Uint64(peek[6:])
 	if size > MaxFrameSize {
-		return nil, fmt.Errorf("streaming read of BSUP encountered implausible headder size (%d bytes)", size)
+		return nil, fmt.Errorf("streaming read of BSUP encountered implausible header size (%d bytes)", size)
 	}
 	buf := make([]byte, size)
 	copy(buf, peek[:])

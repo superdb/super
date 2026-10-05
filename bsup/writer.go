@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/superdb/super"
+	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/scode"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector"
@@ -69,9 +70,7 @@ func (c *ColumnWriter) WriteControl(val super.Value) error {
 	if err := c.pushFrame(false); err != nil {
 		return err
 	}
-	builder := vector.NewValueBuilder(val.Type())
-	builder.Write(val.Bytes())
-	c.Push(builder.Build(c.sctx))
+	c.Push(sbuf.Dematerialize(c.sctx, val))
 	return c.pushFrame(true)
 }
 

@@ -8,7 +8,6 @@ import (
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/api"
-	"github.com/superdb/super/scode"
 	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
@@ -76,9 +75,7 @@ func unmarshalControl(vec vector.Any) (any, error) {
 	if vec.Len() != 1 {
 		return nil, fmt.Errorf("control vector length is %d, not 1", vec.Len())
 	}
-	var b scode.Builder
-	vec.Serialize(&b, 0)
-	val := super.NewValue(vec.Type(), b.Bytes().Body())
+	val := vector.ValueAt(nil, vec, 0)
 	var v any
 	if err := unmarshaler.Unmarshal(val, &v); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal control message: %w ", err)
