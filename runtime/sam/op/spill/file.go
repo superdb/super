@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/superdb/super"
-	"github.com/superdb/super/bsup/rows"
+	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/pkg/bufwriter"
 	"github.com/superdb/super/pkg/fs"
 	"github.com/superdb/super/sio"
@@ -17,8 +17,8 @@ import (
 // but can be processed in multiple passes.  File implements sio.Reader and
 // sio.Writer.
 type File struct {
-	*rows.Reader
-	*rows.Writer
+	*oldbsup.Reader
+	*oldbsup.Writer
 	file *os.File
 }
 
@@ -27,7 +27,7 @@ type File struct {
 // records via the sio.Reader interface.
 func NewFile(f *os.File) *File {
 	return &File{
-		Writer: rows.NewWriter(bufwriter.New(sio.NopCloser(f))),
+		Writer: oldbsup.NewWriter(bufwriter.New(sio.NopCloser(f))),
 		file:   f,
 	}
 }
@@ -53,7 +53,7 @@ func (f *File) Rewind(sctx *super.Context) error {
 	if f.Reader != nil {
 		f.Reader.Close()
 	}
-	f.Reader = rows.NewReader(sctx, bufio.NewReader(f.file))
+	f.Reader = oldbsup.NewReader(sctx, bufio.NewReader(f.file))
 	return nil
 }
 

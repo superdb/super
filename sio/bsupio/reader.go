@@ -9,7 +9,6 @@ import (
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
-	"github.com/superdb/super/bsup/rows"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/runtime/vcache"
@@ -204,12 +203,4 @@ func (r *reader) Type() (super.Type, error) {
 
 func (r *reader) Progress() vio.Progress {
 	return vio.Progress{}
-}
-
-type RowReader struct {
-	*rows.Reader
-}
-
-func NewRowReader(sctx *super.Context, r io.Reader) *RowReader {
-	return &RowReader{rows.NewReader(sctx, r)}
 }

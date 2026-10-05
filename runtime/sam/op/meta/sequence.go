@@ -6,13 +6,13 @@ import (
 	"io"
 
 	"github.com/superdb/super"
+	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/runtime/sam/op/merge"
 	"github.com/superdb/super/sbuf"
-	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 )
@@ -196,7 +196,7 @@ func newObjectScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, o
 	if err != nil {
 		return nil, err
 	}
-	scanner, err := bsupio.NewRowReader(sctx, rc).NewScanner(ctx, pushdown)
+	scanner, err := oldbsup.NewReader(sctx, rc).NewScanner(ctx, pushdown)
 	if err != nil {
 		rc.Close()
 		return nil, err

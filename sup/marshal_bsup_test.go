@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/superdb/super"
+	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/sio"
-	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/sup"
 	"github.com/x448/float16"
 )
@@ -23,11 +23,11 @@ func boomerang(t *testing.T, in any, out any) {
 	rec, err := super.NewMarshaler(sctx).Marshal(in)
 	require.NoError(t, err)
 	var buf bytes.Buffer
-	zw := bsupio.NewRowWriter(sio.NopCloser(&buf))
+	zw := oldbsup.NewWriter(sio.NopCloser(&buf))
 	err = zw.Write(rec)
 	require.NoError(t, err)
 	require.NoError(t, zw.Close())
-	zr := bsupio.NewRowReader(sctx, &buf)
+	zr := oldbsup.NewReader(sctx, &buf)
 	defer zr.Close()
 	val, err := zr.Read()
 	require.NoError(t, err)

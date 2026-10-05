@@ -5,10 +5,10 @@ import (
 	"io"
 
 	"github.com/superdb/super"
+	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/bufwriter"
 	"github.com/superdb/super/pkg/storage"
-	"github.com/superdb/super/sio/bsupio"
 )
 
 // Writer is a sio.Writer that writes a stream of sorted records into a
@@ -17,7 +17,7 @@ type Writer struct {
 	object      *Object
 	byteCounter *writeCounter
 	count       uint64
-	writer      *bsupio.RowWriter
+	writer      *oldbsup.Writer
 	sortKey     order.SortKey
 	first       bool
 }
@@ -34,7 +34,7 @@ func (o *Object) NewWriter(ctx context.Context, engine storage.Engine, path *sto
 	return &Writer{
 		object:      o,
 		byteCounter: counter,
-		writer:      bsupio.NewRowWriter(counter),
+		writer:      oldbsup.NewWriter(counter),
 		sortKey:     sortKey,
 		first:       true,
 	}, nil
