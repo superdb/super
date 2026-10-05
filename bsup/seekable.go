@@ -122,7 +122,7 @@ func (s *Seekable) readFooterBackward(sctx *super.Context, off int64) (*SuperFoo
 func fileSize(r io.ReaderAt) (int64, error) {
 	s, ok := r.(io.Seeker)
 	if !ok {
-		// XXX in a future PR, we will read and wrap to a in-memory seekable and
+		// XXX in a future PR, we will read and wrap in an in-memory seekable as
 		// long as we aren't in stream mode (which also implies dynamic typing).
 		return 0, errors.New("reading file type requires seekable input")
 	}

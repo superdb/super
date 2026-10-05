@@ -14,7 +14,7 @@ import (
 
 // A FrameIter iterates over the Frames of a sequence of one or more SuperFrames.
 // There are two forms: a streaming iterator when the input is not seekable
-// (like stdin or a network connection) or a seekable where there is random
+// (like a fifo, pipe, socket, or terminal) or a seekable where there is random
 // access to an entity like a file or cloud object. The seekable version can
 // efficiently compute a type across all of the frames (by reading backward);
 // it traverses each SuperFrame footer by following the backlink to the previous

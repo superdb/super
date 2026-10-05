@@ -70,18 +70,18 @@ func (c *Cache) Fetch(ctx context.Context, uri *storage.URI, id ksuid.KSUID) (*O
 	if err != nil {
 		return nil, err
 	}
-	// XXX we need to refactor this interface since its no longer aligned one
+	// XXX we need to refactor this interface since it's no longer aligned one
 	// cached entity per file (cache should operate on frames like parquet row groups)
 	fit := bsup.NewSeekable(super.NewContext(), r)
 	frame, err := fit.Next()
 	if err != nil {
 		return nil, err
 	}
-	colfame, ok := frame.(*bsup.ColFrame)
+	colFrame, ok := frame.(*bsup.ColFrame)
 	if !ok {
 		return nil, errors.New("input not in BSUP column form")
 	}
-	object = NewReader(colfame)
+	object = NewReader(colFrame)
 	c.mu.Lock()
 	c.objects[id] = object
 	c.mu.Unlock()
