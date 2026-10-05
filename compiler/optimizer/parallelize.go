@@ -266,6 +266,9 @@ func (o *Optimizer) concurrentPath(seq dag.Seq, sortKeys order.SortKeys) (length
 		// what the meaning is here exactly.  This is all still a bit
 		// of a heuristic.  See #2660 and #2661.
 		case *dag.AggregateOp:
+			if isOrderedAggregate(op) {
+				return 0, nil, false, nil
+			}
 			// We want input sorted when we are preserving order into
 			// aggregate so we can release values incrementally which is really
 			// important when doing a head on the aggregate results

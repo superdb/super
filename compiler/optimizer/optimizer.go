@@ -827,7 +827,9 @@ func walkT[T any](v reflect.Value, post func(T) T) {
 func setPushdownUnordered(seq dag.Seq, unordered bool) bool {
 	for _, op := range slices.Backward(seq) {
 		switch op := op.(type) {
-		case *dag.AggregateOp, *dag.CombineOp, *dag.DistinctOp, *dag.HashJoinOp, *dag.JoinOp, *dag.SortOp, *dag.TopOp,
+		case *dag.AggregateOp:
+			unordered = !isOrderedAggregate(op)
+		case *dag.CombineOp, *dag.DistinctOp, *dag.HashJoinOp, *dag.JoinOp, *dag.SortOp, *dag.TopOp,
 			*dag.HTTPScan, *dag.PoolScan,
 			*dag.CommitMetaScan, *dag.DBMetaScan, *dag.PoolMetaScan:
 			unordered = true
@@ -854,6 +856,13 @@ func setPushdownUnordered(seq dag.Seq, unordered bool) bool {
 		}
 	}
 	return unordered
+}
+
+func isOrderedAggregate(agg *dag.AggregateOp) bool {
+	return slices.ContainsFunc(agg.Aggs, func(agg dag.Assignment) bool {
+		name := agg.RHS.(*dag.AggExpr).Name
+		return name == "collect" || name == "array_agg"
+	})
 }
 
 func newErrorMissing() dag.Expr {
