@@ -184,7 +184,7 @@ func (r *Root) readMagic(ctx context.Context) error {
 	return nil
 }
 
-func (r *Root) BatchifyPools(ctx context.Context, sctx *super.Context, f expr.Evaluator) ([]super.Value, error) {
+func (r *Root) MarshalPools(ctx context.Context, sctx *super.Context, f expr.Evaluator) ([]super.Value, error) {
 	m := super.NewMarshaler(sctx)
 	m.Decorate(super.StylePackage)
 	pools, err := r.ListPools(ctx)
@@ -204,7 +204,7 @@ func (r *Root) BatchifyPools(ctx context.Context, sctx *super.Context, f expr.Ev
 	return vals, nil
 }
 
-func (r *Root) BatchifyBranches(ctx context.Context, sctx *super.Context, f expr.Evaluator) ([]super.Value, error) {
+func (r *Root) MarshalBranches(ctx context.Context, sctx *super.Context, f expr.Evaluator) ([]super.Value, error) {
 	m := super.NewMarshaler(sctx)
 	m.Decorate(super.StylePackage)
 	poolRefs, err := r.ListPools(ctx)

@@ -12,23 +12,45 @@ import (
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
+	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/vio"
 )
 
-func NewDBMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, meta string) (sbuf.Scanner, error) {
+func NewDBMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, meta string) (vio.Scanner, error) {
 	var vals []super.Value
 	var err error
 	switch meta {
 	case "pools":
-		vals, err = r.BatchifyPools(ctx, sctx, nil)
+		vals, err = r.MarshalPools(ctx, sctx, nil)
 	case "branches":
-		vals, err = r.BatchifyBranches(ctx, sctx, nil)
+		vals, err = r.MarshalBranches(ctx, sctx, nil)
 	default:
 		return nil, fmt.Errorf("unknown database metadata type: %q", meta)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return sbuf.NewScanner(ctx, sbuf.NewArray(vals), nil)
+	return &progress{
+		Puller: vio.NewPuller(sbuf.Dematerialize(sctx, vals...)),
+	}, nil
+}
+
+type progress struct {
+	vio.Puller
+	progress vio.Progress
+}
+
+func (p *progress) Pull(done bool) (vector.Any, error) {
+	vec, err := p.Puller.Pull(done)
+	if vec == nil || err != nil {
+		return vec, err
+	}
+	p.progress.RecordsRead += int64(vec.Len())
+	return vec, nil
+}
+
+func (p *progress) Progress() vio.Progress {
+	return p.progress
 }
 
 func NewPoolMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, poolID ksuid.KSUID, meta string) (sbuf.Scanner, error) {
