@@ -1,0 +1,34 @@
+script: |
+  echo === dag.FileScan
+  SUPER_FUSEINPUT=1 super compile -C -dag 'from /dev/null'
+  echo === dag.HttpScan
+  SUPER_FUSEINPUT=1 super compile -C -dag 'from http://host'
+  echo === dag.RobotScan
+  SUPER_FUSEINPUT=1 super compile -C -dag 'from f"{this}"'
+  echo === dag.PoolScan
+  export SUPER_DB=test
+  super db init -q
+  super db create -q pool
+  SUPER_FUSEINPUT=1 super db compile -C -dag 'from pool' | sed -Ee 's/[[:alnum:]]{27}/xxx/'
+
+
+outputs:
+  - name: stdout
+    data: |
+      === dag.FileScan
+      file /dev/null
+      | fuse
+      | output main
+      === dag.HttpScan
+      get http://host
+      | fuse
+      | output main
+      === dag.RobotScan
+      null
+      | robot cast(this, <string>)
+      | fuse
+      | output main
+      === dag.PoolScan
+      pool xxx
+      | fuse
+      | output main

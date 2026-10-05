@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/segmentio/ksuid"
@@ -32,6 +33,7 @@ type Environment struct {
 	db     *db.Root
 
 	Dynamic          bool
+	FuseInput        bool
 	IgnoreOpenErrors bool
 	ReaderOpts       anyio.ReaderOpts
 	Static           bool
@@ -40,8 +42,9 @@ type Environment struct {
 
 func NewEnvironment(engine storage.Engine, d *db.Root) *Environment {
 	return &Environment{
-		engine: engine,
-		db:     d,
+		engine:    engine,
+		db:        d,
+		FuseInput: os.Getenv("SUPER_FUSEINPUT") != "",
 	}
 }
 

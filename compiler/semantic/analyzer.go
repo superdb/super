@@ -3,6 +3,8 @@ package semantic
 import (
 	"context"
 	"errors"
+	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/superdb/super"
@@ -43,7 +45,21 @@ func Analyze(ctx context.Context, p *parser.AST, env *exec.Environment, extInput
 		}
 	}
 	main := newDagen(t.reporter).assemble(seq, t.getTypes(), t.resolver.funcs)
+	if env.FuseInput {
+		dag.WalkT(reflect.ValueOf(main), fuseInput)
+	}
 	return main, t.Error()
+}
+
+func fuseInput(seq dag.Seq) dag.Seq {
+	for i := 0; i < len(seq); i++ {
+		switch seq[i].(type) {
+		case *dag.FileScan, *dag.HTTPScan, *dag.PoolScan, *dag.RobotScan:
+			f := &dag.FuseOp{Kind: "FuseOp", Complete: true}
+			seq = slices.Insert(seq, i+1, dag.Op(f))
+		}
+	}
+	return seq
 }
 
 // Translate AST into semantic tree.  Resolve all bindings
