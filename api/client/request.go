@@ -67,6 +67,10 @@ func (r *Request) HTTPRequest() (*http.Request, error) {
 	return req, nil
 }
 
+func (r *Request) Context() context.Context {
+	return r.ctx
+}
+
 func (r *Request) getBody() (io.ReadCloser, error) {
 	body, err := r.reader()
 	if err != nil {
