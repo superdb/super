@@ -23,12 +23,17 @@ func NewMaterializer(p vio.Puller) Puller {
 }
 
 func (m *Materializer) Pull(done bool) (Batch, error) {
-	vec, err := m.parent.Pull(done)
-	vec, _ = vector.Unlabel(vec)
-	if vec == nil || err != nil {
-		return nil, err
+	for {
+		vec, err := m.parent.Pull(done)
+		if _, ok := vec.(*vector.Control); ok {
+			continue
+		}
+		vec, _ = vector.Unlabel(vec)
+		if vec == nil || err != nil {
+			return nil, err
+		}
+		return Materialize(vec), nil
 	}
-	return Materialize(vec), nil
 }
 
 func Materialize(vec vector.Any) Batch {
@@ -116,37 +121,4 @@ func WriteVec(w sio.Writer, vec vector.Any) error {
 		}
 	}
 	return nil
-}
-
-func NewReader(p vio.Puller) sio.Reader {
-	return &reader{puller: p}
-}
-
-type reader struct {
-	puller vio.Puller
-	vals   []super.Value
-}
-
-func (r *reader) Read() (*super.Value, error) {
-	for {
-		if len(r.vals) != 0 {
-			val := &r.vals[0]
-			r.vals = r.vals[1:]
-			return val, nil
-		}
-		vec, err := r.puller.Pull(false)
-		if vec == nil {
-			if err == nil {
-				r.puller.Pull(true)
-			}
-			return nil, err
-		}
-		if _, ok := vec.(*vector.Control); ok {
-			continue
-		}
-		vec, _ = vector.Unlabel(vec)
-		if vec != nil {
-			r.vals = Materialize(vec).Values()
-		}
-	}
 }

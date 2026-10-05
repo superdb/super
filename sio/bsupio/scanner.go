@@ -81,5 +81,5 @@ func NewValueReader(ctx context.Context, sctx *super.Context, r io.Reader) (sio.
 	if err != nil {
 		return nil, err
 	}
-	return sbuf.NewReader(reader), nil
+	return sbuf.PullerReader(sbuf.NewMaterializer(reader)), nil
 }

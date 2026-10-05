@@ -144,7 +144,7 @@ func (c *Connection) doAndUnmarshal(ctx context.Context, req *Request, v any, te
 	if err != nil {
 		return err
 	}
-	reader := sbuf.NewReader(stream)
+	reader := sbuf.PullerReader(sbuf.NewMaterializer(stream))
 	rec, err := reader.Read()
 	if err != nil || rec == nil {
 		return err
