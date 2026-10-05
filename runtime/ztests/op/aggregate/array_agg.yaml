@@ -13,7 +13,7 @@ input: |
 
 output: |
   type foo=int64
-  [{a:1},{a:2},null,null,{b:1.5},error("missing"),1::foo,1]
+  [{a:1},{a:2},null,{b:1.5},error("missing"),1::foo,1,null]
 
 ---
 
