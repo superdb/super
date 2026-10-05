@@ -67,7 +67,7 @@ func (o *Object) appendDelete(id ksuid.KSUID) {
 }
 
 func (o Object) Serialize() ([]byte, error) {
-	writer := bsupbytes.NewBytesWriterWithStyle(super.StylePackage)
+	writer := bsupbytes.NewWriterWithStyle(super.StylePackage)
 	for _, action := range o.Actions {
 		if err := writer.Write(action); err != nil {
 			writer.Close()

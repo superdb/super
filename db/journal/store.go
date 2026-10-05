@@ -356,7 +356,7 @@ func (s *Store) commitWithConstraint(ctx context.Context, key string, c Constrai
 }
 
 func (s *Store) commit(ctx context.Context, fn func() error, entries ...Entry) error {
-	writer := bsupbytes.NewBytesWriterWithStyle(super.StylePackage)
+	writer := bsupbytes.NewWriterWithStyle(super.StylePackage)
 	for _, e := range entries {
 		if err := writer.Write(e); err != nil {
 			return err
@@ -516,7 +516,7 @@ func (s *Store) WalkEntries(ctx context.Context, c func(ID, []Entry) bool) error
 
 func (s *Store) readEntries(ctx context.Context, b []byte) ([]Entry, error) {
 	var entries []Entry
-	reader, err := bsupbytes.NewBytesReader(ctx, b, s.keyTypes)
+	reader, err := bsupbytes.NewReaderFromBytes(ctx, b, s.keyTypes)
 	if err != nil {
 		return nil, err
 	}

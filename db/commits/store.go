@@ -189,7 +189,7 @@ func (s *Store) getSnapshot(ctx context.Context, commit ksuid.KSUID) (*Snapshot,
 	if err != nil {
 		return nil, err
 	}
-	snap, err := decodeSnapshot(reader)
+	snap, err := decodeSnapshot(reader.Reader)
 	if closeErr := reader.Close(); err == nil {
 		err = closeErr
 	}
@@ -214,7 +214,7 @@ func (s *Store) getBase(ctx context.Context, commit ksuid.KSUID) (*Snapshot, err
 		return nil, err
 	}
 	defer reader.Close()
-	return decodeSnapshot(reader)
+	return decodeSnapshot(reader.Reader)
 }
 
 func (s *Store) putBase(ctx context.Context, snap *Snapshot, commit ksuid.KSUID) error {
@@ -281,7 +281,7 @@ func (s *Store) GetBytes(ctx context.Context, commit ksuid.KSUID) ([]byte, *Comm
 	if err != nil {
 		return nil, nil, err
 	}
-	reader, err := bsupbytes.NewBytesReader(ctx, b, ActionTypes)
+	reader, err := bsupbytes.NewReaderFromBytes(ctx, b, ActionTypes)
 	entry, err := reader.Read()
 	if err != nil {
 		return nil, nil, err

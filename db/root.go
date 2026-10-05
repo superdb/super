@@ -131,7 +131,7 @@ func (r *Root) writeMagic(ctx context.Context) error {
 		Magic:   MagicString,
 		Version: Version,
 	}
-	writer := bsupbytes.NewBytesWriterWithStyle(super.StylePackage)
+	writer := bsupbytes.NewWriterWithStyle(super.StylePackage)
 	if err := writer.Write(magic); err != nil {
 		return err
 	}

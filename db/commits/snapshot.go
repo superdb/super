@@ -136,7 +136,7 @@ func (s *Snapshot) Copy() *Snapshot {
 // during deserialization.  Deleted entities are serialized as an add-delete
 // sequence to meet the requirements of DeleteObject.
 func (s *Snapshot) serialize() ([]byte, error) {
-	writer := bsupbytes.NewBytesWriterWithStyle(super.StylePackage)
+	writer := bsupbytes.NewWriterWithStyle(super.StylePackage)
 	for _, o := range s.objects {
 		if err := writer.Write(&Add{Object: *o}); err != nil {
 			return nil, err
@@ -148,7 +148,7 @@ func (s *Snapshot) serialize() ([]byte, error) {
 	return writer.Bytes(), nil
 }
 
-func decodeSnapshot(reader bsupbytes.Reader) (*Snapshot, error) {
+func decodeSnapshot(reader *bsupbytes.Reader) (*Snapshot, error) {
 	s := NewSnapshot()
 	for {
 		entry, err := reader.Read()

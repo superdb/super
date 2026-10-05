@@ -8,41 +8,41 @@ import (
 	"github.com/superdb/super/sio"
 )
 
-type BytesWriter struct {
+type Writer struct {
 	marshaler *super.Marshaler
 	buffer    bytes.Buffer
 	writer    *bsup.RowWriter
 }
 
-func NewBytesWriter() *BytesWriter {
+func NewWriter() *Writer {
 	m := super.NewMarshaler(super.NewContext())
-	b := &BytesWriter{
+	b := &Writer{
 		marshaler: m,
 	}
 	b.writer = bsup.NewRowWriter(sio.NopCloser(&b.buffer))
 	return b
 }
 
-func NewBytesWriterWithStyle(style super.TypeStyle) *BytesWriter {
-	b := NewBytesWriter()
+func NewWriterWithStyle(style super.TypeStyle) *Writer {
+	b := NewWriter()
 	b.marshaler.Decorate(style)
 	return b
 }
 
-func (b *BytesWriter) Write(v any) error {
-	val, err := b.marshaler.Marshal(v)
+func (w *Writer) Write(v any) error {
+	val, err := w.marshaler.Marshal(v)
 	if err != nil {
 		return err
 	}
-	return b.writer.Write(val)
+	return w.writer.Write(val)
 }
 
 // Bytes returns a slice holding the serialized values.  Close must be called
 // before Bytes.
-func (b *BytesWriter) Bytes() []byte {
-	return b.buffer.Bytes()
+func (w *Writer) Bytes() []byte {
+	return w.buffer.Bytes()
 }
 
-func (b *BytesWriter) Close() error {
-	return b.writer.Close()
+func (w *Writer) Close() error {
+	return w.writer.Close()
 }
