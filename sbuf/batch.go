@@ -31,18 +31,6 @@ type Batch interface {
 	Values() []super.Value
 }
 
-// WriteBatch writes the values in batch to zw.  If an error occurs, WriteBatch
-// stops and returns the error.
-func WriteBatch(zw sio.Writer, batch Batch) error {
-	vals := batch.Values()
-	for i := range vals {
-		if err := zw.Write(vals[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // A Puller produces Batches of records, signaling end-of-stream (EOS) by returning
 // a nil Batch and nil error.  The done argument to Pull indicates that the stream
 // should be terminated before its natural EOS.  An implementation must return
@@ -163,8 +151,10 @@ func CopyPuller(w sio.Writer, p Puller) error {
 		if b == nil || err != nil {
 			return err
 		}
-		if err := WriteBatch(w, b); err != nil {
-			return err
+		for _, val := range b.Values() {
+			if err := w.Write(val); err != nil {
+				return err
+			}
 		}
 		b.Unref()
 	}
