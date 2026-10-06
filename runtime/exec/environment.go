@@ -16,6 +16,7 @@ import (
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
+	"github.com/superdb/super/runtime/op/poolscanner"
 	"github.com/superdb/super/runtime/sam/op/meta"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio/anyio"
@@ -138,8 +139,7 @@ func (e *Environment) OpenPool(ctx context.Context, sctx *super.Context, id ksui
 	if err != nil {
 		return nil, err
 	}
-	scanner := meta.NewSequenceScanner(runtime.NewContext(ctx, sctx), l, pool, pushdown, nil, nil)
-	return sbuf.NewDematerializer(sctx, scanner), nil
+	return poolscanner.NewPoolScanner(runtime.NewContext(ctx, sctx), l, pool, pushdown, nil, nil), nil
 }
 
 func newConcurrentPuller(path string, puller vio.Puller) ConcurrentPuller {

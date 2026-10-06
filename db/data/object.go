@@ -79,11 +79,11 @@ func (o Object) IsZero() bool {
 }
 
 func (o Object) String() string {
-	return fmt.Sprintf("%s %d record%s in %d data bytes", o.ID, o.Count, plural(int(o.Count)), o.Size)
+	return fmt.Sprintf("%s %d value%s in %d data bytes", o.ID, o.Count, plural(int(o.Count)), o.Size)
 }
 
-func plural(ordinal int) string {
-	if ordinal == 1 {
+func plural(n int) string {
+	if n == 1 {
 		return ""
 	}
 	return "s"
@@ -108,19 +108,11 @@ func (o Object) ObjectPrefix(path *storage.URI) *storage.URI {
 	return path.JoinPath(o.ID.String())
 }
 
-func (o Object) SequenceURI(path *storage.URI) *storage.URI {
-	return SequenceURI(path, o.ID)
+func (o Object) URI(path *storage.URI) *storage.URI {
+	return URI(path, o.ID)
 }
 
-func SequenceURI(path *storage.URI, id ksuid.KSUID) *storage.URI {
-	return path.JoinPath(fmt.Sprintf("%s.bsuprows", id))
-}
-
-func (o Object) VectorURI(path *storage.URI) *storage.URI {
-	return VectorURI(path, o.ID)
-}
-
-func VectorURI(path *storage.URI, id ksuid.KSUID) *storage.URI {
+func URI(path *storage.URI, id ksuid.KSUID) *storage.URI {
 	return path.JoinPath(fmt.Sprintf("%s.bsup", id))
 }
 

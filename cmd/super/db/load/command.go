@@ -22,9 +22,9 @@ import (
 	"github.com/superdb/super/pkg/display"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/pkg/units"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/anyio"
+	"github.com/superdb/super/vector/vio"
 	"golang.org/x/term"
 )
 
@@ -105,7 +105,11 @@ func (c *Command) Run(args []string) error {
 		go d.Run()
 	}
 	message := c.commitFlags.CommitMessage()
-	commitID, err := db.Load(ctx, sctx, poolID, head.Branch, sio.ConcatReader(readers...), message)
+	var pullers []vio.Puller
+	for _, r := range readers {
+		pullers = append(pullers, r)
+	}
+	commitID, err := db.Load(ctx, sctx, poolID, head.Branch, vio.ConcatPuller(pullers...), message)
 	if d != nil {
 		d.Close()
 	}
@@ -118,8 +122,8 @@ func (c *Command) Run(args []string) error {
 	return nil
 }
 
-func (c *Command) open(ctx context.Context, sctx *super.Context, paths []string) ([]sio.Reader, error) {
-	var readers []sio.Reader
+func (c *Command) open(ctx context.Context, sctx *super.Context, paths []string) ([]vio.PullCloser, error) {
+	var readers []vio.PullCloser
 	for _, path := range paths {
 		if path == "-" {
 			path = "stdio:stdin"
@@ -129,7 +133,7 @@ func (c *Command) open(ctx context.Context, sctx *super.Context, paths []string)
 			fmt.Fprintf(os.Stderr, "%s: %s\n", path, err)
 			continue
 		}
-		readers = append(readers, sbuf.PullerReader(sbuf.NewMaterializer(file)))
+		readers = append(readers, file)
 	}
 	return readers, nil
 }

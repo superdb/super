@@ -17,8 +17,6 @@ import (
 	"github.com/superdb/super/pkg/plural"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
-	"github.com/superdb/super/sbuf"
-	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector/vio"
 )
@@ -48,24 +46,23 @@ func OpenBranch(ctx context.Context, config *branches.Config, engine storage.Eng
 	}, nil
 }
 
-func (b *Branch) Load(ctx context.Context, sctx *super.Context, r sio.Reader, author, message, meta string) (ksuid.KSUID, error) {
+func (b *Branch) Load(ctx context.Context, sctx *super.Context, r vio.Puller, author, message, meta string) (ksuid.KSUID, error) {
 	w, err := NewWriter(ctx, sctx, b.pool)
 	if err != nil {
 		return ksuid.Nil, err
 	}
-	err = sio.CopyWithContext(ctx, w, r)
+	err = vio.Copy(w, r)
 	if closeErr := w.Close(); err == nil {
 		err = closeErr
 	}
 	if err != nil {
 		return ksuid.Nil, err
 	}
-	objects := w.Objects()
-	if len(objects) == 0 {
+	if len(w.objects) == 0 {
 		return ksuid.Nil, commits.ErrEmptyTransaction
 	}
 	if message == "" {
-		message = loadMessage(objects)
+		message = loadMessage(w.objects)
 	}
 	appMeta, err := loadMeta(sctx, meta)
 	if err != nil {
@@ -76,7 +73,7 @@ func (b *Branch) Load(ctx context.Context, sctx *super.Context, r sio.Reader, au
 	// with other concurrent writers (except for updating the branch pointer
 	// which is handled by Branch.commit)
 	return b.commit(ctx, func(parent *branches.Config, retries int) (*commits.Object, error) {
-		return commits.NewAddsObject(parent.Commit, retries, author, message, appMeta, objects), nil
+		return commits.NewAddsObject(parent.Commit, retries, author, message, appMeta, w.objects), nil
 	})
 }
 
@@ -175,7 +172,7 @@ func (b *Branch) DeleteWhere(ctx context.Context, c runtime.Compiler, ast *parse
 		for _, oid := range deleted {
 			patch.DeleteObject(oid)
 		}
-		for _, o := range w.Objects() {
+		for _, o := range w.objects {
 			patch.AddDataObject(&o)
 		}
 		if message == "" {
@@ -185,7 +182,7 @@ func (b *Branch) DeleteWhere(ctx context.Context, c runtime.Compiler, ast *parse
 				deletedObjs = append(deletedObjs, o)
 			}
 			var added []*data.Object
-			for _, o := range w.Objects() {
+			for _, o := range w.objects {
 				added = append(added, &o)
 			}
 			message = deleteWhereMessage(deletedObjs, added)
@@ -263,17 +260,18 @@ func (b *Branch) Compact(ctx context.Context, c runtime.Compiler, objectIDs []ks
 	if err != nil {
 		return ksuid.Nil, err
 	}
-	w := NewSortedWriter(ctx, sctx, b.pool)
-	if err := sbuf.CopyPuller(w, sbuf.NewMaterializer(q)); err != nil {
+	w, err := NewWriter(ctx, sctx, b.pool)
+	if err != nil {
+		return ksuid.Nil, err
+	}
+	if err := vio.Copy(w, q); err != nil {
 		q.Pull(true)
-		w.Abort()
 		return ksuid.Nil, err
 	}
 	if err := w.Close(); err != nil {
-		w.Abort()
 		return ksuid.Nil, err
 	}
-	rollup := w.Objects()
+	rollup := w.objects
 	if len(rollup) == 0 {
 		return ksuid.Nil, errors.New("compact: one or more rollup objects required")
 	}
@@ -284,7 +282,7 @@ func (b *Branch) Compact(ctx context.Context, c runtime.Compiler, objectIDs []ks
 		}
 		patch := commits.NewPatch(base)
 		for _, o := range rollup {
-			if err := patch.AddDataObject(o); err != nil {
+			if err := patch.AddDataObject(&o); err != nil {
 				return nil, err
 			}
 		}
@@ -298,12 +296,20 @@ func (b *Branch) Compact(ctx context.Context, c runtime.Compiler, objectIDs []ks
 			fmt.Fprintf(&b, "compacted %d object%s\n\n", len(original), plural.Slice(original, "s"))
 			printObjects(&b, original, maxMessageObjects)
 			fmt.Fprintf(&b, "\ncreated %d object%s\n\n", len(rollup), plural.Slice(rollup, "s"))
-			printObjects(&b, rollup, maxMessageObjects-len(original))
+			printObjects(&b, pointerize(rollup), maxMessageObjects-len(original))
 			message = b.String()
 		}
 		commit := patch.NewCommitObject(parent.Commit, retries, author, message, appMeta)
 		return commit, nil
 	})
+}
+
+func pointerize(objects []data.Object) []*data.Object {
+	out := make([]*data.Object, len(objects))
+	for k := range objects {
+		out[k] = &objects[k]
+	}
+	return out
 }
 
 func (b *Branch) mergeInto(ctx context.Context, parent *Branch, author, message string) (ksuid.KSUID, error) {

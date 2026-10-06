@@ -1,4 +1,4 @@
-package meta
+package poolscanner
 
 import (
 	"errors"
@@ -10,12 +10,13 @@ import (
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 )
 
 type Deleter struct {
 	parent      sbuf.Puller
-	scanner     sbuf.Puller
+	scanner     vio.Puller
 	pushdown    sbuf.Pushdown
 	pruner      expr.Evaluator
 	rctx        *runtime.Context
@@ -40,7 +41,7 @@ func NewDeleter(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool, pushdo
 	}
 }
 
-func (d *Deleter) Pull(done bool) (sbuf.Batch, error) {
+func (d *Deleter) Pull(done bool) (vector.Any, error) {
 	if d.done {
 		return nil, d.err
 	}
@@ -71,7 +72,7 @@ func (d *Deleter) Pull(done bool) (sbuf.Batch, error) {
 	}
 }
 
-func (d *Deleter) nextDeletion() (sbuf.Puller, error) {
+func (d *Deleter) nextDeletion() (vio.Puller, error) {
 	for {
 		if d.parent == nil { //XXX
 			return nil, nil
@@ -110,14 +111,14 @@ func (d *Deleter) hasDeletes(val super.Value) (bool, error) {
 	}
 	var count uint64
 	for {
-		batch, err := scanner.Pull(false)
+		vec, err := scanner.Pull(false)
 		if err != nil {
 			return false, err
 		}
-		if batch == nil {
+		if vec == nil {
 			return count != object.Count, nil
 		}
-		count += uint64(len(batch.Values()))
+		count += uint64(vec.Len())
 	}
 }
 
