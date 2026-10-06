@@ -10,7 +10,6 @@ import (
 	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/dag"
-	"github.com/superdb/super/compiler/optimizer"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/runtime"
@@ -79,28 +78,6 @@ func (b *Builder) Build(main *dag.Main) (map[string]vio.Puller, *op.DebugChans, 
 		channels[key] = b.combineVam(pullers)
 	}
 	return channels, b.debugs, nil
-}
-
-func (b *Builder) BuildVamToSeqFilter(filter dag.Expr, poolID, commitID ksuid.KSUID) (sbuf.Puller, error) {
-	pool, err := b.env.DB().OpenPool(b.rctx.Context, poolID)
-	if err != nil {
-		return nil, err
-	}
-	e, err := b.compileVamExpr(filter)
-	if err != nil {
-		return nil, err
-	}
-	l, err := meta.NewSortedLister(b.rctx.Context, b.mctx, pool, commitID, nil)
-	if err != nil {
-		return nil, err
-	}
-	cache := b.env.DB().VectorCache()
-	project, _ := optimizer.FieldsOf(filter)
-	search, err := op.NewSearcher(b.rctx, cache, l, pool, e, project)
-	if err != nil {
-		return nil, err
-	}
-	return meta.NewSearchScanner(b.rctx, search, pool, b.newPushdown(filter, nil), b.progress), nil
 }
 
 func (b *Builder) sctx() *super.Context {
