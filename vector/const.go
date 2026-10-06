@@ -1,7 +1,6 @@
 package vector
 
 import (
-	"fmt"
 	"net/netip"
 
 	"github.com/superdb/super"
@@ -66,39 +65,16 @@ func NewConstNet(v netip.Prefix, length uint32) *Const {
 	vec := NewNet([]netip.Prefix{v})
 	return &Const{vec, length}
 }
+
 func NewConstType(sctx *super.Context, typ super.Type, length uint32) *Const {
 	vec := NewTypeValue([]super.Type{typ})
 	return &Const{vec, length}
 }
 
 func NewConstFromValue(sctx *super.Context, val super.Value, length uint32) *Const {
-	switch id := val.Type().ID(); {
-	case super.IsUnsigned(id):
-		return NewConstUint(val.Type(), val.Uint(), length)
-	case super.IsSigned(id):
-		return NewConstInt(val.Type(), val.Int(), length)
-	case super.IsFloat(id):
-		return NewConstFloat(val.Type(), val.Float(), length)
-	case id == super.IDBool:
-		return NewConstBool(val.Bool(), length)
-	case id == super.IDBytes:
-		return NewConstBytes(val.Bytes(), length)
-	case id == super.IDString:
-		return NewConstString(string(val.Bytes()), length)
-	case id == super.IDIP:
-		return NewConstIP(super.DecodeIP(val.Bytes()), length)
-	case id == super.IDNet:
-		return NewConstNet(super.DecodeNet(val.Bytes()), length)
-	case id == super.IDType:
-		typ, tv := sctx.DecodeTypeValue(val.Bytes())
-		if tv == nil {
-			panic("bad type value")
-		}
-		return NewConstType(sctx, typ, length)
-	case id == super.IDNone:
-		return &Const{NewNone(length), length}
-	}
-	panic(fmt.Sprintf("%#v\n", super.TypeUnder(val.Type())))
+	b := NewValueBuilder(val.Type())
+	b.Write(val.Bytes())
+	return &Const{b.Build(sctx), length}
 }
 
 func (c *Const) Len() uint32 {
