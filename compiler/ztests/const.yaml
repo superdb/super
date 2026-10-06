@@ -7,3 +7,10 @@ input: |
 output: |
   {a:1,x:<{a:string}>}
   {a:2,x:<{a:string}>}
+
+---
+
+spq: const c = error(0) values c
+
+output: |
+  error(0)
