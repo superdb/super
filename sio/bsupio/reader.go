@@ -29,6 +29,7 @@ type reader struct {
 	pushdown      sbuf.Pushdown
 	metaFilters   []*metafilter
 	vecs          [][]vector.Any
+	progress      vio.Progress
 }
 
 var _ sio.Typer = (*reader)(nil)
@@ -87,6 +88,10 @@ func (r *reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
 			// Return these last to first so r.vecs gets resued.
 			vec := r.vecs[n][k-1]
 			r.vecs[n] = r.vecs[n][:k-1]
+			if vec != nil {
+				n := int64(vec.Len())
+				r.progress.Add(vio.Progress{RecordsRead: n, RecordsMatched: n})
+			}
 			return vec, nil
 		}
 		frame, err := r.next()
@@ -99,9 +104,12 @@ func (r *reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
 			// pollutes the type context.  We should use the BSUP local context for
 			// this filtering but this will require a little compiler refactoring to be
 			// able to build runtime expressions that use different type contexts.
+			size := int64(frame.Size())
+			r.progress.Add(vio.Progress{BytesRead: size})
 			if len(r.metaFilters) > 0 && pruneObject(r.sctx, r.metaFilters[n], frame) {
 				continue
 			}
+			r.progress.Add(vio.Progress{BytesMatched: size})
 			vo := vcache.NewReader(frame)
 			var proj field.Projection
 			if r.pushdown != nil {
@@ -141,11 +149,12 @@ func (r *reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
 			if err != nil {
 				return nil, err
 			}
+			size := int64(frame.Size())
+			r.progress.Add(vio.Progress{BytesMatched: size, BytesRead: size})
 			r.vecs[n] = append(r.vecs[n], vec)
 		default:
 			panic(frame)
 		}
-
 	}
 }
 
@@ -201,5 +210,5 @@ func (r *reader) Type() (super.Type, error) {
 }
 
 func (r *reader) Progress() vio.Progress {
-	return vio.Progress{}
+	return r.progress
 }

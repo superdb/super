@@ -13,5 +13,5 @@ inputs:
 outputs:
   - name: stdout
     regexp: |
-      \w{27} 123B bytes 20 records
+      \w{27} 1299B bytes 20 records
          min 0 max 9

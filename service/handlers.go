@@ -25,13 +25,13 @@ import (
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/service/auth"
 	"github.com/superdb/super/service/srverr"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/anyio"
 	"github.com/superdb/super/sio/csvio"
 	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/vio"
 	"go.uber.org/zap"
 )
 
@@ -439,7 +439,7 @@ func handleBranchLoad(c *Core, w *ResponseWriter, r *Request) {
 		w.Error(err)
 		return
 	}
-	if format == "parquet" || format == "bsup" {
+	if format == "parquet" {
 		// These formats require a reader that implements io.ReaderAt and
 		// io.Seeker.  Copy the reader to a temporary file and use that.
 		//
@@ -475,7 +475,7 @@ func handleBranchLoad(c *Core, w *ResponseWriter, r *Request) {
 	}
 	defer p.Pull(true)
 	// XXX Load should handle vectors natively.
-	wr := &warningsReader{sbuf.PullerReader(sbuf.NewMaterializer(p)), []string{}}
+	wr := &warningsReader{p, []string{}}
 	kommit, err := branch.Load(r.Context(), sctx, wr, message.Author, message.Body, message.Meta)
 	if err != nil {
 		if errors.Is(err, commits.ErrEmptyTransaction) {
@@ -499,17 +499,17 @@ func handleBranchLoad(c *Core, w *ResponseWriter, r *Request) {
 }
 
 type warningsReader struct {
-	sio.Reader
+	vio.Puller
 	warnings []string
 }
 
-func (w *warningsReader) Read() (*super.Value, error) {
-	val, err := w.Reader.Read()
+func (w *warningsReader) Pull(done bool) (vector.Any, error) {
+	vec, err := w.Puller.Pull(done)
 	if err != nil {
 		w.warnings = append(w.warnings, err.Error())
 		return nil, nil
 	}
-	return val, nil
+	return vec, nil
 }
 
 func handleCompact(c *Core, w *ResponseWriter, r *Request) {
@@ -546,6 +546,8 @@ func handleCompact(c *Core, w *ResponseWriter, r *Request) {
 		PoolID:   pool.ID,
 		Branch:   branchName,
 	})
+	w.Respond(http.StatusOK, api.CommitResponse{Commit: branch.Commit})
+	return
 }
 
 func handleDelete(c *Core, w *ResponseWriter, r *Request) {

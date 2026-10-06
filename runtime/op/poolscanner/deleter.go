@@ -1,23 +1,24 @@
-package meta
+package poolscanner
 
 import (
-	"errors"
 	"sync"
 
 	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/runtime"
-	"github.com/superdb/super/runtime/sam/expr"
+	"github.com/superdb/super/runtime/expr"
+	samexpr "github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 )
 
 type Deleter struct {
 	parent      sbuf.Puller
-	scanner     sbuf.Puller
-	pushdown    sbuf.Pushdown
-	pruner      expr.Evaluator
+	scanner     vio.Puller
+	where       expr.Evaluator
+	pruner      samexpr.Evaluator
 	rctx        *runtime.Context
 	pool        *db.Pool
 	progress    *vio.Progress
@@ -27,10 +28,10 @@ type Deleter struct {
 	deletes     *sync.Map
 }
 
-func NewDeleter(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool, pushdown sbuf.Pushdown, pruner expr.Evaluator, progress *vio.Progress, deletes *sync.Map) *Deleter {
+func NewDeleter(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool, where expr.Evaluator, pruner samexpr.Evaluator, progress *vio.Progress, deletes *sync.Map) *Deleter {
 	return &Deleter{
 		parent:      parent,
-		pushdown:    pushdown,
+		where:       where,
 		pruner:      pruner,
 		rctx:        rctx,
 		pool:        pool,
@@ -40,7 +41,7 @@ func NewDeleter(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool, pushdo
 	}
 }
 
-func (d *Deleter) Pull(done bool) (sbuf.Batch, error) {
+func (d *Deleter) Pull(done bool) (vector.Any, error) {
 	if d.done {
 		return nil, d.err
 	}
@@ -71,7 +72,7 @@ func (d *Deleter) Pull(done bool) (sbuf.Batch, error) {
 	}
 }
 
-func (d *Deleter) nextDeletion() (sbuf.Puller, error) {
+func (d *Deleter) nextDeletion() (vio.Puller, error) {
 	for {
 		if d.parent == nil { //XXX
 			return nil, nil
@@ -85,7 +86,6 @@ func (d *Deleter) nextDeletion() (sbuf.Puller, error) {
 		vals := batch.Values()
 		if len(vals) != 1 {
 			// We currently support only one partition per batch.
-			return nil, errors.New("internal error: meta.Deleter encountered multi-valued batch")
 		}
 		if hasDeletes, err := d.hasDeletes(vals[0]); err != nil {
 			return nil, err
@@ -94,7 +94,7 @@ func (d *Deleter) nextDeletion() (sbuf.Puller, error) {
 		}
 		// Use a no-op progress so stats are not inflated.
 		var progress vio.Progress
-		scanner, object, err := newScanner(d.rctx.Context, d.rctx.Sctx, d.pool, d.unmarshaler, d.pruner, d.pushdown, &progress, vals[0])
+		scanner, object, err := newScanner(d.rctx.Context, d.rctx.Sctx, d.pool, d.unmarshaler, d.pruner, d.where, &progress, vals[0])
 		if err != nil {
 			return nil, err
 		}
@@ -104,20 +104,20 @@ func (d *Deleter) nextDeletion() (sbuf.Puller, error) {
 }
 
 func (d *Deleter) hasDeletes(val super.Value) (bool, error) {
-	scanner, object, err := newScanner(d.rctx.Context, d.rctx.Sctx, d.pool, d.unmarshaler, d.pruner, d.pushdown, d.progress, val)
+	scanner, object, err := newScanner(d.rctx.Context, d.rctx.Sctx, d.pool, d.unmarshaler, d.pruner, d.where, d.progress, val)
 	if err != nil {
 		return false, err
 	}
 	var count uint64
 	for {
-		batch, err := scanner.Pull(false)
+		vec, err := scanner.Pull(false)
 		if err != nil {
 			return false, err
 		}
-		if batch == nil {
+		if vec == nil {
 			return count != object.Count, nil
 		}
-		count += uint64(len(batch.Values()))
+		count += uint64(vec.Len())
 	}
 }
 

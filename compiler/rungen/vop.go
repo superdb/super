@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/dag"
@@ -13,7 +14,10 @@ import (
 	"github.com/superdb/super/runtime/expr/agg"
 	"github.com/superdb/super/runtime/op"
 	"github.com/superdb/super/runtime/op/aggregate"
+	"github.com/superdb/super/runtime/op/merge"
+	"github.com/superdb/super/runtime/op/poolscanner"
 	samexpr "github.com/superdb/super/runtime/sam/expr"
+	"github.com/superdb/super/runtime/sam/op/meta"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
@@ -61,7 +65,7 @@ func (b *Builder) compileVam(o dag.Op, parents []vio.Puller) ([]vio.Puller, erro
 			return nil, err
 		}
 		cmp := samexpr.NewComparator(exprs...)
-		return []vio.Puller{op.NewMerge(b.rctx, parents, cmp.Compare)}, nil
+		return []vio.Puller{merge.NewMerge(b.rctx, parents, cmp.Compare)}, nil
 	case *dag.ScatterOp:
 		return b.compileVamScatter(o, parents)
 	case *dag.SwitchOp:
@@ -218,6 +222,29 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		}
 		d := op.NewDebug(b.rctx, e, filter, b.debugs, parent)
 		return d, nil
+	case *dag.DeleterScan:
+		pool, err := b.lookupPool(o.Pool)
+		if err != nil {
+			return nil, err
+		}
+		var pruner samexpr.Evaluator
+		if o.KeyPruner != nil {
+			pruner, err = compileExpr(o.KeyPruner)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if b.deletes == nil {
+			b.deletes = &sync.Map{}
+		}
+		var whereNot expr.Evaluator
+		if o.Where != nil {
+			whereNot, err = b.compileVamExpr(invertForDeleteWhere(o.Where))
+			if err != nil {
+				return nil, err
+			}
+		}
+		return poolscanner.NewDeleter(b.rctx, sbuf.NewMaterializer(parent), pool, whereNot, pruner, b.progress, b.deletes), nil
 	case *dag.DistinctOp:
 		e, err := b.compileVamExpr(o.Expr)
 		if err != nil {
@@ -290,6 +317,43 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 			return nil, err
 		}
 		return op.NewRobot(b.rctx, b.env, parent, e, o.Format, b.newPushdown(o.Filter, nil)), nil
+	case *dag.PoolScan:
+		if parent != nil {
+			return nil, errors.New("internal error: pool scan cannot have a parent operator")
+		}
+		// Here we convert PoolScan to lister->slicer->seqscan for the slow path as
+		// optimizer should do this conversion, but this allows us to run
+		// unoptimized scans too.
+		pool, err := b.lookupPool(o.ID)
+		if err != nil {
+			return nil, err
+		}
+		l, err := meta.NewSortedLister(b.rctx.Context, b.mctx, pool, o.Commit, nil)
+		if err != nil {
+			return nil, err
+		}
+		slicer := meta.NewSlicer(l, b.mctx)
+		return poolscanner.NewPoolScanner(b.rctx, slicer, pool, nil, nil, b.progress), nil
+	case *dag.SeqScan:
+		pool, err := b.lookupPool(o.Pool)
+		if err != nil {
+			return nil, err
+		}
+		var pruner samexpr.Evaluator
+		if o.KeyPruner != nil {
+			pruner, err = compileExpr(o.KeyPruner)
+			if err != nil {
+				return nil, err
+			}
+		}
+		var filter expr.Evaluator
+		if o.Filter != nil {
+			filter, err = b.compileVamExpr(o.Filter)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return poolscanner.NewPoolScanner(b.rctx, sbuf.NewMaterializer(parent), pool, filter, pruner, b.progress), nil
 	case *dag.SkipOp:
 		return op.NewSkip(parent, o.Count), nil
 	case *dag.SortOp:
@@ -323,6 +387,14 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		}
 		return sbuf.NewDematerializer(b.sctx(), sbufPuller), nil
 	}
+}
+
+func invertForDeleteWhere(where dag.Expr) dag.Expr {
+	return dag.NewBinaryExpr("or",
+		dag.NewUnaryExpr("!", where),
+		dag.NewBinaryExpr("or",
+			&dag.IsNullExpr{Kind: "IsNullExpr", Expr: where},
+			dag.NewCall("is_error", []dag.Expr{where})))
 }
 
 func newRecordExprFromAssignments(assignments []dag.Assignment) (*dag.RecordExpr, error) {

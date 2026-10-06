@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"runtime"
 	"slices"
@@ -20,7 +21,10 @@ import (
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime/sam/expr"
+	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
+	"github.com/superdb/super/sio/bsupio"
+	"github.com/superdb/super/vector/vio"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -209,7 +213,7 @@ func (p *Pool) BatchifyBranchTips(ctx context.Context, sctx *super.Context, f ex
 
 // XXX this is inefficient but is only meant for interactive queries...?
 func (p *Pool) ObjectExists(ctx context.Context, id ksuid.KSUID) (bool, error) {
-	return p.engine.Exists(ctx, data.SequenceURI(p.DataPath, id))
+	return p.engine.Exists(ctx, data.URI(p.DataPath, id))
 }
 
 func (p *Pool) Vacate(ctx context.Context, ts nano.Ts, dryrun bool) ([]ksuid.KSUID, error) {
@@ -295,7 +299,7 @@ func (p *Pool) Vacuum(ctx context.Context, commit ksuid.KSUID, dryrun bool) ([]k
 			// For dryrun just check if the object exists and append existing
 			// objects to list of results.
 			group.Go(func() error {
-				ok, err := p.engine.Exists(ctx, data.SequenceURI(p.DataPath, o.ID))
+				ok, err := p.engine.Exists(ctx, data.URI(p.DataPath, o.ID))
 				if ok {
 					mu.Lock()
 					vacuumed = append(vacuumed, o.ID)
@@ -306,7 +310,7 @@ func (p *Pool) Vacuum(ctx context.Context, commit ksuid.KSUID, dryrun bool) ([]k
 			continue
 		}
 		group.Go(func() error {
-			err := p.engine.Delete(ctx, data.SequenceURI(p.DataPath, o.ID))
+			err := p.engine.Delete(ctx, data.URI(p.DataPath, o.ID))
 			if err == nil {
 				mu.Lock()
 				vacuumed = append(vacuumed, o.ID)
@@ -330,6 +334,28 @@ func (p *Pool) Main(ctx context.Context) (BranchMeta, error) {
 		return BranchMeta{}, err
 	}
 	return BranchMeta{p.Config, branch.Config}, nil
+}
+
+func (p *Pool) NewReader(ctx context.Context, sctx *super.Context, object *data.Object, pushdown sbuf.Pushdown, concurrency int) (vio.ScanCloser, error) {
+	uri := object.URI(p.DataPath)
+	r, err := p.engine.Get(ctx, uri)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", uri, err)
+	}
+	scanner, err := bsupio.NewReader(ctx, sctx, r, pushdown, concurrency)
+	if err != nil {
+		return nil, err
+	}
+	return &struct {
+		vio.Scanner
+		io.Closer
+	}{
+		Scanner: scanner,
+		// XXX We block close because vcache does lazy loading of
+		// type values.  This relies on GC to close files.  We need
+		// to work out a better way at some point.
+		Closer: io.NopCloser(r),
+	}, nil
 }
 
 func DataPath(poolPath *storage.URI) *storage.URI {

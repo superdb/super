@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/superdb/super"
+	"github.com/superdb/super/vector/vio"
 )
 
 func Extension(format string) string {
@@ -187,13 +188,11 @@ func CopyWithContext(ctx context.Context, dst Writer, src Reader) error {
 	}
 }
 
-func CloseReaders(readers []Reader) error {
+func CloseReaders(readers []vio.PullCloser) error {
 	var err error
 	for _, reader := range readers {
-		if closer, ok := reader.(io.Closer); ok {
-			if e := closer.Close(); err == nil {
-				err = e
-			}
+		if e := reader.Close(); err == nil {
+			err = e
 		}
 	}
 	return err

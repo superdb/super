@@ -12,10 +12,20 @@ type Puller interface {
 	Pull(done bool) (vector.Any, error)
 }
 
+type PullCloser interface {
+	Puller
+	io.Closer
+}
+
 // A Scanner is a Puller that also provides progress updates.
 type Scanner interface {
 	Meter
 	Puller
+}
+
+type ScanCloser interface {
+	Scanner
+	io.Closer
 }
 
 type Pusher interface {

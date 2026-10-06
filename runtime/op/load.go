@@ -59,8 +59,7 @@ func (l *Load) Pull(done bool) (vector.Any, error) {
 	if err != nil {
 		return nil, err
 	}
-	reader := sbuf.PullerReader(sbuf.NewMaterializer(l.parent))
-	commitID, err := branch.Load(l.rctx.Context, l.rctx.Sctx, reader, l.author, l.message, l.meta)
+	commitID, err := branch.Load(l.rctx.Context, l.rctx.Sctx, l.parent, l.author, l.message, l.meta)
 	if err != nil {
 		return nil, err
 	}
