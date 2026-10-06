@@ -30,11 +30,16 @@ import (
 )
 
 func TestSPQ(t *testing.T) {
-	t.Parallel()
-
 	dirs, err := findZTests()
 	require.NoError(t, err)
-
+	runZtests(t, dirs)
+	t.Run("fuseinput", func(t *testing.T) {
+		if os.Getenv("ZTEST_PATH") != "" {
+			t.Skip("skipping on script run")
+		}
+		t.Setenv("SUPER_FUSEINPUT", "1")
+		runZtests(t, dirs)
+	})
 	t.Run("boomerang", func(t *testing.T) {
 		if testing.Short() {
 			t.Skip("skipping boomerang in short mode")
@@ -50,13 +55,6 @@ func TestSPQ(t *testing.T) {
 		runAllBoomerangs(t, "sup", data)
 		runAllFusionBoomerangs(t, data)
 	})
-
-	for d := range dirs {
-		t.Run(filepath.ToSlash(d), func(t *testing.T) {
-			t.Parallel()
-			ztest.Run(t, d)
-		})
-	}
 }
 
 func findZTests() (map[string]struct{}, error) {
@@ -73,6 +71,15 @@ func findZTests() (map[string]struct{}, error) {
 		return nil
 	})
 	return dirs, err
+}
+
+func runZtests(t *testing.T, dirs map[string]struct{}) {
+	for d := range dirs {
+		t.Run(filepath.ToSlash(d), func(t *testing.T) {
+			t.Parallel()
+			ztest.Run(t, d)
+		})
+	}
 }
 
 func loadZTestInputsAndOutputs(t *testing.T, ztestDirs map[string]struct{}) (map[string]string, error) {

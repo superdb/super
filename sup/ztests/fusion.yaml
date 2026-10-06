@@ -3,6 +3,7 @@ spq: pass
 flags: -fusion
 
 input: &input |
-  {a:fusion(none::(int64|null|none),<none>)}
+  {a:fusion(1::(int64|none),<int64>),b:fusion(none::(int64|none),<none>)}
+  {a:fusion(none::(int64|none),<none>),b:fusion(2::(int64|none),<int64>)}
 
 output: *input
