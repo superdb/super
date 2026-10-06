@@ -306,7 +306,11 @@ func (b *Builder) compileVamSubquery(query *dag.SubqueryExpr) (expr.Evaluator, e
 	}
 	var create func() *op.Subquery
 	create = func() *op.Subquery {
-		subquery := op.NewSubquery(b.rctx.Context, b.sctx(), create)
+		subquery := op.NewSubquery(b.rctx.Context, b.sctx(), func() *op.Subquery {
+			b.mu.Lock()
+			defer b.mu.Unlock()
+			return create()
+		})
 		exits, err := b.compileVamSeq(query.Body, []vio.Puller{subquery})
 		if err != nil {
 			panic(err)
