@@ -6,13 +6,12 @@ import (
 	"github.com/superdb/super/vector/vio"
 )
 
-// Query runs a flowgraph as a sbuf.Puller and implements a Close() method
-// that gracefully tears down the flowgraph.  Its AsReader() and AsProgressReader()
-// methods provide a convenient means to run a flowgraph as sio.Reader.
+// Query runs a flowgraph and gracefully tears down the flowgraph when
+// the end of query is reached.
 type Query struct {
 	vio.Puller
-	rctx  *runtime.Context
-	meter vio.Meter
+	vio.Meter
+	rctx *runtime.Context
 }
 
 var _ runtime.Query = (*Query)(nil)
@@ -20,17 +19,9 @@ var _ runtime.Query = (*Query)(nil)
 func NewQuery(rctx *runtime.Context, puller vio.Puller, meter vio.Meter) *Query {
 	return &Query{
 		Puller: puller,
+		Meter:  meter,
 		rctx:   rctx,
-		meter:  meter,
 	}
-}
-
-func (q *Query) Progress() vio.Progress {
-	return q.meter.Progress()
-}
-
-func (q *Query) Meter() vio.Meter {
-	return q.meter
 }
 
 func (q *Query) Pull(done bool) (vector.Any, error) {

@@ -101,11 +101,10 @@ func handleQuery(c *Core, w *ResponseWriter, r *Request) {
 	}()
 	timer := time.NewTicker(queryStatsInterval)
 	defer timer.Stop()
-	meter := flowgraph.Meter()
 	for {
 		select {
 		case <-timer.C:
-			if err := writer.WriteProgress(meter.Progress()); err != nil {
+			if err := writer.WriteProgress(flowgraph.Progress()); err != nil {
 				w.Logger.Warn("Error writing progress to client", zap.Error(err))
 				handleError(err)
 				return
@@ -135,7 +134,7 @@ func handleQuery(c *Core, w *ResponseWriter, r *Request) {
 			}
 			if vec == nil {
 				// query is done
-				if err := writer.WriteProgress(meter.Progress()); err != nil {
+				if err := writer.WriteProgress(flowgraph.Progress()); err != nil {
 					w.Logger.Warn("Error writing progress to client", zap.Error(err))
 					handleError(err)
 				}

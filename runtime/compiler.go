@@ -17,8 +17,7 @@ type Compiler interface {
 
 type Query interface {
 	vio.Puller
-	Progress() vio.Progress
-	Meter() vio.Meter
+	vio.Meter
 }
 
 type DeleteQuery interface {
