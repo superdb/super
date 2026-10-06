@@ -80,6 +80,11 @@ type route struct {
 	blocked  bool
 }
 
+type result struct {
+	vector vector.Any
+	err    error
+}
+
 func (r *route) Pull(done bool) (vector.Any, error) {
 	r.router.once.Do(func() { go r.router.run() })
 	if done {

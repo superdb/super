@@ -2,8 +2,6 @@ package compiler
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/compiler/optimizer"
@@ -11,11 +9,9 @@ import (
 	"github.com/superdb/super/compiler/rungen"
 	"github.com/superdb/super/compiler/semantic"
 	"github.com/superdb/super/compiler/srcfiles"
-	"github.com/superdb/super/dbid"
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
 	"github.com/superdb/super/runtime/op"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/vector/vio"
 )
 
@@ -103,42 +99,4 @@ func bundleOutputs(rctx *runtime.Context, outputs map[string]vio.Puller, chans *
 	default:
 		return op.NewMux(rctx, outputs, chans)
 	}
-}
-
-func VectorFilterCompile(rctx *runtime.Context, query string, env *exec.Environment, head *dbid.Committish) (sbuf.Puller, error) {
-	// Eventually the semantic analyzer + rungen will resolve the pool but
-	// for now just do this manually.
-	if !env.IsAttached() {
-		return nil, errors.New("non-database vectorized search not supported")
-	}
-	poolID, err := env.PoolID(rctx.Context, head.Pool)
-	if err != nil {
-		return nil, err
-	}
-	commitID, err := env.CommitObject(rctx.Context, poolID, head.Branch)
-	if err != nil {
-		return nil, err
-	}
-	spec, err := head.FromSpec("")
-	if err != nil {
-		return nil, err
-	}
-	ast, err := parser.ParseText(fmt.Sprintf("%s | %s", spec, query))
-	if err != nil {
-		return nil, err
-	}
-	main, err := semantic.Analyze(rctx.Context, ast, env, false)
-	if err != nil {
-		return nil, err
-	}
-	entry := main.Body
-	// from -> filter -> output
-	if len(entry) != 3 {
-		return nil, errors.New("filter query must have a single op")
-	}
-	f, ok := entry[1].(*dag.FilterOp)
-	if !ok {
-		return nil, errors.New("filter query must be a single filter op")
-	}
-	return rungen.NewBuilder(rctx, env).BuildVamToSeqFilter(f.Expr, poolID, commitID)
 }

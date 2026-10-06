@@ -13,7 +13,6 @@ import (
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/runtime/sam/op/merge"
 	"github.com/superdb/super/sbuf"
-	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 )
 
@@ -91,60 +90,6 @@ func (s *SequenceScanner) Pull(done bool) (sbuf.Batch, error) {
 func (s *SequenceScanner) close(err error) {
 	s.err = err
 	s.done = true
-}
-
-type SearchScanner struct {
-	pushdown sbuf.Pushdown
-	parent   Searcher
-	pool     *db.Pool
-	progress *vio.Progress
-	rctx     *runtime.Context
-	scanner  sbuf.Puller
-}
-
-type Searcher interface {
-	Pull(bool) (*data.Object, *vector.Bool, error)
-}
-
-func NewSearchScanner(rctx *runtime.Context, parent Searcher, pool *db.Pool, pushdown sbuf.Pushdown, progress *vio.Progress) *SearchScanner {
-	return &SearchScanner{
-		pushdown: pushdown,
-		parent:   parent,
-		pool:     pool,
-		progress: progress,
-		rctx:     rctx,
-	}
-}
-
-func (s *SearchScanner) Pull(done bool) (sbuf.Batch, error) {
-	if done {
-		var err error
-		if s.scanner != nil {
-			_, err = s.scanner.Pull(true)
-			s.scanner = nil
-		}
-		return nil, err
-	}
-	for {
-		if s.scanner == nil {
-			o, b, err := s.parent.Pull(done)
-			if b == nil || err != nil {
-				return nil, err
-			}
-			s.scanner, err = newObjectScanner(s.rctx.Context, s.rctx.Sctx, s.pool, o, s.pushdown, s.progress)
-			if err != nil {
-				return nil, err
-			}
-		}
-		batch, err := s.scanner.Pull(false)
-		if err != nil {
-			return nil, err
-		}
-		if batch != nil {
-			return batch, nil
-		}
-		s.scanner = nil
-	}
 }
 
 func newScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, u *super.Unmarshaler, pruner expr.Evaluator, pushdown sbuf.Pushdown, progress *vio.Progress, val super.Value) (sbuf.Puller, *data.Object, error) {
