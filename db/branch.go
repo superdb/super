@@ -17,6 +17,7 @@ import (
 	"github.com/superdb/super/pkg/plural"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
+	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector/vio"
@@ -234,14 +235,47 @@ func (b *Branch) Revert(ctx context.Context, commit ksuid.KSUID, author, message
 	})
 }
 
-func (b *Branch) CommitCompact(ctx context.Context, src, rollup []*data.Object, author, message, meta string) (ksuid.KSUID, error) {
-	if len(rollup) < 1 {
-		return ksuid.Nil, errors.New("compact: one or more rollup objects required")
+func (b *Branch) Compact(ctx context.Context, c runtime.Compiler, objectIDs []ksuid.KSUID, author, message, meta string) (ksuid.KSUID, error) {
+	if len(objectIDs) < 2 {
+		return ksuid.Nil, errors.New("compact: two or more source objects required")
 	}
 	sctx := super.NewContext()
 	appMeta, err := loadMeta(sctx, meta)
 	if err != nil {
 		return ksuid.Nil, err
+	}
+	base, err := b.pool.Snapshot(ctx, b.Commit)
+	if err != nil {
+		return ksuid.Nil, err
+	}
+	compact := commits.NewSnapshot()
+	for _, oid := range objectIDs {
+		o, err := base.Lookup(oid)
+		if err != nil {
+			return ksuid.Nil, err
+		}
+		compact.AddDataObject(o)
+	}
+	// Set up a query to scan the objects for compaction and write them
+	// back to the pool to generate new IDs from the write process.
+	original := compact.SelectAll()
+	q, err := c.NewObjectScanner(runtime.NewContext(ctx, sctx), b.pool.ID, original)
+	if err != nil {
+		return ksuid.Nil, err
+	}
+	w := NewSortedWriter(ctx, sctx, b.pool)
+	if err := sbuf.CopyPuller(w, sbuf.NewMaterializer(q)); err != nil {
+		q.Pull(true)
+		w.Abort()
+		return ksuid.Nil, err
+	}
+	if err := w.Close(); err != nil {
+		w.Abort()
+		return ksuid.Nil, err
+	}
+	rollup := w.Objects()
+	if len(rollup) == 0 {
+		return ksuid.Nil, errors.New("compact: one or more rollup objects required")
 	}
 	return b.commit(ctx, func(parent *branches.Config, retries int) (*commits.Object, error) {
 		base, err := b.pool.commits.Snapshot(ctx, parent.Commit)
@@ -254,17 +288,17 @@ func (b *Branch) CommitCompact(ctx context.Context, src, rollup []*data.Object, 
 				return nil, err
 			}
 		}
-		for _, o := range src {
+		for _, o := range original {
 			if err := patch.DeleteObject(o.ID); err != nil {
 				return nil, err
 			}
 		}
 		if message == "" {
 			var b strings.Builder
-			fmt.Fprintf(&b, "compacted %d object%s\n\n", len(src), plural.Slice(src, "s"))
-			printObjects(&b, src, maxMessageObjects)
+			fmt.Fprintf(&b, "compacted %d object%s\n\n", len(original), plural.Slice(original, "s"))
+			printObjects(&b, original, maxMessageObjects)
 			fmt.Fprintf(&b, "\ncreated %d object%s\n\n", len(rollup), plural.Slice(rollup, "s"))
-			printObjects(&b, rollup, maxMessageObjects-len(src))
+			printObjects(&b, rollup, maxMessageObjects-len(original))
 			message = b.String()
 		}
 		commit := patch.NewCommitObject(parent.Commit, retries, author, message, appMeta)

@@ -16,7 +16,6 @@ import (
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
-	"github.com/superdb/super/runtime/exec"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector/vio"
 	"go.uber.org/zap"
@@ -100,11 +99,11 @@ func (l *local) MergeBranch(ctx context.Context, poolID ksuid.KSUID, childBranch
 }
 
 func (l *local) Compact(ctx context.Context, poolID ksuid.KSUID, branchName string, objects []ksuid.KSUID, commit api.CommitMessage) (ksuid.KSUID, error) {
-	pool, err := l.db.OpenPool(ctx, poolID)
+	_, branch, err := l.lookupBranch(ctx, poolID, branchName)
 	if err != nil {
 		return ksuid.Nil, err
 	}
-	return exec.Compact(ctx, l.db, pool, branchName, objects, commit.Author, commit.Body, commit.Meta)
+	return branch.Compact(ctx, l.compiler, objects, commit.Author, commit.Body, commit.Meta)
 }
 
 func (l *local) Query(ctx context.Context, inputs []srcfiles.Input) (vio.Scanner, error) {
