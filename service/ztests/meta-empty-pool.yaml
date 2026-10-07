@@ -5,7 +5,6 @@ script: |
   super db -c 'from test@main:objects'
   super db -c 'from test@main:partitions'
   super db -c 'from test@main:rawlog'
-  super db -c 'from test@main:vectors'
 
 inputs:
   - name: service.sh

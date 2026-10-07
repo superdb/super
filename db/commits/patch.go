@@ -19,7 +19,6 @@ type Patch struct {
 	base           View
 	diff           *Snapshot
 	deletedObjects []ksuid.KSUID
-	deletedVectors []ksuid.KSUID
 }
 
 var _ View = (*Patch)(nil)
@@ -37,10 +36,6 @@ func (p *Patch) Lookup(id ksuid.KSUID) (*data.Object, error) {
 		return s, nil
 	}
 	return p.base.Lookup(id)
-}
-
-func (p *Patch) HasVector(id ksuid.KSUID) bool {
-	return p.diff.HasVector(id) || p.base.HasVector(id)
 }
 
 func (p *Patch) Select(span extent.Span, o order.Which) DataObjects {
@@ -80,26 +75,6 @@ func (p *Patch) DeleteObject(id ksuid.KSUID) error {
 	// Keep track of the deletions from the base so we can add the
 	// needed delete Actions when building the transaction patch.
 	p.deletedObjects = append(p.deletedObjects, id)
-	return nil
-}
-
-func (p *Patch) AddVector(id ksuid.KSUID) error {
-	if p.HasVector(id) {
-		return ErrExists
-	}
-	return p.diff.AddVector(id)
-}
-
-func (p *Patch) DeleteVector(id ksuid.KSUID) error {
-	if p.diff.HasVector(id) {
-		return p.diff.DeleteVector(id)
-	}
-	if !p.base.HasVector(id) {
-		return ErrNotFound
-	}
-	// Keep track of the deletions from the base so we can add the
-	// needed delete Actions when building the transaction patch.
-	p.deletedVectors = append(p.deletedVectors, id)
 	return nil
 }
 

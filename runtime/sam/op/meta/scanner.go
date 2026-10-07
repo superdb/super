@@ -94,17 +94,6 @@ func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, 
 			return nil, err
 		}
 		return sbuf.NewScanner(ctx, reader, nil)
-	case "vectors":
-		snap, err := p.Snapshot(ctx, commit)
-		if err != nil {
-			return nil, err
-		}
-		vectors := commits.Vectors(snap)
-		reader, err := objectReader(sctx, vectors, p.SortKeys.Primary().Order)
-		if err != nil {
-			return nil, err
-		}
-		return sbuf.NewScanner(ctx, reader, nil)
 	default:
 		return nil, fmt.Errorf("unknown commit metadata type: %q", meta)
 	}

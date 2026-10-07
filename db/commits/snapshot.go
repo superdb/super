@@ -17,7 +17,6 @@ var ErrWriteConflict = errors.New("write conflict")
 
 type View interface {
 	Lookup(ksuid.KSUID) (*data.Object, error)
-	HasVector(ksuid.KSUID) bool
 	Select(extent.Span, order.Which) DataObjects
 	SelectAll() DataObjects
 }
@@ -26,8 +25,6 @@ type Writeable interface {
 	View
 	AddDataObject(*data.Object) error
 	DeleteObject(ksuid.KSUID) error
-	AddVector(ksuid.KSUID) error
-	DeleteVector(ksuid.KSUID) error
 }
 
 // A snapshot summarizes the pool state at any point in
@@ -195,14 +192,4 @@ func Play(w Writeable, o *Object) error {
 		}
 	}
 	return nil
-}
-
-func Vectors(view View) *Snapshot {
-	snap := NewSnapshot()
-	for _, o := range view.SelectAll() {
-		if view.HasVector(o.ID) {
-			snap.AddDataObject(o)
-		}
-	}
-	return snap
 }
