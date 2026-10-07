@@ -210,7 +210,9 @@ func (f *formatter) formatValue(indent int, typ super.Type, bytes scode.Bytes, p
 				panic(err)
 			}
 			f.formatValue(indent, typ, bytes, false, true, isOptField)
+			f.startColor(color.Gray(200))
 			f.build("::any")
+			f.endColor()
 			return
 		}
 		f.startColor(color.Green)
