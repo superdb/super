@@ -23,7 +23,7 @@ import (
 
 type local struct {
 	db       *db.Root
-	compiler runtime.Compiler
+	compiler runtime.Environment
 }
 
 var _ Interface = (*local)(nil)

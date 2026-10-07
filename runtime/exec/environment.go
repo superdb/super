@@ -10,7 +10,9 @@ import (
 
 	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
+	"github.com/superdb/super/compiler"
 	"github.com/superdb/super/compiler/dag"
+	"github.com/superdb/super/compiler/parser"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/dbid"
 	"github.com/superdb/super/order"
@@ -58,6 +60,10 @@ func (e *Environment) IsAttached() bool {
 
 func (e *Environment) DB() *db.Root {
 	return e.db
+}
+
+func (e *Environment) NewQuery(rctx *runtime.Context, ast *parser.AST, inputs []vio.Puller, parallelism int) (runtime.Query, error) {
+	return compiler.CompileWithAST(rctx, ast, e, true, parallelism, inputs)
 }
 
 func (e *Environment) PoolID(ctx context.Context, name string) (ksuid.KSUID, error) {

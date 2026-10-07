@@ -61,7 +61,8 @@ func handleQuery(c *Core, w *ResponseWriter, r *Request) {
 		return
 	}
 	sctx := super.NewContext()
-	flowgraph, err := runtime.CompileQueryForDB(r.Context(), sctx, c.compiler, ast)
+	rctx := runtime.NewContext(r.Context(), sctx)
+	flowgraph, err := c.env.NewQuery(rctx, ast, nil, 0)
 	if err != nil {
 		w.Error(srverr.ErrInvalid(err))
 		return

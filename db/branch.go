@@ -130,7 +130,7 @@ func (b *Branch) Delete(ctx context.Context, ids []ksuid.KSUID, author, message 
 	})
 }
 
-func (b *Branch) DeleteWhere(ctx context.Context, c runtime.Compiler, ast *parser.AST, author, message, meta string) (ksuid.KSUID, error) {
+func (b *Branch) DeleteWhere(ctx context.Context, env runtime.Environment, ast *parser.AST, author, message, meta string) (ksuid.KSUID, error) {
 	sctx := super.NewContext()
 	appMeta, err := loadMeta(sctx, meta)
 	if err != nil {
@@ -147,7 +147,7 @@ func (b *Branch) DeleteWhere(ctx context.Context, c runtime.Compiler, ast *parse
 			Pool:   b.pool.Name,
 			Branch: parent.Commit.String(),
 		}
-		query, err := c.NewDeleteQuery(rctx, ast, committish)
+		query, err := env.NewDeleteQuery(rctx, ast, committish)
 		if err != nil {
 			return nil, err
 		}
@@ -235,7 +235,7 @@ func (b *Branch) Revert(ctx context.Context, commit ksuid.KSUID, author, message
 	})
 }
 
-func (b *Branch) Compact(ctx context.Context, c runtime.Compiler, objectIDs []ksuid.KSUID, author, message, meta string) (ksuid.KSUID, error) {
+func (b *Branch) Compact(ctx context.Context, env runtime.Environment, objectIDs []ksuid.KSUID, author, message, meta string) (ksuid.KSUID, error) {
 	if len(objectIDs) < 2 {
 		return ksuid.Nil, errors.New("compact: two or more source objects required")
 	}
@@ -259,7 +259,7 @@ func (b *Branch) Compact(ctx context.Context, c runtime.Compiler, objectIDs []ks
 	// Set up a query to scan the objects for compaction and write them
 	// back to the pool to generate new IDs from the write process.
 	original := compact.SelectAll()
-	q, err := c.NewObjectScanner(runtime.NewContext(ctx, sctx), b.pool.ID, original)
+	q, err := env.NewObjectScanner(runtime.NewContext(ctx, sctx), b.pool.ID, original)
 	if err != nil {
 		return ksuid.Nil, err
 	}

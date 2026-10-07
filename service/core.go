@@ -18,10 +18,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/superdb/super"
 	"github.com/superdb/super/api"
-	"github.com/superdb/super/compiler"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/pkg/storage"
-	"github.com/superdb/super/runtime"
+	"github.com/superdb/super/runtime/exec"
 	"go.uber.org/zap"
 )
 
@@ -54,7 +53,7 @@ type Config struct {
 
 type Core struct {
 	auth             *Auth0Authenticator
-	compiler         runtime.Compiler
+	env              *exec.Environment
 	conf             Config
 	engine           storage.Engine
 	logger           *zap.Logger
@@ -144,7 +143,7 @@ func NewCore(ctx context.Context, conf Config) (*Core, error) {
 
 	c := &Core{
 		auth:           authenticator,
-		compiler:       compiler.NewCompilerForDB(root),
+		env:            exec.NewEnvironment(engine, root),
 		conf:           conf,
 		engine:         engine,
 		logger:         conf.Logger.Named("core"),

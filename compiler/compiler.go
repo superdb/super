@@ -25,22 +25,22 @@ type compiler struct {
 	env *exec.Environment
 }
 
-func NewCompiler(local storage.Engine) runtime.Compiler {
+func NewCompiler(local storage.Engine) runtime.Environment {
 	return NewCompilerWithEnv(exec.NewEnvironment(local, nil))
 }
 
-func NewCompilerForDB(root *db.Root) runtime.Compiler {
+func NewCompilerForDB(root *db.Root) runtime.Environment {
 	// We configure a remote storage engine into the compiler so that
 	// "from" operators that source http or s3 will work, but stdio and
 	// file system accesses will be rejected at open time.
 	return NewCompilerWithEnv(exec.NewEnvironment(storage.NewRemoteEngine(), root))
 }
 
-func NewCompilerWithEnv(env *exec.Environment) runtime.Compiler {
+func NewCompilerWithEnv(env *exec.Environment) runtime.Environment {
 	return &compiler{env}
 }
 
-func (c *compiler) NewQuery(rctx *runtime.Context, ast *parser.AST, readers []vio.Puller, parallelism int) (runtime.Query, error) {
+func NewQuery(env runtime.Environment, rctx *runtime.Context, ast *parser.AST, readers []vio.Puller, parallelism int) (runtime.Query, error) {
 	if parallelism == 0 {
 		parallelism = Parallelism
 	}
