@@ -38,6 +38,7 @@ type Builder struct {
 	deletes         *sync.Map
 	funcs           map[string]*dag.FuncDef
 	compiledVamUDFs map[string]*expr.UDF
+	mu              sync.Mutex
 }
 
 func NewBuilder(rctx *runtime.Context, env *exec.Environment) *Builder {

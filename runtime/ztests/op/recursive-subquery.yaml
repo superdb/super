@@ -11,3 +11,21 @@ spq: |
 
 output: |
   [{x:[2,3]},{y:4}]
+
+---
+
+# Tests a recursive subquery in a fork does not cause a panic from concurrent
+# access to the builder UDF map.
+spq: |
+  fn buildList(n): (
+    values n <= 0 ? [] : [n, ...buildList(n - 1)]
+  )
+  fork
+    ( values buildList(10) | unnest this )
+    ( values buildList(10) | unnest this )
+    ( values buildList(10) | unnest this )
+    ( values buildList(10) | unnest this )
+  | count()
+
+output: |
+  40
