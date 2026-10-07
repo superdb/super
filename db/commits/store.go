@@ -497,7 +497,6 @@ func (s *Store) Vacuumable(ctx context.Context, leaf ksuid.KSUID, out chan<- *da
 					case <-ctx.Done():
 					}
 				}
-			// XXX Support *AddVector, but currently Vector only has an ID and descriptive object.
 			default:
 				continue
 			}
