@@ -518,24 +518,6 @@ func (t *translator) existsExpr(e *ast.ExistsExpr, inType super.Type) (sem.Expr,
 		sem.NewLiteral(e, super.NewInt64(0), t.defs)), super.TypeBool
 }
 
-func semDynamicType(n ast.Node, tv ast.Type, defs *super.Context) *sem.CallExpr {
-	if ref, ok := tv.(*ast.TypeRef); ok {
-		return dynamicTypeName(n, ref.Name, defs)
-	}
-	return nil
-}
-
-func dynamicTypeName(n ast.Node, name string, defs *super.Context) *sem.CallExpr {
-	return sem.NewCall(
-		n,
-		"typename",
-		[]sem.Expr{
-			// SUP string literal of type name
-			sem.NewLiteral(n, super.NewString(name), defs),
-		},
-	)
-}
-
 func (t *translator) regexp(b *ast.BinaryExpr, inType super.Type) (sem.Expr, super.Type) {
 	if b.Op != "~" {
 		return nil, nil

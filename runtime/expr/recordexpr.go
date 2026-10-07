@@ -1,7 +1,6 @@
 package expr
 
 import (
-	"fmt"
 	"slices"
 
 	"github.com/superdb/super"
@@ -86,17 +85,6 @@ func (r *recordExpr) eval(vecs ...vector.Any) vector.Any {
 	}
 	typ := r.sctx.MustLookupTypeRecord(r.fields)
 	return vector.NewRecord(typ, r.fieldVecs, vecs[0].Len())
-}
-
-func deoptionFieldValue(sctx *super.Context, o *vector.Option, name string) vector.Any {
-	switch o.Any.(type) {
-	case *vector.Dynamic:
-		panic("should be ripped")
-	case *vector.None:
-		return vector.NewWrappedError(sctx, fmt.Sprintf("none assigned to non-optional field %s", name), o)
-	default:
-		return o.Any
-	}
 }
 
 func (r *recordExpr) addOrUpdateField(name string, vec vector.Any) {

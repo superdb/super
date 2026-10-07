@@ -28,7 +28,6 @@ type reader struct {
 	once          sync.Once
 	pushdown      sbuf.Pushdown
 	metaFilters   []*metafilter
-	readerAt      io.ReaderAt
 	vecs          [][]vector.Any
 }
 

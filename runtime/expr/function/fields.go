@@ -59,15 +59,6 @@ func (f *Fields) Call(args ...vector.Any) vector.Any {
 	}
 }
 
-func (f *Fields) recordType(b []byte) *super.TypeRecord {
-	typ, err := f.sctx.LookupByValue(b)
-	if err != nil {
-		return nil
-	}
-	rtyp, _ := typ.(*super.TypeRecord)
-	return rtyp
-}
-
 func buildPath(typ *super.TypeRecord, prefix []string) [][]string {
 	var out [][]string
 	for _, f := range typ.Fields {

@@ -187,7 +187,6 @@ func Unlabel(vec vector.Any) (vector.Any, string) {
 type debugger struct {
 	threads  []dthread
 	resultCh chan muxresult
-	label    string
 	nrun     int
 }
 

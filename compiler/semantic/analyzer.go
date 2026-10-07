@@ -137,20 +137,6 @@ func (t *translator) getTypes() []byte {
 	return t.defs.TypeDefs().Bytes()
 }
 
-// lookupTypeByID return the type from the typedefs table with ID
-// in the translator sctx.
-func (t *translator) lookupTypeByID(id int) super.Type {
-	typ, err := t.defs.LookupType(id)
-	if err != nil {
-		panic(err)
-	}
-	typ, err = t.sctx.TranslateType(typ)
-	if err != nil {
-		panic(err)
-	}
-	return typ
-}
-
 type opDecl struct {
 	ast   *ast.OpDecl
 	scope *Scope // parent scope of op declaration.

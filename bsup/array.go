@@ -3,13 +3,11 @@ package bsup
 import (
 	"io"
 
-	"github.com/superdb/super"
 	"github.com/superdb/super/vector"
 	"golang.org/x/sync/errgroup"
 )
 
 type ArrayEncoder struct {
-	typ     super.Type
 	values  Encoder
 	offsets *Uint32Encoder
 	count   uint32
