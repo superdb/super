@@ -257,15 +257,6 @@ func (f *Fuser) fusion(typ Type) Type {
 	return f.sctx.LookupTypeFusion(typ)
 }
 
-func indexOfField(fields []Field, name string) (int, bool) {
-	for i, f := range fields {
-		if f.Name == name {
-			return i, true
-		}
-	}
-	return -1, false
-}
-
 func orderPreserved(fused, child *TypeRecord) bool {
 	off := -1
 	for _, f := range child.Fields {

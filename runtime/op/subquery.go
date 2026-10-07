@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/superdb/super"
-	"github.com/superdb/super/scode"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vbuild"
 	"github.com/superdb/super/vector/vio"
@@ -27,8 +26,6 @@ type Subquery struct {
 
 	stack []*Subquery
 	tos   int
-
-	builder scode.Builder
 }
 
 func NewSubquery(ctx context.Context, sctx *super.Context, create func() *Subquery) *Subquery {

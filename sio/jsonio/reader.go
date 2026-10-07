@@ -23,7 +23,6 @@ type Reader struct {
 	sctx       *super.Context
 	ctx        context.Context
 	stream     *stream
-	pushdown   sbuf.Pushdown
 	projection field.List
 
 	hasClosed atomic.Bool

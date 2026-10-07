@@ -65,18 +65,6 @@ func filterNonesFromDynamic(d *vector.Dynamic) vector.Any {
 	return vector.NewDynamic(tags, vecs)
 }
 
-func (c *collect) consume(vecs ...vector.Any) vector.Any {
-	vec := vecs[0]
-	if vec.Kind() == vector.KindNone || vec.Len() == 0 {
-		return vector.NewNull(vecs[0].Len())
-	}
-	if c.builder == nil {
-		c.builder = vbuild.NewDynamicBuilder()
-	}
-	c.builder.Write(vec)
-	return vector.NewNone(vecs[0].Len())
-}
-
 func (c *collect) Result(sctx *super.Context) vector.Any {
 	if c.builder == nil {
 		atyp := sctx.LookupTypeArray(super.TypeNone)

@@ -511,13 +511,6 @@ func (c *checker) recordElems(typ super.Type, elems []sem.RecordElem) super.Type
 	return defuse(fuser.Type())
 }
 
-func (c *checker) option(opt bool, typ super.Type) super.Type {
-	if opt {
-		typ = c.t.sctx.Optionize(typ)
-	}
-	return typ
-}
-
 func (c *checker) fuseRecordElems(elems []sem.RecordElem, types []super.Type) super.Type {
 	fuser := c.newFuser()
 	for k, elem := range elems {

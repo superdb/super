@@ -35,9 +35,8 @@ func readerAt(r io.Reader) (io.ReaderAt, bool) {
 }
 
 type stream struct {
-	sctx   *super.Context
-	fit    bsup.FrameIter
-	reader io.Reader
+	sctx *super.Context
+	fit  bsup.FrameIter
 }
 
 func newStream(sctx *super.Context, r io.Reader) (vio.Scanner, error) {

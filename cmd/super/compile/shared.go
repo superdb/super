@@ -29,7 +29,6 @@ type Shared struct {
 	optimize    bool
 	parallel    int
 	query       bool
-	runtime     bool
 	static      bool
 	queryFlags  queryflags.QueryTextFlags
 	OutputFlags outputflags.Flags
