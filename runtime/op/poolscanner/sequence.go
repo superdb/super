@@ -17,9 +17,9 @@ import (
 	"github.com/superdb/super/vector/vio"
 )
 
-// SequenceScanner implements an op that pulls metadata partitions to scan
+// PoolScanner implements an op that pulls metadata partitions to scan
 // from its parent and for each partition, scans the object.
-type SequenceScanner struct {
+type PoolScanner struct {
 	parent      sbuf.Puller
 	scanner     vio.Puller
 	where       expr.Evaluator
@@ -32,8 +32,8 @@ type SequenceScanner struct {
 	err         error
 }
 
-func NewPoolScanner(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool, where expr.Evaluator, pruner samexpr.Evaluator, progress *vio.Progress) *SequenceScanner {
-	return &SequenceScanner{
+func NewPoolScanner(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool, where expr.Evaluator, pruner samexpr.Evaluator, progress *vio.Progress) *PoolScanner {
+	return &PoolScanner{
 		rctx:        rctx,
 		parent:      parent,
 		where:       where,
@@ -44,53 +44,53 @@ func NewPoolScanner(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool, wh
 	}
 }
 
-func (s *SequenceScanner) Pull(done bool) (vector.Any, error) {
-	if s.done {
-		return nil, s.err
+func (p *PoolScanner) Pull(done bool) (vector.Any, error) {
+	if p.done {
+		return nil, p.err
 	}
 	if done {
-		if s.scanner != nil {
-			_, err := s.scanner.Pull(true)
-			s.close(err)
-			s.scanner = nil
+		if p.scanner != nil {
+			_, err := p.scanner.Pull(true)
+			p.close(err)
+			p.scanner = nil
 		}
-		return nil, s.err
+		return nil, p.err
 	}
 	for {
-		if s.scanner == nil {
-			batch, err := s.parent.Pull(false)
+		if p.scanner == nil {
+			batch, err := p.parent.Pull(false)
 			if batch == nil || err != nil {
-				s.close(err)
+				p.close(err)
 				return nil, err
 			}
 			vals := batch.Values()
 			if len(vals) != 1 {
 				// We currently support only one partition per batch.
 				err := errors.New("system error: SequenceScanner encountered multi-valued batch")
-				s.close(err)
+				p.close(err)
 				return nil, err
 			}
-			s.scanner, _, err = newScanner(s.rctx.Context, s.rctx.Sctx, s.pool, s.unmarshaler, s.pruner, s.where, s.progress, vals[0])
+			p.scanner, _, err = newScanner(p.rctx.Context, p.rctx.Sctx, p.pool, p.unmarshaler, p.pruner, p.where, p.progress, vals[0])
 			if err != nil {
-				s.close(err)
+				p.close(err)
 				return nil, err
 			}
 		}
-		vec, err := s.scanner.Pull(false)
+		vec, err := p.scanner.Pull(false)
 		if err != nil {
-			s.close(err)
+			p.close(err)
 			return nil, err
 		}
 		if vec != nil {
 			return vec, nil
 		}
-		s.scanner = nil
+		p.scanner = nil
 	}
 }
 
-func (s *SequenceScanner) close(err error) {
-	s.err = err
-	s.done = true
+func (p *PoolScanner) close(err error) {
+	p.err = err
+	p.done = true
 }
 
 func newScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, u *super.Unmarshaler, pruner samexpr.Evaluator, where expr.Evaluator, progress *vio.Progress, val super.Value) (vio.Puller, *data.Object, error) {
