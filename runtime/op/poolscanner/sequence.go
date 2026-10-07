@@ -178,6 +178,10 @@ func (s *statScanner) Pull(done bool) (vector.Any, error) {
 	return vec, err
 }
 
+func (s *statScanner) Close() error {
+	return nil
+}
+
 func applyMask(vec, mask vector.Any) (vector.Any, bool) {
 	// errors are ignored for filters
 	b, _ := expr.BoolMask(mask)

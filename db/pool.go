@@ -354,7 +354,7 @@ func (p *Pool) NewReader(ctx context.Context, sctx *super.Context, object *data.
 		io.Closer
 	}{
 		Scanner: scanner,
-		Closer:  r,
+		Closer:  io.NopCloser(r), // XXX we block close because of the lazy vector loader
 	}, nil
 }
 
