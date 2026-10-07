@@ -166,7 +166,7 @@ func (b *Branch) DeleteWhere(ctx context.Context, c runtime.Compiler, ast *parse
 		}
 		deleted := query.DeletionSet()
 		if len(deleted) == 0 {
-			return nil, commits.ErrEmptyTransaction
+			return nil, errors.New("no data found that meets 'where' condition")
 		}
 		patch := commits.NewPatch(base)
 		for _, oid := range deleted {

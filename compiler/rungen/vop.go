@@ -237,14 +237,15 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		if b.deletes == nil {
 			b.deletes = &sync.Map{}
 		}
-		var where expr.Evaluator
+		var whereNot expr.Evaluator
 		if o.Where != nil {
-			where, err = b.compileVamExpr(o.Where)
+			where, err := b.compileVamExpr(o.Where)
 			if err != nil {
 				return nil, err
 			}
+			whereNot = expr.NewLogicalNot(b.sctx(), where)
 		}
-		return poolscanner.NewDeleter(b.rctx, sbuf.NewMaterializer(parent), pool, where, pruner, b.progress, b.deletes), nil
+		return poolscanner.NewDeleter(b.rctx, sbuf.NewMaterializer(parent), pool, whereNot, pruner, b.progress, b.deletes), nil
 	case *dag.DistinctOp:
 		e, err := b.compileVamExpr(o.Expr)
 		if err != nil {

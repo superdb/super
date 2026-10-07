@@ -116,7 +116,7 @@ func newScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, u *supe
 	return scanner, objects[0], err
 }
 
-func newObjectsScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, objects []*data.Object, pruner samexpr.Evaluator, where expr.Evaluator, progress *vio.Progress) (vio.Puller, error) {
+func newObjectsScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, objects []*data.Object, pruner samexpr.Evaluator, filter expr.Evaluator, progress *vio.Progress) (vio.Puller, error) {
 	pullers := make([]vio.Puller, 0, len(objects))
 	pullersDone := func() {
 		for _, puller := range pullers {
@@ -124,7 +124,7 @@ func newObjectsScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, 
 		}
 	}
 	for _, object := range objects {
-		s, err := newObjectScanner(ctx, sctx, pool, object, where, progress)
+		s, err := newObjectScanner(ctx, sctx, pool, object, filter, progress)
 		if err != nil {
 			pullersDone()
 			return nil, err
@@ -137,7 +137,7 @@ func newObjectsScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, 
 	return merge.NewMerge(ctx, pullers, db.ImportComparator(sctx, pool).Compare), nil
 }
 
-func newObjectScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, object *data.Object, where expr.Evaluator, progress *vio.Progress) (vio.Puller, error) {
+func newObjectScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, object *data.Object, filter expr.Evaluator, progress *vio.Progress) (vio.Puller, error) {
 	scanner, err := pool.NewReader(ctx, sctx, object, nil) //XXX pushdown API needs updating
 	if err != nil {
 		return nil, err
@@ -145,6 +145,7 @@ func newObjectScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, o
 	return &statScanner{
 		scanner:  scanner,
 		progress: progress,
+		filter:   filter,
 	}, nil
 }
 
@@ -167,6 +168,7 @@ func (s *statScanner) Pull(done bool) (vector.Any, error) {
 		}
 		s.err = err
 		s.scanner = nil
+		return vec, err
 	}
 	if s.filter != nil {
 		if masked, ok := applyMask(vec, s.filter.Eval(vec)); ok {

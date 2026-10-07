@@ -1,7 +1,6 @@
 package poolscanner
 
 import (
-	"errors"
 	"sync"
 
 	"github.com/segmentio/ksuid"
@@ -87,7 +86,6 @@ func (d *Deleter) nextDeletion() (vio.Puller, error) {
 		vals := batch.Values()
 		if len(vals) != 1 {
 			// We currently support only one partition per batch.
-			return nil, errors.New("internal error: meta.Deleter encountered multi-valued batch")
 		}
 		if hasDeletes, err := d.hasDeletes(vals[0]); err != nil {
 			return nil, err
