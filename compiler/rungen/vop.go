@@ -15,6 +15,7 @@ import (
 	"github.com/superdb/super/runtime/op"
 	"github.com/superdb/super/runtime/op/aggregate"
 	"github.com/superdb/super/runtime/op/merge"
+	"github.com/superdb/super/runtime/op/poolscanner"
 	samexpr "github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/runtime/sam/op/meta"
 	"github.com/superdb/super/sbuf"
@@ -243,7 +244,7 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 				return nil, err
 			}
 		}
-		return op.NewDeleter(b.rctx, parent, pool, where, pruner, b.progress, b.deletes), nil
+		return poolscanner.NewDeleter(b.rctx, sbuf.NewMaterializer(parent), pool, where, pruner, b.progress, b.deletes), nil
 	case *dag.DistinctOp:
 		e, err := b.compileVamExpr(o.Expr)
 		if err != nil {
@@ -331,8 +332,8 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		if err != nil {
 			return nil, err
 		}
-		slicer := sbuf.NewDematerializer(b.sctx(), meta.NewSlicer(l, b.mctx))
-		return op.NewPoolScanner(b.rctx, slicer, pool, nil, nil, b.progress), nil
+		slicer := meta.NewSlicer(l, b.mctx)
+		return poolscanner.NewPoolScanner(b.rctx, slicer, pool, nil, nil, b.progress), nil
 	case *dag.SeqScan:
 		pool, err := b.lookupPool(o.Pool)
 		if err != nil {
@@ -345,7 +346,14 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 				return nil, err
 			}
 		}
-		return op.NewPoolScanner(b.rctx, parent, pool, b.newPushdown(o.Filter, nil), pruner, b.progress), nil
+		var filter expr.Evaluator
+		if o.Filter != nil {
+			filter, err = b.compileVamExpr(o.Filter)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return poolscanner.NewPoolScanner(b.rctx, sbuf.NewMaterializer(parent), pool, filter, pruner, b.progress), nil
 	case *dag.SkipOp:
 		return op.NewSkip(parent, o.Count), nil
 	case *dag.SortOp:

@@ -139,7 +139,8 @@ func (e *Environment) OpenPool(ctx context.Context, sctx *super.Context, id ksui
 	if err != nil {
 		return nil, err
 	}
-	return poolscanner.NewPoolScanner(runtime.NewContext(ctx, sctx), l, pool, pushdown, nil, nil), nil
+	// XXX passing nil for pushdown here (will need to update here for vector pushdown)
+	return poolscanner.NewPoolScanner(runtime.NewContext(ctx, sctx), l, pool, nil, nil, nil), nil
 }
 
 func newConcurrentPuller(path string, puller vio.Puller) ConcurrentPuller {

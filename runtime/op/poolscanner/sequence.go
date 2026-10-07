@@ -22,7 +22,7 @@ import (
 type SequenceScanner struct {
 	parent      sbuf.Puller
 	scanner     vio.Puller
-	pushdown    sbuf.Pushdown
+	where       expr.Evaluator
 	pruner      samexpr.Evaluator
 	rctx        *runtime.Context
 	pool        *db.Pool
@@ -32,11 +32,11 @@ type SequenceScanner struct {
 	err         error
 }
 
-func NewPoolScanner(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool, pushdown sbuf.Pushdown, pruner expr.Evaluator, progress *vio.Progress) *SequenceScanner {
+func NewPoolScanner(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool, where expr.Evaluator, pruner samexpr.Evaluator, progress *vio.Progress) *SequenceScanner {
 	return &SequenceScanner{
 		rctx:        rctx,
 		parent:      parent,
-		pushdown:    pushdown,
+		where:       where,
 		pruner:      pruner,
 		pool:        pool,
 		progress:    progress,
@@ -70,7 +70,7 @@ func (s *SequenceScanner) Pull(done bool) (vector.Any, error) {
 				s.close(err)
 				return nil, err
 			}
-			s.scanner, _, err = newScanner(s.rctx.Context, s.rctx.Sctx, s.pool, s.unmarshaler, s.pruner, s.pushdown, s.progress, vals[0])
+			s.scanner, _, err = newScanner(s.rctx.Context, s.rctx.Sctx, s.pool, s.unmarshaler, s.pruner, s.where, s.progress, vals[0])
 			if err != nil {
 				s.close(err)
 				return nil, err
@@ -93,7 +93,7 @@ func (s *SequenceScanner) close(err error) {
 	s.done = true
 }
 
-func newScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, u *super.Unmarshaler, pruner expr.Evaluator, pushdown sbuf.Pushdown, progress *vio.Progress, val super.Value) (vio.Puller, *data.Object, error) {
+func newScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, u *super.Unmarshaler, pruner samexpr.Evaluator, where expr.Evaluator, progress *vio.Progress, val super.Value) (vio.Puller, *data.Object, error) {
 	named, ok := val.Type().(*super.TypeNamed)
 	if !ok {
 		return nil, nil, errors.New("system error: SequenceScanner encountered unnamed object")
@@ -112,11 +112,11 @@ func newScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, u *supe
 		}
 		objects = part.Objects
 	}
-	scanner, err := newObjectsScanner(ctx, sctx, pool, objects, pruner, pushdown, progress)
+	scanner, err := newObjectsScanner(ctx, sctx, pool, objects, pruner, where, progress)
 	return scanner, objects[0], err
 }
 
-func newObjectsScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, objects []*data.Object, pruner expr.Evaluator, pushdown sbuf.Pushdown, progress *vio.Progress) (vio.Puller, error) {
+func newObjectsScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, objects []*data.Object, pruner samexpr.Evaluator, where expr.Evaluator, progress *vio.Progress) (vio.Puller, error) {
 	pullers := make([]vio.Puller, 0, len(objects))
 	pullersDone := func() {
 		for _, puller := range pullers {
@@ -124,7 +124,7 @@ func newObjectsScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, 
 		}
 	}
 	for _, object := range objects {
-		s, err := newObjectScanner(ctx, sctx, pool, object, pushdown, progress)
+		s, err := newObjectScanner(ctx, sctx, pool, object, where, progress)
 		if err != nil {
 			pullersDone()
 			return nil, err
@@ -137,8 +137,8 @@ func newObjectsScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, 
 	return merge.NewMerge(ctx, pullers, db.ImportComparator(sctx, pool).Compare), nil
 }
 
-func newObjectScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, object *data.Object, pushdown sbuf.Pushdown, progress *vio.Progress) (vio.Puller, error) {
-	scanner, err := pool.NewReader(ctx, sctx, object, pushdown)
+func newObjectScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, object *data.Object, where expr.Evaluator, progress *vio.Progress) (vio.Puller, error) {
+	scanner, err := pool.NewReader(ctx, sctx, object, nil) //XXX pushdown API needs updating
 	if err != nil {
 		return nil, err
 	}
