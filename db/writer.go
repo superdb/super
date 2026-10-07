@@ -153,18 +153,13 @@ func (w *Writer) sort(vec vector.Any) (vector.Any, super.Value, super.Value) {
 		if val == nil {
 			return out.Build(w.sctx), minVal, maxVal
 		}
-		key := primaryKey.Eval(*val)
 		if first {
 			first = false
-			minVal = key
-			maxVal = key
-		} else {
-			if c.Compare(key, minVal) < 0 {
-				minVal = key
-			} else if c.Compare(key, maxVal) > 0 {
-				maxVal = key
-			}
+			minVal = primaryKey.Eval(*val)
+			minVal = minVal.MissingAsNull()
 		}
+		maxVal = primaryKey.Eval(*val)
+		maxVal = maxVal.MissingAsNull()
 		out.Write(*val)
 	}
 }

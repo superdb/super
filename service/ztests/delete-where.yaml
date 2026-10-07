@@ -30,6 +30,6 @@ outputs:
   - name: stderr
     data: |
       === desc ===
-      status code 400: empty transaction
+      status code 500: nothing satisfies 'where' condition
       === asc ===
-      status code 400: empty transaction
+      status code 500: nothing satisfies 'where' condition

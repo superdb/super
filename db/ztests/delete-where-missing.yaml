@@ -22,4 +22,4 @@ outputs:
       {count:2}
   - name: stderr
     data: |
-      empty transaction
+      no data found that meets 'where' condition
