@@ -42,7 +42,7 @@ func NewSortedLister(ctx context.Context, sctx *super.Context, pool *db.Pool, co
 	return NewSortedListerFromObjects(ctx, sctx, pool, objects, pruner), nil
 }
 
-func NewSortedListerFromObjects(ctx context.Context, sctx *super.Context, pool *db.Pool, objects data.Objects, pruner expr.Evaluator) *Lister {
+func NewSortedListerFromObjects(ctx context.Context, sctx *super.Context, pool *db.Pool, objects []*data.Object, pruner expr.Evaluator) *Lister {
 	sortObjects(objects, pool.SortKeys.Primary().Order)
 	m := super.NewMarshaler(sctx)
 	m.Decorate(super.StylePackage)
