@@ -144,10 +144,8 @@ func (b *Builder) compileLeaf(o dag.Op, parent sbuf.Puller) (sbuf.Puller, error)
 		return sbuf.NewPuller(sbuf.NewArray([]super.Value{super.Null})), nil
 	case *dag.PoolMetaScan:
 		return meta.NewPoolMetaScanner(b.rctx.Context, b.sctx(), b.env.DB(), v.ID, v.Meta)
-
 	case *dag.SlicerOp:
 		return meta.NewSlicer(parent, b.mctx), nil
-
 	//
 	// Non-scanner operators in alphabetical order.
 	//
