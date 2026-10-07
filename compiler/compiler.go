@@ -3,14 +3,19 @@ package compiler
 import (
 	goruntime "runtime"
 
+	"github.com/segmentio/ksuid"
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/compiler/optimizer"
 	"github.com/superdb/super/compiler/parser"
 	"github.com/superdb/super/db"
+	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/dbid"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
+	"github.com/superdb/super/runtime/sam/op/meta"
+	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 )
 
@@ -65,6 +70,28 @@ func (l *compiler) NewDeleteQuery(rctx *runtime.Context, ast *parser.AST, head *
 		return nil, err
 	}
 	return exec.NewDeleteQuery(rctx, bundleOutputs(rctx, outputs, debugs), b.Deletes()), nil
+}
+
+func (l *compiler) NewObjectScanner(rctx *runtime.Context, poolID ksuid.KSUID, objects []*data.Object) (vio.Puller, error) {
+	pool, err := l.env.DB().OpenPool(rctx, poolID)
+	if err != nil {
+		return nil, err
+	}
+	lister := meta.NewSortedListerFromObjects(rctx, rctx.Sctx, pool, objects, nil)
+	slicer := meta.NewSlicer(lister, rctx.Sctx)
+	return sbuf.NewDematerializer(rctx.Sctx, meta.NewSequenceScanner(rctx, slicer, pool, nil, nil, nil)), nil
+}
+
+type poolscanner struct {
+	vio.Puller
+	rctx *runtime.Context
+}
+
+func (p *poolscanner) Pull(done bool) (vector.Any, error) {
+	if done {
+		p.rctx.Cancel()
+	}
+	return p.Puller.Pull(done)
 }
 
 type InvalidDeleteWhereQuery struct{}

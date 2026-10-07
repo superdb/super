@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/superdb/super"
-	"github.com/superdb/super/db/commits"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/runtime/sam/expr"
@@ -38,11 +37,6 @@ func NewSlicer(parent sbuf.Puller, sctx *super.Context) *Slicer {
 		//XXX check that nulls position is consistent for both dirs in database ops
 		cmp: expr.NewValueCompareFn(order.Asc, order.NullsLast),
 	}
-}
-
-func (s *Slicer) Snapshot() commits.View {
-	//XXX
-	return s.parent.(*Lister).Snapshot()
 }
 
 func (s *Slicer) Pull(done bool) (sbuf.Batch, error) {

@@ -9,7 +9,6 @@ import (
 	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/db"
-	"github.com/superdb/super/db/commits"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/runtime/sam/expr"
@@ -24,7 +23,6 @@ import (
 type Lister struct {
 	ctx       context.Context
 	pool      *db.Pool
-	snap      commits.View
 	pruner    *pruner
 	group     *errgroup.Group
 	marshaler *super.Marshaler
@@ -40,16 +38,18 @@ func NewSortedLister(ctx context.Context, sctx *super.Context, pool *db.Pool, co
 	if err != nil {
 		return nil, err
 	}
-	return NewSortedListerFromSnap(ctx, sctx, pool, snap, pruner), nil
+	objects := snap.Select(nil, pool.SortKeys.Primary().Order)
+	return NewSortedListerFromObjects(ctx, sctx, pool, objects, pruner), nil
 }
 
-func NewSortedListerFromSnap(ctx context.Context, sctx *super.Context, pool *db.Pool, snap commits.View, pruner expr.Evaluator) *Lister {
+func NewSortedListerFromObjects(ctx context.Context, sctx *super.Context, pool *db.Pool, objects []*data.Object, pruner expr.Evaluator) *Lister {
+	sortObjects(objects, pool.SortKeys.Primary().Order)
 	m := super.NewMarshaler(sctx)
 	m.Decorate(super.StylePackage)
 	l := &Lister{
 		ctx:       ctx,
 		pool:      pool,
-		snap:      snap,
+		objects:   objects,
 		group:     &errgroup.Group{},
 		marshaler: m,
 	}
@@ -59,18 +59,11 @@ func NewSortedListerFromSnap(ctx context.Context, sctx *super.Context, pool *db.
 	return l
 }
 
-func (l *Lister) Snapshot() commits.View {
-	return l.snap
-}
-
 func (l *Lister) Pull(done bool) (sbuf.Batch, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.err != nil {
 		return nil, l.err
-	}
-	if l.objects == nil {
-		l.objects = initObjectScan(l.snap, l.pool.SortKeys.Primary())
 	}
 	for len(l.objects) != 0 {
 		o := l.objects[0]
@@ -85,13 +78,6 @@ func (l *Lister) Pull(done bool) (sbuf.Batch, error) {
 		}
 	}
 	return nil, nil
-}
-
-func initObjectScan(snap commits.View, sortKey order.SortKey) []*data.Object {
-	objects := snap.Select(nil, sortKey.Order)
-	//XXX at some point sorting should be optional.
-	sortObjects(objects, sortKey.Order)
-	return objects
 }
 
 func sortObjects(objects []*data.Object, o order.Which) {

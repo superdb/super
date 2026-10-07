@@ -517,7 +517,7 @@ func handleCompact(c *Core, w *ResponseWriter, r *Request) {
 	if !r.Unmarshal(w, &req) {
 		return
 	}
-	branch, ok := r.StringFromPath(w, "branch")
+	branchName, ok := r.StringFromPath(w, "branch")
 	if !ok {
 		return
 	}
@@ -529,7 +529,13 @@ func handleCompact(c *Core, w *ResponseWriter, r *Request) {
 	if !ok {
 		return
 	}
-	commit, err := exec.Compact(r.Context(), c.root, pool, branch, req.ObjectIDs, message.Author, message.Body, message.Meta)
+	ctx := r.Context()
+	branch, err := pool.OpenBranchByName(ctx, branchName)
+	if err != nil {
+		w.Error(err)
+		return
+	}
+	commit, err := branch.Compact(ctx, c.compiler, req.ObjectIDs, message.Author, message.Body, message.Meta)
 	if err != nil {
 		w.Error(err)
 		return
@@ -538,7 +544,7 @@ func handleCompact(c *Core, w *ResponseWriter, r *Request) {
 	c.publishEvent(w, "branch-commit", api.EventBranchCommit{
 		CommitID: commit,
 		PoolID:   pool.ID,
-		Branch:   branch,
+		Branch:   branchName,
 	})
 }
 
