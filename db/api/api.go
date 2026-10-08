@@ -37,7 +37,7 @@ type Interface interface {
 	RemoveBranch(ctx context.Context, pool uuid.UUID, branchName string) error
 	MergeBranch(ctx context.Context, pool uuid.UUID, childBranch, parentBranch string, message api.CommitMessage) (uuid.UUID, error)
 	Compact(ctx context.Context, pool uuid.UUID, branch string, objects []uuid.UUID, message api.CommitMessage) (uuid.UUID, error)
-	Load(ctx context.Context, sctx *super.Context, pool uuid.UUID, branch string, r sio.Reader, message api.CommitMessage) (uuid.UUID, error)
+	Load(ctx context.Context, sctx *super.Context, pool uuid.UUID, branch string, r vio.Puller, message api.CommitMessage) (uuid.UUID, error)
 	Delete(ctx context.Context, poolID uuid.UUID, branchName string, tags []uuid.UUID, message api.CommitMessage) (uuid.UUID, error)
 	DeleteWhere(ctx context.Context, poolID uuid.UUID, branchName, src string, commit api.CommitMessage) (uuid.UUID, error)
 	Revert(ctx context.Context, poolID uuid.UUID, branch string, commitID uuid.UUID, commit api.CommitMessage) (uuid.UUID, error)

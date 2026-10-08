@@ -102,7 +102,7 @@ func (r *remote) RenamePool(ctx context.Context, pool uuid.UUID, name string) er
 	return r.conn.RenamePool(ctx, pool, api.PoolPutRequest{Name: name})
 }
 
-func (r *remote) Load(ctx context.Context, _ *super.Context, poolID uuid.UUID, branchName string, reader sio.Reader, commit api.CommitMessage) (uuid.UUID, error) {
+func (r *remote) Load(ctx context.Context, _ *super.Context, poolID uuid.UUID, branchName string, reader vio.Puller, commit api.CommitMessage) (uuid.UUID, error) {
 	pr, pw := io.Pipe()
 	go func() {
 		w := bsupio.NewColumnWriter(sio.NopCloser(pw))
