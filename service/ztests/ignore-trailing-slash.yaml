@@ -10,4 +10,4 @@ inputs:
 outputs:
   - name: stdout
     regexp: |
-      test [0-9a-f-]{36} key ts order desc
+      test [0-9a-f-]{36} key ts order desc objectcap 1048576 framecap 20000

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"uuid"
 
@@ -117,6 +118,10 @@ func formatPoolConfig(b *bytes.Buffer, p *pools.Config) {
 	b.WriteString(p.SortKeys.Primary().Path.String())
 	b.WriteString(" order ")
 	b.WriteString(p.SortKeys.Primary().Order.String())
+	b.WriteString(" objectcap ")
+	b.WriteString(strconv.FormatUint(p.ObjectCap, 10))
+	b.WriteString(" framecap ")
+	b.WriteString(strconv.FormatUint(p.FrameCap, 10))
 	b.WriteByte('\n')
 }
 

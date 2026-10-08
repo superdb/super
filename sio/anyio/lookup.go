@@ -34,7 +34,7 @@ func lookupReader(ctx context.Context, sctx *super.Context, r io.Reader, opts Re
 	case "line":
 		return newVioPuller(sctx, lineio.NewReader(r)), nil
 	case "json":
-		return jsonio.NewReader(context.Background(), sctx, r, opts.Pushdown, opts.ConcurrentReaders), nil
+		return jsonio.NewReader(context.Background(), sctx, r, opts.Pushdown, opts.ConcurrentReaders, opts.InputCap), nil
 	case "parquet":
 		return parquetio.NewReader(ctx, sctx, r, opts.Pushdown, opts.ConcurrentReaders)
 	case "sup":

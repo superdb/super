@@ -48,7 +48,7 @@ func scan(ctx context.Context, it *objectIterator, pool *pools.Config, runCh cha
 		if err != nil {
 			return err
 		}
-		if run.overlaps(o.Min, o.Max) || run.size+o.Size < pool.Threshold {
+		if run.overlaps(o.Min, o.Max) || run.len+o.Count < pool.ObjectCap {
 			run.add(o)
 			continue
 		}
@@ -119,7 +119,7 @@ type runBuilder struct {
 	span    extent.Span
 	cmp     expr.CompareFn
 	objects []*object
-	size    int64
+	len     uint64
 }
 
 func newRunBuilder() *runBuilder {
@@ -135,7 +135,7 @@ func (r *runBuilder) overlaps(first, last super.Value) bool {
 
 func (r *runBuilder) add(o *object) {
 	r.objects = append(r.objects, o)
-	r.size += o.Size
+	r.len += o.Count
 	if r.span == nil {
 		r.span = extent.NewGeneric(o.Min, o.Max, r.cmp)
 		return
@@ -155,5 +155,5 @@ func (r *runBuilder) objectIDs() []uuid.UUID {
 func (r *runBuilder) reset() {
 	r.span = nil
 	r.objects = r.objects[:0]
-	r.size = 0
+	r.len = 0
 }

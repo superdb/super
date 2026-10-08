@@ -29,6 +29,7 @@ type ReaderOpts struct {
 	Pushdown          sbuf.Pushdown
 	ConcurrentReaders int
 	CSV               csvio.ReaderOpts
+	InputCap          int
 }
 
 func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, opts ReaderOpts) (vio.Puller, error) {
@@ -38,7 +39,11 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, opts Reade
 	if opts.Format != "" && opts.Format != "auto" {
 		return lookupReader(ctx, sctx, r, opts)
 	}
-
+	if opts.InputCap != 0 {
+		// XXX There ought to be a better way to do this.  Mostly this
+		// is for testing so not a big deal.
+		sbuf.PullerBatchValues = opts.InputCap
+	}
 	track := NewTrack(r)
 
 	bsupErr := bsup.Probe(track)
@@ -74,7 +79,7 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, opts Reade
 	// sake of tests.
 	jsonErr := isJSONStream(track, 10)
 	if jsonErr == nil {
-		return jsonio.NewReader(ctx, sctx, track.Reader(), opts.Pushdown, opts.ConcurrentReaders), nil
+		return jsonio.NewReader(ctx, sctx, track.Reader(), opts.Pushdown, opts.ConcurrentReaders, opts.InputCap), nil
 	}
 	jsonErr = fmt.Errorf("json: %w", jsonErr)
 	track.Reset()
@@ -152,7 +157,7 @@ func isCSVStream(track *Track, delim rune, name string) error {
 }
 
 func isJSONStream(track *Track, want int) error {
-	r := jsonio.NewValReader(track)
+	r := jsonio.NewValReader(track, 0)
 	for range want {
 		if _, err := r.Next(); err != nil {
 			if errors.Is(err, io.EOF) {

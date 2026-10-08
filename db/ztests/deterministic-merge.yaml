@@ -1,8 +1,8 @@
 script: |
   export SUPER_DB=test
   super db init -q
-  super db create -q -S 32B -orderby ts:asc logs
-  super db load -q -use logs in.sup
+  super db create -q -orderby ts:asc -objectcap 2 -framecap 2 logs
+  super db load -q -use logs -inputcap 2 in.sup
   super db -s -c "from logs" > 1.sup
   super db -s -c "from logs" > 2.sup
 

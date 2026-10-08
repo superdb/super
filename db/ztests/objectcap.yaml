@@ -1,0 +1,11 @@
+script: |
+  export SUPER_DB=test
+  super db init -q
+  super db create -use -q -objectcap 50 -framecap 5 test
+  seq 100 | super db load -q -inputcap 5 -
+  super db -s -c "from test:objects | count() by size:=count"
+
+outputs:
+  - name: stdout
+    data: |
+      {size:50::uint64,count:2}

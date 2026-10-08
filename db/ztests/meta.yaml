@@ -41,7 +41,8 @@ outputs:
             ]
           }
         ]::order.SortKeys,
-        threshold: 524288000
+        objectcap: 1048576::uint64,
+        framecap: 20000::uint64
       }
       {
         name: "poolB",
@@ -53,7 +54,8 @@ outputs:
             ]
           }
         ]::order.SortKeys,
-        threshold: 524288000
+        objectcap: 1048576::uint64,
+        framecap: 20000::uint64
       }
       ===
       {
