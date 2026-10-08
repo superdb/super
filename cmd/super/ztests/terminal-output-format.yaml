@@ -15,4 +15,4 @@ outputs:
   - name: stdout
     data: "{a:1}\r\n\
       {b:2}\r\n\
-      p1 xxx key ts order desc objectcap 1048576 framecap 20000\r\n"
+      p1 xxx unsorted objectcap 1048576 framecap 20000\r\n"

@@ -6,7 +6,6 @@ import (
 
 	"github.com/superdb/super/compiler/srcfiles"
 	"github.com/superdb/super/order"
-	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/vector/vio"
 )
@@ -36,15 +35,10 @@ type VersionResponse struct {
 }
 
 type PoolPostRequest struct {
-	Name      string   `json:"name"`
-	SortKeys  SortKeys `json:"layout"`
-	ObjectCap uint64   `json:"objectcap"`
-	FrameCap  uint64   `json:"framecap"`
-}
-
-type SortKeys struct {
-	Order order.Which `json:"order" super:"order"`
-	Keys  field.List  `json:"keys" super:"keys"`
+	Name      string         `json:"name"`
+	SortKeys  order.SortKeys `json:"sortkeys"`
+	ObjectCap uint64         `json:"objectcap"`
+	FrameCap  uint64         `json:"framecap"`
 }
 
 type PoolPutRequest struct {

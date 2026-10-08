@@ -139,7 +139,7 @@ func (b *Builder) compileLeaf(o dag.Op, parent sbuf.Puller) (sbuf.Puller, error)
 				return nil, err
 			}
 		}
-		return meta.NewSortedLister(b.rctx.Context, b.mctx, pool, v.Commit, pruner)
+		return meta.NewLister(b.rctx.Context, b.mctx, pool, v.Commit, pruner)
 	case *dag.NullScan:
 		return sbuf.NewPuller(sbuf.NewArray([]super.Value{super.Null})), nil
 	case *dag.PoolMetaScan:

@@ -28,8 +28,14 @@ func (s SortKey) String() string {
 
 type SortKeys []SortKey
 
-func (s SortKeys) Primary() SortKey { return s[0] }
-func (s SortKeys) IsNil() bool      { return len(s) == 0 }
+func (s SortKeys) Primary() (SortKey, bool) {
+	if len(s) >= 1 {
+		return s[0], true
+	}
+	return SortKey{}, false
+}
+
+func (s SortKeys) IsNil() bool { return len(s) == 0 }
 
 func (s SortKeys) Equal(to SortKeys) bool {
 	return slices.EqualFunc(s, to, func(a, b SortKey) bool {
@@ -55,8 +61,11 @@ func ParseSortKeys(s string) (SortKeys, error) {
 	}
 	keys := field.DottedList(parts[0])
 	var sortKeys []SortKey
-	for _, k := range keys {
-		sortKeys = append(sortKeys, NewSortKey(which, k))
+	for _, path := range keys {
+		if len(path) == 1 && path[0] == "this" {
+			path = nil
+		}
+		sortKeys = append(sortKeys, NewSortKey(which, path))
 	}
 	return sortKeys, nil
 }

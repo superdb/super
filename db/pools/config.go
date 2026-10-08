@@ -7,7 +7,6 @@ import (
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/db/journal"
 	"github.com/superdb/super/order"
-	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/storage"
 )
@@ -16,7 +15,7 @@ type Config struct {
 	Ts        nano.Ts        `super:"ts"`
 	Name      string         `super:"name"`
 	ID        uuid.UUID      `super:"id"`
-	SortKeys  order.SortKeys `super:"layout"`
+	SortKeys  order.SortKeys `super:"sortkeys"`
 	ObjectCap uint64         `super:"objectcap"`
 	FrameCap  uint64         `super:"framecap"`
 }
@@ -24,9 +23,6 @@ type Config struct {
 var _ journal.Entry = (*Config)(nil)
 
 func NewConfig(name string, sortKeys order.SortKeys, objectCap, frameCap uint64) *Config {
-	if sortKeys.IsNil() {
-		sortKeys = order.SortKeys{order.NewSortKey(order.Desc, field.Dotted("ts"))}
-	}
 	if objectCap == 0 {
 		objectCap = data.DefaultObjectCap
 	}

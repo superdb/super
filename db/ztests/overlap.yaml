@@ -1,7 +1,7 @@
 script: |
   export SUPER_DB=test
   super db init -q
-  super db create -use -q logs
+  super db create -use -q -orderby ts:desc logs
   super db load -q babble-split1.sup
   super db load -q babble-split2.sup
   super db -S -c "from logs@main:objects | sort -r size | drop id | min:=defuse(min),max:=defuse(max)"

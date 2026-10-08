@@ -1,7 +1,7 @@
 script: |
   source service.sh
-  super db create -q test1
-  super db create -q test2
+  super db create -q -orderby ts:desc test1
+  super db create -q -orderby ts:desc test2
   for file in multifrom.spq agg.spq agg-no-keys.spq two-channels.spq agg-sort.spq scope.spq auto-combined-channels.spq; do
     echo // === $file ===
     query="$(cat $file | jq -Rsa .)"

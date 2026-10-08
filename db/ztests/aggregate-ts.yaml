@@ -3,7 +3,7 @@ script: |
   super db init -q
   # aggregate-ts.sup contains records over two days, mapping to two partitions, and
   # the small target size here causes each partition to have several segments.
-  super db create -q -objectcap=50 -framecap=10 logs
+  super db create -q -orderby ts:desc -objectcap=50 -framecap=10 logs
   # causes parition to have several chunk files.
   super db load -q -use logs -inputcap=10 aggregate-ts.sup
   echo ===

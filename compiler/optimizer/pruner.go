@@ -12,8 +12,8 @@ import (
 )
 
 func maybeNewRangePruner(pred dag.Expr, sortKeys order.SortKeys) dag.Expr {
-	if !sortKeys.IsNil() && pred != nil {
-		return newRangePruner(pred, sortKeys.Primary())
+	if sortKey, ok := sortKeys.Primary(); ok && pred != nil {
+		return newRangePruner(pred, sortKey)
 	}
 	return nil
 }

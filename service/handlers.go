@@ -20,7 +20,6 @@ import (
 	"github.com/superdb/super/db/commits"
 	"github.com/superdb/super/db/journal"
 	"github.com/superdb/super/dbid"
-	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
@@ -255,11 +254,7 @@ func handlePoolPost(c *Core, w *ResponseWriter, r *Request) {
 	if !r.Unmarshal(w, &req) {
 		return
 	}
-	var sortKeys order.SortKeys
-	if len(req.SortKeys.Keys) > 0 {
-		sortKeys = append(sortKeys, order.NewSortKey(req.SortKeys.Order, req.SortKeys.Keys[0]))
-	}
-	pool, err := c.root.CreatePool(r.Context(), req.Name, sortKeys, req.ObjectCap, req.FrameCap)
+	pool, err := c.root.CreatePool(r.Context(), req.Name, req.SortKeys, req.ObjectCap, req.FrameCap)
 	if err != nil {
 		w.Error(err)
 		return

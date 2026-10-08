@@ -182,10 +182,10 @@ func (o *Optimizer) OptimizeDeleter(main *dag.Main, replicas int) error {
 		scatter.Paths = append(scatter.Paths, dag.CopySeq(dag.Seq{deleter}))
 	}
 	var merge dag.Op
-	if sortKeys.IsNil() {
+	sortKey, ok := sortKeys.Primary()
+	if !ok {
 		merge = &dag.CombineOp{Kind: "CombineOp"}
 	} else {
-		sortKey := sortKeys.Primary()
 		merge = &dag.MergeOp{
 			Kind: "MergeOp",
 			Exprs: []dag.SortExpr{{

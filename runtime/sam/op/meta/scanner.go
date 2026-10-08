@@ -58,13 +58,13 @@ func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, 
 	}
 	switch meta {
 	case "objects":
-		lister, err := NewSortedLister(ctx, sctx, p, commit, pruner)
+		lister, err := NewLister(ctx, sctx, p, commit, pruner)
 		if err != nil {
 			return nil, err
 		}
 		return sbuf.NewScanner(ctx, sbuf.PullerReader(lister), nil)
 	case "partitions":
-		lister, err := NewSortedLister(ctx, sctx, p, commit, pruner)
+		lister, err := NewLister(ctx, sctx, p, commit, pruner)
 		if err != nil {
 			return nil, err
 		}

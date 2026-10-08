@@ -33,17 +33,27 @@ type Lister struct {
 
 var _ sbuf.Puller = (*Lister)(nil)
 
-func NewSortedLister(ctx context.Context, sctx *super.Context, pool *db.Pool, commit uuid.UUID, pruner expr.Evaluator) (*Lister, error) {
+func NewLister(ctx context.Context, sctx *super.Context, pool *db.Pool, commit uuid.UUID, pruner expr.Evaluator) (*Lister, error) {
 	snap, err := pool.Snapshot(ctx, commit)
 	if err != nil {
 		return nil, err
 	}
-	objects := snap.Select(nil, pool.SortKeys.Primary().Order)
-	return NewSortedListerFromObjects(ctx, sctx, pool, objects, pruner), nil
+	objects := snap.Select(nil, poolOrder(pool))
+	return NewListerFromObjects(ctx, sctx, pool, objects, pruner), nil
 }
 
-func NewSortedListerFromObjects(ctx context.Context, sctx *super.Context, pool *db.Pool, objects []*data.Object, pruner expr.Evaluator) *Lister {
-	sortObjects(objects, pool.SortKeys.Primary().Order)
+func poolOrder(p *db.Pool) order.Which {
+	sortKey, ok := p.SortKeys.Primary()
+	if !ok {
+		return order.Asc
+	}
+	return sortKey.Order
+}
+
+func NewListerFromObjects(ctx context.Context, sctx *super.Context, pool *db.Pool, objects []*data.Object, pruner expr.Evaluator) *Lister {
+	if sortKey, ok := pool.SortKeys.Primary(); ok {
+		sortObjects(objects, sortKey.Order)
+	}
 	m := super.NewMarshaler(sctx)
 	m.Decorate(super.StylePackage)
 	l := &Lister{

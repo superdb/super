@@ -326,7 +326,7 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		if err != nil {
 			return nil, err
 		}
-		l, err := meta.NewSortedLister(b.rctx.Context, b.mctx, pool, o.Commit, nil)
+		l, err := meta.NewLister(b.rctx.Context, b.mctx, pool, o.Commit, nil)
 		if err != nil {
 			return nil, err
 		}
