@@ -1,4 +1,4 @@
-package poolscanner
+package op
 
 import (
 	"sync"

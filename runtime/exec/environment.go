@@ -15,9 +15,6 @@ import (
 	"github.com/superdb/super/dbid"
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/storage"
-	"github.com/superdb/super/runtime"
-	"github.com/superdb/super/runtime/op/poolscanner"
-	"github.com/superdb/super/runtime/sam/op/meta"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio/anyio"
 	"github.com/superdb/super/vector"
@@ -124,24 +121,6 @@ func (e *Environment) OpenHTTP(ctx context.Context, sctx *super.Context, url, fo
 		return nil, fmt.Errorf("%s: %w", url, err)
 	}
 	return file, nil
-}
-
-func (e *Environment) OpenPool(ctx context.Context, sctx *super.Context, id uuid.UUID, pushdown sbuf.Pushdown) (vio.Puller, error) {
-	pool, err := e.db.OpenPool(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	branch, err := e.CommitObject(ctx, id, "main")
-	if err != nil {
-		return nil, err
-	}
-	l, err := meta.NewSortedLister(ctx, sctx, pool, branch, nil)
-	if err != nil {
-		return nil, err
-	}
-	// XXX We're passing nil for pushdown here.  In a subsequent PR, we will
-	// work out vector pushdown and put this back.
-	return poolscanner.NewPoolScanner(runtime.NewContext(ctx, sctx), l, pool, nil, nil, nil), nil
 }
 
 func newConcurrentPuller(path string, puller vio.Puller) ConcurrentPuller {

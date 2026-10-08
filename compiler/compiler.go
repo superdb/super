@@ -13,7 +13,7 @@ import (
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
-	"github.com/superdb/super/runtime/op/poolscanner"
+	"github.com/superdb/super/runtime/op"
 	"github.com/superdb/super/runtime/sam/op/meta"
 	"github.com/superdb/super/vector/vio"
 )
@@ -78,7 +78,7 @@ func (l *compiler) NewObjectScanner(rctx *runtime.Context, poolID uuid.UUID, obj
 	}
 	lister := meta.NewSortedListerFromObjects(rctx, rctx.Sctx, pool, objects, nil)
 	slicer := meta.NewSlicer(lister, rctx.Sctx)
-	return poolscanner.NewPoolScanner(rctx, slicer, pool, nil, nil, nil), nil
+	return op.NewPoolScanner(rctx, slicer, pool, nil, nil, nil), nil
 }
 
 type InvalidDeleteWhereQuery struct{}

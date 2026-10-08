@@ -1,4 +1,4 @@
-package merge
+package op
 
 import (
 	"container/heap"
@@ -145,11 +145,6 @@ func (m *Merge) Pop() any {
 	x := m.heap[m.Len()-1]
 	m.heap = m.heap[:m.Len()-1]
 	return x
-}
-
-type result struct {
-	vector vector.Any
-	err    error
 }
 
 type mergeParent struct {
