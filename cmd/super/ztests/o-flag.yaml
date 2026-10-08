@@ -1,8 +1,8 @@
 script: |
-  for ext in arrows bsuprows bsup csv json jsonl ndjson parquet sup text tsv txt; do
+  for ext in arrows bsup csv json jsonl ndjson parquet sup text tsv txt; do
     super -o out.$ext in.sup
   done
-  for ext in arrows bsuprows bsup parquet; do
+  for ext in arrows bsup parquet; do
     super -i $ext -o out.$ext.sup out.$ext
   done
   # An unknown extention yields the default output format (BSUP).
@@ -27,8 +27,6 @@ inputs:
 
 outputs:
   - name: out.arrows.sup
-    data: *in_sup
-  - name: out.bsuprows.sup
     data: *in_sup
   - name: out.bsup.sup
     data: *in_sup

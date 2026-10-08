@@ -5,13 +5,13 @@ script: |
   source s3.sh
   aws s3api create-bucket --bucket bucket
   super db import -R logs -data s3://bucket/db babble.sup
-  super db map -R logs -o count.bsuprows "count()"
+  super db map -R logs -o count.bsup "count()"
   echo ===
   super db ls -R logs -ranges -l
   echo ===
-  super db rm -R logs -ranges count.bsuprows
+  super db rm -R logs -ranges count.bsup
   echo ===
-  super db rm -R logs -ranges count.bsuprows
+  super db rm -R logs -ranges count.bsup
 
 inputs:
   - name: babble.sup
@@ -23,11 +23,11 @@ outputs:
   - name: stdout
     data: |
       ===
-      [1587518620062237300-1587513611063914690]/count.bsuprows
-      [1587513592062544400-1587508830068523240]/count.bsuprows
+      [1587518620062237300-1587513611063914690]/count.bsup
+      [1587513592062544400-1587508830068523240]/count.bsup
       ===
-      [1587518620062237300-1587513611063914690]/count.bsuprows: removed
-      [1587513592062544400-1587508830068523240]/count.bsuprows: removed
+      [1587518620062237300-1587513611063914690]/count.bsup: removed
+      [1587513592062544400-1587508830068523240]/count.bsup: removed
       ===
-      [1587518620062237300-1587513611063914690]/count.bsuprows: not found
-      [1587513592062544400-1587508830068523240]/count.bsuprows: not found
+      [1587518620062237300-1587513611063914690]/count.bsup: not found
+      [1587513592062544400-1587508830068523240]/count.bsup: not found

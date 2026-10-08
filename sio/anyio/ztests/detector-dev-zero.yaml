@@ -7,7 +7,6 @@ outputs:
       /dev/zero: format detection error
       	arrows: arrow/ipc: could not read message schema: EOF
       	bsup: unknown header magic: "\u0000\u0000\u0000\u0000"
-      	bsuprows: bsup-rows version mismatch: expected 6, found 0
       	csv: line 1: bufio: buffer full
       	json: line 1: value exceeded max buffer size
       	line: auto-detection not supported

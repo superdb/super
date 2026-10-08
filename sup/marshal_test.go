@@ -10,8 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/superdb/super"
-	"github.com/superdb/super/bsup/oldbsup"
+	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/sio"
+	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/sup"
 )
 
@@ -170,14 +171,15 @@ func TestMixedTypeArrayInsideRecord(t *testing.T) {
 	require.NoError(t, err)
 
 	var buffer bytes.Buffer
-	writer := oldbsup.NewWriter(sio.NopCloser(&buffer))
+	writer := bsup.NewRowWriter(sio.NopCloser(&buffer))
 	recExpected := super.NewValue(zv.Type(), zv.Bytes())
 	writer.Write(recExpected)
 	writer.Close()
 
-	reader := oldbsup.NewReader(super.NewContext(), &buffer)
-	defer reader.Close()
+	reader, err := bsupio.NewValueReader(t.Context(), super.NewContext(), &buffer)
+	require.NoError(t, err)
 	recActual, err := reader.Read()
+	require.NoError(t, err)
 	exp := sup.FormatValue(recExpected)
 	actual := sup.FormatValue(*recActual)
 	assert.Equal(t, exp, actual)
@@ -238,13 +240,13 @@ func TestMixedTypeArrayOfStructWithInterface(t *testing.T) {
 	require.NoError(t, err)
 
 	var buffer bytes.Buffer
-	writer := oldbsup.NewWriter(sio.NopCloser(&buffer))
+	writer := bsup.NewRowWriter(sio.NopCloser(&buffer))
 	recExpected := super.NewValue(zv.Type(), zv.Bytes())
 	writer.Write(recExpected)
 	writer.Close()
 
-	reader := oldbsup.NewReader(super.NewContext(), &buffer)
-	defer reader.Close()
+	reader, err := bsupio.NewValueReader(t.Context(), super.NewContext(), &buffer)
+	require.NoError(t, err)
 	recActual, err := reader.Read()
 	require.NoError(t, err)
 	exp := sup.FormatValue(recExpected)

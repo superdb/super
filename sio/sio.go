@@ -12,8 +12,6 @@ import (
 
 func Extension(format string) string {
 	switch format {
-	case "bsuprows":
-		return ".bsuprows"
 	case "bsup":
 		return ".bsup"
 	case "csv":
@@ -37,8 +35,6 @@ func FormatFromPath(path string) string {
 	switch filepath.Ext(path) {
 	case ".arrows":
 		return "arrows"
-	case ".bsuprows":
-		return "bsuprows"
 	case ".bsup":
 		return "bsup"
 	case ".csv":

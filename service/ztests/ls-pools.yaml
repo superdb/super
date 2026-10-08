@@ -11,7 +11,7 @@ script: |
   # Verify that output flags are honored.
   super db ls -f sup | super -i sup -f sup -c "cut name | sort name" -
   echo ===
-  super db ls -f bsuprows | super -i bsuprows -f table -c "cut name | sort name" -
+  super db ls -f bsup | super -i bsup -f table -c "cut name | sort name" -
   echo ===
 
 inputs:

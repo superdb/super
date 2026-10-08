@@ -16,7 +16,7 @@ inputs:
 outputs:
   - name: stdout
     data: |
-      {"type":"Error","kind":"invalid operation","error":"format detection error\n\tarrows: schema message length exceeds 1 MiB\n\tbsup: unknown header magic: \"This\"\n\tbsuprows: bsup-rows version mismatch: expected 6, found 0\n\tcsv: line 1: EOF\n\tjson: line 1: invalid JSON value\n\tline: auto-detection not supported\n\tparquet: invalid header\n\tsup: line 1: syntax error\n\ttsv: line 1: EOF\n\tzeek: line 1: bad types/fields definition in zeek header"}
+      {"type":"Error","kind":"invalid operation","error":"format detection error\n\tarrows: schema message length exceeds 1 MiB\n\tbsup: unknown header magic: \"This\"\n\tcsv: line 1: EOF\n\tjson: line 1: invalid JSON value\n\tline: auto-detection not supported\n\tparquet: invalid header\n\tsup: line 1: syntax error\n\ttsv: line 1: EOF\n\tzeek: line 1: bad types/fields definition in zeek header"}
       code 400
       {"type":"Error","kind":"invalid operation","error":"unsupported MIME type: unsupported"}
       code 400
