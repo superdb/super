@@ -7,7 +7,7 @@ import (
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
-	"github.com/superdb/super/runtime/vcache"
+	"github.com/superdb/super/bsup/loader"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector"
@@ -54,8 +54,8 @@ func (s *stream) Pull(done bool) (vector.Any, error) {
 	switch frame := frame.(type) {
 	case *bsup.ColFrame:
 		// XXX refactor reader into a puller that is used by both
-		vo := vcache.NewReader(frame)
-		vec, err := vo.Fetch(s.sctx, nil) //XXX can project here etc (DRY out code with reader)
+		loader := loader.NewFrame(frame)
+		vec, err := loader.Fetch(s.sctx, nil) //XXX can project here etc (DRY out code with reader)
 		if err != nil {
 			return nil, err
 		}

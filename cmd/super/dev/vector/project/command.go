@@ -11,10 +11,7 @@ import (
 	"github.com/superdb/super/pkg/charm"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/pkg/storage"
-	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/vcache"
-	"github.com/superdb/super/sbuf"
-	"github.com/superdb/super/vector/vio"
 )
 
 var spec = &charm.Spec{
@@ -70,16 +67,19 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	defer object.Close()
-	sctx := super.NewContext()
-	projection := runtime.NewProjection(sctx, object, paths)
 	writer, err := c.outputFlags.Open(ctx, local)
-	if err != nil {
-		return err
-	}
-	if err := vio.Copy(writer, sbuf.NewDematerializer(sctx, projection)); err != nil {
-		writer.Close()
-		return err
+	projection := field.NewProjection(paths)
+	sctx := super.NewContext()
+	for _, loader := range object.Loaders() {
+		vec, err := loader.Fetch(sctx, projection)
+		if err != nil {
+			writer.Close()
+			return err
+		}
+		if err := writer.Push(vec); err != nil {
+			writer.Close()
+			return err
+		}
 	}
 	return writer.Close()
 }

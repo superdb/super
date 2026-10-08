@@ -2,8 +2,8 @@ package runtime
 
 import (
 	"github.com/superdb/super"
+	"github.com/superdb/super/bsup/loader"
 	"github.com/superdb/super/pkg/field"
-	"github.com/superdb/super/runtime/vcache"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
@@ -11,30 +11,30 @@ import (
 
 type Projection struct {
 	sctx       *super.Context
-	object     *vcache.Object
+	loader     *loader.Frame
 	projection field.Projection
 }
 
-func NewProjection(sctx *super.Context, o *vcache.Object, paths []field.Path) sbuf.Puller {
+func NewProjection(sctx *super.Context, frame *loader.Frame, paths []field.Path) sbuf.Puller {
 	return sbuf.NewMaterializer(&Projection{
 		sctx:       sctx,
-		object:     o,
+		loader:     frame,
 		projection: field.NewProjection(paths),
 	})
 }
 
-func NewVectorProjection(sctx *super.Context, o *vcache.Object, paths []field.Path) vio.Puller {
+func NewVectorProjection(sctx *super.Context, frame *loader.Frame, paths []field.Path) vio.Puller {
 	return &Projection{
 		sctx:       sctx,
-		object:     o,
+		loader:     frame,
 		projection: field.NewProjection(paths),
 	}
 }
 
 func (p *Projection) Pull(bool) (vector.Any, error) {
-	if o := p.object; o != nil {
-		p.object = nil
-		return o.Fetch(p.sctx, p.projection)
+	if loader := p.loader; loader != nil {
+		p.loader = nil
+		return loader.Fetch(p.sctx, p.projection)
 	}
 	return nil, nil
 }

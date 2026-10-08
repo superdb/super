@@ -2,7 +2,6 @@ package vcache
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"github.com/segmentio/ksuid"
@@ -11,6 +10,11 @@ import (
 	"github.com/superdb/super/pkg/storage"
 )
 
+// Cache manages all accesses to storage objects used by databases
+// providing a means to retrieve metadata, fused types, and column
+// frames from objects effeciently from storage and cached in memory.
+// It works for both BSUP columns and rows frames but is generally used
+// for BSUP columns data stored in databases.
 type Cache struct {
 	mu     sync.Mutex
 	engine storage.Engine
@@ -72,16 +76,10 @@ func (c *Cache) Fetch(ctx context.Context, uri *storage.URI, id ksuid.KSUID) (*O
 	}
 	// XXX we need to refactor this interface since it's no longer aligned one
 	// cached entity per file (cache should operate on frames like parquet row groups)
-	fit := bsup.NewSeekable(super.NewContext(), r)
-	frame, err := fit.Next()
+	object, err = NewObject(bsup.NewSeekable(super.NewContext(), r))
 	if err != nil {
 		return nil, err
 	}
-	colFrame, ok := frame.(*bsup.ColFrame)
-	if !ok {
-		return nil, errors.New("input not in BSUP column form")
-	}
-	object = NewReader(colFrame)
 	c.mu.Lock()
 	c.objects[id] = object
 	c.mu.Unlock()

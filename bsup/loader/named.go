@@ -1,4 +1,4 @@
-package vcache
+package loader
 
 import (
 	"github.com/superdb/super/bsup"

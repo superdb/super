@@ -6,12 +6,12 @@ import (
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
+	"github.com/superdb/super/bsup/loader"
 	"github.com/superdb/super/cli/outputflags"
 	"github.com/superdb/super/cmd/super/dev/vector"
 	"github.com/superdb/super/pkg/charm"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
-	"github.com/superdb/super/runtime/vcache"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/vector/vio"
 )
@@ -72,14 +72,13 @@ func (c *Command) Run(args []string) error {
 	if !ok {
 		return errors.New("input not in BSUP column form")
 	}
-	object := vcache.NewReader(colFrame)
-	defer object.Close()
+	loader := loader.NewFrame(colFrame)
 	writer, err := c.outputFlags.Open(ctx, local)
 	if err != nil {
 		return err
 	}
 	sctx := super.NewContext()
-	puller := runtime.NewProjection(sctx, object, nil)
+	puller := runtime.NewProjection(sctx, loader, nil)
 	if err := vio.Copy(writer, sbuf.NewDematerializer(sctx, puller)); err != nil {
 		writer.Close()
 		return err

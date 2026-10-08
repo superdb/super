@@ -9,9 +9,9 @@ import (
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
+	"github.com/superdb/super/bsup/loader"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/runtime/sam/expr"
-	"github.com/superdb/super/runtime/vcache"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector"
@@ -110,13 +110,13 @@ func (r *reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
 				continue
 			}
 			r.progress.Add(vio.Progress{BytesMatched: size})
-			vo := vcache.NewReader(frame)
+			loader := loader.NewFrame(frame)
 			var proj field.Projection
 			if r.pushdown != nil {
 				proj = r.pushdown.Projection()
 			}
 			if r.pushdown != nil && r.pushdown.Unordered() {
-				r.vecs[n], err = vo.FetchUnordered(r.vecs[n][:0], r.sctx, proj)
+				r.vecs[n], err = loader.FetchUnordered(r.vecs[n][:0], r.sctx, proj)
 				if err != nil {
 					return nil, err
 				}
@@ -124,7 +124,7 @@ func (r *reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
 					panic("control shouldn't happen on this path")
 				}
 			} else {
-				vec, err := vo.Fetch(r.sctx, proj)
+				vec, err := loader.Fetch(r.sctx, proj)
 				if err != nil {
 					return nil, err
 				}
