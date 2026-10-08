@@ -5,8 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super/cli/outputflags"
 	"github.com/superdb/super/cmd/super/db"
 	"github.com/superdb/super/compiler/srcfiles"
@@ -71,9 +71,9 @@ func (c *Command) Run(args []string) error {
 		query = fmt.Sprintf("from '%s':branches", poolName)
 	}
 	//XXX at should be a date/time
-	var at ksuid.KSUID
+	var at uuid.UUID
 	if c.at != "" {
-		at, err = ksuid.Parse(c.at)
+		at, err = uuid.Parse(c.at)
 		if err != nil {
 			return err
 		}

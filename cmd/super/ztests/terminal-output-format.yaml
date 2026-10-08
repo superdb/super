@@ -9,7 +9,7 @@ script: |
   super db -q init
   pty super db -color=false -c 'values {b:2}'
   super db -q create p1
-  pty super db ls -color=false | sed -Ee 's/[[:alnum:]]{27}/xxx/'
+  pty super db ls -color=false | sed -Ee 's/[0-9a-f-]{36}/xxx/'
 
 outputs:
   - name: stdout

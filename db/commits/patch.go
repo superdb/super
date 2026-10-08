@@ -3,8 +3,8 @@ package commits
 import (
 	"errors"
 	"fmt"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/order"
@@ -18,7 +18,7 @@ import (
 type Patch struct {
 	base           View
 	diff           *Snapshot
-	deletedObjects []ksuid.KSUID
+	deletedObjects []uuid.UUID
 }
 
 var _ View = (*Patch)(nil)
@@ -31,7 +31,7 @@ func NewPatch(base View) *Patch {
 	}
 }
 
-func (p *Patch) Lookup(id ksuid.KSUID) (*data.Object, error) {
+func (p *Patch) Lookup(id uuid.UUID) (*data.Object, error) {
 	if s, err := p.diff.Lookup(id); err == nil {
 		return s, nil
 	}
@@ -50,8 +50,8 @@ func (p *Patch) SelectAll() DataObjects {
 	return objects
 }
 
-func (p *Patch) DataObjects() []ksuid.KSUID {
-	var ids []ksuid.KSUID
+func (p *Patch) DataObjects() []uuid.UUID {
+	var ids []uuid.UUID
 	for _, dataObject := range p.diff.SelectAll() {
 		ids = append(ids, dataObject.ID)
 	}
@@ -65,7 +65,7 @@ func (p *Patch) AddDataObject(object *data.Object) error {
 	return p.diff.AddDataObject(object)
 }
 
-func (p *Patch) DeleteObject(id ksuid.KSUID) error {
+func (p *Patch) DeleteObject(id uuid.UUID) error {
 	if p.diff.Exists(id) {
 		return p.diff.DeleteObject(id)
 	}
@@ -78,7 +78,7 @@ func (p *Patch) DeleteObject(id ksuid.KSUID) error {
 	return nil
 }
 
-func (p *Patch) NewCommitObject(parent ksuid.KSUID, retries int, author, message string, meta super.Value) *Object {
+func (p *Patch) NewCommitObject(parent uuid.UUID, retries int, author, message string, meta super.Value) *Object {
 	o := NewObject(parent, author, message, meta, retries)
 	for _, id := range p.deletedObjects {
 		o.appendDelete(id)
@@ -89,7 +89,7 @@ func (p *Patch) NewCommitObject(parent ksuid.KSUID, retries int, author, message
 	return o
 }
 
-func (p *Patch) Revert(tip *Snapshot, commit, parent ksuid.KSUID, retries int, author, message string) (*Object, error) {
+func (p *Patch) Revert(tip *Snapshot, commit, parent uuid.UUID, retries int, author, message string) (*Object, error) {
 	object := NewObject(parent, author, message, super.Null, retries)
 	// For each data object that is added in the patch and is also in the tip, we do a delete.
 	for _, dataObject := range p.diff.SelectAll() {
@@ -120,7 +120,7 @@ func (p *Patch) Revert(tip *Snapshot, commit, parent ksuid.KSUID, retries int, a
 func Diff(parent, child *Patch) (*Patch, error) {
 	var dirty bool
 	p := NewPatch(parent)
-	deletedObjects := make(map[ksuid.KSUID]struct{})
+	deletedObjects := make(map[uuid.UUID]struct{})
 	for _, id := range child.deletedObjects {
 		deletedObjects[id] = struct{}{}
 	}

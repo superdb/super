@@ -2,8 +2,8 @@ package compiler
 
 import (
 	goruntime "runtime"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/compiler/optimizer"
 	"github.com/superdb/super/compiler/parser"
@@ -71,7 +71,7 @@ func (l *compiler) NewDeleteQuery(rctx *runtime.Context, ast *parser.AST, head *
 	return exec.NewDeleteQuery(rctx, bundleOutputs(rctx, outputs, debugs), b.Deletes()), nil
 }
 
-func (l *compiler) NewObjectScanner(rctx *runtime.Context, poolID ksuid.KSUID, objects []*data.Object) (vio.Puller, error) {
+func (l *compiler) NewObjectScanner(rctx *runtime.Context, poolID uuid.UUID, objects []*data.Object) (vio.Puller, error) {
 	pool, err := l.env.DB().OpenPool(rctx, poolID)
 	if err != nil {
 		return nil, err

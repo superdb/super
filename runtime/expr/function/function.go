@@ -97,10 +97,10 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 		f = &Join{sctx: sctx}
 	case "kind":
 		f = &Kind{sctx: sctx}
-	case "ksuid":
+	case "uuid":
 		argmin = 0
 		argmax = 1
-		f = &KSUID{sctx}
+		f = &UUID{sctx}
 	case "least":
 		argmax = -1
 		f = newSamFunc(sctx, function.NewReducer(sctx, name, anymath.Min))

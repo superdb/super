@@ -10,13 +10,13 @@ script: |
   super db init -q
   super db create -q test
   echo === dag.CommitMetaScan
-  super db compile -C -dag 'values (from test@main:objects)' | sed -Ee 's/[[:alnum:]]{27}/xxx/'
+  super db compile -C -dag 'values (from test@main:objects)' | sed -Ee 's/[0-9a-f-]{36}/xxx/'
   echo === dag.DBMetaScan
-  super db compile -C -dag 'values (from :pools)' | sed -Ee 's/[[:alnum:]]{27}/xxx/'
+  super db compile -C -dag 'values (from :pools)' | sed -Ee 's/[0-9a-f-]{36}/xxx/'
   echo === dag.PoolMetaScan
-  super db compile -C -dag 'values (from test:branches)' | sed -Ee 's/[[:alnum:]]{27}/xxx/'
+  super db compile -C -dag 'values (from test:branches)' | sed -Ee 's/[0-9a-f-]{36}/xxx/'
   echo === dag.PoolScan
-  super db compile -C -dag 'values (from test)' | sed -Ee 's/[[:alnum:]]{27}/xxx/'
+  super db compile -C -dag 'values (from test)' | sed -Ee 's/[0-9a-f-]{36}/xxx/'
 
   echo === dag.ForkOp
   super compile -C -dag 'values (fork (from "/dev/null") (from "/dev/null"))'
@@ -49,7 +49,7 @@ outputs:
       === dag.CommitMetaScan
       null
       | values (
-        pool xxx@000000000000000000000000000:objects)
+        pool xxx@00000000-0000-0000-0000-000000000000:objects)
       | output main
       === dag.DBMetaScan
       null

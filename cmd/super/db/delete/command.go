@@ -5,8 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super/cli/commitflags"
 	"github.com/superdb/super/cli/dbflags"
 	"github.com/superdb/super/cli/poolflags"
@@ -67,7 +67,7 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	var commit ksuid.KSUID
+	var commit uuid.UUID
 	if c.where != "" {
 		if len(args) > 0 {
 			return errors.New("too many arguments")
@@ -85,17 +85,17 @@ func (c *Command) Run(args []string) error {
 	return nil
 }
 
-func (c *Command) deleteByIDs(ctx context.Context, db api.Interface, poolID ksuid.KSUID, branchName string, args []string) (ksuid.KSUID, error) {
+func (c *Command) deleteByIDs(ctx context.Context, db api.Interface, poolID uuid.UUID, branchName string, args []string) (uuid.UUID, error) {
 	ids, err := dbid.ParseIDs(args)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	if len(ids) == 0 {
-		return ksuid.Nil, errors.New("no data object IDs specified")
+		return uuid.Nil(), errors.New("no data object IDs specified")
 	}
 	return db.Delete(ctx, poolID, branchName, ids, c.commitFlags.CommitMessage())
 }
 
-func (c *Command) deleteWhere(ctx context.Context, db api.Interface, poolID ksuid.KSUID, branchName string) (ksuid.KSUID, error) {
+func (c *Command) deleteWhere(ctx context.Context, db api.Interface, poolID uuid.UUID, branchName string) (uuid.UUID, error) {
 	return db.DeleteWhere(ctx, poolID, branchName, c.where, c.commitFlags.CommitMessage())
 }

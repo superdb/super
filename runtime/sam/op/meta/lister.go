@@ -5,8 +5,8 @@ import (
 	"context"
 	"sort"
 	"sync"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/db/data"
@@ -33,7 +33,7 @@ type Lister struct {
 
 var _ sbuf.Puller = (*Lister)(nil)
 
-func NewSortedLister(ctx context.Context, sctx *super.Context, pool *db.Pool, commit ksuid.KSUID, pruner expr.Evaluator) (*Lister, error) {
+func NewSortedLister(ctx context.Context, sctx *super.Context, pool *db.Pool, commit uuid.UUID, pruner expr.Evaluator) (*Lister, error) {
 	snap, err := pool.Snapshot(ctx, commit)
 	if err != nil {
 		return nil, err

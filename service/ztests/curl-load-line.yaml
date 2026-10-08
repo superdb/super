@@ -4,7 +4,7 @@ script: |
   curl -w 'code %{response_code}\n' -X POST -H 'Accept: application/json' \
     -H 'Content-Type: application/x-line' \
     --data-binary @f $SUPER_DB/pool/test/branch/main |
-    sed -E 's/0x[0-9a-f]{40}/xxx/'
+    sed -E 's/0x[0-9a-f-]{32}/xxx/'
   super db -s -c 'from test'
 
 inputs:

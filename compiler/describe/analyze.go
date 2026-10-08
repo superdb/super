@@ -3,8 +3,8 @@ package describe
 import (
 	"context"
 	"fmt"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/compiler/optimizer"
 	"github.com/superdb/super/compiler/parser"
@@ -30,9 +30,9 @@ type (
 		Meta string `json:"meta"`
 	}
 	Pool struct {
-		Kind string      `json:"kind"`
-		Name string      `json:"name"`
-		ID   ksuid.KSUID `json:"id"`
+		Kind string    `json:"kind"`
+		Name string    `json:"name"`
+		ID   uuid.UUID `json:"id"`
 	}
 	Path struct {
 		Kind string `json:"kind"`
@@ -137,7 +137,7 @@ func describeSources(ctx context.Context, root *db.Root, o dag.Op) ([]Source, er
 	}
 }
 
-func sourceOfPool(ctx context.Context, root *db.Root, id ksuid.KSUID) ([]Source, error) {
+func sourceOfPool(ctx context.Context, root *db.Root, id uuid.UUID) ([]Source, error) {
 	p, err := root.OpenPool(ctx, id)
 	if err != nil {
 		return nil, err

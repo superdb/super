@@ -3,8 +3,8 @@ package read
 import (
 	"errors"
 	"flag"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/cli/outputflags"
 	"github.com/superdb/super/cmd/super/dev/vector"
@@ -63,7 +63,7 @@ func (c *Command) Run(args []string) error {
 	}
 	local := storage.NewLocalEngine()
 	cache := vcache.NewCache(local)
-	object, err := cache.Fetch(ctx, uri, ksuid.Nil)
+	object, err := cache.Fetch(ctx, uri, uuid.Nil())
 	if err != nil {
 		return err
 	}

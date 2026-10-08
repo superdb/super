@@ -29,7 +29,6 @@ require (
 	github.com/prometheus/client_model v0.3.0
 	github.com/ronanh/intcomp v1.1.1
 	github.com/rs/cors v1.8.0
-	github.com/segmentio/ksuid v1.0.2
 	github.com/shellyln/go-sql-like-expr v0.0.1
 	github.com/stretchr/testify v1.12.1
 	github.com/teamortix/golang-wasm/wasm v0.0.0-20230719150929-5d000994c833

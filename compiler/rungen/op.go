@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/db"
@@ -204,7 +204,7 @@ func (b *Builder) newMetaPushdown(e dag.Expr, projection, metaProjection []field
 	}
 }
 
-func (b *Builder) lookupPool(id ksuid.KSUID) (*db.Pool, error) {
+func (b *Builder) lookupPool(id uuid.UUID) (*db.Pool, error) {
 	if b.env == nil || b.env.DB() == nil {
 		return nil, errors.New("internal error: database operation requires database operating context")
 	}

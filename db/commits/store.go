@@ -10,9 +10,9 @@ import (
 	"runtime"
 	"slices"
 	"sync"
+	"uuid"
 
 	arc "github.com/hashicorp/golang-lru/arc/v2"
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsupbytes"
 	"github.com/superdb/super/db/data"
@@ -35,21 +35,21 @@ type Store struct {
 	logger *zap.Logger
 	path   *storage.URI
 
-	cache     *arc.ARCCache[ksuid.KSUID, *Object]
-	paths     *arc.ARCCache[ksuid.KSUID, []ksuid.KSUID]
-	snapshots *arc.ARCCache[ksuid.KSUID, *Snapshot]
+	cache     *arc.ARCCache[uuid.UUID, *Object]
+	paths     *arc.ARCCache[uuid.UUID, []uuid.UUID]
+	snapshots *arc.ARCCache[uuid.UUID, *Snapshot]
 }
 
 func OpenStore(engine storage.Engine, logger *zap.Logger, path *storage.URI) (*Store, error) {
-	cache, err := arc.NewARC[ksuid.KSUID, *Object](1024)
+	cache, err := arc.NewARC[uuid.UUID, *Object](1024)
 	if err != nil {
 		return nil, err
 	}
-	paths, err := arc.NewARC[ksuid.KSUID, []ksuid.KSUID](1024)
+	paths, err := arc.NewARC[uuid.UUID, []uuid.UUID](1024)
 	if err != nil {
 		return nil, err
 	}
-	snapshots, err := arc.NewARC[ksuid.KSUID, *Snapshot](32)
+	snapshots, err := arc.NewARC[uuid.UUID, *Snapshot](32)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func OpenStore(engine storage.Engine, logger *zap.Logger, path *storage.URI) (*S
 	}, nil
 }
 
-func (s *Store) Get(ctx context.Context, commit ksuid.KSUID) (*Object, error) {
+func (s *Store) Get(ctx context.Context, commit uuid.UUID) (*Object, error) {
 	if o, ok := s.cache.Get(commit); ok {
 		return o, nil
 	}
@@ -89,7 +89,7 @@ func (s *Store) Get(ctx context.Context, commit ksuid.KSUID) (*Object, error) {
 	return o, nil
 }
 
-func (s *Store) pathOf(commit ksuid.KSUID) *storage.URI {
+func (s *Store) pathOf(commit uuid.UUID) *storage.URI {
 	return s.path.JoinPath(commit.String() + ".bsup")
 }
 
@@ -106,7 +106,7 @@ func (s *Store) Remove(ctx context.Context, o *Object) error {
 	return s.engine.Delete(ctx, s.pathOf(o.Commit))
 }
 
-func (s *Store) Snapshot(ctx context.Context, leaf ksuid.KSUID) (*Snapshot, error) {
+func (s *Store) Snapshot(ctx context.Context, leaf uuid.UUID) (*Snapshot, error) {
 	if snap, ok := s.snapshots.Get(leaf); ok {
 		return snap, nil
 	}
@@ -127,10 +127,10 @@ func (s *Store) Snapshot(ctx context.Context, leaf ksuid.KSUID) (*Snapshot, erro
 	return snap, nil
 }
 
-func (s *Store) buildSnapshot(ctx context.Context, leaf ksuid.KSUID) (*Snapshot, error) {
+func (s *Store) buildSnapshot(ctx context.Context, leaf uuid.UUID) (*Snapshot, error) {
 	var objects []*Object
 	var base *Snapshot
-	for at := leaf; at != ksuid.Nil; {
+	for at := leaf; at != uuid.Nil(); {
 		if snap, ok := s.snapshots.Get(at); ok {
 			base = snap
 			break
@@ -185,7 +185,7 @@ func (s *Store) buildSnapshot(ctx context.Context, leaf ksuid.KSUID) (*Snapshot,
 	return snap, nil
 }
 
-func (s *Store) getSnapshot(ctx context.Context, commit ksuid.KSUID) (*Snapshot, error) {
+func (s *Store) getSnapshot(ctx context.Context, commit uuid.UUID) (*Snapshot, error) {
 	reader, err := bsupbytes.Get(ctx, s.engine, s.snapshotPathOf(commit), ActionTypes)
 	if err != nil {
 		return nil, err
@@ -197,7 +197,7 @@ func (s *Store) getSnapshot(ctx context.Context, commit ksuid.KSUID) (*Snapshot,
 	return snap, err
 }
 
-func (s *Store) putSnapshot(ctx context.Context, commit ksuid.KSUID, snap *Snapshot) error {
+func (s *Store) putSnapshot(ctx context.Context, commit uuid.UUID, snap *Snapshot) error {
 	b, err := snap.serialize()
 	if err != nil {
 		return err
@@ -205,11 +205,11 @@ func (s *Store) putSnapshot(ctx context.Context, commit ksuid.KSUID, snap *Snaps
 	return storage.Put(ctx, s.engine, s.snapshotPathOf(commit), bytes.NewReader(b))
 }
 
-func (s *Store) snapshotPathOf(commit ksuid.KSUID) *storage.URI {
+func (s *Store) snapshotPathOf(commit uuid.UUID) *storage.URI {
 	return s.path.JoinPath(commit.String() + ".snap.bsup")
 }
 
-func (s *Store) getBase(ctx context.Context, commit ksuid.KSUID) (*Snapshot, error) {
+func (s *Store) getBase(ctx context.Context, commit uuid.UUID) (*Snapshot, error) {
 	reader, err := bsupbytes.Get(ctx, s.engine, s.basePathOf(commit), ActionTypes)
 	if err != nil {
 		return nil, err
@@ -218,7 +218,7 @@ func (s *Store) getBase(ctx context.Context, commit ksuid.KSUID) (*Snapshot, err
 	return decodeSnapshot(reader.Reader)
 }
 
-func (s *Store) putBase(ctx context.Context, snap *Snapshot, commit ksuid.KSUID) error {
+func (s *Store) putBase(ctx context.Context, snap *Snapshot, commit uuid.UUID) error {
 	b, err := snap.serialize()
 	if err != nil {
 		return err
@@ -226,20 +226,20 @@ func (s *Store) putBase(ctx context.Context, snap *Snapshot, commit ksuid.KSUID)
 	return storage.Put(ctx, s.engine, s.basePathOf(commit), bytes.NewReader(b))
 }
 
-func (s *Store) basePathOf(commit ksuid.KSUID) *storage.URI {
+func (s *Store) basePathOf(commit uuid.UUID) *storage.URI {
 	return s.path.JoinPath(commit.String() + ".base.bsup")
 }
 
 // Path return the entire path from the commit object to the root
 // in leaf to root order.
-func (s *Store) Path(ctx context.Context, leaf ksuid.KSUID) ([]ksuid.KSUID, error) {
-	if leaf == ksuid.Nil {
+func (s *Store) Path(ctx context.Context, leaf uuid.UUID) ([]uuid.UUID, error) {
+	if leaf == uuid.Nil() {
 		return nil, errors.New("no path for nil commit ID")
 	}
 	if path, ok := s.paths.Get(leaf); ok {
 		return path, nil
 	}
-	path, err := s.PathRange(ctx, leaf, ksuid.Nil)
+	path, err := s.PathRange(ctx, leaf, uuid.Nil())
 	if err != nil {
 		return nil, err
 	}
@@ -247,9 +247,9 @@ func (s *Store) Path(ctx context.Context, leaf ksuid.KSUID) ([]ksuid.KSUID, erro
 	return path, nil
 }
 
-func (s *Store) PathRange(ctx context.Context, from, to ksuid.KSUID) ([]ksuid.KSUID, error) {
-	var path []ksuid.KSUID
-	for at := from; at != ksuid.Nil; {
+func (s *Store) PathRange(ctx context.Context, from, to uuid.UUID) ([]uuid.UUID, error) {
+	var path []uuid.UUID
+	for at := from; at != uuid.Nil(); {
 		if cache, ok := s.paths.Get(at); ok {
 			for _, id := range cache {
 				path = append(path, id)
@@ -263,7 +263,7 @@ func (s *Store) PathRange(ctx context.Context, from, to ksuid.KSUID) ([]ksuid.KS
 		if err != nil {
 			// If we get fs.ErrNotExist it means we have vacated and so we can
 			// just return the path at this point.
-			if errors.Is(err, fs.ErrNotExist) && to.IsNil() {
+			if errors.Is(err, fs.ErrNotExist) && to == uuid.Nil() {
 				break
 			}
 			return nil, err
@@ -277,7 +277,7 @@ func (s *Store) PathRange(ctx context.Context, from, to ksuid.KSUID) ([]ksuid.KS
 	return path, nil
 }
 
-func (s *Store) GetBytes(ctx context.Context, commit ksuid.KSUID) ([]byte, *Commit, error) {
+func (s *Store) GetBytes(ctx context.Context, commit uuid.UUID) ([]byte, *Commit, error) {
 	b, err := storage.Get(ctx, s.engine, s.pathOf(commit))
 	if err != nil {
 		return nil, nil, err
@@ -294,10 +294,10 @@ func (s *Store) GetBytes(ctx context.Context, commit ksuid.KSUID) ([]byte, *Comm
 	return b, first, nil
 }
 
-func (s *Store) ReadAll(ctx context.Context, commit, stop ksuid.KSUID) ([]byte, error) {
+func (s *Store) ReadAll(ctx context.Context, commit, stop uuid.UUID) ([]byte, error) {
 	var size int
 	var buffers [][]byte
-	for commit != ksuid.Nil && commit != stop {
+	for commit != uuid.Nil() && commit != stop {
 		b, commitObject, err := s.GetBytes(ctx, commit)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
@@ -316,7 +316,7 @@ func (s *Store) ReadAll(ctx context.Context, commit, stop ksuid.KSUID) ([]byte, 
 	return out, nil
 }
 
-func (s *Store) Open(ctx context.Context, commit, stop ksuid.KSUID) (io.Reader, error) {
+func (s *Store) Open(ctx context.Context, commit, stop uuid.UUID) (io.Reader, error) {
 	b, err := s.ReadAll(ctx, commit, stop)
 	if err != nil {
 		return nil, err
@@ -324,7 +324,7 @@ func (s *Store) Open(ctx context.Context, commit, stop ksuid.KSUID) (io.Reader, 
 	return bytes.NewReader(b), nil
 }
 
-func (s *Store) OpenAsBSUP(ctx context.Context, sctx *super.Context, commit, stop ksuid.KSUID) (sio.Reader, error) {
+func (s *Store) OpenAsBSUP(ctx context.Context, sctx *super.Context, commit, stop uuid.UUID) (sio.Reader, error) {
 	r, err := s.Open(ctx, commit, stop)
 	if err != nil {
 		return nil, err
@@ -332,14 +332,14 @@ func (s *Store) OpenAsBSUP(ctx context.Context, sctx *super.Context, commit, sto
 	return bsupio.NewValueReader(ctx, sctx, r)
 }
 
-func (s *Store) OpenCommitLog(ctx context.Context, sctx *super.Context, commit, stop ksuid.KSUID) sio.Reader {
+func (s *Store) OpenCommitLog(ctx context.Context, sctx *super.Context, commit, stop uuid.UUID) sio.Reader {
 	return newLogReader(ctx, sctx, s, commit, stop)
 }
 
 // PatchOfCommit computes the snapshot at the parent of the indicated commit
 // then computes the difference between that snapshot and the child commit,
 // returning the difference as a patch.
-func (s *Store) PatchOfCommit(ctx context.Context, commit ksuid.KSUID) (*Patch, error) {
+func (s *Store) PatchOfCommit(ctx context.Context, commit uuid.UUID) (*Patch, error) {
 	path, err := s.Path(ctx, commit)
 	if err != nil {
 		return nil, err
@@ -371,7 +371,7 @@ func (s *Store) PatchOfCommit(ctx context.Context, commit ksuid.KSUID) (*Patch, 
 	return patch, nil
 }
 
-func (s *Store) PatchOfPath(ctx context.Context, base *Snapshot, baseID, commit ksuid.KSUID) (*Patch, error) {
+func (s *Store) PatchOfPath(ctx context.Context, base *Snapshot, baseID, commit uuid.UUID) (*Patch, error) {
 	path, err := s.PathRange(ctx, commit, baseID)
 	if err != nil {
 		return nil, err
@@ -398,9 +398,9 @@ func (s *Store) PatchOfPath(ctx context.Context, base *Snapshot, baseID, commit 
 }
 
 // FindNearestToTs finds the last commit that is greater than or equal to ts.
-func (s *Store) FindNearestToTs(ctx context.Context, tail ksuid.KSUID, ts nano.Ts) (ksuid.KSUID, error) {
+func (s *Store) FindNearestToTs(ctx context.Context, tail uuid.UUID, ts nano.Ts) (uuid.UUID, error) {
 	at := tail
-	var prev ksuid.KSUID
+	var prev uuid.UUID
 	for {
 		_, commit, err := s.GetBytes(ctx, at)
 		if err != nil {
@@ -408,7 +408,7 @@ func (s *Store) FindNearestToTs(ctx context.Context, tail ksuid.KSUID, ts nano.T
 				// Vacated commit.
 				return prev, nil
 			}
-			return ksuid.Nil, err
+			return uuid.Nil(), err
 		}
 		if ts >= commit.Date {
 			return commit.ID, nil
@@ -420,7 +420,7 @@ func (s *Store) FindNearestToTs(ctx context.Context, tail ksuid.KSUID, ts nano.T
 
 // SetBase establishes a new base (snapshot) at the provided commit and resets
 // the attached caches, then deletes all prior commits.
-func (s *Store) SetBase(ctx context.Context, commit ksuid.KSUID) ([]ksuid.KSUID, error) {
+func (s *Store) SetBase(ctx context.Context, commit uuid.UUID) ([]uuid.UUID, error) {
 	path, err := s.Path(ctx, commit)
 	if err != nil {
 		return nil, err
@@ -445,7 +445,7 @@ func (s *Store) SetBase(ctx context.Context, commit ksuid.KSUID) ([]ksuid.KSUID,
 
 // DANGER ZONE - commits should only be removed once a new base has been
 // established.
-func (s *Store) deletePath(ctx context.Context, path []ksuid.KSUID) error {
+func (s *Store) deletePath(ctx context.Context, path []uuid.UUID) error {
 	deleteIfExists := func(path *storage.URI) error {
 		err := s.engine.Delete(ctx, path)
 		if errors.Is(err, fs.ErrNotExist) {
@@ -455,7 +455,7 @@ func (s *Store) deletePath(ctx context.Context, path []ksuid.KSUID) error {
 	}
 	// Attempt to delete prior base (if it exists).
 	_, tail, err := s.GetBytes(ctx, path[len(path)-1])
-	if err == nil && !tail.Parent.IsNil() {
+	if err == nil && tail.Parent != uuid.Nil() {
 		deleteIfExists(s.basePathOf(tail.Parent))
 	}
 	group, ctx := errgroup.WithContext(ctx)
@@ -473,12 +473,12 @@ func (s *Store) deletePath(ctx context.Context, path []ksuid.KSUID) error {
 
 // Vacuumable returns the set of data.Objects in the path of leaf that are not referenced
 // by the leaf's snapshot.
-func (s *Store) Vacuumable(ctx context.Context, leaf ksuid.KSUID, out chan<- *data.Object) error {
+func (s *Store) Vacuumable(ctx context.Context, leaf uuid.UUID, out chan<- *data.Object) error {
 	snap, err := s.Snapshot(ctx, leaf)
 	if err != nil {
 		return err
 	}
-	for at := leaf; at != ksuid.Nil; {
+	for at := leaf; at != uuid.Nil(); {
 		o, err := s.Get(ctx, at)
 		if err != nil {
 			return nil

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/compiler/optimizer/demand"
 	"github.com/superdb/super/db"
@@ -385,7 +385,7 @@ func (o *Optimizer) sortKeysOfSource(op dag.Op) (order.SortKeys, error) {
 	}
 }
 
-func (o *Optimizer) sortKey(id ksuid.KSUID) (order.SortKeys, error) {
+func (o *Optimizer) sortKey(id uuid.UUID) (order.SortKeys, error) {
 	pool, err := o.lookupPool(id)
 	if err != nil {
 		return nil, err
@@ -393,7 +393,7 @@ func (o *Optimizer) sortKey(id ksuid.KSUID) (order.SortKeys, error) {
 	return pool.SortKeys, nil
 }
 
-func (o *Optimizer) lookupPool(id ksuid.KSUID) (*db.Pool, error) {
+func (o *Optimizer) lookupPool(id uuid.UUID) (*db.Pool, error) {
 	if o.db == nil {
 		return nil, errors.New("internal error: database operation requires database operating context")
 	}

@@ -3,8 +3,8 @@ package meta
 import (
 	"context"
 	"fmt"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/db/commits"
@@ -31,7 +31,7 @@ func NewDBMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, meta
 	return sbuf.NewScanner(ctx, sbuf.NewArray(vals), nil)
 }
 
-func NewPoolMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, poolID ksuid.KSUID, meta string) (sbuf.Scanner, error) {
+func NewPoolMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, poolID uuid.UUID, meta string) (sbuf.Scanner, error) {
 	p, err := r.OpenPool(ctx, poolID)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func NewPoolMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, po
 	return sbuf.NewScanner(ctx, sbuf.NewArray(vals), nil)
 }
 
-func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, poolID, commit ksuid.KSUID, meta string, pruner expr.Evaluator) (sbuf.Puller, error) {
+func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, poolID, commit uuid.UUID, meta string, pruner expr.Evaluator) (sbuf.Puller, error) {
 	p, err := r.OpenPool(ctx, poolID)
 	if err != nil {
 		return nil, err

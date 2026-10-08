@@ -15,10 +15,10 @@ script: |
 outputs:
   - name: stdout
     regexp: |
-      pool \w{27} renamed from p2 to p3
+      pool [0-9a-f-]{36} renamed from p2 to p3
       ===
-      p1 \w{27} key ts order desc
-      p3 \w{27} key ts order desc
+      p1 [0-9a-f-]{36} key ts order desc
+      p3 [0-9a-f-]{36} key ts order desc
       ===
       pool deleted: p1
       ===

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io/fs"
 	"regexp"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/storage"
@@ -42,7 +42,7 @@ func (k FileKind) Description() string {
 var fileRegex = regexp.MustCompile(`([0-9A-Za-z]{27}-(data|meta)).bsuprows$`)
 
 // XXX this won't work right until we integrate segID
-func FileMatch(s string) (kind FileKind, id ksuid.KSUID, ok bool) {
+func FileMatch(s string) (kind FileKind, id uuid.UUID, ok bool) {
 	match := fileRegex.FindStringSubmatch(s)
 	if match == nil {
 		return
@@ -54,7 +54,7 @@ func FileMatch(s string) (kind FileKind, id ksuid.KSUID, ok bool) {
 	default:
 		return
 	}
-	id, err := ksuid.Parse(match[2])
+	id, err := uuid.Parse(match[2])
 	if err != nil {
 		return
 	}
@@ -67,7 +67,7 @@ func FileMatch(s string) (kind FileKind, id ksuid.KSUID, ok bool) {
 // of values in the sequence and Size is total size in bytes of the Object as
 // persisted to storage (i.e., its compressed size).
 type Object struct {
-	ID    ksuid.KSUID `super:"id"`
+	ID    uuid.UUID   `super:"id"`
 	Min   super.Value `super:"min"`
 	Max   super.Value `super:"max"`
 	Count uint64      `super:"count"`
@@ -75,7 +75,7 @@ type Object struct {
 }
 
 func (o Object) IsZero() bool {
-	return o.ID == ksuid.Nil
+	return o.ID == uuid.UUID{}
 }
 
 func (o Object) String() string {
@@ -94,7 +94,7 @@ func (o *Object) Equal(to *Object) bool {
 }
 
 func NewObject() Object {
-	return Object{ID: ksuid.New()}
+	return Object{ID: uuid.NewV7()}
 }
 
 func (o Object) Span(order order.Which) *extent.Generic {
@@ -112,7 +112,7 @@ func (o Object) URI(path *storage.URI) *storage.URI {
 	return URI(path, o.ID)
 }
 
-func URI(path *storage.URI, id ksuid.KSUID) *storage.URI {
+func URI(path *storage.URI, id uuid.UUID) *storage.URI {
 	return path.JoinPath(fmt.Sprintf("%s.bsup", id))
 }
 

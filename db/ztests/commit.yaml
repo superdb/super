@@ -12,4 +12,4 @@ inputs:
 outputs:
   - name: stdout
     regexp: |
-      \w{27} committed
+      [0-9a-f-]{36} committed

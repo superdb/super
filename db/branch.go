@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/parser"
 	"github.com/superdb/super/db/branches"
@@ -46,27 +46,27 @@ func OpenBranch(ctx context.Context, config *branches.Config, engine storage.Eng
 	}, nil
 }
 
-func (b *Branch) Load(ctx context.Context, sctx *super.Context, r vio.Puller, author, message, meta string) (ksuid.KSUID, error) {
+func (b *Branch) Load(ctx context.Context, sctx *super.Context, r vio.Puller, author, message, meta string) (uuid.UUID, error) {
 	w, err := NewWriter(ctx, sctx, b.pool)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	err = vio.Copy(w, r)
 	if closeErr := w.Close(); err == nil {
 		err = closeErr
 	}
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	if len(w.objects) == 0 {
-		return ksuid.Nil, commits.ErrEmptyTransaction
+		return uuid.Nil(), commits.ErrEmptyTransaction
 	}
 	if message == "" {
 		message = loadMessage(w.objects)
 	}
 	appMeta, err := loadMeta(sctx, meta)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	// The load operation has only added new objects so we know its
 	// safe to merge at the tip and there can be no conflicts
@@ -103,7 +103,7 @@ func loadMeta(sctx *super.Context, meta string) (super.Value, error) {
 	return val, nil
 }
 
-func (b *Branch) Delete(ctx context.Context, ids []ksuid.KSUID, author, message string) (ksuid.KSUID, error) {
+func (b *Branch) Delete(ctx context.Context, ids []uuid.UUID, author, message string) (uuid.UUID, error) {
 	return b.commit(ctx, func(parent *branches.Config, retries int) (*commits.Object, error) {
 		snap, err := b.pool.commits.Snapshot(ctx, parent.Commit)
 		if err != nil {
@@ -127,11 +127,11 @@ func (b *Branch) Delete(ctx context.Context, ids []ksuid.KSUID, author, message 
 	})
 }
 
-func (b *Branch) DeleteWhere(ctx context.Context, c runtime.Compiler, ast *parser.AST, author, message, meta string) (ksuid.KSUID, error) {
+func (b *Branch) DeleteWhere(ctx context.Context, c runtime.Compiler, ast *parser.AST, author, message, meta string) (uuid.UUID, error) {
 	sctx := super.NewContext()
 	appMeta, err := loadMeta(sctx, meta)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	return b.commit(ctx, func(parent *branches.Config, retries int) (*commits.Object, error) {
 		rctx := runtime.NewContext(ctx, sctx)
@@ -211,7 +211,7 @@ func printObjects(b *strings.Builder, objects []*data.Object, maxMessageObjects 
 	}
 }
 
-func (b *Branch) Revert(ctx context.Context, commit ksuid.KSUID, author, message string) (ksuid.KSUID, error) {
+func (b *Branch) Revert(ctx context.Context, commit uuid.UUID, author, message string) (uuid.UUID, error) {
 	return b.commit(ctx, func(parent *branches.Config, retries int) (*commits.Object, error) {
 		patch, err := b.pool.commits.PatchOfCommit(ctx, commit)
 		if err != nil {
@@ -224,7 +224,7 @@ func (b *Branch) Revert(ctx context.Context, commit ksuid.KSUID, author, message
 		if message == "" {
 			message = fmt.Sprintf("reverted commit %s", commit)
 		}
-		object, err := patch.Revert(tip, ksuid.New(), parent.Commit, retries, author, message)
+		object, err := patch.Revert(tip, uuid.NewV7(), parent.Commit, retries, author, message)
 		if err != nil {
 			return nil, err
 		}
@@ -232,24 +232,24 @@ func (b *Branch) Revert(ctx context.Context, commit ksuid.KSUID, author, message
 	})
 }
 
-func (b *Branch) Compact(ctx context.Context, c runtime.Compiler, objectIDs []ksuid.KSUID, author, message, meta string) (ksuid.KSUID, error) {
+func (b *Branch) Compact(ctx context.Context, c runtime.Compiler, objectIDs []uuid.UUID, author, message, meta string) (uuid.UUID, error) {
 	if len(objectIDs) < 2 {
-		return ksuid.Nil, errors.New("compact: two or more source objects required")
+		return uuid.Nil(), errors.New("compact: two or more source objects required")
 	}
 	sctx := super.NewContext()
 	appMeta, err := loadMeta(sctx, meta)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	base, err := b.pool.Snapshot(ctx, b.Commit)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	compact := commits.NewSnapshot()
 	for _, oid := range objectIDs {
 		o, err := base.Lookup(oid)
 		if err != nil {
-			return ksuid.Nil, err
+			return uuid.Nil(), err
 		}
 		compact.AddDataObject(o)
 	}
@@ -258,22 +258,22 @@ func (b *Branch) Compact(ctx context.Context, c runtime.Compiler, objectIDs []ks
 	original := compact.SelectAll()
 	q, err := c.NewObjectScanner(runtime.NewContext(ctx, sctx), b.pool.ID, original)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	w, err := NewWriter(ctx, sctx, b.pool)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	if err := vio.Copy(w, q); err != nil {
 		q.Pull(true)
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	if err := w.Close(); err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	rollup := w.objects
 	if len(rollup) == 0 {
-		return ksuid.Nil, errors.New("compact: one or more rollup objects required")
+		return uuid.Nil(), errors.New("compact: one or more rollup objects required")
 	}
 	return b.commit(ctx, func(parent *branches.Config, retries int) (*commits.Object, error) {
 		base, err := b.pool.commits.Snapshot(ctx, parent.Commit)
@@ -312,9 +312,9 @@ func pointerize(objects []data.Object) []*data.Object {
 	return out
 }
 
-func (b *Branch) mergeInto(ctx context.Context, parent *Branch, author, message string) (ksuid.KSUID, error) {
+func (b *Branch) mergeInto(ctx context.Context, parent *Branch, author, message string) (uuid.UUID, error) {
 	if b == parent {
-		return ksuid.Nil, errors.New("cannot merge branch into itself")
+		return uuid.Nil(), errors.New("cannot merge branch into itself")
 	}
 	return parent.commit(ctx, func(head *branches.Config, retries int) (*commits.Object, error) {
 		return b.buildMergeObject(ctx, head, retries, author, message)
@@ -336,7 +336,7 @@ func (b *Branch) buildMergeObject(ctx context.Context, parent *branches.Config, 
 		return nil, err
 	}
 	baseID := commonAncestor(parentPath, childPath)
-	if baseID == ksuid.Nil {
+	if baseID == uuid.Nil() {
 		//XXX this shouldn't happen because because all of the branches
 		// should live in a single tree.
 		//XXX hmm, except if you branch main when it is empty...?
@@ -372,8 +372,8 @@ func (b *Branch) buildMergeObject(ctx context.Context, parent *branches.Config, 
 	return diff.NewCommitObject(parent.Commit, retries, author, message, super.Null), nil
 }
 
-func commonAncestor(a, b []ksuid.KSUID) ksuid.KSUID {
-	m := make(map[ksuid.KSUID]struct{})
+func commonAncestor(a, b []uuid.UUID) uuid.UUID {
+	m := make(map[uuid.UUID]struct{})
 	for _, id := range a {
 		m[id] = struct{}{}
 	}
@@ -382,12 +382,12 @@ func commonAncestor(a, b []ksuid.KSUID) ksuid.KSUID {
 			return id
 		}
 	}
-	return ksuid.Nil
+	return uuid.Nil()
 }
 
 type constructor func(parent *branches.Config, retries int) (*commits.Object, error)
 
-func (b *Branch) commit(ctx context.Context, create constructor) (ksuid.KSUID, error) {
+func (b *Branch) commit(ctx context.Context, create constructor) (uuid.UUID, error) {
 	// A commit must append new state to the tip of the branch while simultaneously
 	// upating the branch pointer in a trasactionally consistent fashion.
 	// For example, if we compute a commit object based on a certain tip commit,
@@ -403,14 +403,14 @@ func (b *Branch) commit(ctx context.Context, create constructor) (ksuid.KSUID, e
 	for retries := range maxCommitRetries {
 		config, err := b.pool.branches.LookupByName(ctx, b.Name)
 		if err != nil {
-			return ksuid.Nil, err
+			return uuid.Nil(), err
 		}
 		object, err := create(config, retries)
 		if err != nil {
-			return ksuid.Nil, err
+			return uuid.Nil(), err
 		}
 		if err := b.pool.commits.Put(ctx, object); err != nil {
-			return ksuid.Nil, fmt.Errorf("branch %q failed to write commit object: %w", b.Name, err)
+			return uuid.Nil(), fmt.Errorf("branch %q failed to write commit object: %w", b.Name, err)
 		}
 		// Set the branch pointer to point to this commit object
 		// and stash the current commit (that will become the parent)
@@ -429,19 +429,19 @@ func (b *Branch) commit(ctx context.Context, create constructor) (ksuid.KSUID, e
 			if err == journal.ErrConstraint {
 				// Parent check failed so try again.
 				if rmerr != nil {
-					return ksuid.Nil, rmerr
+					return uuid.Nil(), rmerr
 				}
 				continue
 			}
-			return ksuid.Nil, err
+			return uuid.Nil(), err
 		}
 		return object.Commit, nil
 	}
-	return ksuid.Nil, fmt.Errorf("branch %q: %w", b.Name, ErrCommitFailed)
+	return uuid.Nil(), fmt.Errorf("branch %q: %w", b.Name, ErrCommitFailed)
 }
 
-func (b *Branch) LookupTags(ctx context.Context, tags []ksuid.KSUID) ([]ksuid.KSUID, error) {
-	var ids []ksuid.KSUID
+func (b *Branch) LookupTags(ctx context.Context, tags []uuid.UUID) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
 	for _, tag := range tags {
 		ok, err := b.pool.ObjectExists(ctx, tag)
 		if err != nil {

@@ -2,15 +2,15 @@ package commits
 
 import (
 	"fmt"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/pkg/nano"
 )
 
 type Action interface {
-	CommitID() ksuid.KSUID
+	CommitID() uuid.UUID
 	fmt.Stringer
 }
 
@@ -21,13 +21,13 @@ var ActionTypes = []any{
 }
 
 type Add struct {
-	Commit ksuid.KSUID `super:"commit"`
+	Commit uuid.UUID   `super:"commit"`
 	Object data.Object `super:"object"`
 }
 
 var _ Action = (*Add)(nil)
 
-func (a *Add) CommitID() ksuid.KSUID {
+func (a *Add) CommitID() uuid.UUID {
 	return a.Commit
 }
 
@@ -43,8 +43,8 @@ func (a *Add) String() string {
 // pessimistic locking mechanisms alongside the optimistic approach.
 
 type Commit struct {
-	ID      ksuid.KSUID `super:"id"`
-	Parent  ksuid.KSUID `super:"parent"`
+	ID      uuid.UUID   `super:"id"`
+	Parent  uuid.UUID   `super:"parent"`
 	Retries uint8       `super:"retries"`
 	Author  string      `super:"author"`
 	Date    nano.Ts     `super:"date"`
@@ -52,7 +52,7 @@ type Commit struct {
 	Meta    super.Value `super:"meta"`
 }
 
-func (c *Commit) CommitID() ksuid.KSUID {
+func (c *Commit) CommitID() uuid.UUID {
 	return c.ID
 }
 
@@ -62,11 +62,11 @@ func (c *Commit) String() string {
 }
 
 type Delete struct {
-	Commit ksuid.KSUID `super:"commit"`
-	ID     ksuid.KSUID `super:"id"`
+	Commit uuid.UUID `super:"commit"`
+	ID     uuid.UUID `super:"id"`
 }
 
-func (d *Delete) CommitID() ksuid.KSUID {
+func (d *Delete) CommitID() uuid.UUID {
 	return d.Commit
 }
 

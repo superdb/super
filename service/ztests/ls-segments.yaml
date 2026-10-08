@@ -18,7 +18,7 @@ inputs:
 outputs:
   - name: stdout
     regexp: |
-      \w{27} \d+B bytes 1 records
+      [0-9a-f-]{36} \d+B bytes 1 records
          min null max null
-      \w{27} \d+B bytes 1 records
+      [0-9a-f-]{36} \d+B bytes 1 records
          min null max null
