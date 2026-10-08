@@ -11,7 +11,6 @@ import (
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
-	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/bsupbytes"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/sio"
@@ -173,9 +172,11 @@ func (s *Store) getSnapshot(ctx context.Context, unmarshaler *super.Unmarshaler)
 		return Nil, table, err
 	}
 	defer r.Close()
-	zr := oldbsup.NewReader(super.NewContext(), r)
-	defer zr.Close()
-	val, err := zr.Read()
+	reader, err := bsupio.NewValueReader(ctx, super.NewContext(), r)
+	if err != nil {
+		return Nil, table, err
+	}
+	val, err := reader.Read()
 	if val == nil || err != nil {
 		return Nil, table, err
 	}
@@ -183,7 +184,7 @@ func (s *Store) getSnapshot(ctx context.Context, unmarshaler *super.Unmarshaler)
 		return Nil, table, errors.New("corrupted journal snapshot")
 	}
 	at := ID(val.Uint())
-	table, err = s.readSnapshot(zr, unmarshaler)
+	table, err = s.readSnapshot(reader, unmarshaler)
 	return at, table, err
 }
 
@@ -208,12 +209,12 @@ func (s *Store) putSnapshot(ctx context.Context, at ID, table map[string]Entry) 
 	if err != nil {
 		return err
 	}
-	zw := oldbsup.NewWriter(w)
-	defer zw.Close()
-	if err := zw.Write(super.NewUint64(uint64(at))); err != nil {
+	writer := bsup.NewRowWriter(w)
+	defer writer.Close()
+	if err := writer.Write(super.NewUint64(uint64(at))); err != nil {
 		return err
 	}
-	return s.writeTable(zw, table)
+	return s.writeTable(writer, table)
 }
 
 func (s *Store) writeTable(w sio.Writer, table map[string]Entry) error {

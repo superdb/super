@@ -546,6 +546,8 @@ func handleCompact(c *Core, w *ResponseWriter, r *Request) {
 		PoolID:   pool.ID,
 		Branch:   branchName,
 	})
+	w.Respond(http.StatusOK, api.CommitResponse{Commit: branch.Commit})
+	return
 }
 
 func handleDelete(c *Core, w *ResponseWriter, r *Request) {
