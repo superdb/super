@@ -13,20 +13,20 @@ type peeker struct {
 	ordinal    int
 }
 
-func newPeeker(ctx context.Context, sctx *super.Context, filename string, ordinal int, zr sio.Reader) (*peeker, error) {
+func newPeeker(ctx context.Context, sctx *super.Context, filename string, ordinal int, reader sio.Reader) (*peeker, error) {
 	f, err := NewFileWithPath(filename)
 	if err != nil {
 		return nil, err
 	}
-	if err := sio.CopyWithContext(ctx, f, zr); err != nil {
+	if err := sio.CopyWithContext(ctx, f.writer, reader); err != nil {
 		f.CloseAndRemove()
 		return nil, err
 	}
-	if err := f.Rewind(sctx); err != nil {
+	if err := f.Rewind(ctx, sctx); err != nil {
 		f.CloseAndRemove()
 		return nil, err
 	}
-	first, err := f.Read()
+	first, err := f.reader.Read()
 	if err != nil {
 		f.CloseAndRemove()
 		return nil, err
@@ -42,7 +42,7 @@ func (p *peeker) read() (*super.Value, bool, error) {
 		rec = rec.Copy().Ptr()
 	}
 	var err error
-	p.nextRecord, err = p.Read()
+	p.nextRecord, err = p.reader.Read()
 	eof := p.nextRecord == nil && err == nil
 	return rec, eof, err
 }
