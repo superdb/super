@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	Version     = 5
+	Version     = 6
 	PoolsTag    = "pools"
 	MagicFile   = "superdb.bsup"
 	MagicString = "SUPERDB"

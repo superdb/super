@@ -2,7 +2,6 @@ package pools
 
 import (
 	"github.com/segmentio/ksuid"
-	"github.com/superdb/super"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/db/journal"
 	"github.com/superdb/super/order"
@@ -20,8 +19,6 @@ type Config struct {
 }
 
 var _ journal.Entry = (*Config)(nil)
-var _ super.CustomMarshaler = (*Config)(nil)
-var _ super.CustomUnmarshaler = (*Config)(nil)
 
 func NewConfig(name string, sortKeys order.SortKeys, thresh int64) *Config {
 	if sortKeys.IsNil() {
@@ -45,59 +42,4 @@ func (p *Config) Key() string {
 
 func (p *Config) Path(root *storage.URI) *storage.URI {
 	return root.JoinPath(p.ID.String())
-}
-
-// This is a temporary hack to get the change in order.SortKey working with
-// previous versions. At some point we'll do a migration so we don't have to do
-// this.
-type marshalConfig struct {
-	Ts        nano.Ts     `super:"ts"`
-	Name      string      `super:"name"`
-	ID        ksuid.KSUID `super:"id"`
-	SortKey   oldSortKey  `super:"layout"`
-	Threshold int64       `super:"threshold"`
-}
-
-type oldSortKey struct {
-	Order order.Which `json:"order" super:"order"`
-	Keys  field.List  `json:"keys" super:"keys"`
-}
-
-var hackedBindings = []super.Binding{
-	{Name: "order.SortKey", Template: oldSortKey{}},
-	{Name: "pools.Config", Template: marshalConfig{}},
-}
-
-func (p Config) MarshalSuper(marshaler *super.Marshaler) (super.Type, error) {
-	marshaler.NamedBindings(hackedBindings)
-	m := marshalConfig{
-		Ts:        p.Ts,
-		Name:      p.Name,
-		ID:        p.ID,
-		Threshold: p.Threshold,
-	}
-	if !p.SortKeys.IsNil() {
-		m.SortKey.Order = p.SortKeys[0].Order
-		for _, sortKey := range p.SortKeys {
-			m.SortKey.Keys = append(m.SortKey.Keys, sortKey.Key)
-		}
-	}
-	typ, err := marshaler.MarshalValue(&m)
-	return typ, err
-}
-
-func (p *Config) UnmarshalSuper(unmarshaler *super.Unmarshaler, val super.Value) error {
-	unmarshaler.NamedBindings(hackedBindings)
-	var m marshalConfig
-	if err := unmarshaler.Unmarshal(val, &m); err != nil {
-		return err
-	}
-	p.Ts = m.Ts
-	p.Name = m.Name
-	p.ID = m.ID
-	p.Threshold = m.Threshold
-	for _, k := range m.SortKey.Keys {
-		p.SortKeys = append(p.SortKeys, order.NewSortKey(m.SortKey.Order, k))
-	}
-	return nil
 }

@@ -67,7 +67,7 @@ outputs:
             "sort": [
               {
                 "order": "desc",
-                "key": [
+                "path": [
                   "ts"
                 ]
               }
@@ -146,7 +146,7 @@ outputs:
             "sort": [
               {
                 "order": "desc",
-                "key": [
+                "path": [
                   "ts"
                 ]
               }
@@ -174,7 +174,7 @@ outputs:
             "sort": [
               {
                 "order": "asc",
-                "key": [
+                "path": [
                   "foo"
                 ]
               }
@@ -198,7 +198,7 @@ outputs:
             "sort": [
               {
                 "order": "desc",
-                "key": [
+                "path": [
                   "ts"
                 ]
               }
