@@ -674,11 +674,14 @@ func (t *translator) groupBy(sch *selectScope, in []ast.Expr, inType super.Type)
 			} else {
 				save := sch.groupByLoc
 				sch.groupByLoc = expr
-				if col := sch.columns[colno-1]; col.semExpr != nil {
+				switch col := sch.columns[colno-1]; {
+				case col.semExpr != nil:
 					// If semExpr is not nil, column refers to an expanded star
 					// expression - use this value.
 					e, typ = col.semExpr, col.typ
-				} else {
+				case col.lateral:
+					e, typ = resolveLateralColumn(t, sch, col.name, inType)
+				default:
 					e, typ = t.expr(col.astExpr, inType)
 				}
 				sch.groupByLoc = save
