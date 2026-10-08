@@ -204,8 +204,8 @@ produces
 {name:"banana",color:"yellow",flavor:"sweet",eater:"quinn"}
 {name:"dates",color:"brown",flavor:"sweet",note:"in season",eater:"quinn"}
 {name:"strawberry",color:"red",flavor:"sweet",eater:"quinn"}
-{name:"apple",color:"red",flavor:"tart",eater:"chris"}
 {name:"apple",color:"red",flavor:"tart",eater:"morgan"}
+{name:"apple",color:"red",flavor:"tart",eater:"chris"}
 ```
 
 ### Alternate Syntax
