@@ -71,7 +71,7 @@ func (c *Command) Run(args []string) error {
 	projection := field.NewProjection(paths)
 	sctx := super.NewContext()
 	for _, loader := range object.Loaders() {
-		vec, err := loader.Fetch(sctx, projection)
+		vec, err := loader.Load(sctx, projection)
 		if err != nil {
 			writer.Close()
 			return err

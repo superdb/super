@@ -14,7 +14,7 @@ import (
 // multiple callers of Cache and the super.Context in use is passed in for
 // each vector constructed from its in-memory shadow.
 type Object struct {
-	loaders []*loader.Frame
+	loaders []*loader.FrameLoader
 }
 
 func NewObject(fit bsup.FrameIter) (*Object, error) {
@@ -22,7 +22,7 @@ func NewObject(fit bsup.FrameIter) (*Object, error) {
 	// we can read just the frame headers and page in when necessary.
 	// We need another layer of abstraction which is uuid/slot to
 	// model each frame in the object referenced by its uuid.
-	var loaders []*loader.Frame
+	var loaders []*loader.FrameLoader
 	for {
 		frame, err := fit.Next()
 		if err != nil {
@@ -35,11 +35,11 @@ func NewObject(fit bsup.FrameIter) (*Object, error) {
 		if !ok {
 			return nil, errors.New("encountered non-column data")
 		}
-		loaders = append(loaders, loader.NewFrame(colFrame))
+		loaders = append(loaders, loader.NewFrameLoader(colFrame))
 	}
 }
 
-func (o *Object) Loaders() []*loader.Frame {
+func (o *Object) Loaders() []*loader.FrameLoader {
 	return o.loaders
 }
 

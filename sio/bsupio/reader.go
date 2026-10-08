@@ -109,14 +109,13 @@ func (r *reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
 			if len(r.metaFilters) > 0 && pruneObject(r.sctx, r.metaFilters[n], frame) {
 				continue
 			}
-			r.progress.Add(vio.Progress{BytesMatched: size})
-			loader := loader.NewFrame(frame)
+			loader := loader.NewFrameLoader(frame)
 			var proj field.Projection
 			if r.pushdown != nil {
 				proj = r.pushdown.Projection()
 			}
 			if r.pushdown != nil && r.pushdown.Unordered() {
-				r.vecs[n], err = loader.FetchUnordered(r.vecs[n][:0], r.sctx, proj)
+				r.vecs[n], err = loader.LoadUnordered(r.vecs[n][:0], r.sctx, proj)
 				if err != nil {
 					return nil, err
 				}
@@ -124,7 +123,7 @@ func (r *reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
 					panic("control shouldn't happen on this path")
 				}
 			} else {
-				vec, err := loader.Fetch(r.sctx, proj)
+				vec, err := loader.Load(r.sctx, proj)
 				if err != nil {
 					return nil, err
 				}

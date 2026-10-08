@@ -11,11 +11,11 @@ import (
 
 type Projection struct {
 	sctx       *super.Context
-	loader     *loader.Frame
+	loader     *loader.FrameLoader
 	projection field.Projection
 }
 
-func NewProjection(sctx *super.Context, frame *loader.Frame, paths []field.Path) sbuf.Puller {
+func NewProjection(sctx *super.Context, frame *loader.FrameLoader, paths []field.Path) sbuf.Puller {
 	return sbuf.NewMaterializer(&Projection{
 		sctx:       sctx,
 		loader:     frame,
@@ -23,7 +23,7 @@ func NewProjection(sctx *super.Context, frame *loader.Frame, paths []field.Path)
 	})
 }
 
-func NewVectorProjection(sctx *super.Context, frame *loader.Frame, paths []field.Path) vio.Puller {
+func NewVectorProjection(sctx *super.Context, frame *loader.FrameLoader, paths []field.Path) vio.Puller {
 	return &Projection{
 		sctx:       sctx,
 		loader:     frame,
@@ -34,7 +34,7 @@ func NewVectorProjection(sctx *super.Context, frame *loader.Frame, paths []field
 func (p *Projection) Pull(bool) (vector.Any, error) {
 	if loader := p.loader; loader != nil {
 		p.loader = nil
-		return loader.Fetch(p.sctx, p.projection)
+		return loader.Load(p.sctx, p.projection)
 	}
 	return nil, nil
 }
