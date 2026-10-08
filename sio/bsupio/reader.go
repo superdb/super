@@ -109,6 +109,7 @@ func (r *reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
 			if len(r.metaFilters) > 0 && pruneObject(r.sctx, r.metaFilters[n], frame) {
 				continue
 			}
+			r.progress.Add(vio.Progress{BytesMatched: size})
 			loader := loader.NewFrameLoader(frame)
 			var proj field.Projection
 			if r.pushdown != nil {
