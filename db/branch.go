@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-
 	"uuid"
 
 	"github.com/superdb/super"

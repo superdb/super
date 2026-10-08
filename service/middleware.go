@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"time"
-
 	"uuid"
 
 	"github.com/gorilla/mux"

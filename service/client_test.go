@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"io"
 	"testing"
-
 	"uuid"
+
 	"github.com/stretchr/testify/require"
 	"github.com/superdb/super"
 	"github.com/superdb/super/api"

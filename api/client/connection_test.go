@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
 	"uuid"
 
 	"github.com/stretchr/testify/assert"

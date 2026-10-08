@@ -5,8 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-
 	"uuid"
+
 	"github.com/superdb/super/cli/commitflags"
 	"github.com/superdb/super/cli/dbflags"
 	"github.com/superdb/super/cli/poolflags"

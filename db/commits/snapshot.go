@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-
 	"uuid"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsupbytes"
 	"github.com/superdb/super/db/data"

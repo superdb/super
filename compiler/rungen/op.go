@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"slices"
 	"sync"
-
 	"uuid"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/db"

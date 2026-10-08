@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"syscall"
 	"time"
-
 	"uuid"
+
 	"github.com/superdb/super/api/client"
 	"github.com/superdb/super/db/api"
 	"github.com/superdb/super/db/pools"

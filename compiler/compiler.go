@@ -2,8 +2,8 @@ package compiler
 
 import (
 	goruntime "runtime"
-
 	"uuid"
+
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/compiler/optimizer"
 	"github.com/superdb/super/compiler/parser"

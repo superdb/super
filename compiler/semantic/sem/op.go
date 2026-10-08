@@ -10,8 +10,8 @@ package sem
 import (
 	"maps"
 	"slices"
-
 	"uuid"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/ast"
 	"github.com/superdb/super/order"

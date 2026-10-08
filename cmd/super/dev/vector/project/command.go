@@ -3,8 +3,8 @@ package read
 import (
 	"errors"
 	"flag"
-
 	"uuid"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/cli/outputflags"
 	"github.com/superdb/super/cmd/super/dev/vector"

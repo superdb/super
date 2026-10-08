@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-
 	"uuid"
 
 	"github.com/superdb/super"

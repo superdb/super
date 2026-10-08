@@ -2,8 +2,8 @@ package api
 
 import (
 	"context"
-
 	"uuid"
+
 	"github.com/superdb/super/compiler/srcfiles"
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/field"
@@ -76,14 +76,14 @@ type CommitMessage struct {
 
 type CommitResponse struct {
 	Commit   uuid.UUID `super:"commit"`
-	Warnings []string    `super:"warnings"`
+	Warnings []string  `super:"warnings"`
 }
 
 type EventBranchCommit struct {
 	CommitID uuid.UUID `super:"commit_id"`
 	PoolID   uuid.UUID `super:"pool_id"`
-	Branch   string      `super:"branch"`
-	Parent   string      `super:"parent"`
+	Branch   string    `super:"branch"`
+	Parent   string    `super:"parent"`
 }
 
 type EventPool struct {
@@ -92,7 +92,7 @@ type EventPool struct {
 
 type EventBranch struct {
 	PoolID uuid.UUID `super:"pool_id"`
-	Branch string      `super:"branch"`
+	Branch string    `super:"branch"`
 }
 
 type QueryRequest struct {

@@ -2,8 +2,8 @@ package exec
 
 import (
 	"sync"
-
 	"uuid"
+
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/vector/vio"
 )

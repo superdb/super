@@ -2,8 +2,8 @@ package poolscanner
 
 import (
 	"sync"
-
 	"uuid"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/runtime"

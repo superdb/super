@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
-
 	"uuid"
 
 	"github.com/superdb/super"

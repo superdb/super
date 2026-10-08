@@ -3,8 +3,8 @@ package describe
 import (
 	"context"
 	"fmt"
-
 	"uuid"
+
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/compiler/optimizer"
 	"github.com/superdb/super/compiler/parser"
@@ -30,8 +30,8 @@ type (
 		Meta string `json:"meta"`
 	}
 	Pool struct {
-		Kind string      `json:"kind"`
-		Name string      `json:"name"`
+		Kind string    `json:"kind"`
+		Name string    `json:"name"`
 		ID   uuid.UUID `json:"id"`
 	}
 	Path struct {

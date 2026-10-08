@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
-
 	"uuid"
+
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/compiler/optimizer/demand"
 	"github.com/superdb/super/db"

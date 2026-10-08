@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 	"time"
-
 	"uuid"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/api"
 	"github.com/superdb/super/api/queryio"

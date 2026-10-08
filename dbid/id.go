@@ -3,7 +3,6 @@ package dbid
 import (
 	"encoding/hex"
 	"fmt"
-
 	"uuid"
 )
 

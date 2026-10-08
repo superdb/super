@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"strings"
-
 	"uuid"
 
 	"github.com/superdb/super/cli/outputflags"

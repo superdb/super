@@ -2,12 +2,13 @@ package branches
 
 import (
 	"uuid"
+
 	"github.com/superdb/super/pkg/nano"
 )
 
 type Config struct {
-	Ts     nano.Ts     `super:"ts"`
-	Name   string      `super:"name"`
+	Ts     nano.Ts   `super:"ts"`
+	Name   string    `super:"name"`
 	Commit uuid.UUID `super:"commit"`
 
 	// audit info

@@ -2,8 +2,8 @@ package commits
 
 import (
 	"fmt"
-
 	"uuid"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/pkg/nano"
@@ -21,7 +21,7 @@ var ActionTypes = []any{
 }
 
 type Add struct {
-	Commit uuid.UUID `super:"commit"`
+	Commit uuid.UUID   `super:"commit"`
 	Object data.Object `super:"object"`
 }
 
@@ -43,8 +43,8 @@ func (a *Add) String() string {
 // pessimistic locking mechanisms alongside the optimistic approach.
 
 type Commit struct {
-	ID      uuid.UUID `super:"id"`
-	Parent  uuid.UUID `super:"parent"`
+	ID      uuid.UUID   `super:"id"`
+	Parent  uuid.UUID   `super:"parent"`
 	Retries uint8       `super:"retries"`
 	Author  string      `super:"author"`
 	Date    nano.Ts     `super:"date"`

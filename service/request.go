@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"uuid"
 
 	"github.com/gorilla/mux"
-	"uuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/api"
 	"github.com/superdb/super/compiler/srcfiles"

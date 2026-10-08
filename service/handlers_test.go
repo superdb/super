@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"uuid"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/superdb/super/api"

@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-
 	"uuid"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/ast"
 	"github.com/superdb/super/compiler/dag"

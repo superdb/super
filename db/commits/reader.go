@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"io/fs"
-
 	"uuid"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/sio"
 )

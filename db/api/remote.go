@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-
 	"uuid"
 
 	"github.com/superdb/super"
