@@ -3,7 +3,7 @@ package runtime
 import (
 	"context"
 
-	"github.com/segmentio/ksuid"
+	"uuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/parser"
 	"github.com/superdb/super/db/data"
@@ -14,7 +14,7 @@ import (
 type Compiler interface {
 	NewQuery(*Context, *parser.AST, []vio.Puller, int) (Query, error)
 	NewDeleteQuery(*Context, *parser.AST, *dbid.Committish) (DeleteQuery, error)
-	NewObjectScanner(rctx *Context, poolID ksuid.KSUID, objects []*data.Object) (vio.Puller, error)
+	NewObjectScanner(rctx *Context, poolID uuid.UUID, objects []*data.Object) (vio.Puller, error)
 }
 
 type Query interface {
@@ -24,7 +24,7 @@ type Query interface {
 
 type DeleteQuery interface {
 	Query
-	DeletionSet() []ksuid.KSUID
+	DeletionSet() []uuid.UUID
 }
 
 func CompileQuery(ctx context.Context, sctx *super.Context, c Compiler, ast *parser.AST, readers []vio.Puller) (Query, error) {

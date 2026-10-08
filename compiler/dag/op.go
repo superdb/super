@@ -12,7 +12,7 @@ import (
 	"reflect"
 	"slices"
 
-	"github.com/segmentio/ksuid"
+	"uuid"
 	"github.com/superdb/super/pkg/field"
 )
 
@@ -121,7 +121,7 @@ type (
 	}
 	LoadOp struct {
 		Kind    string      `json:"kind" unpack:""`
-		Pool    ksuid.KSUID `json:"pool"`
+		Pool    uuid.UUID `json:"pool"`
 		Branch  string      `json:"branch"`
 		Author  string      `json:"author"`
 		Message string      `json:"message"`
@@ -240,8 +240,8 @@ func (*ValuesOp) opNode()    {}
 type (
 	CommitMetaScan struct {
 		Kind      string      `json:"kind" unpack:""`
-		Pool      ksuid.KSUID `json:"pool"`
-		Commit    ksuid.KSUID `json:"commit"`
+		Pool      uuid.UUID `json:"pool"`
+		Commit    uuid.UUID `json:"commit"`
 		Meta      string      `json:"meta"`
 		Tap       bool        `json:"tap"`
 		KeyPruner Expr        `json:"key_pruner"`
@@ -252,14 +252,14 @@ type (
 	}
 	DeleterScan struct {
 		Kind      string      `json:"kind" unpack:""`
-		Pool      ksuid.KSUID `json:"pool"`
+		Pool      uuid.UUID `json:"pool"`
 		Where     Expr        `json:"where"`
 		KeyPruner Expr        `json:"key_pruner"`
 	}
 	DeleteScan struct {
 		Kind   string      `json:"kind" unpack:""`
-		ID     ksuid.KSUID `json:"id"`
-		Commit ksuid.KSUID `json:"commit"`
+		ID     uuid.UUID `json:"id"`
+		Commit uuid.UUID `json:"commit"`
 	}
 	FileScan struct {
 		Kind     string   `json:"kind"  unpack:""`
@@ -270,8 +270,8 @@ type (
 	}
 	ListerScan struct {
 		Kind      string      `json:"kind" unpack:""`
-		Pool      ksuid.KSUID `json:"pool"`
-		Commit    ksuid.KSUID `json:"commit"`
+		Pool      uuid.UUID `json:"pool"`
+		Commit    uuid.UUID `json:"commit"`
 		KeyPruner Expr        `json:"key_pruner"`
 	}
 	HTTPScan struct {
@@ -284,8 +284,8 @@ type (
 	}
 	PoolScan struct {
 		Kind   string      `json:"kind" unpack:""`
-		ID     ksuid.KSUID `json:"id"`
-		Commit ksuid.KSUID `json:"commit"`
+		ID     uuid.UUID `json:"id"`
+		Commit uuid.UUID `json:"commit"`
 	}
 	RobotScan struct {
 		Kind   string `json:"kind" unpack:""`
@@ -295,7 +295,7 @@ type (
 	}
 	PoolMetaScan struct {
 		Kind string      `json:"kind" unpack:""`
-		ID   ksuid.KSUID `json:"id"`
+		ID   uuid.UUID `json:"id"`
 		Meta string      `json:"meta"`
 	}
 	NullScan struct {
@@ -303,8 +303,8 @@ type (
 	}
 	SeqScan struct {
 		Kind      string       `json:"kind" unpack:""`
-		Pool      ksuid.KSUID  `json:"pool"`
-		Commit    ksuid.KSUID  `json:"commit"`
+		Pool      uuid.UUID  `json:"pool"`
+		Commit    uuid.UUID  `json:"commit"`
 		Fields    []field.Path `json:"fields"`
 		Filter    Expr         `json:"filter"`
 		KeyPruner Expr         `json:"key_pruner"`

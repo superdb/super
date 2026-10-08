@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"time"
 
+	"uuid"
+
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super/api"
 	"github.com/superdb/super/service/srverr"
 	"go.uber.org/zap"
@@ -21,7 +22,7 @@ func requestIDMiddleware() mux.MiddlewareFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			reqID := r.Header.Get(api.RequestIDHeader)
 			if reqID == "" {
-				reqID = ksuid.New().String()
+				reqID = uuid.NewV7().String()
 			}
 			w.Header().Add(api.RequestIDHeader, reqID)
 			ctx := context.WithValue(r.Context(), api.RequestIDHeader, reqID)

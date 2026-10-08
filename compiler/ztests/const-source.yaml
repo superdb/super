@@ -2,7 +2,7 @@ script: |
   export SUPER_DB=test
   super db init -q
   super db create -q test
-  super db compile -C -dag 'const POOL = "test" from f"{POOL}"' | sed -e "s/[a-zA-Z0-9]\{27\}/XXX/"
+  super db compile -C -dag 'const POOL = "test" from f"{POOL}"' | sed -E "s/[0-9a-f-]{36}/XXX/"
   echo "==="
   super compile -C -dag -dynamic 'const FILE = "A.sup" from f"{FILE}"'
   echo "==="

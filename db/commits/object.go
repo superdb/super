@@ -4,7 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/segmentio/ksuid"
+	"uuid"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsupbytes"
 	"github.com/superdb/super/db/data"
@@ -15,13 +16,13 @@ import (
 var ErrEmptyTransaction = errors.New("empty transaction")
 
 type Object struct {
-	Commit  ksuid.KSUID `super:"commit"`
-	Parent  ksuid.KSUID `super:"parent"`
-	Actions []Action    `super:"actions"`
+	Commit  uuid.UUID `super:"commit"`
+	Parent  uuid.UUID `super:"parent"`
+	Actions []Action  `super:"actions"`
 }
 
-func NewObject(parent ksuid.KSUID, author, message string, meta super.Value, retries int) *Object {
-	commit := ksuid.New()
+func NewObject(parent uuid.UUID, author, message string, meta super.Value, retries int) *Object {
+	commit := uuid.NewV7()
 	o := &Object{
 		Commit: commit,
 		Parent: parent,
@@ -38,7 +39,7 @@ func NewObject(parent ksuid.KSUID, author, message string, meta super.Value, ret
 	return o
 }
 
-func NewAddsObject(parent ksuid.KSUID, retries int, author, message string, meta super.Value, objects []data.Object) *Object {
+func NewAddsObject(parent uuid.UUID, retries int, author, message string, meta super.Value, objects []data.Object) *Object {
 	o := NewObject(parent, author, message, meta, retries)
 	for _, dataObject := range objects {
 		o.append(&Add{Commit: o.Commit, Object: dataObject})
@@ -46,7 +47,7 @@ func NewAddsObject(parent ksuid.KSUID, retries int, author, message string, meta
 	return o
 }
 
-func NewDeletesObject(parent ksuid.KSUID, retries int, author, message string, ids []ksuid.KSUID) *Object {
+func NewDeletesObject(parent uuid.UUID, retries int, author, message string, ids []uuid.UUID) *Object {
 	o := NewObject(parent, author, message, super.Null, retries)
 	for _, id := range ids {
 		o.appendDelete(id)
@@ -62,7 +63,7 @@ func (o *Object) appendAdd(dataObject *data.Object) {
 	o.append(&Add{Commit: o.Commit, Object: *dataObject})
 }
 
-func (o *Object) appendDelete(id ksuid.KSUID) {
+func (o *Object) appendDelete(id uuid.UUID) {
 	o.append(&Delete{Commit: o.Commit, ID: id})
 }
 

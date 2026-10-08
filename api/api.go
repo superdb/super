@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 
-	"github.com/segmentio/ksuid"
+	"uuid"
 	"github.com/superdb/super/compiler/srcfiles"
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/field"
@@ -60,7 +60,7 @@ type BranchMergeRequest struct {
 }
 
 type CompactRequest struct {
-	ObjectIDs []ksuid.KSUID `super:"object_ids"`
+	ObjectIDs []uuid.UUID `super:"object_ids"`
 }
 
 type DeleteRequest struct {
@@ -75,23 +75,23 @@ type CommitMessage struct {
 }
 
 type CommitResponse struct {
-	Commit   ksuid.KSUID `super:"commit"`
+	Commit   uuid.UUID `super:"commit"`
 	Warnings []string    `super:"warnings"`
 }
 
 type EventBranchCommit struct {
-	CommitID ksuid.KSUID `super:"commit_id"`
-	PoolID   ksuid.KSUID `super:"pool_id"`
+	CommitID uuid.UUID `super:"commit_id"`
+	PoolID   uuid.UUID `super:"pool_id"`
 	Branch   string      `super:"branch"`
 	Parent   string      `super:"parent"`
 }
 
 type EventPool struct {
-	PoolID ksuid.KSUID `super:"pool_id"`
+	PoolID uuid.UUID `super:"pool_id"`
 }
 
 type EventBranch struct {
-	PoolID ksuid.KSUID `super:"pool_id"`
+	PoolID uuid.UUID `super:"pool_id"`
 	Branch string      `super:"branch"`
 }
 
@@ -122,13 +122,13 @@ type QueryWarning struct {
 }
 
 type VacateResponse struct {
-	CommitIDs []ksuid.KSUID `super:"commit_ids"`
+	CommitIDs []uuid.UUID `super:"commit_ids"`
 }
 
 type VacuumResponse struct {
-	ObjectIDs []ksuid.KSUID `super:"object_ids"`
+	ObjectIDs []uuid.UUID `super:"object_ids"`
 }
 
 type VectorRequest struct {
-	ObjectIDs []ksuid.KSUID `super:"object_ids"`
+	ObjectIDs []uuid.UUID `super:"object_ids"`
 }

@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/gorilla/mux"
-	"github.com/segmentio/ksuid"
+	"uuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/api"
 	"github.com/superdb/super/compiler/srcfiles"
@@ -79,10 +79,10 @@ func (r *Request) ID() string {
 	return api.RequestIDFromContext(r.Context())
 }
 
-func (r *Request) PoolID(w *ResponseWriter, root *db.Root) (ksuid.KSUID, bool) {
+func (r *Request) PoolID(w *ResponseWriter, root *db.Root) (uuid.UUID, bool) {
 	s, ok := r.StringFromPath(w, "pool")
 	if !ok {
-		return ksuid.Nil, false
+		return uuid.Nil(), false
 	}
 	if id, err := dbid.ParseID(s); err == nil {
 		if _, err = root.OpenPool(r.Context(), id); err == nil {
@@ -92,16 +92,16 @@ func (r *Request) PoolID(w *ResponseWriter, root *db.Root) (ksuid.KSUID, bool) {
 	id, err := root.PoolID(r.Context(), s)
 	if errors.Is(err, pools.ErrNotFound) {
 		w.Error(err)
-		return ksuid.Nil, false
+		return uuid.Nil(), false
 	}
 	if err != nil {
 		w.Error(srverr.ErrInvalid("invalid path param %q: %w", s, err))
-		return ksuid.Nil, false
+		return uuid.Nil(), false
 	}
 	return id, true
 }
 
-func (r *Request) CommitID(w *ResponseWriter) (ksuid.KSUID, bool) {
+func (r *Request) CommitID(w *ResponseWriter) (uuid.UUID, bool) {
 	return r.TagFromPath(w, "commit")
 }
 
@@ -128,17 +128,17 @@ func (r *Request) StringFromPath(w *ResponseWriter, arg string) (string, bool) {
 	return decoded, err == nil
 }
 
-func (r *Request) TagFromPath(w *ResponseWriter, arg string) (ksuid.KSUID, bool) {
+func (r *Request) TagFromPath(w *ResponseWriter, arg string) (uuid.UUID, bool) {
 	v := mux.Vars(r.Request)
 	s, ok := v[arg]
 	if !ok {
 		w.Error(srverr.ErrInvalid("no arg %q in path", arg))
-		return ksuid.Nil, false
+		return uuid.Nil(), false
 	}
 	id, err := dbid.ParseID(s)
 	if err != nil {
 		w.Error(srverr.ErrInvalid("invalid path param %q: %w", arg, err))
-		return ksuid.Nil, false
+		return uuid.Nil(), false
 	}
 	return id, true
 }

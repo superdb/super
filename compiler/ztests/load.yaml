@@ -4,7 +4,7 @@ script: |
   super db create -q sample
   super db load -q -use sample babble.sup
   super db create -q Delta
-  super db -s -c 'from sample | s=="Delta-rootstock" | load Delta@main (author "Diane")' | sed -E 's/[0-9a-zA-Z]{42}/xxx/'
+  super db -s -c 'from sample | s=="Delta-rootstock" | load Delta@main (author "Diane")' | sed -E 's/0x[0-9a-f]{32}/xxx/'
 
 inputs:
   - name: babble.sup

@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/segmentio/ksuid"
+	"uuid"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/api"
 	"github.com/superdb/super/api/client"
@@ -27,21 +28,21 @@ import (
 type Interface interface {
 	Root() *db.Root
 	Query(ctx context.Context, query []srcfiles.Input) (vio.Scanner, error)
-	PoolID(ctx context.Context, poolName string) (ksuid.KSUID, error)
-	CommitObject(ctx context.Context, poolID ksuid.KSUID, branchName string) (ksuid.KSUID, error)
-	CreatePool(context.Context, string, order.SortKeys, int64) (ksuid.KSUID, error)
-	RemovePool(context.Context, ksuid.KSUID) error
-	RenamePool(context.Context, ksuid.KSUID, string) error
-	CreateBranch(ctx context.Context, pool ksuid.KSUID, name string, parent ksuid.KSUID) error
-	RemoveBranch(ctx context.Context, pool ksuid.KSUID, branchName string) error
-	MergeBranch(ctx context.Context, pool ksuid.KSUID, childBranch, parentBranch string, message api.CommitMessage) (ksuid.KSUID, error)
-	Compact(ctx context.Context, pool ksuid.KSUID, branch string, objects []ksuid.KSUID, message api.CommitMessage) (ksuid.KSUID, error)
-	Load(ctx context.Context, sctx *super.Context, pool ksuid.KSUID, branch string, r vio.Puller, message api.CommitMessage) (ksuid.KSUID, error)
-	Delete(ctx context.Context, poolID ksuid.KSUID, branchName string, tags []ksuid.KSUID, message api.CommitMessage) (ksuid.KSUID, error)
-	DeleteWhere(ctx context.Context, poolID ksuid.KSUID, branchName, src string, commit api.CommitMessage) (ksuid.KSUID, error)
-	Revert(ctx context.Context, poolID ksuid.KSUID, branch string, commitID ksuid.KSUID, commit api.CommitMessage) (ksuid.KSUID, error)
-	Vacate(ctx context.Context, pool string, time nano.Ts, dryrun bool) ([]ksuid.KSUID, error)
-	Vacuum(ctx context.Context, pool, revision string, dryrun bool) ([]ksuid.KSUID, error)
+	PoolID(ctx context.Context, poolName string) (uuid.UUID, error)
+	CommitObject(ctx context.Context, poolID uuid.UUID, branchName string) (uuid.UUID, error)
+	CreatePool(context.Context, string, order.SortKeys, int64) (uuid.UUID, error)
+	RemovePool(context.Context, uuid.UUID) error
+	RenamePool(context.Context, uuid.UUID, string) error
+	CreateBranch(ctx context.Context, pool uuid.UUID, name string, parent uuid.UUID) error
+	RemoveBranch(ctx context.Context, pool uuid.UUID, branchName string) error
+	MergeBranch(ctx context.Context, pool uuid.UUID, childBranch, parentBranch string, message api.CommitMessage) (uuid.UUID, error)
+	Compact(ctx context.Context, pool uuid.UUID, branch string, objects []uuid.UUID, message api.CommitMessage) (uuid.UUID, error)
+	Load(ctx context.Context, sctx *super.Context, pool uuid.UUID, branch string, r sio.Reader, message api.CommitMessage) (uuid.UUID, error)
+	Delete(ctx context.Context, poolID uuid.UUID, branchName string, tags []uuid.UUID, message api.CommitMessage) (uuid.UUID, error)
+	DeleteWhere(ctx context.Context, poolID uuid.UUID, branchName, src string, commit api.CommitMessage) (uuid.UUID, error)
+	Revert(ctx context.Context, poolID uuid.UUID, branch string, commitID uuid.UUID, commit api.CommitMessage) (uuid.UUID, error)
+	Vacate(ctx context.Context, pool string, time nano.Ts, dryrun bool) ([]uuid.UUID, error)
+	Vacuum(ctx context.Context, pool, revision string, dryrun bool) ([]uuid.UUID, error)
 }
 
 func Connect(ctx context.Context, logger *zap.Logger, u string) (Interface, error) {
@@ -97,7 +98,7 @@ func GetPools(ctx context.Context, api Interface) ([]*pools.Config, error) {
 	return pls, nil
 }
 
-func LookupPoolByID(ctx context.Context, api Interface, id ksuid.KSUID) (*pools.Config, error) {
+func LookupPoolByID(ctx context.Context, api Interface, id uuid.UUID) (*pools.Config, error) {
 	b := newBuffer(pools.Config{})
 	query := fmt.Sprintf("from :pools | id == hex('%s')", idToHex(id))
 	q, err := api.Query(ctx, srcfiles.Plain(query))
@@ -147,7 +148,7 @@ func LookupBranchByName(ctx context.Context, api Interface, poolName, branchName
 	}
 }
 
-func LookupBranchByID(ctx context.Context, api Interface, id ksuid.KSUID) (*db.BranchMeta, error) {
+func LookupBranchByID(ctx context.Context, api Interface, id uuid.UUID) (*db.BranchMeta, error) {
 	b := newBuffer(db.BranchMeta{})
 	query := fmt.Sprintf("from :branches | branch.id == 'hex(%s)'", idToHex(id))
 	q, err := api.Query(ctx, srcfiles.Plain(query))
@@ -208,8 +209,8 @@ func GetCommit(ctx context.Context, api Interface, pool, revision string) (*comm
 	}
 }
 
-func idToHex(id ksuid.KSUID) string {
-	return hex.EncodeToString(id.Bytes())
+func idToHex(id uuid.UUID) string {
+	return hex.EncodeToString(id[:])
 }
 
 type buffer struct {

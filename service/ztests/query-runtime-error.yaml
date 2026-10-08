@@ -3,7 +3,7 @@ script: |
   super db create -use -q test
   echo '{}' | super db load -q -
   curl -D headers.out -s -H 'Accept: application/x-parquet' -d '{"query":"from test"}' $SUPER_DB/query 
-  rid=$(sed -n 's/^X-Request-Id: \(.\{27\}\).*$/\1/p' headers.out)
+  rid=$(sed -n 's/^X-Request-Id: \(.\{36\}\).*$/\1/p' headers.out)
   curl -H 'Accept: application/json' $SUPER_DB/query/status/$rid
 
 inputs:

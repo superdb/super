@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/segmentio/ksuid"
+	"uuid"
 	"github.com/superdb/super/api/client"
 	"github.com/superdb/super/db/api"
 	"github.com/superdb/super/db/pools"
@@ -91,7 +91,7 @@ func getPools(ctx context.Context, conf Config, db api.Interface) ([]*pools.Conf
 	if len(conf.Pools) == 0 {
 		return pls, nil
 	}
-	m := map[ksuid.KSUID]struct{}{}
+	m := map[uuid.UUID]struct{}{}
 	var out []*pools.Config
 	for _, c := range conf.Pools {
 		p := selectPool(c, pls)

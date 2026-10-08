@@ -3,7 +3,7 @@ package dbmanage
 import (
 	"context"
 
-	"github.com/segmentio/ksuid"
+	"uuid"
 	"github.com/superdb/super/api"
 	dbapi "github.com/superdb/super/db/api"
 	"github.com/superdb/super/db/pools"
@@ -42,8 +42,8 @@ func (b *branch) run(ctx context.Context) error {
 		return err
 	}
 	defer it.close()
-	runCh := make(chan []ksuid.KSUID)
-	vecCh := make(chan ksuid.KSUID)
+	runCh := make(chan []uuid.UUID)
+	vecCh := make(chan uuid.UUID)
 	group, ctx := errgroup.WithContext(ctx)
 	group.Go(func() error {
 		err := scan(ctx, it, b.pool, runCh, vecCh)

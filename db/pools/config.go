@@ -1,7 +1,8 @@
 package pools
 
 import (
-	"github.com/segmentio/ksuid"
+	"uuid"
+
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/db/journal"
 	"github.com/superdb/super/order"
@@ -13,7 +14,7 @@ import (
 type Config struct {
 	Ts        nano.Ts        `super:"ts"`
 	Name      string         `super:"name"`
-	ID        ksuid.KSUID    `super:"id"`
+	ID        uuid.UUID      `super:"id"`
 	SortKeys  order.SortKeys `super:"layout"`
 	Threshold int64          `super:"threshold"`
 }
@@ -30,7 +31,7 @@ func NewConfig(name string, sortKeys order.SortKeys, thresh int64) *Config {
 	return &Config{
 		Ts:        nano.Now(),
 		Name:      name,
-		ID:        ksuid.New(),
+		ID:        uuid.NewV7(),
 		SortKeys:  sortKeys,
 		Threshold: thresh,
 	}

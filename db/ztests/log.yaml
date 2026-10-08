@@ -17,18 +17,22 @@ inputs:
 outputs:
   - name: stdout
     regexp: |
-      commit \w{27} \(HEAD -> main\)
+      commit [0-9a-f-]{36} \(HEAD -> main\)
       Author: testuser
       Date:   [0-9TZ:\-]+
 
           loaded 1 data object
 
+<<<<<<< HEAD
           \w{27} 1 value in 635 data bytes
+=======
+          [0-9a-f-]{36} 1 record in 16 data bytes
+>>>>>>> 818db4598 (change ksuid to uuid-v7)
 
-      commit \w{27}
+      commit [0-9a-f-]{36}
       Author: testuser
       Date:   [0-9TZ:\-]+
 
           loaded 1 data object
 
-          \w{27} 1 value in 635 data bytes
+          [0-9a-f-]{36} 1 record in 635 data bytes

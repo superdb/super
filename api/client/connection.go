@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/api"
 	"github.com/superdb/super/api/client/auth0"
@@ -209,7 +209,7 @@ func (c *Connection) Version(ctx context.Context) (string, error) {
 	return res.Version, nil
 }
 
-func (c *Connection) PoolStats(ctx context.Context, id ksuid.KSUID) (exec.PoolStats, error) {
+func (c *Connection) PoolStats(ctx context.Context, id uuid.UUID) (exec.PoolStats, error) {
 	req := c.NewRequest(ctx, http.MethodGet, path.Join("/pool", id.String(), "stats"), nil)
 	var stats exec.PoolStats
 	err := c.doAndUnmarshal(req, &stats)
@@ -219,7 +219,7 @@ func (c *Connection) PoolStats(ctx context.Context, id ksuid.KSUID) (exec.PoolSt
 	return stats, err
 }
 
-func (c *Connection) BranchGet(ctx context.Context, poolID ksuid.KSUID, branchName string) (api.CommitResponse, error) {
+func (c *Connection) BranchGet(ctx context.Context, poolID uuid.UUID, branchName string) (api.CommitResponse, error) {
 	path := urlPath("pool", poolID.String(), "branch", branchName)
 	req := c.NewRequest(ctx, http.MethodGet, path, nil)
 	var commit api.CommitResponse
@@ -240,7 +240,7 @@ func (c *Connection) CreatePool(ctx context.Context, payload api.PoolPostRequest
 	return meta, err
 }
 
-func (c *Connection) RenamePool(ctx context.Context, id ksuid.KSUID, put api.PoolPutRequest) error {
+func (c *Connection) RenamePool(ctx context.Context, id uuid.UUID, put api.PoolPutRequest) error {
 	req := c.NewRequest(ctx, http.MethodPut, path.Join("/pool", id.String()), put)
 	res, err := c.Do(req)
 	if err != nil {
@@ -250,7 +250,7 @@ func (c *Connection) RenamePool(ctx context.Context, id ksuid.KSUID, put api.Poo
 	return nil
 }
 
-func (c *Connection) RemovePool(ctx context.Context, id ksuid.KSUID) error {
+func (c *Connection) RemovePool(ctx context.Context, id uuid.UUID) error {
 	req := c.NewRequest(ctx, http.MethodDelete, path.Join("/pool", id.String()), nil)
 	res, err := c.Do(req)
 	if err != nil {
@@ -263,7 +263,7 @@ func (c *Connection) RemovePool(ctx context.Context, id ksuid.KSUID) error {
 	return nil
 }
 
-func (c *Connection) CreateBranch(ctx context.Context, poolID ksuid.KSUID, payload api.BranchPostRequest) (branches.Config, error) {
+func (c *Connection) CreateBranch(ctx context.Context, poolID uuid.UUID, payload api.BranchPostRequest) (branches.Config, error) {
 	req := c.NewRequest(ctx, http.MethodPost, path.Join("/pool", poolID.String()), payload)
 	var branch branches.Config
 	err := c.doAndUnmarshal(req, &branch)
@@ -273,7 +273,7 @@ func (c *Connection) CreateBranch(ctx context.Context, poolID ksuid.KSUID, paylo
 	return branch, err
 }
 
-func (c *Connection) MergeBranch(ctx context.Context, poolID ksuid.KSUID, childBranch, parentBranch string, message api.CommitMessage) (api.CommitResponse, error) {
+func (c *Connection) MergeBranch(ctx context.Context, poolID uuid.UUID, childBranch, parentBranch string, message api.CommitMessage) (api.CommitResponse, error) {
 	path := urlPath("pool", poolID.String(), "branch", parentBranch, "merge", childBranch)
 	req := c.NewRequest(ctx, http.MethodPost, path, nil)
 	if err := encodeCommitMessage(req, message); err != nil {
@@ -284,7 +284,7 @@ func (c *Connection) MergeBranch(ctx context.Context, poolID ksuid.KSUID, childB
 	return commit, err
 }
 
-func (c *Connection) Revert(ctx context.Context, poolID ksuid.KSUID, branchName string, commitID ksuid.KSUID, message api.CommitMessage) (api.CommitResponse, error) {
+func (c *Connection) Revert(ctx context.Context, poolID uuid.UUID, branchName string, commitID uuid.UUID, message api.CommitMessage) (api.CommitResponse, error) {
 	path := urlPath("pool", poolID.String(), "branch", branchName, "revert", commitID.String())
 	req := c.NewRequest(ctx, http.MethodPost, path, nil)
 	if err := encodeCommitMessage(req, message); err != nil {
@@ -314,7 +314,7 @@ func (c *Connection) Query(ctx context.Context, inputs []srcfiles.Input) (*Respo
 	return res, err
 }
 
-func (c *Connection) Compact(ctx context.Context, poolID ksuid.KSUID, branchName string, objects []ksuid.KSUID, message api.CommitMessage) (api.CommitResponse, error) {
+func (c *Connection) Compact(ctx context.Context, poolID uuid.UUID, branchName string, objects []uuid.UUID, message api.CommitMessage) (api.CommitResponse, error) {
 	path := urlPath("pool", poolID.String(), "branch", branchName, "compact")
 	req := c.NewRequest(ctx, http.MethodPost, path, api.CompactRequest{ObjectIDs: objects})
 	if err := encodeCommitMessage(req, message); err != nil {
@@ -327,7 +327,7 @@ func (c *Connection) Compact(ctx context.Context, poolID ksuid.KSUID, branchName
 
 // Load loads data from r.  contentType is a media type for r or the empty
 // string, in which case the server will attempt to detect r's format.
-func (c *Connection) Load(ctx context.Context, poolID ksuid.KSUID, branchName, contentType string, r io.Reader, message api.CommitMessage) (api.CommitResponse, error) {
+func (c *Connection) Load(ctx context.Context, poolID uuid.UUID, branchName, contentType string, r io.Reader, message api.CommitMessage) (api.CommitResponse, error) {
 	path := urlPath("pool", poolID.String(), "branch", branchName)
 	req := c.NewRequest(ctx, http.MethodPost, path, r)
 	req.Header.Set("Content-Type", contentType)
@@ -348,15 +348,15 @@ func encodeCommitMessage(req *Request, message api.CommitMessage) error {
 	return nil
 }
 
-func (c *Connection) Delete(ctx context.Context, poolID ksuid.KSUID, branchName string, ids []ksuid.KSUID, message api.CommitMessage) (api.CommitResponse, error) {
+func (c *Connection) Delete(ctx context.Context, poolID uuid.UUID, branchName string, ids []uuid.UUID, message api.CommitMessage) (api.CommitResponse, error) {
 	return c.delete(ctx, poolID, branchName, ids, "", message)
 }
 
-func (c *Connection) DeleteWhere(ctx context.Context, poolID ksuid.KSUID, branchName, src string, message api.CommitMessage) (api.CommitResponse, error) {
+func (c *Connection) DeleteWhere(ctx context.Context, poolID uuid.UUID, branchName, src string, message api.CommitMessage) (api.CommitResponse, error) {
 	return c.delete(ctx, poolID, branchName, nil, src, message)
 }
 
-func (c *Connection) delete(ctx context.Context, poolID ksuid.KSUID, branchName string, ids []ksuid.KSUID, where string, message api.CommitMessage) (api.CommitResponse, error) {
+func (c *Connection) delete(ctx context.Context, poolID uuid.UUID, branchName string, ids []uuid.UUID, where string, message api.CommitMessage) (api.CommitResponse, error) {
 	path := urlPath("pool", poolID.String(), "branch", branchName, "delete")
 	tags := make([]string, len(ids))
 	for i, id := range ids {
@@ -399,15 +399,15 @@ func (c *Connection) Vacuum(ctx context.Context, pool, revision string, dryrun b
 	return res, err
 }
 
-func (c *Connection) AddVectors(ctx context.Context, pool, revision string, objectIDs []ksuid.KSUID, message api.CommitMessage) (api.CommitResponse, error) {
+func (c *Connection) AddVectors(ctx context.Context, pool, revision string, objectIDs []uuid.UUID, message api.CommitMessage) (api.CommitResponse, error) {
 	return c.doVector(ctx, pool, revision, objectIDs, message, http.MethodPost)
 }
 
-func (c *Connection) DeleteVectors(ctx context.Context, pool, revision string, objectIDs []ksuid.KSUID, message api.CommitMessage) (api.CommitResponse, error) {
+func (c *Connection) DeleteVectors(ctx context.Context, pool, revision string, objectIDs []uuid.UUID, message api.CommitMessage) (api.CommitResponse, error) {
 	return c.doVector(ctx, pool, revision, objectIDs, message, http.MethodDelete)
 }
 
-func (c *Connection) doVector(ctx context.Context, pool, revision string, objectIDs []ksuid.KSUID, message api.CommitMessage, method string) (api.CommitResponse, error) {
+func (c *Connection) doVector(ctx context.Context, pool, revision string, objectIDs []uuid.UUID, message api.CommitMessage, method string) (api.CommitResponse, error) {
 	path := urlPath("pool", pool, "revision", revision, "vector")
 	req := c.NewRequest(ctx, method, path, api.VectorRequest{ObjectIDs: objectIDs})
 	if err := encodeCommitMessage(req, message); err != nil {

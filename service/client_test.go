@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/segmentio/ksuid"
+	"uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/superdb/super"
 	"github.com/superdb/super/api"
@@ -27,20 +27,20 @@ type testClient struct {
 	*client.Connection
 }
 
-func (c *testClient) TestPoolStats(id ksuid.KSUID) exec.PoolStats {
+func (c *testClient) TestPoolStats(id uuid.UUID) exec.PoolStats {
 	r, err := c.Connection.PoolStats(c.Context(), id)
 	require.NoError(c, err)
 	return r
 }
 
-func (c *testClient) TestPoolGet(id ksuid.KSUID) (config pools.Config) {
+func (c *testClient) TestPoolGet(id uuid.UUID) (config pools.Config) {
 	remote := dbapi.NewRemoteDB(c.Connection)
 	pool, err := dbapi.LookupPoolByID(c.Context(), remote, id)
 	require.NoError(c, err)
 	return *pool
 }
 
-func (c *testClient) TestBranchGet(id ksuid.KSUID) (config db.BranchMeta) {
+func (c *testClient) TestBranchGet(id uuid.UUID) (config db.BranchMeta) {
 	remote := dbapi.NewRemoteDB(c.Connection)
 	branch, err := dbapi.LookupBranchByID(c.Context(), remote, id)
 	require.NoError(c, err)
@@ -68,13 +68,13 @@ func (c *testClient) TestPoolList() []pools.Config {
 	}
 }
 
-func (c *testClient) TestPoolPost(payload api.PoolPostRequest) ksuid.KSUID {
+func (c *testClient) TestPoolPost(payload api.PoolPostRequest) uuid.UUID {
 	r, err := c.Connection.CreatePool(c.Context(), payload)
 	require.NoError(c, err)
 	return r.Pool.ID
 }
 
-func (c *testClient) TestBranchPost(poolID ksuid.KSUID, payload api.BranchPostRequest) branches.Config {
+func (c *testClient) TestBranchPost(poolID uuid.UUID, payload api.BranchPostRequest) branches.Config {
 	r, err := c.Connection.CreateBranch(c.Context(), poolID, payload)
 	require.NoError(c, err)
 	return r
@@ -92,7 +92,7 @@ func (c *testClient) TestQuery(query string) string {
 	return buf.String()
 }
 
-func (c *testClient) TestLoad(poolID ksuid.KSUID, branchName string, r io.Reader) ksuid.KSUID {
+func (c *testClient) TestLoad(poolID uuid.UUID, branchName string, r io.Reader) uuid.UUID {
 	commit, err := c.Connection.Load(c.Context(), poolID, branchName, "", r, api.CommitMessage{})
 	require.NoError(c, err)
 	return commit.Commit

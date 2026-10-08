@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/segmentio/ksuid"
+	"uuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/srcfiles"
 	"github.com/superdb/super/db/api"
@@ -18,7 +18,7 @@ import (
 	"github.com/superdb/super/sio"
 )
 
-func scan(ctx context.Context, it *objectIterator, pool *pools.Config, runCh chan<- []ksuid.KSUID, vecCh chan<- ksuid.KSUID) error {
+func scan(ctx context.Context, it *objectIterator, pool *pools.Config, runCh chan<- []uuid.UUID, vecCh chan<- uuid.UUID) error {
 	send := func(r *runBuilder) error {
 		switch len(r.objects) {
 		case 0: // do nothing
@@ -144,8 +144,8 @@ func (r *runBuilder) add(o *object) {
 	r.span.Extend(o.Max)
 }
 
-func (r *runBuilder) objectIDs() []ksuid.KSUID {
-	var ids []ksuid.KSUID
+func (r *runBuilder) objectIDs() []uuid.UUID {
+	var ids []uuid.UUID
 	for _, o := range r.objects {
 		ids = append(ids, o.ID)
 	}

@@ -9,7 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/segmentio/ksuid"
+	"uuid"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/superdb/super/api"
@@ -57,7 +58,7 @@ func TestClientRedirectReplay(t *testing.T) {
 		Refresh: "98765",
 	})
 	conn.SetAuthStore(store)
-	_, err := conn.Load(t.Context(), ksuid.New(), "main", "", strings.NewReader(expected), api.CommitMessage{})
+	_, err := conn.Load(t.Context(), uuid.NewV7(), "main", "", strings.NewReader(expected), api.CommitMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, expected, body)
 }

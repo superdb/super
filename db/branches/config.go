@@ -1,19 +1,19 @@
 package branches
 
 import (
-	"github.com/segmentio/ksuid"
+	"uuid"
 	"github.com/superdb/super/pkg/nano"
 )
 
 type Config struct {
 	Ts     nano.Ts     `super:"ts"`
 	Name   string      `super:"name"`
-	Commit ksuid.KSUID `super:"commit"`
+	Commit uuid.UUID `super:"commit"`
 
 	// audit info
 }
 
-func NewConfig(name string, commit ksuid.KSUID) *Config {
+func NewConfig(name string, commit uuid.UUID) *Config {
 	return &Config{
 		Ts:     nano.Now(),
 		Name:   name,

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"maps"
 
-	"github.com/segmentio/ksuid"
+	"uuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsupbytes"
 	"github.com/superdb/super/db/data"
@@ -16,7 +16,7 @@ import (
 var ErrWriteConflict = errors.New("write conflict")
 
 type View interface {
-	Lookup(ksuid.KSUID) (*data.Object, error)
+	Lookup(uuid.UUID) (*data.Object, error)
 	Select(extent.Span, order.Which) DataObjects
 	SelectAll() DataObjects
 }
@@ -24,15 +24,15 @@ type View interface {
 type Writeable interface {
 	View
 	AddDataObject(*data.Object) error
-	DeleteObject(ksuid.KSUID) error
+	DeleteObject(uuid.UUID) error
 }
 
 // A snapshot summarizes the pool state at any point in
 // the commit object tree.
 // XXX redefine snapshot as type map instead of struct
 type Snapshot struct {
-	objects map[ksuid.KSUID]*data.Object
-	vectors map[ksuid.KSUID]struct{}
+	objects map[uuid.UUID]*data.Object
+	vectors map[uuid.UUID]struct{}
 }
 
 var _ View = (*Snapshot)(nil)
@@ -40,8 +40,8 @@ var _ Writeable = (*Snapshot)(nil)
 
 func NewSnapshot() *Snapshot {
 	return &Snapshot{
-		objects: make(map[ksuid.KSUID]*data.Object),
-		vectors: make(map[ksuid.KSUID]struct{}),
+		objects: make(map[uuid.UUID]*data.Object),
+		vectors: make(map[uuid.UUID]struct{}),
 	}
 }
 
@@ -54,7 +54,7 @@ func (s *Snapshot) AddDataObject(object *data.Object) error {
 	return nil
 }
 
-func (s *Snapshot) DeleteObject(id ksuid.KSUID) error {
+func (s *Snapshot) DeleteObject(id uuid.UUID) error {
 	if _, ok := s.objects[id]; !ok {
 		return fmt.Errorf("%s: delete of a non-existent data object: %w", id, ErrWriteConflict)
 	}
@@ -62,7 +62,7 @@ func (s *Snapshot) DeleteObject(id ksuid.KSUID) error {
 	return nil
 }
 
-func (s *Snapshot) AddVector(id ksuid.KSUID) error {
+func (s *Snapshot) AddVector(id uuid.UUID) error {
 	if _, ok := s.vectors[id]; ok {
 		return fmt.Errorf("%s: add of a duplicate vector of data object: %w", id, ErrWriteConflict)
 	}
@@ -70,7 +70,7 @@ func (s *Snapshot) AddVector(id ksuid.KSUID) error {
 	return nil
 }
 
-func (s *Snapshot) DeleteVector(id ksuid.KSUID) error {
+func (s *Snapshot) DeleteVector(id uuid.UUID) error {
 	if _, ok := s.vectors[id]; !ok {
 		return fmt.Errorf("%s: delete of a non-present vector: %w", id, ErrWriteConflict)
 	}
@@ -78,16 +78,16 @@ func (s *Snapshot) DeleteVector(id ksuid.KSUID) error {
 	return nil
 }
 
-func Exists(view View, id ksuid.KSUID) bool {
+func Exists(view View, id uuid.UUID) bool {
 	_, err := view.Lookup(id)
 	return err == nil
 }
 
-func (s *Snapshot) Exists(id ksuid.KSUID) bool {
+func (s *Snapshot) Exists(id uuid.UUID) bool {
 	return Exists(s, id)
 }
 
-func (s *Snapshot) Lookup(id ksuid.KSUID) (*data.Object, error) {
+func (s *Snapshot) Lookup(id uuid.UUID) (*data.Object, error) {
 	o, ok := s.objects[id]
 	if !ok {
 		return nil, fmt.Errorf("%s: %w", id, ErrNotFound)
@@ -95,7 +95,7 @@ func (s *Snapshot) Lookup(id ksuid.KSUID) (*data.Object, error) {
 	return o, nil
 }
 
-func (s *Snapshot) HasVector(id ksuid.KSUID) bool {
+func (s *Snapshot) HasVector(id uuid.UUID) bool {
 	_, ok := s.vectors[id]
 	return ok
 }

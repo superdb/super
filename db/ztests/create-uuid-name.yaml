@@ -1,0 +1,15 @@
+# Test that a pool can be given a uuid name and everything still works.
+script: |
+  export SUPER_DB=test
+  super db init -q
+  super db create "01a119bb-45ea-7d50-999a-d46d8e4acb64"
+  super db use "01a119bb-45ea-7d50-999a-d46d8e4acb64"
+  super db -c 'from "01a119bb-45ea-7d50-999a-d46d8e4acb64"'
+
+outputs:
+  - name: stdout
+    regexp: |
+      pool created: 01a119bb-45ea-7d50-999a-d46d8e4acb64 [0-9a-f-]{36}
+      Switched to branch "main" on pool "01a119bb-45ea-7d50-999a-d46d8e4acb64"
+  - name: stderr
+    data: ""
