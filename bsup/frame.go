@@ -71,6 +71,10 @@ func (c *ColFrame) Root() ID {
 	return ID(c.header.Root)
 }
 
+func (c *ColFrame) Size() uint64 {
+	return c.header.FrameSize
+}
+
 // vcache uses this to load segments
 func (c *ColFrame) DataReader() io.ReaderAt {
 	return c.dataReader
@@ -109,6 +113,10 @@ func newRowFrame(sctx *super.Context, r io.ReaderAt, header *RowHeader) (*RowFra
 		readerAt: r,
 		header:   header,
 	}, nil
+}
+
+func (r *RowFrame) Size() uint64 {
+	return r.header.FrameSize
 }
 
 func (r *RowFrame) Deserialize() (vector.Any, error) {

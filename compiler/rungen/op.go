@@ -124,26 +124,6 @@ func (b *Builder) compileLeaf(o dag.Op, parent sbuf.Puller) (sbuf.Puller, error)
 		return meta.NewCommitMetaScanner(b.rctx.Context, b.sctx(), b.env.DB(), v.Pool, v.Commit, v.Meta, pruner)
 	case *dag.DBMetaScan:
 		return meta.NewDBMetaScanner(b.rctx.Context, b.sctx(), b.env.DB(), v.Meta)
-	case *dag.DeleterScan:
-		pool, err := b.lookupPool(v.Pool)
-		if err != nil {
-			return nil, err
-		}
-		var pruner samexpr.Evaluator
-		if v.KeyPruner != nil {
-			pruner, err = compileExpr(v.KeyPruner)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if b.deletes == nil {
-			b.deletes = &sync.Map{}
-		}
-		pushdown := b.newPushdown(v.Where, nil)
-		if pushdown != nil {
-			pushdown = &deleter{pushdown, b, v.Where}
-		}
-		return meta.NewDeleter(b.rctx, parent, pool, pushdown, pruner, b.progress, b.deletes), nil
 	case *dag.ListerScan:
 		if parent != nil {
 			return nil, errors.New("internal error: data source cannot have a parent operator")
@@ -164,26 +144,8 @@ func (b *Builder) compileLeaf(o dag.Op, parent sbuf.Puller) (sbuf.Puller, error)
 		return sbuf.NewPuller(sbuf.NewArray([]super.Value{super.Null})), nil
 	case *dag.PoolMetaScan:
 		return meta.NewPoolMetaScanner(b.rctx.Context, b.sctx(), b.env.DB(), v.ID, v.Meta)
-	case *dag.PoolScan:
-		if parent != nil {
-			return nil, errors.New("internal error: pool scan cannot have a parent operator")
-		}
-		return b.compilePoolScan(v)
 	case *dag.SlicerOp:
 		return meta.NewSlicer(parent, b.mctx), nil
-	case *dag.SeqScan:
-		pool, err := b.lookupPool(v.Pool)
-		if err != nil {
-			return nil, err
-		}
-		var pruner samexpr.Evaluator
-		if v.KeyPruner != nil {
-			pruner, err = compileExpr(v.KeyPruner)
-			if err != nil {
-				return nil, err
-			}
-		}
-		return meta.NewSequenceScanner(b.rctx, parent, pool, b.newPushdown(v.Filter, nil), pruner, b.progress), nil
 	//
 	// Non-scanner operators in alphabetical order.
 	//
@@ -215,22 +177,6 @@ func (b *Builder) compileAssignmentsToLvals(assignments []dag.Assignment) ([]*sa
 		dsts = append(dsts, dst)
 	}
 	return srcs, dsts, nil
-}
-
-func (b *Builder) compilePoolScan(scan *dag.PoolScan) (sbuf.Puller, error) {
-	// Here we convert PoolScan to lister->slicer->seqscan for the slow path as
-	// optimizer should do this conversion, but this allows us to run
-	// unoptimized scans too.
-	pool, err := b.lookupPool(scan.ID)
-	if err != nil {
-		return nil, err
-	}
-	l, err := meta.NewSortedLister(b.rctx.Context, b.mctx, pool, scan.Commit, nil)
-	if err != nil {
-		return nil, err
-	}
-	slicer := meta.NewSlicer(l, b.mctx)
-	return meta.NewSequenceScanner(b.rctx, slicer, pool, nil, nil, b.progress), nil
 }
 
 // For runtime/sam/expr/filter_test.go

@@ -16,7 +16,6 @@ import (
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
-	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector/vio"
 	"go.uber.org/zap"
 )
@@ -146,7 +145,7 @@ func (l *local) lookupBranch(ctx context.Context, poolID ksuid.KSUID, branchName
 	return pool, branch, nil
 }
 
-func (l *local) Load(ctx context.Context, ztcx *super.Context, poolID ksuid.KSUID, branchName string, r sio.Reader, message api.CommitMessage) (ksuid.KSUID, error) {
+func (l *local) Load(ctx context.Context, ztcx *super.Context, poolID ksuid.KSUID, branchName string, r vio.Puller, message api.CommitMessage) (ksuid.KSUID, error) {
 	_, branch, err := l.lookupBranch(ctx, poolID, branchName)
 	if err != nil {
 		return ksuid.Nil, err

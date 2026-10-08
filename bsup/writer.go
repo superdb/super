@@ -74,6 +74,14 @@ func (c *ColumnWriter) WriteControl(val super.Value) error {
 	return c.pushFrame(true)
 }
 
+// WriteSuperFrame writes the entire BSUP columns file from a single vector.
+// It should be called only once without any calls to Push.
+func (c *ColumnWriter) WriteSuperFrame(vec vector.Any) (uint64, error) {
+	c.Push(vec)
+	err := c.pushFrame(false)
+	return c.size, err
+}
+
 func (c *ColumnWriter) Push(vec vector.Any) error {
 	if vec.Len() != 0 {
 		c.dynamic.Write(vec)
