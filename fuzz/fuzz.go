@@ -33,12 +33,12 @@ import (
 
 func ReadBSUPRows(ctx context.Context, sctx *super.Context, bs []byte) ([]super.Value, error) {
 	bytesReader := bytes.NewReader(bs)
-	reader, err := bsupio.NewReader(ctx, sctx, bytesReader, nil, 1)
+	reader, err := bsupio.NewValueReader(ctx, sctx, bytesReader)
 	if err != nil {
 		return nil, err
 	}
 	var a sbuf.Array
-	err = sio.Copy(&a, sbuf.PullerReader(sbuf.NewMaterializer(reader)))
+	err = sio.Copy(&a, reader)
 	if err != nil {
 		return nil, err
 	}

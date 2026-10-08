@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/sup"
@@ -177,8 +176,10 @@ func TestMixedTypeArrayInsideRecord(t *testing.T) {
 	writer.Write(recExpected)
 	writer.Close()
 
-	reader, err := bsupio.NewReader(t.Context(), super.NewContext(), &buffer, nil, 1)
-	recActual, err := sbuf.PullerReader(sbuf.NewMaterializer(reader)).Read()
+	reader, err := bsupio.NewValueReader(t.Context(), super.NewContext(), &buffer)
+	require.NoError(t, err)
+	recActual, err := reader.Read()
+	require.NoError(t, err)
 	exp := sup.FormatValue(recExpected)
 	actual := sup.FormatValue(*recActual)
 	assert.Equal(t, exp, actual)
@@ -244,9 +245,9 @@ func TestMixedTypeArrayOfStructWithInterface(t *testing.T) {
 	writer.Write(recExpected)
 	writer.Close()
 
-	reader, err := bsupio.NewReader(t.Context(), super.NewContext(), &buffer, nil, 1)
+	reader, err := bsupio.NewValueReader(t.Context(), super.NewContext(), &buffer)
 	require.NoError(t, err)
-	recActual, err := sbuf.PullerReader(sbuf.NewMaterializer(reader)).Read()
+	recActual, err := reader.Read()
 	require.NoError(t, err)
 	exp := sup.FormatValue(recExpected)
 	actual := sup.FormatValue(*recActual)
