@@ -5,7 +5,7 @@ script: |
   super db create -q p3
   super db drop -f p3
   echo === | tee /dev/stderr
-  super db ls -f bsuprows | super -s -c "cut name | sort name" -
+  super db ls -f bsup | super -s -c "cut name | sort name" -
   echo === | tee /dev/stderr
   ! super db drop p3
   ! super db drop -db http://127.0.0.1:1 p3

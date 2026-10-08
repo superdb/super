@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
-	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/compiler"
 	"github.com/superdb/super/compiler/optimizer"
 	"github.com/superdb/super/compiler/optimizer/demand"
@@ -32,12 +31,14 @@ import (
 	"github.com/x448/float16"
 )
 
-func ReadBSUPRows(sctx *super.Context, bs []byte) ([]super.Value, error) {
+func ReadBSUPRows(ctx context.Context, sctx *super.Context, bs []byte) ([]super.Value, error) {
 	bytesReader := bytes.NewReader(bs)
-	reader := oldbsup.NewReader(sctx, bytesReader)
-	defer reader.Close()
+	reader, err := bsupio.NewReader(ctx, sctx, bytesReader, nil, 1)
+	if err != nil {
+		return nil, err
+	}
 	var a sbuf.Array
-	err := sio.Copy(&a, reader)
+	err = sio.Copy(&a, sbuf.PullerReader(sbuf.NewMaterializer(reader)))
 	if err != nil {
 		return nil, err
 	}

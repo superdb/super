@@ -1,7 +1,0 @@
-script: |
-  ! super -i bsuprows /dev/zero
-
-outputs:
-  - name: stderr
-    data: |
-      /dev/zero: bsup-rows version mismatch: expected 6, found 0

@@ -39,7 +39,7 @@ func (k FileKind) Description() string {
 	}
 }
 
-var fileRegex = regexp.MustCompile(`([0-9A-Za-z]{27}-(data|meta)).bsuprows$`)
+var fileRegex = regexp.MustCompile(`([0-9A-Za-z]{27}-(data|meta)).bsup$`)
 
 // XXX this won't work right until we integrate segID
 func FileMatch(s string) (kind FileKind, id uuid.UUID, ok bool) {

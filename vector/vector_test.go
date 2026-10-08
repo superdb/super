@@ -54,7 +54,7 @@ func BenchmarkReadBSUPRows(b *testing.B) {
 	bs := buf.Bytes()
 
 	for b.Loop() {
-		valuesOut, err := fuzz.ReadBSUPRows(super.NewContext(), bs)
+		valuesOut, err := fuzz.ReadBSUPRows(b.Context(), super.NewContext(), bs)
 		if err != nil {
 			panic(err)
 		}

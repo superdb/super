@@ -12,7 +12,6 @@ import (
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
-	"github.com/superdb/super/bsup/oldbsup"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/arrowio"
@@ -86,25 +85,6 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, opts Reade
 	}
 	track.Reset()
 
-	// XXX BSUP row options will be updated in a subsequent PR.
-	// For the matching reader, force validation to true so we are extra
-	// careful about auto-matching BSUP.  Then, once matched, relaxed
-	// validation to the user setting in the actual reader returned.
-	//bsupOpts := opts.BSUP
-	//bsupOpts.Validate = true
-	bsupRowsReader := oldbsup.NewReader(super.NewContext(), track)
-	bsupRowsErr := match(bsupRowsReader, "bsuprows", 1)
-	// Close bsupReader to ensure that it does not continue to call track.Read.
-	bsupRowsReader.Close()
-	if bsupRowsErr == nil {
-		scanner, err := oldbsup.NewReader(sctx, track.Reader()).NewScanner(ctx, opts.Pushdown)
-		if err != nil {
-			return nil, err
-		}
-		return sbuf.NewDematerializer(sctx, scanner), nil
-	}
-	track.Reset()
-
 	csvErr := isCSVStream(track, ',', "csv")
 	if csvErr == nil {
 		return newVioPuller(sctx, csvio.NewReader(sctx, track.Reader(), csvio.ReaderOpts{Delim: ','})), nil
@@ -121,7 +101,6 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, opts Reade
 	return nil, joinErrs([]error{
 		arrowsErr,
 		bsupErr,
-		bsupRowsErr,
 		csvErr,
 		jsonErr,
 		lineErr,
