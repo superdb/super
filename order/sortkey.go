@@ -11,7 +11,7 @@ import (
 
 type SortKey struct {
 	Order Which      `json:"order" super:"order"`
-	Key   field.Path `json:"key" super:"key"`
+	Path  field.Path `json:"key" super:"path"`
 }
 
 func NewSortKey(order Which, key field.Path) SortKey {
@@ -19,11 +19,11 @@ func NewSortKey(order Which, key field.Path) SortKey {
 }
 
 func (s SortKey) Equal(to SortKey) bool {
-	return s.Order == to.Order && s.Key.Equal(to.Key)
+	return s.Order == to.Order && s.Path.Equal(to.Path)
 }
 
 func (s SortKey) String() string {
-	return fmt.Sprintf("%s:%s", s.Key, s.Order)
+	return fmt.Sprintf("%s:%s", s.Path, s.Order)
 }
 
 type SortKeys []SortKey

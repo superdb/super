@@ -126,7 +126,7 @@ func (s *ImportStats) Copy() ImportStats {
 func ImportComparator(sctx *super.Context, pool *Pool) *samexpr.Comparator {
 	var exprs []samexpr.SortExpr
 	for _, s := range pool.SortKeys {
-		exprs = append(exprs, samexpr.NewSortExpr(samexpr.NewDottedExpr(sctx, s.Key), s.Order, s.Order.NullsMax(true)))
+		exprs = append(exprs, samexpr.NewSortExpr(samexpr.NewDottedExpr(sctx, s.Path), s.Order, s.Order.NullsMax(true)))
 	}
 	var o order.Which
 	if !pool.SortKeys.IsNil() {
@@ -148,7 +148,7 @@ func (w *Writer) sort(vec vector.Any) (vector.Any, super.Value, super.Value) {
 		return vec, minVal, maxVal
 	}
 	c := ImportComparator(w.sctx, w.pool)
-	primaryKey := samexpr.NewDottedExpr(w.sctx, w.pool.SortKeys.Primary().Key)
+	primaryKey := samexpr.NewDottedExpr(w.sctx, w.pool.SortKeys.Primary().Path)
 	reader := c.SortStableReader(sbuf.Materialize(vec).Values())
 	out := vector.NewDynamicValueBuilder()
 	var minVal, maxVal super.Value
@@ -177,7 +177,7 @@ func (w *Writer) fastSort(vec vector.Any) (vector.Any, super.Value, super.Value)
 		return nil, super.Value{}, super.Value{}
 	}
 	sortKey := w.pool.SortKeys[0]
-	return w.fastSortWithKey(vec, w.deref(vec, sortKey.Key), sortKey.Order)
+	return w.fastSortWithKey(vec, w.deref(vec, sortKey.Path), sortKey.Order)
 }
 
 func (w *Writer) fastSortWithKey(vec, key vector.Any, o order.Which) (vector.Any, super.Value, super.Value) {

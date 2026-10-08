@@ -189,7 +189,7 @@ func (o *Optimizer) OptimizeDeleter(main *dag.Main, replicas int) error {
 		merge = &dag.MergeOp{
 			Kind: "MergeOp",
 			Exprs: []dag.SortExpr{{
-				Key:   dag.NewThis(sortKey.Key.Chain()),
+				Key:   dag.NewThis(sortKey.Path.Chain()),
 				Order: sortKey.Order,
 				Nulls: sortKey.Order.NullsMax(true),
 			}},

@@ -19,21 +19,21 @@ outputs:
     data: |
       type "order.Which" = string
       type "field.Path" = [string]
-      type "field.List" = ["field.Path"]
       type "order.SortKey" = {
         order: "order.Which",
-        keys: "field.List"
+        path: "field.Path"
       }
+      type "order.SortKeys" = ["order.SortKey"]
       {
         name: "logs",
-        layout: {
-          order: "desc",
-          keys: [
-            [
+        layout: [
+          {
+            order: "desc",
+            path: [
               "ts"
             ]
-          ]
-        }::order.SortKey,
+          }
+        ]::order.SortKeys,
         threshold: 524288000
       }
       ===

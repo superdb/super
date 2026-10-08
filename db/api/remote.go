@@ -58,7 +58,7 @@ func (r *remote) CreatePool(ctx context.Context, name string, sortKeys order.Sor
 		Name: name,
 		SortKeys: api.SortKeys{
 			Order: sortKeys.Primary().Order,
-			Keys:  field.List{sortKeys.Primary().Key},
+			Keys:  field.List{sortKeys.Primary().Path},
 		},
 		Thresh: thresh,
 	})
