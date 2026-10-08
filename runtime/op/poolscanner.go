@@ -1,4 +1,4 @@
-package poolscanner
+package op
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/expr"
-	"github.com/superdb/super/runtime/op/merge"
 	samexpr "github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/runtime/sam/op/meta"
 	"github.com/superdb/super/sbuf"
@@ -134,7 +133,7 @@ func newObjectsScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, 
 	if len(pullers) == 1 {
 		return pullers[0], nil
 	}
-	return merge.NewMerge(ctx, pullers, db.ImportComparator(sctx, pool).Compare), nil
+	return NewMerge(ctx, pullers, db.ImportComparator(sctx, pool).Compare), nil
 }
 
 func newObjectScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, object *data.Object, filter expr.Evaluator, progress *vio.Progress) (vio.Puller, error) {
@@ -185,16 +184,4 @@ func (s *statScanner) Pull(done bool) (vector.Any, error) {
 
 func (s *statScanner) Close() error {
 	return nil
-}
-
-func applyMask(vec, mask vector.Any) (vector.Any, bool) {
-	// errors are ignored for filters
-	b, _ := expr.BoolMask(mask)
-	if b.IsEmpty() {
-		return nil, false
-	}
-	if b.GetCardinality() == uint64(mask.Len()) {
-		return vec, true
-	}
-	return vector.Pick(vec, b.ToArray()), true
 }

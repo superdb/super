@@ -14,8 +14,6 @@ import (
 	"github.com/superdb/super/runtime/expr/agg"
 	"github.com/superdb/super/runtime/op"
 	"github.com/superdb/super/runtime/op/aggregate"
-	"github.com/superdb/super/runtime/op/merge"
-	"github.com/superdb/super/runtime/op/poolscanner"
 	samexpr "github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/runtime/sam/op/meta"
 	"github.com/superdb/super/sbuf"
@@ -65,7 +63,7 @@ func (b *Builder) compileVam(o dag.Op, parents []vio.Puller) ([]vio.Puller, erro
 			return nil, err
 		}
 		cmp := samexpr.NewComparator(exprs...)
-		return []vio.Puller{merge.NewMerge(b.rctx, parents, cmp.Compare)}, nil
+		return []vio.Puller{op.NewMerge(b.rctx, parents, cmp.Compare)}, nil
 	case *dag.ScatterOp:
 		return b.compileVamScatter(o, parents)
 	case *dag.SwitchOp:
@@ -244,7 +242,7 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 				return nil, err
 			}
 		}
-		return poolscanner.NewDeleter(b.rctx, sbuf.NewMaterializer(parent), pool, whereNot, pruner, b.progress, b.deletes), nil
+		return op.NewDeleter(b.rctx, sbuf.NewMaterializer(parent), pool, whereNot, pruner, b.progress, b.deletes), nil
 	case *dag.DistinctOp:
 		e, err := b.compileVamExpr(o.Expr)
 		if err != nil {
@@ -333,7 +331,7 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 			return nil, err
 		}
 		slicer := meta.NewSlicer(l, b.mctx)
-		return poolscanner.NewPoolScanner(b.rctx, slicer, pool, nil, nil, b.progress), nil
+		return op.NewPoolScanner(b.rctx, slicer, pool, nil, nil, b.progress), nil
 	case *dag.SeqScan:
 		pool, err := b.lookupPool(o.Pool)
 		if err != nil {
@@ -353,7 +351,7 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 				return nil, err
 			}
 		}
-		return poolscanner.NewPoolScanner(b.rctx, sbuf.NewMaterializer(parent), pool, filter, pruner, b.progress), nil
+		return op.NewPoolScanner(b.rctx, sbuf.NewMaterializer(parent), pool, filter, pruner, b.progress), nil
 	case *dag.SkipOp:
 		return op.NewSkip(parent, o.Count), nil
 	case *dag.SortOp:
