@@ -46,7 +46,7 @@ func (o *Optimizer) analyzeSortKeys(op dag.Op, in order.SortKeys) (order.SortKey
 		return analyzeCuts(op.Args, in), nil
 	case *dag.DropOp:
 		for _, f := range op.Args {
-			if fieldOf(f).Equal(key.Key) {
+			if fieldOf(f).Equal(key.Path) {
 				return nil, nil
 			}
 		}
@@ -54,7 +54,7 @@ func (o *Optimizer) analyzeSortKeys(op dag.Op, in order.SortKeys) (order.SortKey
 	case *dag.RenameOp:
 		out := in
 		for _, assignment := range op.Args {
-			if fieldOf(assignment.RHS).Equal(key.Key) {
+			if fieldOf(assignment.RHS).Equal(key.Path) {
 				lhs := fieldOf(assignment.LHS)
 				out = order.SortKeys{order.NewSortKey(key.Order, lhs)}
 			}
@@ -67,7 +67,7 @@ func (o *Optimizer) analyzeSortKeys(op dag.Op, in order.SortKeys) (order.SortKey
 		return nil, nil
 	case *dag.PutOp:
 		for _, assignment := range op.Args {
-			if fieldOf(assignment.LHS).Equal(key.Key) {
+			if fieldOf(assignment.LHS).Equal(key.Path) {
 				return nil, nil
 			}
 		}
@@ -104,7 +104,7 @@ func isKeyOfAggregate(a *dag.AggregateOp, in order.SortKeys) bool {
 	if in.IsNil() {
 		return false
 	}
-	key := in[0].Key
+	key := in[0].Path
 	for _, outputKeyExpr := range a.Keys {
 		groupingKey := fieldOf(outputKeyExpr.LHS)
 		if groupingKey.Equal(key) {
@@ -137,7 +137,7 @@ func analyzeCuts(assignments []dag.Assignment, sortKeys order.SortKeys) order.So
 	if sortKeys.IsNil() {
 		return nil
 	}
-	key := sortKeys[0].Key
+	key := sortKeys[0].Path
 	// This loop implements a very simple data flow analysis where we
 	// track the known order through the scoreboard.  If on exit, there
 	// is more than one field of known order, the current optimization

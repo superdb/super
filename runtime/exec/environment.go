@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/db"
@@ -58,7 +58,7 @@ func (e *Environment) DB() *db.Root {
 	return e.db
 }
 
-func (e *Environment) PoolID(ctx context.Context, name string) (ksuid.KSUID, error) {
+func (e *Environment) PoolID(ctx context.Context, name string) (uuid.UUID, error) {
 	if id, err := dbid.ParseID(name); err == nil {
 		if _, err := e.db.OpenPool(ctx, id); err == nil {
 			return id, nil
@@ -67,11 +67,11 @@ func (e *Environment) PoolID(ctx context.Context, name string) (ksuid.KSUID, err
 	return e.db.PoolID(ctx, name)
 }
 
-func (e *Environment) CommitObject(ctx context.Context, id ksuid.KSUID, name string) (ksuid.KSUID, error) {
+func (e *Environment) CommitObject(ctx context.Context, id uuid.UUID, name string) (uuid.UUID, error) {
 	if e.db != nil {
 		return e.db.CommitObject(ctx, id, name)
 	}
-	return ksuid.Nil, nil
+	return uuid.Nil(), nil
 }
 
 func (e *Environment) SortKeys(ctx context.Context, src dag.Op) order.SortKeys {

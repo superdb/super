@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/db/commits"
@@ -30,10 +30,10 @@ type Writer struct {
 	writer   io.WriteCloser
 	sup      *sup.StreamFormatter
 	commits  table
-	branches map[ksuid.KSUID][]string
+	branches map[uuid.UUID][]string
 	width    int
 	colors   color.Stack
-	headID   ksuid.KSUID
+	headID   uuid.UUID
 	headName string
 }
 
@@ -42,7 +42,7 @@ func NewWriter(w io.WriteCloser, opts WriterOpts) *Writer {
 		writer:   w,
 		sup:      sup.NewStreamFormatter(0, false),
 		commits:  make(table),
-		branches: make(map[ksuid.KSUID][]string),
+		branches: make(map[uuid.UUID][]string),
 		width:    80, //XXX
 	}
 	// If head is an ID, we assume its detached and format accordingly.
@@ -114,13 +114,13 @@ func formatPoolConfig(b *bytes.Buffer, p *pools.Config) {
 	b.WriteByte(' ')
 	b.WriteString(p.ID.String())
 	b.WriteString(" key ")
-	b.WriteString(p.SortKeys.Primary().Key.String())
+	b.WriteString(p.SortKeys.Primary().Path.String())
 	b.WriteString(" order ")
 	b.WriteString(p.SortKeys.Primary().Order.String())
 	b.WriteByte('\n')
 }
 
-func formatBranchMeta(b *bytes.Buffer, p *db.BranchMeta, headID ksuid.KSUID, headName string, colors *color.Stack) {
+func formatBranchMeta(b *bytes.Buffer, p *db.BranchMeta, headID uuid.UUID, headName string, colors *color.Stack) {
 	b.WriteString(p.Pool.Name)
 	b.WriteByte('@')
 	b.WriteString(p.Branch.Name)
@@ -174,14 +174,14 @@ func formatPartition(b *bytes.Buffer, p meta.Partition) {
 	}
 }
 
-type table map[ksuid.KSUID][]commits.Action
+type table map[uuid.UUID][]commits.Action
 
 func (t table) append(a commits.Action) {
 	id := a.CommitID()
 	t[id] = append(t[id], a)
 }
 
-func (t table) formatCommit(b *bytes.Buffer, commit *commits.Commit, branches []string, headName string, headID ksuid.KSUID, width int, colors *color.Stack) {
+func (t table) formatCommit(b *bytes.Buffer, commit *commits.Commit, branches []string, headName string, headID uuid.UUID, width int, colors *color.Stack) {
 	id := commit.CommitID()
 	colors.Start(b, color.GrayYellow)
 	b.WriteString("commit ")

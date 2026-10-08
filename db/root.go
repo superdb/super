@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"uuid"
 
 	arc "github.com/hashicorp/golang-lru/arc/v2"
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsupbytes"
 	"github.com/superdb/super/compiler/dag"
@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	Version     = 5
+	Version     = 6
 	PoolsTag    = "pools"
 	MagicFile   = "superdb.bsup"
 	MagicString = "SUPERDB"
@@ -44,7 +44,7 @@ type Root struct {
 	logger *zap.Logger
 	path   *storage.URI
 
-	poolCache *arc.ARCCache[ksuid.KSUID, *Pool]
+	poolCache *arc.ARCCache[uuid.UUID, *Pool]
 	pools     *pools.Store
 	vCache    *vcache.Cache
 }
@@ -55,7 +55,7 @@ type Magic struct {
 }
 
 func newRoot(engine storage.Engine, logger *zap.Logger, path *storage.URI) *Root {
-	poolCache, err := arc.NewARC[ksuid.KSUID, *Pool](1024)
+	poolCache, err := arc.NewARC[uuid.UUID, *Pool](1024)
 	if err != nil {
 		panic(err)
 	}
@@ -239,25 +239,25 @@ func (r *Root) ListPools(ctx context.Context) ([]pools.Config, error) {
 	return r.pools.All(ctx)
 }
 
-func (r *Root) PoolID(ctx context.Context, poolName string) (ksuid.KSUID, error) {
+func (r *Root) PoolID(ctx context.Context, poolName string) (uuid.UUID, error) {
 	if poolName == "" {
-		return ksuid.Nil, errors.New("no pool name given")
+		return uuid.Nil(), errors.New("no pool name given")
 	}
 	poolRef := r.pools.LookupByName(ctx, poolName)
 	if poolRef == nil {
-		return ksuid.Nil, fmt.Errorf("%s: %w", poolName, pools.ErrNotFound)
+		return uuid.Nil(), fmt.Errorf("%s: %w", poolName, pools.ErrNotFound)
 	}
 	return poolRef.ID, nil
 }
 
-func (r *Root) CommitObject(ctx context.Context, poolID ksuid.KSUID, branchName string) (ksuid.KSUID, error) {
+func (r *Root) CommitObject(ctx context.Context, poolID uuid.UUID, branchName string) (uuid.UUID, error) {
 	pool, err := r.OpenPool(ctx, poolID)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	branchRef, err := pool.LookupBranchByName(ctx, branchName)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	return branchRef.Commit, nil
 }
@@ -286,7 +286,7 @@ func (r *Root) SortKeys(ctx context.Context, src dag.Op) order.SortKeys {
 	return nil
 }
 
-func (r *Root) OpenPool(ctx context.Context, id ksuid.KSUID) (*Pool, error) {
+func (r *Root) OpenPool(ctx context.Context, id uuid.UUID) (*Pool, error) {
 	config, err := r.pools.LookupByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -311,7 +311,7 @@ func (r *Root) openPool(ctx context.Context, config *pools.Config) (*Pool, error
 	return p, nil
 }
 
-func (r *Root) RenamePool(ctx context.Context, id ksuid.KSUID, newName string) error {
+func (r *Root) RenamePool(ctx context.Context, id uuid.UUID, newName string) error {
 	return r.pools.Rename(ctx, id, newName)
 }
 
@@ -346,7 +346,7 @@ func (r *Root) CreatePool(ctx context.Context, name string, sortKeys order.SortK
 
 // RemovePool deletes a pool from the configuration journal and deletes all
 // data associated with the pool.
-func (r *Root) RemovePool(ctx context.Context, id ksuid.KSUID) error {
+func (r *Root) RemovePool(ctx context.Context, id uuid.UUID) error {
 	config, err := r.pools.LookupByID(ctx, id)
 	if err != nil {
 		return err
@@ -361,7 +361,7 @@ func (r *Root) RemovePool(ctx context.Context, id ksuid.KSUID) error {
 	return RemovePool(ctx, r.engine, r.path, config)
 }
 
-func (r *Root) CreateBranch(ctx context.Context, poolID ksuid.KSUID, name string, parent ksuid.KSUID) (*branches.Config, error) {
+func (r *Root) CreateBranch(ctx context.Context, poolID uuid.UUID, name string, parent uuid.UUID) (*branches.Config, error) {
 	config, err := r.pools.LookupByID(ctx, poolID)
 	if err != nil {
 		return nil, err
@@ -369,7 +369,7 @@ func (r *Root) CreateBranch(ctx context.Context, poolID ksuid.KSUID, name string
 	return CreateBranch(ctx, r.engine, r.logger, r.path, config, name, parent)
 }
 
-func (r *Root) RemoveBranch(ctx context.Context, poolID ksuid.KSUID, name string) error {
+func (r *Root) RemoveBranch(ctx context.Context, poolID uuid.UUID, name string) error {
 	pool, err := r.OpenPool(ctx, poolID)
 	if err != nil {
 		return err
@@ -379,30 +379,30 @@ func (r *Root) RemoveBranch(ctx context.Context, poolID ksuid.KSUID, name string
 
 // MergeBranch merges the indicated branch into its parent returning the
 // commit tag of the new commit into the parent branch.
-func (r *Root) MergeBranch(ctx context.Context, poolID ksuid.KSUID, childBranch, parentBranch, author, message string) (ksuid.KSUID, error) {
+func (r *Root) MergeBranch(ctx context.Context, poolID uuid.UUID, childBranch, parentBranch, author, message string) (uuid.UUID, error) {
 	pool, err := r.OpenPool(ctx, poolID)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	child, err := pool.OpenBranchByName(ctx, childBranch)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	parent, err := pool.OpenBranchByName(ctx, parentBranch)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	return child.mergeInto(ctx, parent, author, message)
 }
 
-func (r *Root) Revert(ctx context.Context, poolID ksuid.KSUID, branchName string, commitID ksuid.KSUID, author, message string) (ksuid.KSUID, error) {
+func (r *Root) Revert(ctx context.Context, poolID uuid.UUID, branchName string, commitID uuid.UUID, author, message string) (uuid.UUID, error) {
 	pool, err := r.OpenPool(ctx, poolID)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	branch, err := pool.OpenBranchByName(ctx, branchName)
 	if err != nil {
-		return ksuid.Nil, err
+		return uuid.Nil(), err
 	}
 	return branch.Revert(ctx, commitID, author, message)
 }

@@ -26,33 +26,33 @@ outputs:
     data: |
       type "order.Which" = string
       type "field.Path" = [string]
-      type "field.List" = ["field.Path"]
       type "order.SortKey" = {
         order: "order.Which",
-        keys: "field.List"
+        path: "field.Path"
       }
+      type "order.SortKeys" = ["order.SortKey"]
       {
         name: "poolA",
-        layout: {
-          order: "asc",
-          keys: [
-            [
+        layout: [
+          {
+            order: "asc",
+            path: [
               "a"
             ]
-          ]
-        }::order.SortKey,
+          }
+        ]::order.SortKeys,
         threshold: 524288000
       }
       {
         name: "poolB",
-        layout: {
-          order: "desc",
-          keys: [
-            [
+        layout: [
+          {
+            order: "desc",
+            path: [
               "b"
             ]
-          ]
-        }::order.SortKey,
+          }
+        ]::order.SortKeys,
         threshold: 524288000
       }
       ===

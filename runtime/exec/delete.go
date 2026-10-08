@@ -2,8 +2,8 @@ package exec
 
 import (
 	"sync"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/vector/vio"
 )
@@ -22,11 +22,11 @@ func NewDeleteQuery(rctx *runtime.Context, puller vio.Puller, deletes *sync.Map)
 	}
 }
 
-func (d *DeleteQuery) DeletionSet() []ksuid.KSUID {
-	var ids []ksuid.KSUID
+func (d *DeleteQuery) DeletionSet() []uuid.UUID {
+	var ids []uuid.UUID
 	if d.deletes != nil {
 		d.deletes.Range(func(key, value any) bool {
-			ids = append(ids, key.(ksuid.KSUID))
+			ids = append(ids, key.(uuid.UUID))
 			return true
 		})
 	}

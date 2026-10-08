@@ -12,5 +12,5 @@ inputs:
 outputs:
   - name: stdout
     regexp: |
-      pool created: test \w{27}
+      pool created: test [0-9a-f-]{36}
       ===

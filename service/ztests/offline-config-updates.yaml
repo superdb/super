@@ -13,7 +13,7 @@ inputs:
 outputs:
   - name: stdout
     regexp: |
-      test \w{27} key ts order desc
+      test [0-9a-f-]{36} key ts order desc
       ===
   - name: stderr
     data: ""

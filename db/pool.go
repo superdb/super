@@ -10,8 +10,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/db/branches"
 	"github.com/superdb/super/db/commits"
@@ -55,12 +55,12 @@ func CreatePool(ctx context.Context, engine storage.Engine, logger *zap.Logger, 
 		return err
 	}
 	// create the main branch in the branches journal store.  The parent
-	// commit object of the initial main branch is ksuid.Nil.
-	_, err = CreateBranch(ctx, engine, logger, root, config, "main", ksuid.Nil)
+	// commit object of the initial main branch is uuid.Nil().
+	_, err = CreateBranch(ctx, engine, logger, root, config, "main", uuid.Nil())
 	return err
 }
 
-func CreateBranch(ctx context.Context, engine storage.Engine, logger *zap.Logger, root *storage.URI, poolConfig *pools.Config, name string, parent ksuid.KSUID) (*branches.Config, error) {
+func CreateBranch(ctx context.Context, engine storage.Engine, logger *zap.Logger, root *storage.URI, poolConfig *pools.Config, name string, parent uuid.UUID) (*branches.Config, error) {
 	poolPath := poolConfig.Path(root)
 	branchesPath := poolPath.JoinPath(BranchesTag)
 	store, err := branches.OpenStore(ctx, engine, logger, branchesPath)
@@ -111,16 +111,16 @@ func (p *Pool) removeBranch(ctx context.Context, name string) error {
 	return p.branches.Remove(ctx, *config)
 }
 
-func (p *Pool) Snapshot(ctx context.Context, commit ksuid.KSUID) (commits.View, error) {
+func (p *Pool) Snapshot(ctx context.Context, commit uuid.UUID) (commits.View, error) {
 	return p.commits.Snapshot(ctx, commit)
 }
 
-func (p *Pool) OpenCommitLog(ctx context.Context, sctx *super.Context, commit ksuid.KSUID) sio.Reader {
-	return p.commits.OpenCommitLog(ctx, sctx, commit, ksuid.Nil)
+func (p *Pool) OpenCommitLog(ctx context.Context, sctx *super.Context, commit uuid.UUID) sio.Reader {
+	return p.commits.OpenCommitLog(ctx, sctx, commit, uuid.Nil())
 }
 
-func (p *Pool) OpenCommitLogAsBSUP(ctx context.Context, sctx *super.Context, commit ksuid.KSUID) (sio.Reader, error) {
-	return p.commits.OpenAsBSUP(ctx, sctx, commit, ksuid.Nil)
+func (p *Pool) OpenCommitLogAsBSUP(ctx context.Context, sctx *super.Context, commit uuid.UUID) (sio.Reader, error) {
+	return p.commits.OpenAsBSUP(ctx, sctx, commit, uuid.Nil())
 }
 
 func (p *Pool) Storage() storage.Engine {
@@ -149,12 +149,12 @@ func (p *Pool) OpenBranchByName(ctx context.Context, name string) (*Branch, erro
 
 // ResolveRevision returns the commit id for revision. revision can be either a
 // commit ID in string form or a branch name.
-func (p *Pool) ResolveRevision(ctx context.Context, revision string) (ksuid.KSUID, error) {
+func (p *Pool) ResolveRevision(ctx context.Context, revision string) (uuid.UUID, error) {
 	id, err := dbid.ParseID(revision)
 	if err != nil {
 		branch, err := p.LookupBranchByName(ctx, revision)
 		if err != nil {
-			return ksuid.Nil, err
+			return uuid.Nil(), err
 		}
 		id = branch.Commit
 	}
@@ -188,7 +188,7 @@ func filter(sctx *super.Context, this super.Value, e expr.Evaluator) bool {
 
 type BranchTip struct {
 	Name   string
-	Commit ksuid.KSUID
+	Commit uuid.UUID
 }
 
 func (p *Pool) BatchifyBranchTips(ctx context.Context, sctx *super.Context, f expr.Evaluator) ([]super.Value, error) {
@@ -212,11 +212,11 @@ func (p *Pool) BatchifyBranchTips(ctx context.Context, sctx *super.Context, f ex
 }
 
 // XXX this is inefficient but is only meant for interactive queries...?
-func (p *Pool) ObjectExists(ctx context.Context, id ksuid.KSUID) (bool, error) {
+func (p *Pool) ObjectExists(ctx context.Context, id uuid.UUID) (bool, error) {
 	return p.engine.Exists(ctx, data.URI(p.DataPath, id))
 }
 
-func (p *Pool) Vacate(ctx context.Context, ts nano.Ts, dryrun bool) ([]ksuid.KSUID, error) {
+func (p *Pool) Vacate(ctx context.Context, ts nano.Ts, dryrun bool) ([]uuid.UUID, error) {
 	if !dryrun {
 		if err := p.vacateBranchStore(ctx, ts, dryrun); err != nil {
 			return nil, err
@@ -225,7 +225,7 @@ func (p *Pool) Vacate(ctx context.Context, ts nano.Ts, dryrun bool) ([]ksuid.KSU
 	return p.vacateCommits(ctx, ts, dryrun)
 }
 
-func (p *Pool) vacateCommits(ctx context.Context, ts nano.Ts, dryrun bool) ([]ksuid.KSUID, error) {
+func (p *Pool) vacateCommits(ctx context.Context, ts nano.Ts, dryrun bool) ([]uuid.UUID, error) {
 	main, err := p.Main(ctx)
 	if err != nil {
 		return nil, err
@@ -271,7 +271,7 @@ func (p *Pool) vacateCommits(ctx context.Context, ts nano.Ts, dryrun bool) ([]ks
 func (p *Pool) vacateBranchStore(ctx context.Context, ts nano.Ts, dryrun bool) error {
 	var werr error
 	at, err := p.branches.EntryWhere(ctx, func(config *branches.Config) bool {
-		if config.Commit.IsNil() {
+		if config.Commit == uuid.Nil() {
 			return false
 		}
 		var c *commits.Commit
@@ -284,7 +284,7 @@ func (p *Pool) vacateBranchStore(ctx context.Context, ts nano.Ts, dryrun bool) e
 	return p.branches.TruncateHistory(ctx, at)
 }
 
-func (p *Pool) Vacuum(ctx context.Context, commit ksuid.KSUID, dryrun bool) ([]ksuid.KSUID, error) {
+func (p *Pool) Vacuum(ctx context.Context, commit uuid.UUID, dryrun bool) ([]uuid.UUID, error) {
 	group, ctx := errgroup.WithContext(ctx)
 	group.SetLimit(runtime.GOMAXPROCS(0))
 	ch := make(chan *data.Object)
@@ -292,7 +292,7 @@ func (p *Pool) Vacuum(ctx context.Context, commit ksuid.KSUID, dryrun bool) ([]k
 		defer close(ch)
 		return p.commits.Vacuumable(ctx, commit, ch)
 	})
-	var vacuumed []ksuid.KSUID
+	var vacuumed []uuid.UUID
 	var mu sync.Mutex
 	for o := range ch {
 		if dryrun {

@@ -3,18 +3,15 @@ package read
 import (
 	"errors"
 	"flag"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/cli/outputflags"
 	"github.com/superdb/super/cmd/super/dev/vector"
 	"github.com/superdb/super/pkg/charm"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/pkg/storage"
-	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/vcache"
-	"github.com/superdb/super/sbuf"
-	"github.com/superdb/super/vector/vio"
 )
 
 var spec = &charm.Spec{
@@ -66,20 +63,23 @@ func (c *Command) Run(args []string) error {
 	}
 	local := storage.NewLocalEngine()
 	cache := vcache.NewCache(local)
-	object, err := cache.Fetch(ctx, uri, ksuid.Nil)
+	object, err := cache.Fetch(ctx, uri, uuid.Nil())
 	if err != nil {
 		return err
 	}
-	defer object.Close()
-	sctx := super.NewContext()
-	projection := runtime.NewProjection(sctx, object, paths)
 	writer, err := c.outputFlags.Open(ctx, local)
-	if err != nil {
-		return err
-	}
-	if err := vio.Copy(writer, sbuf.NewDematerializer(sctx, projection)); err != nil {
-		writer.Close()
-		return err
+	projection := field.NewProjection(paths)
+	sctx := super.NewContext()
+	for _, loader := range object.Loaders() {
+		vec, err := loader.Load(sctx, projection)
+		if err != nil {
+			writer.Close()
+			return err
+		}
+		if err := writer.Push(vec); err != nil {
+			writer.Close()
+			return err
+		}
 	}
 	return writer.Close()
 }

@@ -3,14 +3,14 @@ script: |
   super db init -q
   super db create -use -q -orderby x:desc test
   super db load -q 1.sup
-  id=$(super db -f line -c "from test@main:objects | values ksuid(id)")
+  id=$(super db -f line -c "from test@main:objects | values uuid(id)")
   super db load -q 2.sup
   super db -s -c "from test"
   echo === | tee /dev/stderr
   super db delete -q $id
   super db -s -c "from test"
   echo === | tee /dev/stderr
-  ! super db delete -q 27aaaaaaaaaaaaaaaaaaaaaaaaa
+  ! super db delete -q 01a11990-01e3-72b1-b6d8-f827e2b05374
 
 inputs:
   - name: 1.sup
@@ -30,4 +30,4 @@ outputs:
     data: |
       ===
       ===
-      27aaaaaaaaaaaaaaaaaaaaaaaaa: commit object not found
+      01a11990-01e3-72b1-b6d8-f827e2b05374: commit object not found

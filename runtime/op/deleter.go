@@ -2,8 +2,8 @@ package op
 
 import (
 	"sync"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/runtime"
@@ -126,6 +126,6 @@ func (d *Deleter) close(err error) {
 	d.done = true
 }
 
-func (d *Deleter) deleteObject(id ksuid.KSUID) {
+func (d *Deleter) deleteObject(id uuid.UUID) {
 	d.deletes.Store(id, nil)
 }

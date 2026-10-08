@@ -859,9 +859,9 @@ Committish
 
 CommitText
   = Name
-  / KSUID { return &ast.Text{Kind:"Text",Text:string(c.text),Loc:loc(c) }, nil }
+  / UUID { return &ast.Text{Kind:"Text",Text:string(c.text),Loc:loc(c) }, nil }
 
-KSUID = [0-9a-zA-Z]+
+UUID = [-0-9a-zA-Z]+
 
 OpArg
   = &ArgNameExpr key:ArgName _ e:Expr { return &ast.ArgExpr{Kind:"ArgExpr", Key: key.(string), Value: e.(ast.Expr), Loc: loc(c)}, nil }

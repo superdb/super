@@ -28,7 +28,7 @@ func maybeNewRangePruner(pred dag.Expr, sortKeys order.SortKeys) dag.Expr {
 func newRangePruner(pred dag.Expr, sortKey order.SortKey) dag.Expr {
 	min := dag.NewCall("defuse", []dag.Expr{dag.NewThis(field.NewChain("min"))})
 	max := dag.NewCall("defuse", []dag.Expr{dag.NewThis(field.NewChain("max"))})
-	if e := buildRangePruner(pred, sortKey.Key, min, max); e != nil {
+	if e := buildRangePruner(pred, sortKey.Path, min, max); e != nil {
 		return e
 	}
 	return nil

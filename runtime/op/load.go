@@ -1,7 +1,8 @@
 package op
 
 import (
-	"github.com/segmentio/ksuid"
+	"uuid"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/runtime"
@@ -14,7 +15,7 @@ type Load struct {
 	rctx    *runtime.Context
 	root    *db.Root
 	parent  vio.Puller
-	pool    ksuid.KSUID
+	pool    uuid.UUID
 	branch  string
 	author  string
 	message string
@@ -22,7 +23,7 @@ type Load struct {
 	done    bool
 }
 
-func NewLoad(rctx *runtime.Context, root *db.Root, parent vio.Puller, pool ksuid.KSUID, branch, author, message, meta string) *Load {
+func NewLoad(rctx *runtime.Context, root *db.Root, parent vio.Puller, pool uuid.UUID, branch, author, message, meta string) *Load {
 	return &Load{
 		rctx:    rctx,
 		root:    root,

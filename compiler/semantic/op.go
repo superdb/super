@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/ast"
 	"github.com/superdb/super/compiler/dag"
@@ -459,7 +459,7 @@ func (t *translator) pool(node ast.Node, poolName string, args []ast.OpArg) sem.
 		t.error(node, err)
 		return badOp
 	}
-	var commitID ksuid.KSUID
+	var commitID uuid.UUID
 	commit, commitLoc := t.textArg(opArgs, "commit")
 	if commit != "" {
 		if commitID, err = dbid.ParseID(commit); err != nil {
@@ -473,7 +473,7 @@ func (t *translator) pool(node ast.Node, poolName string, args []ast.OpArg) sem.
 	meta, metaLoc := t.textArg(opArgs, "meta")
 	if meta != "" {
 		if _, ok := dag.CommitMetas[meta]; ok {
-			if commitID == ksuid.Nil {
+			if commitID == uuid.Nil() {
 				commitID, err = t.env.CommitObject(t.ctx, poolID, "main")
 				if err != nil {
 					t.error(metaLoc, err)
@@ -500,7 +500,7 @@ func (t *translator) pool(node ast.Node, poolName string, args []ast.OpArg) sem.
 		t.error(metaLoc, fmt.Errorf("unknown metadata type %q", meta))
 		return badOp
 	}
-	if commitID == ksuid.Nil {
+	if commitID == uuid.Nil() {
 		// This trick here allows us to default to the main branch when
 		// there is a "from pool" operator with no meta query or commit object.
 		commitID, err = t.env.CommitObject(t.ctx, poolID, "main")
@@ -538,7 +538,7 @@ func (t *translator) deleteScan(op *ast.Delete) sem.Op {
 		t.error(op, err)
 		return badOp
 	}
-	var commitID ksuid.KSUID
+	var commitID uuid.UUID
 	if op.Branch != "" {
 		var err error
 		if commitID, err = dbid.ParseID(op.Branch); err != nil {

@@ -2,15 +2,19 @@ package vcache
 
 import (
 	"context"
-	"errors"
 	"sync"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/pkg/storage"
 )
 
+// Cache manages all accesses to storage objects used by databases
+// providing a means to retrieve metadata, fused types, and column
+// frames from objects effeciently from storage and cached in memory.
+// It works for both BSUP columns and rows frames but is generally used
+// for BSUP columns data stored in databases.
 type Cache struct {
 	mu     sync.Mutex
 	engine storage.Engine
@@ -21,19 +25,19 @@ type Cache struct {
 	// reader open for every object and never close it.  We should timeout
 	// files and close them and then reopen them when needed to access
 	// vectors that haven't yet been loaded.
-	objects map[ksuid.KSUID]*Object
-	locks   map[ksuid.KSUID]*sync.Mutex
+	objects map[uuid.UUID]*Object
+	locks   map[uuid.UUID]*sync.Mutex
 }
 
 func NewCache(engine storage.Engine) *Cache {
 	return &Cache{
 		engine:  engine,
-		objects: make(map[ksuid.KSUID]*Object),
-		locks:   make(map[ksuid.KSUID]*sync.Mutex),
+		objects: make(map[uuid.UUID]*Object),
+		locks:   make(map[uuid.UUID]*sync.Mutex),
 	}
 }
 
-func (c *Cache) lock(id ksuid.KSUID) {
+func (c *Cache) lock(id uuid.UUID) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	mu, ok := c.locks[id]
@@ -44,13 +48,13 @@ func (c *Cache) lock(id ksuid.KSUID) {
 	mu.Lock()
 }
 
-func (c *Cache) unlock(id ksuid.KSUID) {
+func (c *Cache) unlock(id uuid.UUID) {
 	c.mu.Lock()
 	c.locks[id].Unlock()
 	c.mu.Unlock()
 }
 
-func (c *Cache) Fetch(ctx context.Context, uri *storage.URI, id ksuid.KSUID) (*Object, error) {
+func (c *Cache) Fetch(ctx context.Context, uri *storage.URI, id uuid.UUID) (*Object, error) {
 	c.mu.Lock()
 	object, ok := c.objects[id]
 	c.mu.Unlock()
@@ -72,16 +76,10 @@ func (c *Cache) Fetch(ctx context.Context, uri *storage.URI, id ksuid.KSUID) (*O
 	}
 	// XXX we need to refactor this interface since it's no longer aligned one
 	// cached entity per file (cache should operate on frames like parquet row groups)
-	fit := bsup.NewSeekable(super.NewContext(), r)
-	frame, err := fit.Next()
+	object, err = NewObject(bsup.NewSeekable(super.NewContext(), r))
 	if err != nil {
 		return nil, err
 	}
-	colFrame, ok := frame.(*bsup.ColFrame)
-	if !ok {
-		return nil, errors.New("input not in BSUP column form")
-	}
-	object = NewReader(colFrame)
 	c.mu.Lock()
 	c.objects[id] = object
 	c.mu.Unlock()

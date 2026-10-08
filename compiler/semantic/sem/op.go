@@ -10,8 +10,8 @@ package sem
 import (
 	"maps"
 	"slices"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/ast"
 	"github.com/superdb/super/order"
@@ -27,8 +27,8 @@ type Op interface {
 type (
 	CommitMetaScan struct {
 		ast.Node
-		Pool   ksuid.KSUID
-		Commit ksuid.KSUID
+		Pool   uuid.UUID
+		Commit uuid.UUID
 		Meta   string
 		Tap    bool
 	}
@@ -38,8 +38,8 @@ type (
 	}
 	DeleteScan struct {
 		ast.Node
-		ID     ksuid.KSUID
-		Commit ksuid.KSUID
+		ID     uuid.UUID
+		Commit uuid.UUID
 	}
 	FileScan struct {
 		ast.Node
@@ -60,13 +60,13 @@ type (
 	}
 	PoolMetaScan struct {
 		ast.Node
-		ID   ksuid.KSUID
+		ID   uuid.UUID
 		Meta string
 	}
 	PoolScan struct {
 		ast.Node
-		ID     ksuid.KSUID
-		Commit ksuid.KSUID
+		ID     uuid.UUID
+		Commit uuid.UUID
 	}
 	RobotScan struct {
 		ast.Node
@@ -156,7 +156,7 @@ type (
 	}
 	LoadOp struct {
 		ast.Node
-		Pool    ksuid.KSUID
+		Pool    uuid.UUID
 		Branch  string
 		Author  string
 		Message string

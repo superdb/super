@@ -1,15 +1,21 @@
 package db
 
 import (
+	"bytes"
+	"cmp"
 	"context"
 	"io"
+	"slices"
+	"strings"
 	"sync/atomic"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/order"
-	"github.com/superdb/super/runtime/sam/expr"
+	"github.com/superdb/super/pkg/field"
+	"github.com/superdb/super/runtime/expr"
+	samexpr "github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vbuild"
@@ -117,18 +123,18 @@ func (s *ImportStats) Copy() ImportStats {
 	}
 }
 
-func ImportComparator(sctx *super.Context, pool *Pool) *expr.Comparator {
-	var exprs []expr.SortExpr
+func ImportComparator(sctx *super.Context, pool *Pool) *samexpr.Comparator {
+	var exprs []samexpr.SortExpr
 	for _, s := range pool.SortKeys {
-		exprs = append(exprs, expr.NewSortExpr(expr.NewDottedExpr(sctx, s.Key), s.Order, s.Order.NullsMax(true)))
+		exprs = append(exprs, samexpr.NewSortExpr(samexpr.NewDottedExpr(sctx, s.Path), s.Order, s.Order.NullsMax(true)))
 	}
 	var o order.Which
 	if !pool.SortKeys.IsNil() {
 		o = pool.SortKeys.Primary().Order
 	}
 	// valueAsBytes establishes a total order.
-	exprs = append(exprs, expr.NewSortExpr(&valueAsBytes{}, o, o.NullsMax(true)))
-	return expr.NewComparator(exprs...)
+	exprs = append(exprs, samexpr.NewSortExpr(&valueAsBytes{}, o, o.NullsMax(true)))
+	return samexpr.NewComparator(exprs...)
 }
 
 type valueAsBytes struct{}
@@ -138,8 +144,11 @@ func (v *valueAsBytes) Eval(val super.Value) super.Value {
 }
 
 func (w *Writer) sort(vec vector.Any) (vector.Any, super.Value, super.Value) {
+	if vec, minVal, maxVal := w.fastSort(vec); vec != nil {
+		return vec, minVal, maxVal
+	}
 	c := ImportComparator(w.sctx, w.pool)
-	primaryKey := expr.NewDottedExpr(w.sctx, w.pool.SortKeys.Primary().Key)
+	primaryKey := samexpr.NewDottedExpr(w.sctx, w.pool.SortKeys.Primary().Path)
 	reader := c.SortStableReader(sbuf.Materialize(vec).Values())
 	out := vector.NewDynamicValueBuilder()
 	var minVal, maxVal super.Value
@@ -161,4 +170,171 @@ func (w *Writer) sort(vec vector.Any) (vector.Any, super.Value, super.Value) {
 		maxVal = maxVal.MissingAsNull()
 		out.Write(*val)
 	}
+}
+
+func (w *Writer) fastSort(vec vector.Any) (vector.Any, super.Value, super.Value) {
+	if len(w.pool.SortKeys) != 1 {
+		return nil, super.Value{}, super.Value{}
+	}
+	sortKey := w.pool.SortKeys[0]
+	return w.fastSortWithKey(vec, w.deref(vec, sortKey.Path), sortKey.Order)
+}
+
+func (w *Writer) fastSortWithKey(vec, key vector.Any, o order.Which) (vector.Any, super.Value, super.Value) {
+	switch key := key.(type) {
+	case *vector.Named:
+		return w.fastSortWithKey(vec, key.Any, o)
+	case *vector.Int:
+		idx := make([]uint32, len(key.Values))
+		for k := range idx {
+			idx[k] = uint32(k)
+		}
+		slices.SortStableFunc(idx, func(a, b uint32) int {
+			if o == order.Desc {
+				a, b = b, a
+			}
+			return cmp.Compare(key.Values[a], key.Values[b])
+		})
+		minVal := key.Values[0]
+		maxVal := key.Values[0]
+		for _, val := range key.Values[1:] {
+			if val < minVal {
+				minVal = val
+			} else if val > maxVal {
+				maxVal = val
+			}
+		}
+		if o == order.Desc {
+			minVal, maxVal = maxVal, minVal
+		}
+		return vector.NewView(vec, idx), super.NewInt(key.Type(), minVal), super.NewInt(key.Type(), maxVal)
+	case *vector.Uint:
+		idx := make([]uint32, len(key.Values))
+		for k := range idx {
+			idx[k] = uint32(k)
+		}
+		slices.SortStableFunc(idx, func(a, b uint32) int {
+			if o == order.Desc {
+				a, b = b, a
+			}
+			return cmp.Compare(key.Values[a], key.Values[b])
+		})
+		minVal := key.Values[0]
+		maxVal := key.Values[0]
+		for _, val := range key.Values[1:] {
+			if val < minVal {
+				minVal = val
+			} else if val > maxVal {
+				maxVal = val
+			}
+		}
+		if o == order.Desc {
+			minVal, maxVal = maxVal, minVal
+		}
+		return vector.NewView(vec, idx), super.NewUint(key.Type(), minVal), super.NewUint(key.Type(), maxVal)
+	case *vector.Float:
+		idx := make([]uint32, len(key.Values))
+		for k := range idx {
+			idx[k] = uint32(k)
+		}
+		slices.SortStableFunc(idx, func(a, b uint32) int {
+			if o == order.Desc {
+				a, b = b, a
+			}
+			return cmp.Compare(key.Values[a], key.Values[b])
+		})
+		minVal := key.Values[0]
+		maxVal := key.Values[0]
+		for _, val := range key.Values[1:] {
+			if val < minVal {
+				minVal = val
+			} else if val > maxVal {
+				maxVal = val
+			}
+		}
+		if o == order.Desc {
+			minVal, maxVal = maxVal, minVal
+		}
+		return vector.NewView(vec, idx), super.NewFloat(key.Type(), minVal), super.NewFloat(key.Type(), maxVal)
+	case *vector.String:
+		idx := make([]uint32, key.Len())
+		for k := range idx {
+			idx[k] = uint32(k)
+		}
+		slices.SortStableFunc(idx, func(a, b uint32) int {
+			if o == order.Desc {
+				a, b = b, a
+			}
+			return strings.Compare(key.Value(a), key.Value(b))
+		})
+		minVal := key.Value(0)
+		maxVal := key.Value(0)
+		for k := range vec.Len() - 1 {
+			off := k + 1
+			if s := key.Value(off); s < minVal {
+				minVal = s
+			} else if s > maxVal {
+				maxVal = s
+			}
+		}
+		if o == order.Desc {
+			minVal, maxVal = maxVal, minVal
+		}
+		return vector.NewView(vec, idx), super.NewString(minVal), super.NewString(maxVal)
+	case *vector.Bytes:
+		idx := make([]uint32, key.Len())
+		for k := range idx {
+			idx[k] = uint32(k)
+		}
+		slices.SortStableFunc(idx, func(a, b uint32) int {
+			if o == order.Desc {
+				a, b = b, a
+			}
+			return bytes.Compare(key.Value(a), key.Value(b))
+		})
+		minVal := key.Value(0)
+		maxVal := key.Value(0)
+		for k := range vec.Len() - 1 {
+			off := k + 1
+			if b := key.Value(off); bytes.Compare(b, minVal) < 0 {
+				minVal = b
+			} else if bytes.Compare(b, maxVal) > 0 {
+				maxVal = b
+			}
+		}
+		if o == order.Desc {
+			minVal, maxVal = maxVal, minVal
+		}
+		return vector.NewView(vec, idx), super.NewBytes(minVal), super.NewBytes(maxVal)
+	case *vector.IP:
+		idx := make([]uint32, len(key.Values))
+		for k := range idx {
+			idx[k] = uint32(k)
+		}
+		slices.SortStableFunc(idx, func(a, b uint32) int {
+			if o == order.Desc {
+				a, b = b, a
+			}
+			return key.Values[a].Compare(key.Values[b])
+		})
+		minVal := key.Values[0]
+		maxVal := key.Values[0]
+		for _, val := range key.Values[1:] {
+			if val.Compare(minVal) < 0 {
+				minVal = val
+			} else if val.Compare(maxVal) > 0 {
+				maxVal = val
+			}
+		}
+		if o == order.Desc {
+			minVal, maxVal = maxVal, minVal
+		}
+		return vector.NewView(vec, idx), super.NewIP(minVal), super.NewIP(maxVal)
+	}
+	return nil, super.Value{}, super.Value{}
+}
+
+func (w *Writer) deref(vec vector.Any, path field.Path) vector.Any {
+	e := expr.NewDottedExpr(w.sctx, path.Chain())
+	return e.Eval(vec)
 }

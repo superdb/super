@@ -17,19 +17,19 @@ outputs:
           ts: 0,
           name: "test",
           id: 0,
-          layout: {
-            order: "desc",
-            keys: [
-              [
+          layout: [
+            {
+              order: "desc",
+              path: [
                 "ts"
               ]
-            ]
-          },
+            }
+          ],
           threshold: 524288000
         },
         branch: {
           ts: 0,
           name: "main",
-          commit: "0x0000000000000000000000000000000000000000"
+          commit: "0x00000000000000000000000000000000"
         }
       }

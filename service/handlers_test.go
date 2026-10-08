@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"uuid"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/superdb/super/api"
@@ -68,7 +68,7 @@ func TestPoolStatsNoData(t *testing.T) {
 func TestPoolPostNameOnly(t *testing.T) {
 	_, conn := newCore(t)
 	poolID := conn.TestPoolPost(api.PoolPostRequest{Name: "test"})
-	assert.NotEqual(t, ksuid.Nil, poolID)
+	assert.NotEqual(t, uuid.Nil(), poolID)
 }
 
 func TestPoolPostDuplicateName(t *testing.T) {

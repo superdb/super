@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super/db/journal"
 	"github.com/superdb/super/pkg/storage"
 	"go.uber.org/zap"
@@ -52,7 +52,7 @@ func (s *Store) All(ctx context.Context) ([]Config, error) {
 	return list, nil
 }
 
-func (s *Store) LookupByID(ctx context.Context, id ksuid.KSUID) (*Config, error) {
+func (s *Store) LookupByID(ctx context.Context, id uuid.UUID) (*Config, error) {
 	list, err := s.All(ctx)
 	if err == nil {
 		for k, config := range list {
@@ -81,7 +81,7 @@ func (s *Store) Add(ctx context.Context, config *Config) error {
 	return s.store.Insert(ctx, config)
 }
 
-func (s *Store) Rename(ctx context.Context, id ksuid.KSUID, newName string) error {
+func (s *Store) Rename(ctx context.Context, id uuid.UUID, newName string) error {
 	config, err := s.LookupByID(ctx, id)
 	if err != nil {
 		return err

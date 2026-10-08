@@ -9,4 +9,4 @@ script: |
 outputs:
   - name: stderr
     data: |
-      unsupported database version: found version 1 while expecting 5
+      unsupported database version: found version 1 while expecting 6

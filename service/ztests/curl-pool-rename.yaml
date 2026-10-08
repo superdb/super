@@ -23,13 +23,13 @@ outputs:
         ts: 0,
         name: "new_test",
         id: 0,
-        layout: {
-          order: "desc",
-          keys: [
-            [
+        layout: [
+          {
+            order: "desc",
+            path: [
               "ts"
             ]
-          ]
-        },
+          }
+        ],
         threshold: 524288000
       }

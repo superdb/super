@@ -1,7 +1,8 @@
 package op
 
 import (
-	"github.com/segmentio/ksuid"
+	"uuid"
+
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
 	"github.com/superdb/super/runtime/expr"
@@ -144,7 +145,7 @@ func (o *Robot) open(path string) (vio.Puller, error) {
 	return o.env.Open(o.rctx.Context, o.rctx.Sctx, path, o.format, o.pushdown, 1)
 }
 
-func (r *Robot) openPool(id ksuid.KSUID) (vio.Puller, error) {
+func (r *Robot) openPool(id uuid.UUID) (vio.Puller, error) {
 	ctx := r.rctx.Context
 	pool, err := r.env.DB().OpenPool(ctx, id)
 	if err != nil {
@@ -161,5 +162,4 @@ func (r *Robot) openPool(id ksuid.KSUID) (vio.Puller, error) {
 	// XXX We're passing nil for pushdown here.  In a subsequent PR, we will
 	// work out vector pushdown and put this back.
 	return NewPoolScanner(r.rctx, l, pool, nil, nil, nil), nil
-
 }

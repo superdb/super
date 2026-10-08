@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"uuid"
 
-	"github.com/segmentio/ksuid"
 	"github.com/superdb/super"
 	"github.com/superdb/super/api"
 	"github.com/superdb/super/api/queryio"
@@ -546,6 +546,8 @@ func handleCompact(c *Core, w *ResponseWriter, r *Request) {
 		PoolID:   pool.ID,
 		Branch:   branchName,
 	})
+	w.Respond(http.StatusOK, api.CommitResponse{Commit: branch.Commit})
+	return
 }
 
 func handleDelete(c *Core, w *ResponseWriter, r *Request) {
@@ -570,13 +572,13 @@ func handleDelete(c *Core, w *ResponseWriter, r *Request) {
 		w.Error(err)
 		return
 	}
-	var commit ksuid.KSUID
+	var commit uuid.UUID
 	if len(payload.ObjectIDs) > 0 {
 		if payload.Where != "" {
 			w.Error(srverr.ErrInvalid("object_ids and where cannot both be set"))
 			return
 		}
-		var ids []ksuid.KSUID
+		var ids []uuid.UUID
 		ids, err = dbid.ParseIDs(payload.ObjectIDs)
 		if err != nil {
 			w.Error(srverr.ErrInvalid(err))
