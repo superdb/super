@@ -322,6 +322,7 @@ func newMetadataValue(cctx *Context, sctx *super.Context, b *scode.Builder, id I
 	return super.NewValue(typ, b.Bytes().Body())
 }
 
+// XXX this should live in shadow so we don't load it twice
 func metadataValue(cctx *Context, sctx *super.Context, b *scode.Builder, id ID, projection field.Projection) super.Type {
 	m := cctx.Lookup(id)
 	switch m := under(cctx, m).(type) {

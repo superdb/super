@@ -260,14 +260,17 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		if parent == nil {
 			parent = vio.NewPuller(vector.NewNull(1))
 		}
-		var metaProjection []field.Path
-		var metaFilter dag.Expr
+		var metaFilter *dagFilter
 		if mf := o.Pushdown.MetaFilter; mf != nil {
-			metaFilter = mf.Expr
-			metaProjection = mf.Projection
+			metaFilter = &dagFilter{field.NewProjection(mf.Projection), mf.Expr}
 		}
-		pushdown := b.newMetaPushdown(metaFilter, o.Pushdown.Projection, metaProjection, o.Pushdown.Unordered)
-		return op.NewFileScan(b.rctx, b.env, parent, o.Paths, o.Format, pushdown), nil
+		var dataFilter *dagFilter
+		if df := o.Pushdown.DataFilter; df != nil && len(df.Projection) != 0 {
+			dataFilter = &dagFilter{field.NewProjection(df.Projection), df.Expr}
+		}
+		projection := field.NewProjectionMaybeNone(o.Pushdown.None, o.Pushdown.Projection)
+		pushdown := b.newPushdown(projection, metaFilter, dataFilter, o.Pushdown.Unordered)
+		return op.NewFileScan(b.rctx, b.env, parent, o.Paths, o.Format, pushdown, b.progress), nil
 	case *dag.FilterOp:
 		e, err := b.compileVamExpr(o.Expr)
 		if err != nil {
@@ -314,7 +317,16 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		if err != nil {
 			return nil, err
 		}
-		return op.NewRobot(b.rctx, b.env, parent, e, o.Format, b.newPushdown(o.Filter, nil)), nil
+		//XXX The DAG doesn't have pushdowns for robot scans (so the optimizer
+		// doesn't compute them), but no reason robot scan shouldn't do projection
+		// and metafilter too.  Instead, it just has a filter lifted into it
+		// so convert it here to a pushdown.  This will be implemented in a
+		// future PR.
+		var dataFilter *dagFilter
+		if o.Filter != nil {
+			dataFilter = &dagFilter{nil, o.Filter}
+		}
+		return op.NewRobot(b.rctx, b.env, parent, e, o.Format, b.newPushdown(nil, nil, dataFilter, false), b.progress), nil
 	case *dag.PoolScan:
 		if parent != nil {
 			return nil, errors.New("internal error: pool scan cannot have a parent operator")

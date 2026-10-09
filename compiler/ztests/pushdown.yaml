@@ -21,38 +21,39 @@ script: |
   export SUPER_DB=test
   super db init -q
   super db create -q -orderby ts pool-ts
-  super db compile -C -O "from 'pool-ts' | x=='hello' or x==1.0 | values a" | sed -e 's/lister .*/lister/' -e 's/seqscan .*field/seqscan field/'
+  scrub() { sed -E 's/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/xxx/g'; }
+  super db compile -C -O "from 'pool-ts' | x=='hello' or x==1.0 | values a" | scrub
   echo ===
-  super db compile -C -O "from 'pool-ts' | x > 1 and y <= 1.0" | sed -e 's/lister .*/lister/' -e 's/seqscan .*filter/seqscan filter/'
+  super db compile -C -O "from 'pool-ts' | x > 1 and y <= 1.0" | scrub
   echo ===
-  super db compile -C -O "from 'pool-ts' | x=='hello' or x!=1.0" | sed -e 's/lister .*/lister/' -e 's/seqscan .*filter/seqscan filter/'
+  super db compile -C -O "from 'pool-ts' | x=='hello' or x!=1.0" | scrub
   echo ===
-  super db compile -C -O "from 'pool-ts' | x=='hello' or !(y==2 or y==3)" | sed -e 's/lister .*/lister/' -e 's/seqscan .*filter/seqscan filter/'
+  super db compile -C -O "from 'pool-ts' | x=='hello' or !(y==2 or y==3)" | scrub
   echo ===
-  super db compile -C -O "from 'pool-ts' | ts >= 0 and ts <= 2" | sed -e 's/lister .*pruner/lister pruner/' -e 's/seqscan .*pruner/seqscan pruner/'
+  super db compile -C -O "from 'pool-ts' | ts >= 0 and ts <= 2" | scrub
   echo ===
-  super db compile -C -O "from 'pool-ts' | ts >= 0 and ts <= 2 and x=='hello'"| sed -e 's/lister .*pruner/lister pruner/' -e 's/seqscan .*pruner/seqscan pruner/'
+  super db compile -C -O "from 'pool-ts' | ts >= 0 and ts <= 2 and x=='hello'" | scrub
 
 outputs:
   - name: stdout
     data: |
       === debug
-      file /dev/null fields a,b
+      file /dev/null project [a,b]
       | debug a
       | values b
       | output main
       === distinct
-      file /dev/null unordered fields a,b
+      file /dev/null unordered project [a,b]
       | distinct a
       | values b
       | output main
       === fork into hash join
       fork
         (
-          file /dev/null unordered fields b,c
+          file /dev/null unordered project [b,c]
         )
         (
-          file /dev/zero unordered fields a,d
+          file /dev/zero unordered project [a,d]
         )
       | inner hashjoin as {left,right} on b==a
       | values left.c, right.d
@@ -60,10 +61,10 @@ outputs:
       === fork into nested loop join
       fork
         (
-          file /dev/null unordered fields b,c
+          file /dev/null unordered project [b,c]
         )
         (
-          file /dev/zero unordered fields a,d
+          file /dev/zero unordered project [a,d]
         )
       | inner join as {left,right} on right.a>left.b
       | values left.c, right.d
@@ -71,10 +72,10 @@ outputs:
       === hash join
       fork
         (
-          file /dev/null unordered fields a,c
+          file /dev/null unordered project [a,c]
         )
         (
-          file /dev/zero unordered fields b,d
+          file /dev/zero unordered project [b,d]
         )
       | inner hashjoin as {left,right} on a==b
       | values left.c, right.d
@@ -82,16 +83,16 @@ outputs:
       === nested loop join
       fork
         (
-          file /dev/null unordered fields a,c
+          file /dev/null unordered project [a,c]
         )
         (
-          file /dev/zero unordered fields b,d
+          file /dev/zero unordered project [b,d]
         )
       | inner join as {left,right} on left.a>right.b
       | values left.c, right.d
       | output main
       === switch into hash join
-      file /dev/null unordered fields a,b,c,d,e,f,g,h,i
+      file /dev/null unordered project [a,b,c,d,e,f,g,h,i]
       | switch a
         case b (
           put x:=c
@@ -103,7 +104,7 @@ outputs:
       | values left.h, right.i
       | output main
       === switch into nested loop join
-      file /dev/null unordered fields a,b,c,d,e,f,g,h,i
+      file /dev/null unordered project [a,b,c,d,e,f,g,h,i]
       | switch a
         case b (
           put x:=c
@@ -115,42 +116,44 @@ outputs:
       | values left.h, right.i
       | output main
       === where
-      file /dev/null fields a,b,c,d,e filter (a==1 or e==2)
-         pruner (
-           expr compare(1, a.min, true)>=0 and compare(1, a.max, true)<=0 or compare(2, e.min, true)>=0 and compare(2, e.max, true)<=0
-           fields a.max,a.min,e.max,e.min
+      file /dev/null project [a,b,c,d,e]
+        meta-filter project [a.max,a.min,e.max,e.min] (
+          compare(1, a.min, true)>=0 and compare(1, a.max, true)<=0 or compare(2, e.min, true)>=0 and compare(2, e.max, true)<=0
+        )
+        data-filter project [a,e] (
+          a==1 or e==2
         )
       | where a==1 or e==2
       | values c, b, d
       | output main
       ===
-      lister
+      lister pool xxx commit xxx
       | slicer
-      | seqscan fields a,x filter (x=="hello" or x==1.)
+      | seqscan pool xxx project [a,x] filter (x=="hello" or x==1.)
       | values a
       | output main
       ===
-      lister
+      lister pool xxx commit xxx
       | slicer
-      | seqscan filter (x>1 and y<=1.)
+      | seqscan pool xxx filter (x>1 and y<=1.)
       | output main
       ===
-      lister
+      lister pool xxx commit xxx
       | slicer
-      | seqscan filter (x=="hello" or x!=1.)
+      | seqscan pool xxx filter (x=="hello" or x!=1.)
       | output main
       ===
-      lister
+      lister pool xxx commit xxx
       | slicer
-      | seqscan filter (x=="hello" or !(y==2 or y==3))
+      | seqscan pool xxx filter (x=="hello" or !(y==2 or y==3))
       | output main
       ===
-      lister pruner (compare(0, defuse(max), true)>0 or compare(2, defuse(min), true)<0)
+      lister pool xxx commit xxx pruner (compare(0, defuse(max), true)>0 or compare(2, defuse(min), true)<0)
       | slicer
-      | seqscan pruner (compare(0, defuse(max), true)>0 or compare(2, defuse(min), true)<0) filter (ts>=0 and ts<=2)
+      | seqscan pool xxx pruner (compare(0, defuse(max), true)>0 or compare(2, defuse(min), true)<0) filter (ts>=0 and ts<=2)
       | output main
       ===
-      lister pruner (compare(0, defuse(max), true)>0 or compare(2, defuse(min), true)<0)
+      lister pool xxx commit xxx pruner (compare(0, defuse(max), true)>0 or compare(2, defuse(min), true)<0)
       | slicer
-      | seqscan pruner (compare(0, defuse(max), true)>0 or compare(2, defuse(min), true)<0) filter (ts>=0 and ts<=2 and x=="hello")
+      | seqscan pool xxx pruner (compare(0, defuse(max), true)>0 or compare(2, defuse(min), true)<0) filter (ts>=0 and ts<=2 and x=="hello")
       | output main

@@ -28,6 +28,10 @@ func NewFrameLoader(sctx *super.Context, frame *bsup.ColFrame) *FrameLoader {
 	}
 }
 
+func (f *FrameLoader) Len() uint32 {
+	return f.root.length()
+}
+
 // Load returns the indicated projection of data in this BSUP object.
 // If any required data is not memory resident, it will be fetched from
 // storage and cached in memory so that subsequent calls run from memory.

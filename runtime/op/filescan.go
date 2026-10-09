@@ -18,6 +18,7 @@ type FileScan struct {
 	paths    []string
 	format   string
 	pushdown vio.Pushdown
+	progress *vio.Progress
 
 	mu                   sync.Mutex
 	current              exec.ConcurrentPuller
@@ -29,7 +30,7 @@ type FileScan struct {
 	pullers              []*concurrentPuller
 }
 
-func NewFileScan(rctx *runtime.Context, env *exec.Environment, parent vio.Puller, paths []string, format string, p vio.Pushdown) *FileScan {
+func NewFileScan(rctx *runtime.Context, env *exec.Environment, parent vio.Puller, paths []string, format string, p vio.Pushdown, progress *vio.Progress) *FileScan {
 	return &FileScan{
 		rctx:     rctx,
 		env:      env,
@@ -37,6 +38,7 @@ func NewFileScan(rctx *runtime.Context, env *exec.Environment, parent vio.Puller
 		paths:    paths,
 		format:   format,
 		pushdown: p,
+		progress: progress,
 	}
 }
 
@@ -117,7 +119,7 @@ func (f *FileScan) openNextPath() (exec.ConcurrentPuller, error) {
 	for f.nextPath < len(f.paths) {
 		path := f.paths[f.nextPath]
 		f.nextPath++
-		puller, err := f.env.Open(f.rctx.Context, f.rctx.Sctx, path, f.format, f.pushdown, len(f.pullers))
+		puller, err := f.env.Open(f.rctx.Context, f.rctx.Sctx, path, f.format, f.pushdown, f.progress, len(f.pullers))
 		if err != nil {
 			if f.env.IgnoreOpenErrors {
 				fmt.Fprintln(os.Stderr, err)

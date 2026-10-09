@@ -47,7 +47,7 @@ func ReadBSUPRows(ctx context.Context, sctx *super.Context, bs []byte) ([]super.
 
 func ReadBSUP(ctx context.Context, sctx *super.Context, bs []byte) ([]super.Value, error) {
 	bytesReader := bytes.NewReader(bs)
-	reader, err := bsupio.NewReader(ctx, sctx, bytesReader, nil, 1)
+	reader, err := bsupio.NewReader(ctx, sctx, bytesReader, nil, nil, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func WriteBSUP(t testing.TB, sctx *super.Context, valuesIn []super.Value, buf *b
 
 func RunQueryBSUP(t testing.TB, buf *bytes.Buffer, querySource string) []super.Value {
 	sctx := super.NewContext()
-	p, err := bsupio.NewReader(t.Context(), sctx, bytes.NewReader(buf.Bytes()), nil, 1)
+	p, err := bsupio.NewReader(t.Context(), sctx, bytes.NewReader(buf.Bytes()), nil, nil, 1)
 	require.NoError(t, err)
 	defer p.Pull(true)
 	return RunQuery(t, sctx, p, querySource, func(_ demand.Demand) {})

@@ -42,7 +42,7 @@ func (u *uint_) load(loader *FrameLoader) []uint64 {
 		return u.vals
 	}
 	bytes := make([]byte, u.meta.Location.MemLength)
-	if err := u.meta.Location.Read(loader.frame.DataReader(), bytes); err != nil {
+	if err := u.meta.Location.Read(loader.frame, bytes); err != nil {
 		panic(err)
 	}
 	u.vals = intcomp.UncompressUint64(byteconv.ReinterpretSlice[uint64](bytes), nil)

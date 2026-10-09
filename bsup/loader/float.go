@@ -41,7 +41,7 @@ func (f *float) load(loader *FrameLoader) []float64 {
 		return f.vals
 	}
 	bytes := make([]byte, f.meta.Location.MemLength)
-	if err := f.meta.Location.Read(loader.frame.DataReader(), bytes); err != nil {
+	if err := f.meta.Location.Read(loader.frame, bytes); err != nil {
 		panic(err)
 	}
 	f.vals = byteconv.ReinterpretSlice[float64](bytes)

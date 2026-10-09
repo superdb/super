@@ -27,6 +27,7 @@ import (
 type ReaderOpts struct {
 	Format            string
 	Pushdown          vio.Pushdown
+	Progress          *vio.Progress
 	ConcurrentReaders int
 	CSV               csvio.ReaderOpts
 	InputCap          int
@@ -48,7 +49,7 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, opts Reade
 
 	bsupErr := bsup.Probe(track)
 	if bsupErr == nil {
-		return bsupio.NewReader(ctx, sctx, track.Reader(), opts.Pushdown, opts.ConcurrentReaders)
+		return bsupio.NewReader(ctx, sctx, track.Reader(), opts.Pushdown, opts.Progress, opts.ConcurrentReaders)
 	}
 	bsupErr = fmt.Errorf("bsup: %w", bsupErr)
 	track.Reset()

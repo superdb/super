@@ -7,18 +7,22 @@ script: |
 outputs:
   - name: stdout
     data: |
-      file test.bsup format bsup filter (x in ["foo","bar"])
-         pruner (
-           expr compare("foo", x.min, true)>=0 and compare("foo", x.max, true)<=0 or compare("bar", x.min, true)>=0 and compare("bar", x.max, true)<=0
-           fields x.max,x.min
+      file test.bsup format bsup
+        meta-filter project [x.max,x.min] (
+          compare("foo", x.min, true)>=0 and compare("foo", x.max, true)<=0 or compare("bar", x.min, true)>=0 and compare("bar", x.max, true)<=0
+        )
+        data-filter project [x] (
+          x in ["foo","bar"]
         )
       | where x in ["foo","bar"]
       | output main
       // ===
-      file test.bsup format bsup filter (x in {c0:"foo",c1:"bar"})
-         pruner (
-           expr compare("foo", x.min, true)>=0 and compare("foo", x.max, true)<=0 or compare("bar", x.min, true)>=0 and compare("bar", x.max, true)<=0
-           fields x.max,x.min
+      file test.bsup format bsup
+        meta-filter project [x.max,x.min] (
+          compare("foo", x.min, true)>=0 and compare("foo", x.max, true)<=0 or compare("bar", x.min, true)>=0 and compare("bar", x.max, true)<=0
+        )
+        data-filter project [x] (
+          x in {c0:"foo",c1:"bar"}
         )
       | where x in {c0:"foo",c1:"bar"}
       | output main

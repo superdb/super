@@ -140,7 +140,7 @@ func (c *Connection) doAndUnmarshal(req *Request, v any, templates ...any) error
 		return err
 	}
 	defer res.Body.Close()
-	stream, err := bsupio.NewReader(req.Context(), super.NewContext(), res.Body, nil, 1)
+	stream, err := bsupio.NewReader(req.Context(), super.NewContext(), res.Body, nil, nil, 1)
 	if err != nil {
 		return err
 	}

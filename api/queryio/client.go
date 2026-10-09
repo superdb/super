@@ -16,31 +16,30 @@ import (
 type scanner struct {
 	sctx     *super.Context
 	channel  string
-	scanner  vio.Scanner
+	reader   vio.Puller
 	closer   io.Closer
 	progress vio.Progress
 }
 
 func NewScanner(ctx context.Context, rc io.ReadCloser) (vio.Scanner, error) {
 	sctx := super.NewContext()
-	s, err := bsupio.NewReader(ctx, sctx, rc, nil, 1)
+	s := &scanner{sctx: sctx}
+	r, err := bsupio.NewReader(ctx, sctx, rc, nil, &s.progress, 1)
 	if err != nil {
 		return nil, err
 	}
-	return &scanner{
-		sctx:    sctx,
-		scanner: s,
-		closer:  rc,
-	}, nil
+	s.reader = r
+	s.closer = rc
+	return s, nil
 }
 
 func (s *scanner) Progress() vio.Progress {
-	return s.progress
+	return s.progress.Copy()
 }
 
 func (s *scanner) Pull(done bool) (vector.Any, error) {
 again:
-	vec, err := s.scanner.Pull(done)
+	vec, err := s.reader.Pull(done)
 	if vec == nil || err != nil {
 		if closeErr := s.closer.Close(); err == nil {
 			err = closeErr

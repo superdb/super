@@ -43,6 +43,8 @@ func Pick(val Any, index []uint32) Any {
 	case *Named:
 		// Wrapped View under Named so vector.Under still works.
 		return &Named{val.Typ, Pick(val.Any, index)}
+	case *Option:
+		return NewOption(val.Typ, Pick(val.Any, index))
 	case nil:
 		return nil
 	}

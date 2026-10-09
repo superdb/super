@@ -43,15 +43,10 @@ type Builder struct {
 
 func NewBuilder(rctx *runtime.Context, env *exec.Environment) *Builder {
 	return &Builder{
-		rctx: rctx,
-		mctx: super.NewContext(),
-		env:  env,
-		progress: &vio.Progress{
-			BytesRead:      0,
-			BytesMatched:   0,
-			RecordsRead:    0,
-			RecordsMatched: 0,
-		},
+		rctx:            rctx,
+		mctx:            super.NewContext(),
+		env:             env,
+		progress:        &vio.Progress{},
 		debugs:          op.NewDebugChans(),
 		channels:        make(map[string][]vio.Puller),
 		funcs:           make(map[string]*dag.FuncDef),
@@ -181,26 +176,17 @@ func (b *Builder) compileAssignmentsToLvals(assignments []dag.Assignment) ([]*sa
 
 // For runtime/sam/expr/filter_test.go
 func NewPushdown(b *Builder, e dag.Expr) vio.Pushdown {
-	return b.newPushdown(e, nil)
-}
-func (b *Builder) newPushdown(e dag.Expr, projection []field.Path) vio.Pushdown {
-	if e == nil && projection == nil {
-		return nil
-	}
-	return &pushdown{
-		dataFilter: e,
-		builder:    b,
-		projection: field.NewProjection(projection),
-	}
+	dataFilter := &dagFilter{nil, e}
+	return b.newPushdown(nil, nil, dataFilter, false)
 }
 
-func (b *Builder) newMetaPushdown(e dag.Expr, projection, metaProjection []field.Path, unordered bool) *pushdown {
+func (b *Builder) newPushdown(projection field.Projection, metaFilter, dataFilter *dagFilter, unordered bool) *pushdown {
 	return &pushdown{
-		metaFilter:     e,
-		builder:        b,
-		projection:     field.NewProjection(projection),
-		metaProjection: field.NewProjection(metaProjection),
-		unordred:       unordered,
+		builder:    b,
+		projection: projection,
+		dataFilter: dataFilter,
+		metaFilter: metaFilter,
+		unordered:  unordered,
 	}
 }
 

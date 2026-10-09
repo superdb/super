@@ -52,7 +52,7 @@ func (c *testClient) TestPoolList() []pools.Config {
 	require.NoError(c, err)
 	defer r.Body.Close()
 	var confs []pools.Config
-	puller, err := bsupio.NewReader(c.Context(), super.NewContext(), r.Body, nil, 1)
+	puller, err := bsupio.NewReader(c.Context(), super.NewContext(), r.Body, nil, nil, 1)
 	require.NoError(c, err)
 	reader := sbuf.PullerReader(sbuf.NewMaterializer(puller))
 	for {
@@ -84,7 +84,7 @@ func (c *testClient) TestQuery(query string) string {
 	r, err := c.Connection.Query(c.Context(), srcfiles.Plain(query))
 	require.NoError(c, err)
 	defer r.Body.Close()
-	zr, err := bsupio.NewReader(c.Context(), super.NewContext(), r.Body, nil, 1)
+	zr, err := bsupio.NewReader(c.Context(), super.NewContext(), r.Body, nil, nil, 1)
 	require.NoError(c, err)
 	var buf bytes.Buffer
 	zw := supio.NewWriter(sio.NopCloser(&buf), supio.WriterOpts{})

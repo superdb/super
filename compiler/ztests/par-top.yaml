@@ -53,7 +53,7 @@ outputs:
       | head 3
       | output main
       ===
-      file test.bsup format bsup unordered fields a,b,c
+      file test.bsup format bsup unordered project [a,b,c]
       | scatter
         (
           top 3 a asc nulls last, b desc nulls last

@@ -10,22 +10,31 @@ script: |
 outputs:
   - name: stdout
     data: |
-      file /dev/null filter (a and b)
+      file /dev/null
+        data-filter project [a,b] (
+          a and b
+        )
       | where a and b
       | output main
       ===
       fork
         (
-          file /dev/null unordered filter (b and c and g)
+          file /dev/null unordered
+            data-filter project [b,c,g] (
+              b and c and g
+            )
           | where b and c and g
         )
         (
-          file /dev/zero unordered filter (e and f and g)
+          file /dev/zero unordered
+            data-filter project [e,f,g] (
+              e and f and g
+            )
           | where e and f and g
         )
       | output main
       ===
-      file /dev/null fields a
+      file /dev/null project [a]
       | unnest (
         -- correlated
         unnest [a]

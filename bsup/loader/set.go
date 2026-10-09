@@ -49,7 +49,7 @@ func (s *set) load(loader *FrameLoader) []uint32 {
 	if s.offs != nil {
 		return s.offs
 	}
-	offs, err := bsup.ReadUint32s(s.meta.Lengths, loader.frame.DataReader())
+	offs, err := bsup.ReadUint32s(s.meta.Lengths, loader.frame)
 	if err != nil {
 		panic(err)
 	}

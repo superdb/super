@@ -2,46 +2,83 @@ package bsupio
 
 import (
 	"context"
+	"errors"
 	"io"
 	"runtime"
 	"sync"
+	"sync/atomic"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/bsup/loader"
 	"github.com/superdb/super/pkg/field"
-	"github.com/superdb/super/runtime/sam/expr"
+	"github.com/superdb/super/runtime/expr"
+	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 )
 
-type dispatcher struct {
-	ctx  context.Context
-	sctx *super.Context
+func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p vio.Pushdown, progress *vio.Progress, concurrentReaders int) (vio.Puller, error) {
+	if progress == nil {
+		progress = &vio.Progress{}
+	}
+	var fit bsup.FrameIter
+	if ra, ok := readerAt(r); ok {
+		fit = bsup.NewSeekable(sctx, ra)
+	} else {
+		fit = bsup.NewStream(sctx, r)
+	}
+	return newDispatcher(ctx, sctx, fit, p, progress, concurrentReaders)
+}
 
-	readers  []reader
-	frameCh  chan frame
-	fit      bsup.FrameIter
-	once     sync.Once
-	progress vio.Progress
+func readerAt(r io.Reader) (io.ReaderAt, bool) {
+	ra, ok := r.(io.ReaderAt)
+	if ok {
+		var buf [1]byte
+		if _, err := ra.ReadAt(buf[:], 0); err != nil && !errors.Is(err, io.EOF) {
+			return nil, false
+		}
+		return ra, true
+	}
+	return nil, false
+}
+
+func NewValueReader(ctx context.Context, sctx *super.Context, r io.Reader) (sio.Reader, error) {
+	reader, err := NewReader(ctx, sctx, r, nil, nil, 1)
+	if err != nil {
+		return nil, err
+	}
+	return sbuf.PullerReader(sbuf.NewMaterializer(reader)), nil
+}
+
+type dispatcher struct {
+	ctx      context.Context
+	sctx     *super.Context
+	pushdown vio.Pushdown
+
+	readers []reader
+	frameCh chan frame
+	fit     bsup.FrameIter
+	once    sync.Once
 }
 
 var _ sio.Typer = (*dispatcher)(nil)
 
-func newDispatcher(ctx context.Context, sctx *super.Context, fit bsup.FrameIter, p vio.Pushdown, concurrentReaders int) (*dispatcher, error) {
+func newDispatcher(ctx context.Context, sctx *super.Context, fit bsup.FrameIter, p vio.Pushdown, progress *vio.Progress, concurrentReaders int) (*dispatcher, error) {
 	if concurrentReaders < 1 {
 		panic(concurrentReaders)
 	}
 	frameCh := make(chan frame, runtime.GOMAXPROCS(0))
 	d := &dispatcher{
-		ctx:     ctx,
-		sctx:    sctx,
-		frameCh: frameCh,
-		fit:     fit,
+		ctx:      ctx,
+		sctx:     sctx,
+		pushdown: p,
+		frameCh:  frameCh,
+		fit:      fit,
 	}
 	for range concurrentReaders {
-		r, err := newReader(ctx, sctx, d, p)
+		r, err := newReader(ctx, sctx, d, p, progress)
 		if err != nil {
 			return nil, err
 		}
@@ -60,10 +97,6 @@ func (d *dispatcher) ConcurrentPull(done bool, id int) (vector.Any, error) {
 
 func (d *dispatcher) Type() (super.Type, error) {
 	return d.fit.FusedType(d.sctx)
-}
-
-func (d *dispatcher) Progress() vio.Progress {
-	return d.progress
 }
 
 func (d *dispatcher) next() (bsup.Frame, error) {
@@ -99,20 +132,25 @@ type reader struct {
 	sctx *super.Context
 
 	dispatcher *dispatcher
-	metaFilter *metafilter
+	metaFilter *vio.ValueFilter
+	dataFilter *vio.Filter
 	pushdown   vio.Pushdown
+	progress   *vio.Progress
 	q          []vector.Any
 }
 
-func newReader(ctx context.Context, sctx *super.Context, d *dispatcher, pushdown vio.Pushdown) (reader, error) {
-	var metaFilter *metafilter
+func newReader(ctx context.Context, sctx *super.Context, d *dispatcher, pushdown vio.Pushdown, progress *vio.Progress) (reader, error) {
+	var metaFilter *vio.ValueFilter
+	var dataFilter *vio.Filter
 	if pushdown != nil {
-		filter, projection, err := pushdown.MetaFilter()
+		var err error
+		metaFilter, err = pushdown.MetaFilter()
 		if err != nil {
 			return reader{}, err
 		}
-		if filter != nil {
-			metaFilter = &metafilter{filter, projection}
+		dataFilter, err = pushdown.DataFilter()
+		if err != nil {
+			return reader{}, err
 		}
 	}
 	return reader{
@@ -120,13 +158,10 @@ func newReader(ctx context.Context, sctx *super.Context, d *dispatcher, pushdown
 		sctx:       sctx,
 		dispatcher: d,
 		metaFilter: metaFilter,
+		dataFilter: dataFilter,
 		pushdown:   pushdown,
+		progress:   progress,
 	}, nil
-}
-
-type metafilter struct {
-	filter     expr.Evaluator
-	projection field.Projection
 }
 
 func (r *reader) Pull(done bool) (vector.Any, error) {
@@ -144,7 +179,7 @@ func (r *reader) Pull(done bool) (vector.Any, error) {
 		vec := r.q[k-1]
 		r.q = r.q[:k-1]
 		n := int64(vec.Len())
-		r.dispatcher.progress.Add(vio.Progress{RecordsRead: n, RecordsMatched: n})
+		r.progress.Add(vio.Progress{ValuesScanned: n})
 		return vec, nil
 	}
 	for {
@@ -154,37 +189,70 @@ func (r *reader) Pull(done bool) (vector.Any, error) {
 		}
 		switch frame := frame.(type) {
 		case *bsup.ColFrame:
+			// Arrange for ColFrame to update the types bytes read and the
+			// bytes loaded from segments in the data section.
+			frame.LinkProgress(r.progress)
 			// XXX using the query context for the metadata filter unnecessarily
 			// pollutes the type context.  We should use the BSUP local context for
 			// this filtering but this will require a little compiler refactoring to be
 			// able to build runtime expressions that use different type contexts.
 			size := int64(frame.Size())
-			r.dispatcher.progress.Add(vio.Progress{BytesRead: size})
-			if r.metaFilter != nil && skipFrame(r.sctx, r.metaFilter, frame) {
+			r.progress.Add(vio.Progress{
+				BytesScanned:     size,
+				FramesScanned:    1,
+				MetaBytesLoaded:  int64(frame.MetaSize()),
+				TypesBytesLoaded: int64(frame.TypeSize()),
+			})
+			if r.metaFilter != nil && evalMetaFilter(r.sctx, r.metaFilter, frame) {
+				atomic.AddInt64(&r.progress.FramesSkippedMetaFilter, 1)
 				continue
 			}
-			r.dispatcher.progress.Add(vio.Progress{BytesMatched: size})
+			var pick []uint32
 			loader := loader.NewFrameLoader(r.sctx, frame)
-			var proj field.Projection
-			if r.pushdown != nil {
-				proj = r.pushdown.Projection()
-			}
-			var vec vector.Any
-			if r.pushdown != nil && r.pushdown.Unordered() {
-				vecs, err := loader.LoadUnordered(r.q[:0], r.sctx, proj)
+			if r.dataFilter != nil && len(r.dataFilter.Projection) != 0 {
+				skip, idx, err := r.evalDataFilter(loader)
 				if err != nil {
 					return nil, err
 				}
-				vec = vecs[0]
-				r.q = vecs[1:]
+				if skip {
+					atomic.AddInt64(&r.progress.ValuesSkippedDataFilter, int64(loader.Len()))
+					atomic.AddInt64(&r.progress.FramesSkippedDataFilter, 1)
+					continue
+				}
+				pick = idx
+				atomic.AddInt64(&r.progress.ValuesSkippedDataFilter, int64(loader.Len()-uint32(len(pick))))
+			}
+			var proj field.Projection
+			var none bool
+			if r.pushdown != nil {
+				proj = r.pushdown.Projection()
+				if proj != nil && len(proj) == 0 {
+					none = true
+				}
+			}
+			var vec vector.Any
+			if none {
+				vec = vector.NewNull(loader.Len())
 			} else {
-				vec, err = loader.Load(r.sctx, proj)
-				if err != nil {
-					return nil, err
+				if r.pushdown != nil && r.pushdown.Unordered() {
+					vecs, err := loader.LoadUnordered(r.q[:0], r.sctx, proj)
+					if err != nil {
+						return nil, err
+					}
+					vec = vecs[0]
+					r.q = vecs[1:]
+				} else {
+					vec, err = loader.Load(r.sctx, proj)
+					if err != nil {
+						return nil, err
+					}
+					if pick != nil {
+						vec = vector.Pick(vec, pick)
+					}
 				}
 			}
 			n := int64(vec.Len())
-			r.dispatcher.progress.Add(vio.Progress{RecordsRead: n, RecordsMatched: n})
+			atomic.AddInt64(&r.progress.ValuesScanned, n)
 			return vec, nil
 		case *bsup.RowFrame:
 			vec, err := frame.Deserialize()
@@ -193,7 +261,13 @@ func (r *reader) Pull(done bool) (vector.Any, error) {
 			}
 			n := int64(vec.Len())
 			size := int64(frame.Size())
-			r.dispatcher.progress.Add(vio.Progress{RecordsRead: n, RecordsMatched: n, BytesMatched: size, BytesRead: size})
+			typeSize := int64(frame.TypeSize())
+			r.progress.Add(vio.Progress{
+				BytesScanned:     size,
+				ValuesScanned:    n,
+				FramesScanned:    1,
+				TypesBytesLoaded: typeSize,
+			})
 			return vec, nil
 		default:
 			panic(frame)
@@ -201,15 +275,33 @@ func (r *reader) Pull(done bool) (vector.Any, error) {
 	}
 }
 
+func (r *reader) evalDataFilter(loader *loader.FrameLoader) (bool, []uint32, error) {
+	vec, err := loader.Load(r.sctx, r.dataFilter.Projection)
+	if err != nil {
+		return false, nil, err
+	}
+	result := r.dataFilter.Expr.Eval(vec)
+	// XXX should pass down a flag here to ignore errors since this can happen often in fast path
+	bits, _ := expr.BoolMask(result)
+	if bits.IsEmpty() {
+		return true, nil, nil
+	}
+	if bits.GetCardinality() == uint64(result.Len()) {
+		return false, nil, nil
+	}
+	// Return the pick index for stuff not ruled out.
+	return false, bits.ToArray(), nil
+}
+
 type frame struct {
 	frame bsup.Frame
 	err   error
 }
 
-func skipFrame(sctx *super.Context, mf *metafilter, frame *bsup.ColFrame) bool {
-	vals := frame.ProjectMetadata(sctx, mf.projection)
+func evalMetaFilter(sctx *super.Context, mf *vio.ValueFilter, frame *bsup.ColFrame) bool {
+	vals := frame.ProjectMetadata(sctx, mf.Projection)
 	for _, val := range vals {
-		if !mf.filter.Eval(val).Equal(super.False) {
+		if !mf.Expr.Eval(val).Equal(super.False) {
 			return false
 		}
 	}

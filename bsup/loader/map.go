@@ -53,7 +53,7 @@ func (m *map_) load(loader *FrameLoader) []uint32 {
 	if m.offs != nil {
 		return m.offs
 	}
-	offs, err := bsup.ReadUint32s(m.meta.Lengths, loader.frame.DataReader())
+	offs, err := bsup.ReadUint32s(m.meta.Lengths, loader.frame)
 	if err != nil {
 		panic(err)
 	}

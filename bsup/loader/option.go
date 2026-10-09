@@ -43,7 +43,7 @@ func (o *option) load(loader *FrameLoader) []uint32 {
 	if o.tags != nil {
 		return o.tags
 	}
-	tags, err := bsup.ReadUint32s(o.meta.Tags, loader.frame.DataReader())
+	tags, err := bsup.ReadUint32s(o.meta.Tags, loader.frame)
 	if err != nil {
 		panic(err)
 	}

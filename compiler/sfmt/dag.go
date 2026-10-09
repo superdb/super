@@ -315,31 +315,35 @@ func (c *canonDAG) op(p dag.Op) {
 		if p.Pushdown.Unordered {
 			c.write(" unordered")
 		}
-		if len(p.Pushdown.Projection) > 0 {
-			c.fields(p.Pushdown.Projection)
-		}
-		if df := p.Pushdown.DataFilter; df != nil {
-			if len(df.Projection) > 0 {
-				c.fields(df.Projection)
-			}
-			if df.Expr != nil {
-				c.write(" filter (")
-				c.expr(df.Expr, "")
-				c.write(")")
-			}
+		if len(p.Pushdown.Projection) > 0 || p.Pushdown.None {
+			c.project(p.Pushdown.Projection, p.Pushdown.None)
 		}
 		if mf := p.Pushdown.MetaFilter; mf != nil {
 			if mf.Expr != nil {
 				c.ret()
 				c.open()
-				c.open(" pruner (")
+				c.open("meta-filter")
+				c.project(mf.Projection, false)
+				c.write(" (")
 				c.ret()
-				c.write(" expr ")
 				c.expr(mf.Expr, "")
 				c.ret()
-				if len(mf.Projection) > 0 {
-					c.fields(mf.Projection)
-				}
+				c.close()
+				c.ret()
+				c.write(")")
+				c.close()
+			}
+		}
+		if df := p.Pushdown.DataFilter; df != nil {
+			if df.Expr != nil {
+				c.ret()
+				c.open()
+				c.open("data-filter")
+				c.project(df.Projection, false)
+				c.write(" (")
+				c.ret()
+				c.expr(df.Expr, "")
+				c.ret()
 				c.close()
 				c.ret()
 				c.write(")")
@@ -390,7 +394,7 @@ func (c *canonDAG) op(p dag.Op) {
 			c.write(")")
 		}
 		if len(p.Fields) > 0 {
-			c.fields(p.Fields)
+			c.project(p.Fields, false)
 		}
 		if p.Filter != nil {
 			c.write(" filter (")
@@ -612,13 +616,19 @@ func (c *canonDAG) op(p dag.Op) {
 	}
 }
 
-func (c *canonDAG) fields(fields []field.Path) {
+func (c *canonDAG) project(fields []field.Path, none bool) {
+	if len(fields) == 0 {
+		if none {
+			c.write(" project none")
+		}
+		return
+	}
 	var ss []string
 	for _, f := range fields {
 		ss = append(ss, f.String())
 	}
 	slices.Sort(ss)
-	c.write(" fields %s", strings.Join(ss, ","))
+	c.write(" project [%s]", strings.Join(ss, ","))
 }
 
 func (c *canonDAG) unnest(u *dag.UnnestOp) {

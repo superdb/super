@@ -25,6 +25,6 @@ outputs:
       {count:1150}
   - name: stderr
     data: |
-      {bytes_read:33499,bytes_matched:33499,records_read:1150,records_matched:1150}
+      {bytes_scanned:33499,values_scanned:1150,frames_scanned:2,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:0,values_skipped_data_filter:0,meta_bytes_loaded:1915,data_bytes_loaded:31476,type_bytes_loaded:0}
       ===
-      {bytes_read:35630,bytes_matched:35630,records_read:1150,records_matched:1150}
+      {bytes_scanned:35630,values_scanned:1150,frames_scanned:2,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:0,values_skipped_data_filter:0,meta_bytes_loaded:1915,data_bytes_loaded:33607,type_bytes_loaded:0}
