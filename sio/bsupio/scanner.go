@@ -17,7 +17,7 @@ import (
 func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p sbuf.Pushdown, concurrentReaders int) (vio.Scanner, error) {
 	if ra, ok := readerAt(r); ok {
 		fit := bsup.NewSeekable(sctx, ra)
-		return newReader(ctx, sctx, fit, p, concurrentReaders)
+		return newDispatcher(ctx, sctx, fit, p, concurrentReaders)
 	}
 	return newStream(sctx, r)
 }
