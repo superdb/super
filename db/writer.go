@@ -35,9 +35,6 @@ type Writer struct {
 
 var _ vio.PushCloser = (*Writer)(nil)
 
-//XXX if we don't have to sort we can bypass the builder in the Writer
-// and write straight to BSUP columns
-
 func NewWriter(ctx context.Context, sctx *super.Context, pool *Pool) (*Writer, error) {
 	return &Writer{
 		pool:    pool,
