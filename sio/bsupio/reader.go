@@ -120,27 +120,10 @@ func (r *reader) ConcurrentPull(done bool, n int) (vector.Any, error) {
 				if err != nil {
 					return nil, err
 				}
-				if frame.IsControl() {
-					panic("control shouldn't happen on this path")
-				}
 			} else {
 				vec, err := loader.Load(r.sctx, proj)
 				if err != nil {
 					return nil, err
-				}
-				//XXX
-				// This is a little fragile but control is only every one value
-				// so only every one vector per frame so we don't need to worry
-				// about managing control messages across multiple vectors and
-				// check for OOB on just this leg.
-				// XXX also this is for reading the API and vectors in storage
-				// should never have the OOB flag set.  This is layering violating
-				// and we should move the OOB bit to a header outside the frame.
-				// Not hard and can be fixed size without a length since we can
-				// always read forward.  And scan backward can also peek back
-				// to see if it needs to skip it.
-				if frame.IsControl() {
-					vec = &vector.Control{Any: vec}
 				}
 				r.vecs[n] = append(r.vecs[n], vec)
 			}

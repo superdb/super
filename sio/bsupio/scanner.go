@@ -59,9 +59,6 @@ func (s *stream) Pull(done bool) (vector.Any, error) {
 		if err != nil {
 			return nil, err
 		}
-		if frame.IsControl() {
-			vec = &vector.Control{Any: vec}
-		}
 		return vec, nil
 	case *bsup.RowFrame:
 		return frame.Deserialize()

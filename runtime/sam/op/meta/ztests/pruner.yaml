@@ -24,20 +24,20 @@ script: |
 outputs:
   - name: stdout
     data: |
-      {min:20,max:25,count:6::uint64,size:635}
+      {min:20,max:25,count:6::uint64,size:633}
       ===
-      {min:8,max:12,count:5::uint64,size:635}
-      {min:10,max:15,count:6::uint64,size:635}
+      {min:8,max:12,count:5::uint64,size:633}
+      {min:10,max:15,count:6::uint64,size:633}
       ===
-      {min:10,max:15,count:6::uint64,size:635}
-      {min:14,max:16,count:3::uint64,size:635}
+      {min:10,max:15,count:6::uint64,size:633}
+      {min:14,max:16,count:3::uint64,size:633}
       ===
-      {min:8,max:12,count:5::uint64,size:635}
-      {min:20,max:25,count:6::uint64,size:635}
+      {min:8,max:12,count:5::uint64,size:633}
+      {min:20,max:25,count:6::uint64,size:633}
       ===
-      {min:8,max:12,count:5::uint64,size:635}
-      {min:10,max:15,count:6::uint64,size:635}
-      {min:14,max:16,count:3::uint64,size:635}
-      {min:20,max:25,count:6::uint64,size:635}
+      {min:8,max:12,count:5::uint64,size:633}
+      {min:10,max:15,count:6::uint64,size:633}
+      {min:14,max:16,count:3::uint64,size:633}
+      {min:20,max:25,count:6::uint64,size:633}
       ===
-      {min:20,max:25,count:6::uint64,size:635}
+      {min:20,max:25,count:6::uint64,size:633}

@@ -25,6 +25,6 @@ outputs:
       {count:1150}
   - name: stderr
     data: |
-      {bytes_read:33503,bytes_matched:33503,records_read:1150,records_matched:1150}
+      {bytes_read:33499,bytes_matched:33499,records_read:1150,records_matched:1150}
       ===
-      {bytes_read:35634,bytes_matched:35634,records_read:1150,records_matched:1150}
+      {bytes_read:35630,bytes_matched:35630,records_read:1150,records_matched:1150}

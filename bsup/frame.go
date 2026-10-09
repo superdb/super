@@ -80,10 +80,6 @@ func (c *ColFrame) DataReader() io.ReaderAt {
 	return c.dataReader
 }
 
-func (c *ColFrame) IsControl() bool {
-	return c.header.OOB
-}
-
 func (c *ColFrame) ProjectMetadata(sctx *super.Context, projection field.Projection) []super.Value {
 	var b scode.Builder
 	var values []super.Value
@@ -105,6 +101,7 @@ type RowFrame struct {
 	sctx     *super.Context
 	readerAt io.ReaderAt
 	header   *RowHeader
+	Control  bool
 }
 
 func newRowFrame(sctx *super.Context, r io.ReaderAt, header *RowHeader) (*RowFrame, error) {
@@ -162,7 +159,7 @@ func (r *RowFrame) Deserialize() (vector.Any, error) {
 		buf = buf[bytesLen:]
 	}
 	vec := builder.Build(r.sctx)
-	if r.header.OOB {
+	if r.header.Control {
 		vec = &vector.Control{Any: vec}
 	}
 	return vec, nil
