@@ -69,7 +69,7 @@ func (f *Flags) SetFormatFlags(fs *flag.FlagSet) {
 		f.Format = "bsup"
 	}
 	fUsage := fmt.Sprintf(
-		"format for output data [arrows,bsup,csv,db,json,line,parquet,sup,table,tsv,zeek] (default %s)",
+		"format for output data [arrows,bsup,csv,db,json,line,parquet,sup,tsv,zeek] (default %s)",
 		f.Format)
 	fs.Func("f", fUsage, func(s string) error {
 		f.Format = s

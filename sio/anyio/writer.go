@@ -14,7 +14,6 @@ import (
 	"github.com/superdb/super/sio/lineio"
 	"github.com/superdb/super/sio/parquetio"
 	"github.com/superdb/super/sio/supio"
-	"github.com/superdb/super/sio/tableio"
 	"github.com/superdb/super/sio/zeekio"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
@@ -54,8 +53,6 @@ func NewWriter(w io.WriteCloser, opts WriterOpts) (vio.PushCloser, error) {
 			w = newDefuser(w)
 		}
 		return w, nil
-	case "table":
-		return newDefuser(tableio.NewWriter(w)), nil
 	case "tsv":
 		opts.CSV.Delim = '\t'
 		return newDefuser(csvio.NewWriter(w, opts.CSV)), nil

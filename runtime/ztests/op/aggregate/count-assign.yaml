@@ -1,6 +1,6 @@
 spq: c:=count()
 
-flags: -f table
+flags: -f csv
 
 input: |
   {_path:"conn",foo:"1"}
