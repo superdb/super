@@ -155,7 +155,7 @@ func (r *Robot) openPool(id uuid.UUID) (vio.Puller, error) {
 	if err != nil {
 		return nil, err
 	}
-	l, err := meta.NewSortedLister(ctx, r.rctx.Sctx, pool, branch, nil)
+	l, err := meta.NewLister(ctx, r.rctx.Sctx, pool, branch, nil)
 	if err != nil {
 		return nil, err
 	}

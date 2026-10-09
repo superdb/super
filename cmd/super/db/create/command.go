@@ -40,7 +40,7 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	f.Uint64Var(&c.frameCap, "framecap", bsup.DefaultFrameCap, "target number of values BSUP frames")
 	f.Uint64Var(&c.objectCap, "objectcap", data.DefaultObjectCap, "target number of values in pool data objects")
 	f.BoolVar(&c.use, "use", false, "set created pool as the current pool")
-	f.StringVar(&c.sortKey, "orderby", "ts:desc", "pool key with optional :asc or :desc suffix to organize data in pool (cannot be changed)")
+	f.StringVar(&c.sortKey, "orderby", "", "pool key with optional :asc or :desc suffix to organize data in pool (cannot be changed)")
 	return c, nil
 }
 

@@ -23,14 +23,7 @@ outputs:
         ts: 0,
         name: "new_test",
         id: 0,
-        layout: [
-          {
-            order: "desc",
-            path: [
-              "ts"
-            ]
-          }
-        ],
+        sortkeys: [],
         objectcap: 1048576,
         framecap: 20000
       }

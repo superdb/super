@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/superdb/super/api"
 	"github.com/superdb/super/api/client"
+	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime/exec"
@@ -27,7 +28,7 @@ func TestQuery(t *testing.T) {
 	expected := `{_path:"b",ts:1970-01-01T00:00:01Z}
 `
 	_, conn := newCore(t)
-	poolID := conn.TestPoolPost(api.PoolPostRequest{Name: "test"})
+	poolID := conn.TestPoolPost(api.PoolPostRequest{Name: "test", SortKeys: []order.SortKey{{Path: []string{"ts"}, Order: order.Desc}}})
 	conn.TestLoad(poolID, "main", strings.NewReader(src))
 	assert.Equal(t, expected, conn.TestQuery("from test | _path == 'b'"))
 }
@@ -44,7 +45,7 @@ func TestPoolStats(t *testing.T) {
 {_path:"conn",ts:1970-01-01T00:00:02Z,uid:"C8Tful1TvM3Zf5x8fl"}
 `
 	_, conn := newCore(t)
-	poolID := conn.TestPoolPost(api.PoolPostRequest{Name: "test"})
+	poolID := conn.TestPoolPost(api.PoolPostRequest{Name: "test", SortKeys: []order.SortKey{{Path: []string{"ts"}, Order: order.Desc}}})
 	conn.TestLoad(poolID, "main", strings.NewReader(src))
 
 	span := nano.Span{Ts: 1e9, Dur: 1e9 + 1}

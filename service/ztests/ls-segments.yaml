@@ -19,6 +19,6 @@ outputs:
   - name: stdout
     regexp: |
       [0-9a-f-]{36} \d+B bytes 1 records
-         min null max null
+         min none max none
       [0-9a-f-]{36} \d+B bytes 1 records
-         min null max null
+         min none max none

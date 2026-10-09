@@ -324,7 +324,7 @@ func (r *Root) CreatePool(ctx context.Context, name string, sortKeys order.SortK
 		return nil, fmt.Errorf("%s: %w", name, pools.ErrExists)
 	}
 	if len(sortKeys) > 1 {
-		return nil, errors.New("multiple pool keys not supported")
+		return nil, errors.New("secondary sort keys not yet supported")
 	}
 	if objectCap == 0 {
 		objectCap = data.DefaultObjectCap

@@ -32,10 +32,10 @@ func (o *Optimizer) analyzeSortKeys(op dag.Op, in order.SortKeys) (order.SortKey
 	}
 	// We should handle secondary keys at some point.
 	// See issue #2657.
-	if in.IsNil() {
+	key, ok := in.Primary()
+	if !ok {
 		return nil, nil
 	}
-	key := in.Primary()
 	switch op := op.(type) {
 	case *dag.ListerScan:
 		// This shouldn't happen.

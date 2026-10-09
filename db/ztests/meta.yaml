@@ -33,7 +33,7 @@ outputs:
       type "order.SortKeys" = ["order.SortKey"]
       {
         name: "poolA",
-        layout: [
+        sortkeys: [
           {
             order: "asc",
             path: [
@@ -46,7 +46,7 @@ outputs:
       }
       {
         name: "poolB",
-        layout: [
+        sortkeys: [
           {
             order: "desc",
             path: [

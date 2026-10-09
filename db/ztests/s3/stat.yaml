@@ -3,7 +3,7 @@ script: |
   aws s3api create-bucket --bucket bucket
   export SUPER_DB=s3://bucket/db
   super db init -q
-  super db create -q logs
+  super db create -q -orderby ts:desc logs
   super db load -q -use logs babble.sup
   super db -S -c "from logs@main:objects | drop id | min:=defuse(min),max:=defuse(max)"
 

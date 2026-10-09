@@ -1,6 +1,6 @@
 script: |
   source service.sh
-  curl -X POST -d '{"name":"test"}' $SUPER_DB/pool > pool.json
+  curl -X POST -d '{"name":"test","sortkeys":[{"order":"desc","path":["ts"]}]}' $SUPER_DB/pool > pool.json
   poolID=$(super -f line -c "values uuid(pool.id)" pool.json)
   curl -X POST --data-binary @- $SUPER_DB/pool/$poolID/branch/main | super -s -c "commit:=0" -
 

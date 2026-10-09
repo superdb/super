@@ -114,10 +114,18 @@ func formatPoolConfig(b *bytes.Buffer, p *pools.Config) {
 	b.WriteString(p.Name)
 	b.WriteByte(' ')
 	b.WriteString(p.ID.String())
-	b.WriteString(" key ")
-	b.WriteString(p.SortKeys.Primary().Path.String())
-	b.WriteString(" order ")
-	b.WriteString(p.SortKeys.Primary().Order.String())
+	if sortKey, ok := p.SortKeys.Primary(); ok {
+		b.WriteString(" key ")
+		if len(sortKey.Path) == 0 {
+			b.WriteString("this")
+		} else {
+			b.WriteString(sortKey.Path.String())
+		}
+		b.WriteString(" order ")
+		b.WriteString(sortKey.Order.String())
+	} else {
+		b.WriteString(" unsorted")
+	}
 	b.WriteString(" objectcap ")
 	b.WriteString(strconv.FormatUint(p.ObjectCap, 10))
 	b.WriteString(" framecap ")

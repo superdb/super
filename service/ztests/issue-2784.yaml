@@ -1,6 +1,6 @@
 script: |
   source service.sh
-  super db create -q test
+  super db create -q -orderby ts:desc test
   super db load -q -use test a.sup
   super db load -q -use test b.sup
   super db -s -c "from test@main:objects | sort min | {min:defuse(min),max:defuse(max)}"

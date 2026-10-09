@@ -14,7 +14,6 @@ import (
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/dbid"
 	"github.com/superdb/super/order"
-	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/bsupio"
@@ -55,11 +54,8 @@ func (r *remote) CommitObject(ctx context.Context, poolID uuid.UUID, branchName 
 
 func (r *remote) CreatePool(ctx context.Context, name string, sortKeys order.SortKeys, objectCap, frameCap uint64) (uuid.UUID, error) {
 	res, err := r.conn.CreatePool(ctx, api.PoolPostRequest{
-		Name: name,
-		SortKeys: api.SortKeys{
-			Order: sortKeys.Primary().Order,
-			Keys:  field.List{sortKeys.Primary().Path},
-		},
+		Name:      name,
+		SortKeys:  sortKeys,
 		ObjectCap: objectCap,
 		FrameCap:  frameCap,
 	})

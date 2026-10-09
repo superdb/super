@@ -1,7 +1,7 @@
 script: |
   export SUPER_DB=test
   super db init -q
-  super db create -q logs
+  super db create -q -orderby ts:desc logs
   super db load -q -use logs babble.sup
   super db ls -f bsup | super -S -c "drop id,ts" -
   echo ===
@@ -26,7 +26,7 @@ outputs:
       type "order.SortKeys" = ["order.SortKey"]
       {
         name: "logs",
-        layout: [
+        sortkeys: [
           {
             order: "desc",
             path: [

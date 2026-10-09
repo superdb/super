@@ -17,8 +17,8 @@ outputs:
     regexp: |
       pool [0-9a-f-]{36} renamed from p2 to p3
       ===
-      p1 [0-9a-f-]{36} key ts order desc objectcap 1048576 framecap 20000
-      p3 [0-9a-f-]{36} key ts order desc objectcap 1048576 framecap 20000
+      p1 [0-9a-f-]{36} unsorted objectcap 1048576 framecap 20000
+      p3 [0-9a-f-]{36} unsorted objectcap 1048576 framecap 20000
       ===
       pool deleted: p1
       ===

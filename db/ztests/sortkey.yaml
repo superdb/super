@@ -1,0 +1,21 @@
+script: |
+  export SUPER_DB=test
+  super db init -q
+  super db create -q p1
+  echo "2 1 3"  | super db load -q -use p1 -
+  super db -s -c "from p1"
+  echo ===
+  super db create -q -orderby this:asc p2
+  echo "2 1 3"  | super db load -q -use p2 -
+  super db -s -c "from p2"
+
+outputs:
+  - name: stdout
+    data: |
+      2
+      1
+      3
+      ===
+      1
+      2
+      3

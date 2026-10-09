@@ -22,13 +22,20 @@ func GetPoolStats(ctx context.Context, p *db.Pool, snap commits.View) (info Pool
 	// XXX this doesn't scale... it should be stored in the snapshot and is
 	// not easy to compute in the face of deletes...
 	var poolSpan *extent.Generic
-	for _, object := range snap.Select(nil, p.SortKeys.Primary().Order) {
-		info.Size += object.Size
-		if poolSpan == nil {
-			poolSpan = extent.NewGenericFromOrder(object.Min, object.Max, order.Asc)
-		} else {
-			poolSpan.Extend(object.Min)
-			poolSpan.Extend(object.Max)
+	sortKey, ok := p.SortKeys.Primary()
+	if !ok {
+		for _, object := range snap.Select(nil, order.Asc) {
+			info.Size += object.Size
+		}
+	} else {
+		for _, object := range snap.Select(nil, sortKey.Order) {
+			info.Size += object.Size
+			if poolSpan == nil {
+				poolSpan = extent.NewGenericFromOrder(object.Min, object.Max, order.Asc)
+			} else {
+				poolSpan.Extend(object.Min)
+				poolSpan.Extend(object.Max)
+			}
 		}
 	}
 	//XXX need to change API to take return key range
@@ -57,7 +64,11 @@ func GetBranchStats(ctx context.Context, b *db.Branch, snap commits.View) (info 
 	// XXX this doesn't scale... it should be stored in the snapshot and is
 	// not easy to compute in the face of deletes...
 	var poolSpan *extent.Generic
-	for _, object := range snap.Select(nil, b.Pool().SortKeys.Primary().Order) {
+	o := order.Asc
+	if sortKey, ok := b.Pool().SortKeys.Primary(); ok {
+		o = sortKey.Order
+	}
+	for _, object := range snap.Select(nil, o) {
 		info.Size += object.Size
 		if poolSpan == nil {
 			poolSpan = extent.NewGenericFromOrder(object.Min, object.Max, order.Asc)

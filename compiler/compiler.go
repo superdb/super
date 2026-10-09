@@ -76,7 +76,7 @@ func (l *compiler) NewObjectScanner(rctx *runtime.Context, poolID uuid.UUID, obj
 	if err != nil {
 		return nil, err
 	}
-	lister := meta.NewSortedListerFromObjects(rctx, rctx.Sctx, pool, objects, nil)
+	lister := meta.NewListerFromObjects(rctx, rctx.Sctx, pool, objects, nil)
 	slicer := meta.NewSlicer(lister, rctx.Sctx)
 	return op.NewPoolScanner(rctx, slicer, pool, nil, nil, nil), nil
 }
