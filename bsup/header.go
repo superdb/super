@@ -60,16 +60,17 @@ import (
 // which simply produces a larger and still-valid Container.
 
 const (
-	Version           = 26
+	Version           = 27
 	MaxMetaSize       = 100 * 1024 * 1024
 	MaxFrameSize      = 2 * 1024 * 1024 * 1024
 	MaxSuperFrameSize = 256 * MaxFrameSize
 )
 
 const (
-	SuperMagic  = "SUPS"
-	ColumnMagic = "SUPC"
-	RowMagic    = "SUPR"
+	SuperMagic   = "SUPS"
+	ColumnMagic  = "SUPC"
+	RowMagic     = "SUPR"
+	ControlMagic = "SUPX"
 )
 
 type Header interface {
@@ -81,7 +82,6 @@ type Header interface {
 // S U P C (4 byte string)
 // Version (2 bytes)
 // Frame size (8 bytes) - entire frame including header to end of data section
-// OOB flag (1 byte)
 // Root ID (4 bytes)
 // Fused type size (8 bytes) - 0 if not present
 // Metadata section size (8 bytes)
@@ -93,21 +93,19 @@ type Header interface {
 type ColumnHeader struct {
 	Version       uint16 // off 4
 	FrameSize     uint64 // 6
-	OOB           bool   // 14
-	Root          uint32 // 15
-	MetadataSize  uint64 // 19
-	TypedefsSize  uint64 // 27
-	FusedTypeSize uint64 // 35
+	Root          uint32 // 14
+	MetadataSize  uint64 // 18
+	TypedefsSize  uint64 // 26
+	FusedTypeSize uint64 // 34
 }
 
-const ColumnHeaderSize = 43
+const ColumnHeaderSize = 42
 
-func newColumnHeader(oob bool, root ID, metadataSize, typedefsSize, fusedTypeSize, dataSectionSize uint64) ColumnHeader {
+func newColumnHeader(root ID, metadataSize, typedefsSize, fusedTypeSize, dataSectionSize uint64) ColumnHeader {
 	frameSize := ColumnHeaderSize + metadataSize + typedefsSize + fusedTypeSize + dataSectionSize
 	return ColumnHeader{
 		Version:       Version,
 		FrameSize:     frameSize,
-		OOB:           oob,
 		Root:          uint32(root),
 		MetadataSize:  metadataSize,
 		TypedefsSize:  typedefsSize,
@@ -124,28 +122,20 @@ func (c ColumnHeader) Serialize() []byte {
 	copy(bytes[0:4], []byte(ColumnMagic))
 	binary.LittleEndian.PutUint16(bytes[4:], c.Version)
 	binary.LittleEndian.PutUint64(bytes[6:], c.FrameSize)
-	if c.OOB {
-		bytes[14] = 1
-	}
-	binary.LittleEndian.PutUint32(bytes[15:], c.Root)
-	binary.LittleEndian.PutUint64(bytes[19:], c.MetadataSize)
-	binary.LittleEndian.PutUint64(bytes[27:], c.TypedefsSize)
-	binary.LittleEndian.PutUint64(bytes[35:], c.FusedTypeSize)
+	binary.LittleEndian.PutUint32(bytes[14:], c.Root)
+	binary.LittleEndian.PutUint64(bytes[18:], c.MetadataSize)
+	binary.LittleEndian.PutUint64(bytes[26:], c.TypedefsSize)
+	binary.LittleEndian.PutUint64(bytes[34:], c.FusedTypeSize)
 	return bytes[:]
 }
 
 func (c *ColumnHeader) Deserialize(bytes [ColumnHeaderSize]byte) {
 	c.Version = binary.LittleEndian.Uint16(bytes[4:])
 	c.FrameSize = binary.LittleEndian.Uint64(bytes[6:])
-	if bytes[14] == 0 {
-		c.OOB = false
-	} else {
-		c.OOB = true
-	}
-	c.Root = binary.LittleEndian.Uint32(bytes[15:])
-	c.MetadataSize = binary.LittleEndian.Uint64(bytes[19:])
-	c.TypedefsSize = binary.LittleEndian.Uint64(bytes[27:])
-	c.FusedTypeSize = binary.LittleEndian.Uint64(bytes[35:])
+	c.Root = binary.LittleEndian.Uint32(bytes[14:])
+	c.MetadataSize = binary.LittleEndian.Uint64(bytes[18:])
+	c.TypedefsSize = binary.LittleEndian.Uint64(bytes[26:])
+	c.FusedTypeSize = binary.LittleEndian.Uint64(bytes[34:])
 }
 
 func (c ColumnHeader) MetadataSection() (int64, int64) {
@@ -188,7 +178,6 @@ func (c ColumnHeader) check() error {
 // Frame size (8 bytes) - entire frame including header to end of data section
 // Fused type size (8 bytes) - 0 if not present
 // Typedefs section size (8 bytes)
-// OOB flag (1 byte)
 // Fused type value (variable bytes)
 // Typedefs section (variable bytes)
 // Values section size = FrameSize - (FusedTypeSize+TypedefsSize)
@@ -197,16 +186,15 @@ type RowHeader struct {
 	FrameSize     uint64
 	FusedTypeSize uint64
 	TypedefsSize  uint64
-	OOB           bool
+	Control       bool
 }
 
-const RowHeaderSize = 31
+const RowHeaderSize = 30
 
 func newRowHeader(oob bool, typedefsSize, fusedTypeSize, dataSectionSize uint64) RowHeader {
 	frameSize := RowHeaderSize + +typedefsSize + fusedTypeSize + dataSectionSize
 	return RowHeader{
 		Version:       Version,
-		OOB:           oob,
 		FrameSize:     frameSize,
 		TypedefsSize:  typedefsSize,
 		FusedTypeSize: fusedTypeSize,
@@ -217,16 +205,17 @@ func (r *RowHeader) Size() uint64 {
 	return r.FrameSize
 }
 
-func (r RowHeader) Serialize() []byte {
+func (r RowHeader) Serialize(ctrl bool) []byte {
 	var bytes [RowHeaderSize]byte
-	copy(bytes[0:4], []byte(RowMagic))
+	if ctrl {
+		copy(bytes[0:4], []byte(ControlMagic))
+	} else {
+		copy(bytes[0:4], []byte(RowMagic))
+	}
 	binary.LittleEndian.PutUint16(bytes[4:], r.Version)
 	binary.LittleEndian.PutUint64(bytes[6:], r.FrameSize)
 	binary.LittleEndian.PutUint64(bytes[14:], r.FusedTypeSize)
 	binary.LittleEndian.PutUint64(bytes[22:], r.TypedefsSize)
-	if r.OOB {
-		bytes[30] = 1
-	}
 	return bytes[:]
 }
 
@@ -235,11 +224,6 @@ func (r *RowHeader) Deserialize(bytes [RowHeaderSize]byte) {
 	r.FrameSize = binary.LittleEndian.Uint64(bytes[6:])
 	r.FusedTypeSize = binary.LittleEndian.Uint64(bytes[14:])
 	r.TypedefsSize = binary.LittleEndian.Uint64(bytes[22:])
-	if bytes[30] == 0 {
-		r.OOB = false
-	} else {
-		r.OOB = true
-	}
 }
 
 func (c RowHeader) FusedTypeSection() (int64, int64) {
@@ -362,6 +346,15 @@ func readNextHeader(r io.ReaderAt, off int64) (Header, error) {
 		var header RowHeader
 		header.Deserialize(bytes)
 		return &header, header.check()
+	case ControlMagic:
+		var bytes [RowHeaderSize]byte
+		if err := readHeaderBytes(r, off, bytes[:], "control header"); err != nil {
+			return nil, err
+		}
+		var header RowHeader
+		header.Deserialize(bytes)
+		header.Control = true
+		return &header, header.check()
 	default:
 		return nil, fmt.Errorf("unknown header magic: %s", sup.QuotedString(magic))
 	}
@@ -410,6 +403,15 @@ func ReadHeader(r io.Reader) (Header, error) {
 		}
 		var header RowHeader
 		header.Deserialize(bytes)
+		return &header, header.check()
+	case ControlMagic:
+		var bytes [RowHeaderSize]byte
+		if _, err := io.ReadFull(r, bytes[4:]); err != nil {
+			return nil, errors.New("short file")
+		}
+		var header RowHeader
+		header.Deserialize(bytes)
+		header.Control = true
 		return &header, header.check()
 	default:
 		return nil, fmt.Errorf("unknown header magic: %s", sup.QuotedString(magic))

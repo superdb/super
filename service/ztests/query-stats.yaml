@@ -16,4 +16,4 @@ outputs:
       1000
   - name: stderr
     data: |
-      {bytes_read:28648,bytes_matched:28648,records_read:1000,records_matched:1000}
+      {bytes_read:28646,bytes_matched:28646,records_read:1000,records_matched:1000}

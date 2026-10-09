@@ -24,7 +24,7 @@ outputs:
 
           loaded 1 data object
 
-          [0-9a-f-]{36} 1 value in 635 data bytes
+          [0-9a-f-]{36} 1 value in 633 data bytes
 
       commit [0-9a-f-]{36}
       Author: testuser
@@ -32,4 +32,4 @@ outputs:
 
           loaded 1 data object
 
-          [0-9a-f-]{36} 1 value in 635 data bytes
+          [0-9a-f-]{36} 1 value in 633 data bytes
