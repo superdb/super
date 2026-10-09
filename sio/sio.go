@@ -22,8 +22,6 @@ func Extension(format string) string {
 		return ".parquet"
 	case "sup":
 		return ".sup"
-	case "table":
-		return ".tbl"
 	case "zeek":
 		return ".log"
 	default:

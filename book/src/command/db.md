@@ -155,12 +155,12 @@ super db -c 'from logs | ts >= 2018-03-24T17:36:30.090766Z and ts <= 2018-03-24T
 When querying data to the [BSUP](../formats/bsup.md) output format,
 output from a pool can be easily piped to other commands like `super`, e.g.,
 ```
-super db -f bsup -c 'from logs' | super -f table -c 'count() by field' -
+super db -f bsup -c 'from logs' | super -s -c 'count() by field' -
 ```
 Of course, it's even more efficient to run the query inside of the pool traversal
 like this:
 ```
-super db -f table -c 'from logs | count() by field'
+super db -s -c 'from logs | count() by field'
 ```
 By default, the `query` command scans pool data in sort-key order though
 the query optimizer may, in general, reorder the scan to optimize searches,
