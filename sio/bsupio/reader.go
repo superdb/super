@@ -41,15 +41,13 @@ func newDispatcher(ctx context.Context, sctx *super.Context, fit bsup.FrameIter,
 		frameCh: frameCh,
 		fit:     fit,
 	}
-	var readers []reader
 	for range concurrentReaders {
 		r, err := newReader(ctx, sctx, d, p)
 		if err != nil {
 			return nil, err
 		}
-		readers = append(readers, r)
+		d.readers = append(d.readers, r)
 	}
-	d.readers = readers
 	return d, nil
 }
 
@@ -74,6 +72,9 @@ func (d *dispatcher) next() (bsup.Frame, error) {
 		go func() {
 			for {
 				f, err := d.fit.Next()
+				if err == io.EOF {
+					err = nil
+				}
 				select {
 				case d.frameCh <- frame{f, err}:
 				case <-d.ctx.Done():
@@ -87,14 +88,8 @@ func (d *dispatcher) next() (bsup.Frame, error) {
 		}()
 	})
 	select {
-	case f, ok := <-d.frameCh:
-		if !ok || f.err != nil {
-			if f.err == io.EOF {
-				return nil, nil
-			}
-			return nil, f.err
-		}
-		return f.frame, nil
+	case f := <-d.frameCh:
+		return f.frame, f.err
 	case <-d.ctx.Done():
 		return nil, d.ctx.Err()
 	}
@@ -144,9 +139,11 @@ func (r *reader) Pull(done bool) (vector.Any, error) {
 		return nil, err
 	}
 	if k := len(r.q); k > 0 {
-		// XXX This used to go last first.  I don't think it matters.  Noah?
-		vec := r.q[0]
-		r.q = r.q[1:]
+		// Order doesn't matter here so peel the vectors off end of q
+		// so we can reuse the underlying slice when we pass it back
+		// to LoadUnordered for the next set of vectors.
+		vec := r.q[k-1]
+		r.q = r.q[:k-1]
 		n := int64(vec.Len())
 		r.dispatcher.progress.Add(vio.Progress{RecordsRead: n, RecordsMatched: n})
 		return vec, nil
