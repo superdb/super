@@ -26,8 +26,8 @@ func (f *Flags) SetFlags(fs *flag.FlagSet) {
 	})
 	fs.BoolVar(&f.Dynamic, "dynamic", false, "disable static type checking of inputs")
 	fs.StringVar(&opts.Format, "i", "auto", "format of input data [auto,arrows,bsup,csv,json,line,parquet,sup,tsv,zeek]")
-	fs.BoolVar(&f.Static, "static", false, "force static type checking of inputs")
 	fs.IntVar(&opts.InputCap, "inputcap", 0, "limit size of batched units of input")
+	fs.BoolVar(&f.Static, "static", false, "force static type checking of inputs")
 }
 
 // Init is called after flags have been parsed.

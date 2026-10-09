@@ -41,12 +41,12 @@ func (f *Flags) Options() anyio.WriterOpts {
 
 func (f *Flags) setFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&f.color, "color", true, "enable/disable color formatting for -S and db text output")
+	fs.Uint64Var(&f.BSUP.FrameCap, "framecap", 10000, "number of values per BSUP frame")
 	fs.BoolVar(&f.CSV.NoHeader, "noheader", false, "omit header for CSV and TSV output")
 	fs.IntVar(&f.pretty, "pretty", 2,
 		"tab size to pretty print JSON and Super JSON output (0 for newline-delimited output")
 	fs.StringVar(&f.outputFile, "o", "", "write data to output file")
 	fs.BoolVar(&f.BSUP.Rows, "rows", false, "output BSUP in row format instead of columns")
-	fs.Uint64Var(&f.BSUP.FrameCap, "framecap", 10000, "number of values per BSUP frame")
 	fs.StringVar(&f.split, "split", "",
 		"split output into one file per data type in this directory (but see -splitsize)")
 	fs.Var(&f.splitSize, "splitsize",

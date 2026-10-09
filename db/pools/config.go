@@ -30,7 +30,7 @@ func NewConfig(name string, sortKeys order.SortKeys, objectCap, frameCap uint64)
 	if objectCap == 0 {
 		objectCap = data.DefaultObjectCap
 	}
-	if objectCap == 0 {
+	if frameCap == 0 {
 		frameCap = bsup.DefaultFrameCap
 	}
 	return &Config{

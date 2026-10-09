@@ -17,7 +17,7 @@ import (
 	"github.com/superdb/super/vector"
 )
 
-var DefaultInputCap uint32 = 10 * 1024
+const defaultInputCap = 10 * 1024
 
 type Reader struct {
 	sctx       *super.Context
@@ -30,7 +30,7 @@ type Reader struct {
 
 func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p sbuf.Pushdown, concurrentReaders, inputCap int) *Reader {
 	if inputCap == 0 {
-		inputCap = int(DefaultInputCap)
+		inputCap = defaultInputCap
 	}
 	var fields field.List
 	if p != nil {
