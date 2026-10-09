@@ -21,7 +21,6 @@ import (
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime/sam/expr"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/vector/vio"
@@ -336,7 +335,7 @@ func (p *Pool) Main(ctx context.Context) (BranchMeta, error) {
 	return BranchMeta{p.Config, branch.Config}, nil
 }
 
-func (p *Pool) NewReader(ctx context.Context, sctx *super.Context, object *data.Object, pushdown sbuf.Pushdown, concurrency int) (vio.ScanCloser, error) {
+func (p *Pool) NewReader(ctx context.Context, sctx *super.Context, object *data.Object, pushdown vio.Pushdown, concurrency int) (vio.ScanCloser, error) {
 	uri := object.URI(p.DataPath)
 	r, err := p.engine.Get(ctx, uri)
 	if err != nil {

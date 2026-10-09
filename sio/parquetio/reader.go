@@ -18,9 +18,9 @@ import (
 	"github.com/superdb/super/pkg/byteconv"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/runtime/sam/expr"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio/arrowio"
 	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/vio"
 	"golang.org/x/exp/constraints"
 )
 
@@ -41,7 +41,7 @@ type Reader struct {
 	vbs          []vectorBuilder
 }
 
-func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p sbuf.Pushdown, concurrentReaders int) (*Reader, error) {
+func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p vio.Pushdown, concurrentReaders int) (*Reader, error) {
 	if concurrentReaders < 1 {
 		panic(concurrentReaders)
 	}

@@ -4,7 +4,7 @@ import (
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/runtime/sam/expr"
-	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/vector/vio"
 )
 
 type pushdown struct {
@@ -16,13 +16,13 @@ type pushdown struct {
 	unordred       bool
 }
 
-var _ sbuf.Pushdown = (*pushdown)(nil)
+var _ vio.Pushdown = (*pushdown)(nil)
 
-func (p *pushdown) DataFilter() (expr.Evaluator, error) {
+func (p *pushdown) DataFilter() (vio.Evaluator, error) {
 	if p.dataFilter == nil {
 		return nil, nil
 	}
-	return p.builder.compileExpr(p.dataFilter)
+	return p.builder.compileVamExpr(p.dataFilter)
 }
 
 func (p *pushdown) BSUPFilter() (*expr.BufferFilter, error) {
@@ -32,7 +32,7 @@ func (p *pushdown) BSUPFilter() (*expr.BufferFilter, error) {
 	return CompileBufferFilter(p.builder.sctx(), p.dataFilter)
 }
 
-func (p *pushdown) MetaFilter() (expr.Evaluator, field.Projection, error) {
+func (p *pushdown) MetaFilter() (vio.ValueEvaluator, field.Projection, error) {
 	if p.metaFilter == nil {
 		return nil, nil, nil
 	}

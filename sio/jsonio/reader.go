@@ -12,9 +12,9 @@ import (
 	"github.com/superdb/super"
 	"github.com/superdb/super/pkg/byteconv"
 	"github.com/superdb/super/pkg/field"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio/jsonio/jsonvec"
 	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/vio"
 )
 
 const defaultInputCap = 10 * 1024
@@ -28,7 +28,7 @@ type Reader struct {
 	hasClosed atomic.Bool
 }
 
-func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p sbuf.Pushdown, concurrentReaders, inputCap int) *Reader {
+func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p vio.Pushdown, concurrentReaders, inputCap int) *Reader {
 	if inputCap == 0 {
 		inputCap = defaultInputCap
 	}

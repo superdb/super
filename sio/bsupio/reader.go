@@ -11,7 +11,6 @@ import (
 	"github.com/superdb/super/bsup/loader"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/runtime/sam/expr"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
@@ -30,7 +29,7 @@ type dispatcher struct {
 
 var _ sio.Typer = (*dispatcher)(nil)
 
-func newDispatcher(ctx context.Context, sctx *super.Context, fit bsup.FrameIter, p sbuf.Pushdown, concurrentReaders int) (*dispatcher, error) {
+func newDispatcher(ctx context.Context, sctx *super.Context, fit bsup.FrameIter, p vio.Pushdown, concurrentReaders int) (*dispatcher, error) {
 	if concurrentReaders < 1 {
 		panic(concurrentReaders)
 	}
@@ -101,11 +100,11 @@ type reader struct {
 
 	dispatcher *dispatcher
 	metaFilter *metafilter
-	pushdown   sbuf.Pushdown
+	pushdown   vio.Pushdown
 	q          []vector.Any
 }
 
-func newReader(ctx context.Context, sctx *super.Context, d *dispatcher, pushdown sbuf.Pushdown) (reader, error) {
+func newReader(ctx context.Context, sctx *super.Context, d *dispatcher, pushdown vio.Pushdown) (reader, error) {
 	var metaFilter *metafilter
 	if pushdown != nil {
 		filter, projection, err := pushdown.MetaFilter()

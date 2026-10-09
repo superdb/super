@@ -28,7 +28,7 @@ func NewDBMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, meta
 	if err != nil {
 		return nil, err
 	}
-	return sbuf.NewScanner(ctx, sbuf.NewArray(vals), nil)
+	return sbuf.NewScanner(ctx, sbuf.NewArray(vals))
 }
 
 func NewPoolMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, poolID uuid.UUID, meta string) (sbuf.Scanner, error) {
@@ -48,7 +48,7 @@ func NewPoolMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, po
 	default:
 		return nil, fmt.Errorf("unknown pool metadata type: %q", meta)
 	}
-	return sbuf.NewScanner(ctx, sbuf.NewArray(vals), nil)
+	return sbuf.NewScanner(ctx, sbuf.NewArray(vals))
 }
 
 func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, poolID, commit uuid.UUID, meta string, pruner expr.Evaluator) (sbuf.Puller, error) {
@@ -62,7 +62,7 @@ func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, 
 		if err != nil {
 			return nil, err
 		}
-		return sbuf.NewScanner(ctx, sbuf.PullerReader(lister), nil)
+		return sbuf.NewScanner(ctx, sbuf.PullerReader(lister))
 	case "partitions":
 		lister, err := NewLister(ctx, sctx, p, commit, pruner)
 		if err != nil {
@@ -72,18 +72,18 @@ func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, 
 		if err != nil {
 			return nil, err
 		}
-		return sbuf.NewScanner(ctx, sbuf.PullerReader(slicer), nil)
+		return sbuf.NewScanner(ctx, sbuf.PullerReader(slicer))
 	case "log":
 		tips, err := p.BatchifyBranchTips(ctx, sctx, nil)
 		if err != nil {
 			return nil, err
 		}
-		tipsScanner, err := sbuf.NewScanner(ctx, sbuf.NewArray(tips), nil)
+		tipsScanner, err := sbuf.NewScanner(ctx, sbuf.NewArray(tips))
 		if err != nil {
 			return nil, err
 		}
 		log := p.OpenCommitLog(ctx, sctx, commit)
-		logScanner, err := sbuf.NewScanner(ctx, log, nil)
+		logScanner, err := sbuf.NewScanner(ctx, log)
 		if err != nil {
 			return nil, err
 		}
@@ -93,7 +93,7 @@ func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, 
 		if err != nil {
 			return nil, err
 		}
-		return sbuf.NewScanner(ctx, reader, nil)
+		return sbuf.NewScanner(ctx, reader)
 	default:
 		return nil, fmt.Errorf("unknown commit metadata type: %q", meta)
 	}

@@ -6,26 +6,9 @@ import (
 	"sync/atomic"
 
 	"github.com/superdb/super"
-	"github.com/superdb/super/pkg/field"
-	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector/vio"
 )
-
-type Pushdown interface {
-	Projection() field.Projection
-	DataFilter() (expr.Evaluator, error)
-	BSUPFilter() (*expr.BufferFilter, error)
-	MetaFilter() (expr.Evaluator, field.Projection, error)
-	// Undordered reports whether a reader may return values in arbirary order.
-	Unordered() bool
-}
-
-// ScannerAble is implemented by Readers that provide an optimized
-// implementation of the Scanner interface.
-type ScannerAble interface {
-	NewScanner(context.Context, Pushdown) (Scanner, error)
-}
 
 // A Scanner is a Batch source that also provides progress updates.
 type Scanner interface {
@@ -36,8 +19,8 @@ type Scanner interface {
 // NewScanner returns a Scanner for r that filters records by filterExpr and s.
 // If r implements fmt.Stringer, the scanner reports errors using a prefix of the
 // string returned by its String method.
-func NewScanner(ctx context.Context, r sio.Reader, filterExpr Pushdown) (Scanner, error) {
-	s, err := newScanner(ctx, r, filterExpr)
+func NewScanner(ctx context.Context, r sio.Reader) (Scanner, error) {
+	s, err := newScanner(ctx, r)
 	if err != nil {
 		return nil, err
 	}
@@ -47,18 +30,8 @@ func NewScanner(ctx context.Context, r sio.Reader, filterExpr Pushdown) (Scanner
 	return s, nil
 }
 
-func newScanner(ctx context.Context, r sio.Reader, filterExpr Pushdown) (Scanner, error) {
-	if sa, ok := r.(ScannerAble); ok {
-		return sa.NewScanner(ctx, filterExpr)
-	}
-	var f expr.Evaluator
-	if filterExpr != nil {
-		var err error
-		if f, err = filterExpr.DataFilter(); err != nil {
-			return nil, err
-		}
-	}
-	sc := &scanner{reader: r, filter: f, ctx: ctx}
+func newScanner(ctx context.Context, r sio.Reader) (Scanner, error) {
+	sc := &scanner{reader: r, ctx: ctx}
 	sc.Puller = NewPuller(sc)
 	return sc, nil
 }
@@ -66,7 +39,6 @@ func newScanner(ctx context.Context, r sio.Reader, filterExpr Pushdown) (Scanner
 type scanner struct {
 	Puller
 	reader   sio.Reader
-	filter   expr.Evaluator
 	ctx      context.Context
 	progress vio.Progress
 }
@@ -87,11 +59,6 @@ func (s *scanner) Read() (*super.Value, error) {
 		}
 		atomic.AddInt64(&s.progress.BytesRead, int64(len(this.Bytes())))
 		atomic.AddInt64(&s.progress.RecordsRead, 1)
-		if s.filter != nil {
-			if !expr.IsTrue(s.filter.Eval(*this)) {
-				continue
-			}
-		}
 		atomic.AddInt64(&s.progress.BytesMatched, int64(len(this.Bytes())))
 		atomic.AddInt64(&s.progress.RecordsMatched, 1)
 		return this, nil

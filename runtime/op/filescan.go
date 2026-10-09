@@ -7,7 +7,6 @@ import (
 
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 )
@@ -18,7 +17,7 @@ type FileScan struct {
 	parent   vio.Puller
 	paths    []string
 	format   string
-	pushdown sbuf.Pushdown
+	pushdown vio.Pushdown
 
 	mu                   sync.Mutex
 	current              exec.ConcurrentPuller
@@ -30,7 +29,7 @@ type FileScan struct {
 	pullers              []*concurrentPuller
 }
 
-func NewFileScan(rctx *runtime.Context, env *exec.Environment, parent vio.Puller, paths []string, format string, p sbuf.Pushdown) *FileScan {
+func NewFileScan(rctx *runtime.Context, env *exec.Environment, parent vio.Puller, paths []string, format string, p vio.Pushdown) *FileScan {
 	return &FileScan{
 		rctx:     rctx,
 		env:      env,

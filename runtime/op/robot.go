@@ -7,7 +7,6 @@ import (
 	"github.com/superdb/super/runtime/exec"
 	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/runtime/sam/op/meta"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/scode"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
@@ -18,14 +17,14 @@ type Robot struct {
 	rctx     *runtime.Context
 	env      *exec.Environment
 	expr     expr.Evaluator
-	pushdown sbuf.Pushdown
+	pushdown vio.Pushdown
 	format   string
 	vec      vector.Any
 	off      uint32
 	src      vio.Puller
 }
 
-func NewRobot(rctx *runtime.Context, env *exec.Environment, parent vio.Puller, e expr.Evaluator, format string, p sbuf.Pushdown) *Robot {
+func NewRobot(rctx *runtime.Context, env *exec.Environment, parent vio.Puller, e expr.Evaluator, format string, p vio.Pushdown) *Robot {
 	return &Robot{
 		parent:   parent,
 		rctx:     rctx,
