@@ -117,12 +117,20 @@ PragmaDecl
     }
 
 TypeDecl
-  = TYPE _ name:Identifier __ "=" __ typ:Type {
+  = TYPE _ name:TypeIdentifier __ "=" __ typ:Type {
       return &ast.TypeDecl{
         Kind: "TypeDecl",
         Name: name.(*ast.ID),
         Type: typ.(ast.Type),
         Loc: loc(c),
+      }, nil
+    }
+
+TypeIdentifier
+  = id:TypeName {
+      return &ast.ID{
+          Name: id.(string),
+          Loc: loc(c),
       }, nil
     }
 
@@ -1454,8 +1462,8 @@ Type
 
 ComponentType
   = EasyType
-  / name:Name {
-      return &ast.TypeRef{Kind: "TypeRef", Name: name.(*ast.Text).Text, Loc: loc(c)}, nil
+  / name:TypeName {
+      return &ast.TypeRef{Kind: "TypeRef", Name: name.(string), Loc: loc(c)}, nil
     }
 
 EasyType
@@ -1690,6 +1698,10 @@ SQLIdentifier
 
 IdentifierName
   = !(IDGuard !IdentifierRest) IdentifierStart IdentifierRest* { return string(c.text), nil }
+  / BacktickString
+
+TypeName
+  = !(IDGuard !IdentifierRest) IdentifierStart (IdentifierRest / ".")+ { return string(c.text), nil }
   / BacktickString
 
 IdentifierStart

@@ -93,7 +93,7 @@ func (s *StreamFormatter) formatTypeDecl(typ *super.TypeNamed) {
 	if s.tab != 0 {
 		space = " "
 	}
-	s.buildf("type %s%s=%s", QuotedName(typ.Name), space, space)
+	s.buildf("type %s%s=%s", QuotedTypeName(typ.Name), space, space)
 	s.formatType(0, typ.Type, false)
 	s.build("\n")
 }

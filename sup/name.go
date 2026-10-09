@@ -19,7 +19,7 @@ func IsIdentifier(s string) bool {
 }
 
 func idChar(c rune) bool {
-	return unicode.IsLetter(c) || c == '_' || c == '$'
+	return unicode.IsLetter(c) || c == '_' || c == '$' || c == '.'
 }
 
 // IsTypeName returns true iff s is a valid, unquoted SUP type name.
