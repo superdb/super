@@ -167,3 +167,13 @@ func (c *concatReader) Pull(done bool) (vector.Any, error) {
 	}
 	return nil, nil
 }
+
+func CloseReaders(readers []PullCloser) error {
+	var err error
+	for _, reader := range readers {
+		if e := reader.Close(); err == nil {
+			err = e
+		}
+	}
+	return err
+}

@@ -180,10 +180,10 @@ func (b *Builder) compileAssignmentsToLvals(assignments []dag.Assignment) ([]*sa
 }
 
 // For runtime/sam/expr/filter_test.go
-func NewPushdown(b *Builder, e dag.Expr) sbuf.Pushdown {
+func NewPushdown(b *Builder, e dag.Expr) vio.Pushdown {
 	return b.newPushdown(e, nil)
 }
-func (b *Builder) newPushdown(e dag.Expr, projection []field.Path) sbuf.Pushdown {
+func (b *Builder) newPushdown(e dag.Expr, projection []field.Path) vio.Pushdown {
 	if e == nil && projection == nil {
 		return nil
 	}

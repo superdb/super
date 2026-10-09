@@ -22,7 +22,6 @@ import (
 	"github.com/superdb/super/pkg/display"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/pkg/units"
-	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/anyio"
 	"github.com/superdb/super/vector/vio"
 	"golang.org/x/term"
@@ -85,7 +84,7 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	defer sio.CloseReaders(readers)
+	defer vio.CloseReaders(readers)
 	head, err := c.poolFlags.HEAD()
 	if err != nil {
 		return err

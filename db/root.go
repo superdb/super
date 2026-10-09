@@ -23,6 +23,7 @@ import (
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/sup"
+	"github.com/superdb/super/vector/vio"
 	"go.uber.org/zap"
 )
 
@@ -411,7 +412,7 @@ func (r *Root) Revert(ctx context.Context, poolID uuid.UUID, branchName string, 
 	return branch.Revert(ctx, commitID, author, message)
 }
 
-func (r *Root) Open(context.Context, *super.Context, string, string, sbuf.Pushdown) (sbuf.Puller, error) {
+func (r *Root) Open(context.Context, *super.Context, string, string, vio.Pushdown) (sbuf.Puller, error) {
 	return nil, errors.New("cannot use 'file' or 'http' source in a database query")
 }
 

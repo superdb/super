@@ -26,7 +26,7 @@ import (
 
 type ReaderOpts struct {
 	Format            string
-	Pushdown          sbuf.Pushdown
+	Pushdown          vio.Pushdown
 	ConcurrentReaders int
 	CSV               csvio.ReaderOpts
 	InputCap          int

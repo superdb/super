@@ -1,7 +1,6 @@
 package expr_test
 
 import (
-	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,8 +12,9 @@ import (
 	"github.com/superdb/super/compiler/rungen"
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
-	"github.com/superdb/super/runtime/sam/expr"
+	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/sup"
+	"github.com/superdb/super/vector"
 )
 
 type testcase struct {
@@ -32,11 +32,18 @@ func runCasesExpectBufferFilterFalsePositives(t *testing.T, record string, cases
 	runCasesHelper(t, record, cases, true)
 }
 
-func filter(this super.Value, e expr.Evaluator) bool {
+func filter(sctx *super.Context, this super.Value, e expr.Evaluator) bool {
 	if e == nil {
 		return true
 	}
-	val := e.Eval(this)
+	b := vector.NewDynamicValueBuilder()
+	b.Write(this)
+	vec := b.Build(sctx)
+	out := e.Eval(vec)
+	if out.Len() != 1 {
+		panic(out)
+	}
+	val := vector.ValueAt(nil, out, 0)
 	if val.Type() == super.TypeBool && val.Bool() {
 		return true
 	}
@@ -69,17 +76,21 @@ func runCasesHelper(t *testing.T, record string, cases []testcase, expectBufferF
 			f, err := filterMaker.DataFilter()
 			assert.NoError(t, err, "filter: %q", c.filter)
 			if f != nil {
-				assert.Equal(t, c.expected, filter(rec, f),
+				assert.Equal(t, c.expected, filter(sctx, rec, f),
 					"filter: %q\nrecord: %s", c.filter, sup.FormatValue(rec))
 			}
-			bf, err := filterMaker.BSUPFilter()
-			assert.NoError(t, err, "filter: %q", c.filter)
-			if bf != nil {
-				expected := expectBufferFilterFalsePositives || c.expected
-				buf := rec.Bytes()
-				assert.Equal(t, expected, bf.Eval(sctx, buf),
-					"filter: %q\nvalues:%s\nbuffer:\n%s", c.filter, sup.FormatValue(rec), hex.Dump(buf))
-			}
+			// XXX in a subsequent PR, we will bring this test back when we
+			// add BufferFilter to vio.Pushdown
+			/*
+				bf, err := filterMaker.BSUPFilter()
+				assert.NoError(t, err, "filter: %q", c.filter)
+				if bf != nil {
+					expected := expectBufferFilterFalsePositives || c.expected
+					buf := rec.Bytes()
+					assert.Equal(t, expected, bf.Eval(sctx, buf),
+						"filter: %q\nvalues:%s\nbuffer:\n%s", c.filter, sup.FormatValue(rec), hex.Dump(buf))
+				}
+			*/
 		})
 	}
 }
