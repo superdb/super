@@ -161,7 +161,7 @@ func (r *reader) Pull(done bool) (vector.Any, error) {
 			// able to build runtime expressions that use different type contexts.
 			size := int64(frame.Size())
 			r.dispatcher.progress.Add(vio.Progress{BytesRead: size})
-			if r.metaFilter != nil && pruneObject(r.sctx, r.metaFilter, frame) {
+			if r.metaFilter != nil && pruneFrame(r.sctx, r.metaFilter, frame) {
 				continue
 			}
 			r.dispatcher.progress.Add(vio.Progress{BytesMatched: size})
@@ -207,8 +207,8 @@ type frame struct {
 	err   error
 }
 
-func pruneObject(sctx *super.Context, mf *metafilter, o *bsup.ColFrame) bool {
-	vals := o.ProjectMetadata(sctx, mf.projection)
+func pruneFrame(sctx *super.Context, mf *metafilter, frame *bsup.ColFrame) bool {
+	vals := frame.ProjectMetadata(sctx, mf.projection)
 	for _, val := range vals {
 		if !mf.filter.Eval(val).Equal(super.False) {
 			return false
