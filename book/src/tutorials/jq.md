@@ -451,13 +451,12 @@ But more powerfully, types can be used anywhere a value can be used and
 in particular, they can be grouping keys, e.g.,
 ```mdtest-command
 echo '{x:1,y:2}{s:"foo"}{x:3,y:4}' |
-  super -f table -c "count() by this['shape']:=typeof(this) | sort count" -
+  super -s -c "count() by this['shape']:=typeof(this) | sort count" -
 ```
 produces
 ```mdtest-output
-shape               count
-<{s:string}>        1
-<{x:int64,y:int64}> 2
+{shape:<{s:string}>,count:1}
+{shape:<{x:int64,y:int64}>,count:2}
 ```
 When run over large data sets, this gives you an insightful count of
 each "shape" of data in the input.  This is a powerful building block for
@@ -733,7 +732,7 @@ We can take the output from `blend | shapes` and list the fields with
 and their "kind".  Note that when we do an `unnest this` with records as
 input, we get a new record value for each field structured as a key/value pair:
 ```mdtest-command-skip dir=book/src/tutorials
-super -f table -c '
+super -s -c '
   unnest this
   | blend
   | shapes
@@ -967,7 +966,7 @@ to put your clean data into all the right places.
 Let's start with something simple.  How about we output a "PR Report" listing
 the title of each PR along with its PR number and creation date:
 ```mdtest-command-skip dir=book/src/tutorials
-super -f table -c '{DATE:created_at,NUMBER:f"PR #{number}",TITLE:title}' prs.bsup
+super -s -c '{DATE:created_at,NUMBER:f"PR #{number}",TITLE:title}' prs.bsup
 ```
 and you'll see this output...
 ```mdtest-output-skip head
@@ -986,7 +985,7 @@ Instead of old PRs, we can get the latest list of PRs using the
 [`tail` operator](../super-sql/operators/tail.md) since we know the data is sorted
 chronologically. This command retrieves the last five PRs in the dataset:
 ```mdtest-command-skip dir=book/src/tutorials
-super -f table -c '
+super -s -c '
   tail 5
   | {DATE:created_at,"NUMBER":f"PR #{number}",TITLE:title}
 ' prs.bsup
