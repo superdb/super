@@ -78,9 +78,6 @@ func (w *Writer) flush() error {
 		}
 		object.Min = minVal
 		object.Max = maxVal
-	} else {
-		object.Min = super.Null
-		object.Max = super.Null
 	}
 	writer := bsup.NewColumnWriterWithCap(out, w.pool.FrameCap)
 	size, err := writer.WriteSuperFrame(vec)

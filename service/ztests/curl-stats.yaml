@@ -1,6 +1,6 @@
 script: |
   source service.sh
-  curl -X POST -d '{"name":"test","sortkeys":[{"order":"desc","path":["ts"]}]}' $SUPER_DB/pool > pool.json
+  curl -X POST -d '{"name":"test","sort_keys":[{"order":"desc","path":["ts"]}]}' $SUPER_DB/pool > pool.json
   poolID=$(super -f line -c 'values uuid(pool.id)' pool.json)
   curl -X POST -d @- $SUPER_DB/pool/$poolID/branch/main > load.json
   curl $SUPER_DB/pool/$poolID/stats

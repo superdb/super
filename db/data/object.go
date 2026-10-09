@@ -94,7 +94,8 @@ func (o *Object) Equal(to *Object) bool {
 }
 
 func NewObject() Object {
-	return Object{ID: uuid.NewV7()}
+	none := super.NewValue(super.TypeNone, nil)
+	return Object{ID: uuid.NewV7(), Min: none, Max: none}
 }
 
 func (o Object) Span(order order.Which) *extent.Generic {

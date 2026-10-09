@@ -29,10 +29,10 @@ func (s SortKey) String() string {
 type SortKeys []SortKey
 
 func (s SortKeys) Primary() (SortKey, bool) {
-	if len(s) >= 1 {
-		return s[0], true
+	if len(s) == 0 {
+		return SortKey{}, false
 	}
-	return SortKey{}, false
+	return s[0], true
 }
 
 func (s SortKeys) IsNil() bool { return len(s) == 0 }

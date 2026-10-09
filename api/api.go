@@ -36,9 +36,9 @@ type VersionResponse struct {
 
 type PoolPostRequest struct {
 	Name      string         `json:"name"`
-	SortKeys  order.SortKeys `json:"sortkeys"`
-	ObjectCap uint64         `json:"objectcap"`
-	FrameCap  uint64         `json:"framecap"`
+	SortKeys  order.SortKeys `json:"sort_keys"`
+	ObjectCap uint64         `json:"object_cap"`
+	FrameCap  uint64         `json:"frame_cap"`
 }
 
 type PoolPutRequest struct {
