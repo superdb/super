@@ -17,7 +17,7 @@ import (
 	"github.com/superdb/super/vector"
 )
 
-var VecBatchSize uint32 = 10 * 1024
+const defaultInputCap = 10 * 1024
 
 type Reader struct {
 	sctx       *super.Context
@@ -28,7 +28,10 @@ type Reader struct {
 	hasClosed atomic.Bool
 }
 
-func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p sbuf.Pushdown, concurrentReaders int) *Reader {
+func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p sbuf.Pushdown, concurrentReaders, inputCap int) *Reader {
+	if inputCap == 0 {
+		inputCap = defaultInputCap
+	}
 	var fields field.List
 	if p != nil {
 		fields = p.Projection().Paths()
@@ -36,7 +39,7 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p sbuf.Pus
 	return &Reader{
 		sctx:       sctx,
 		ctx:        ctx,
-		stream:     newStream(ctx, r, concurrentReaders),
+		stream:     newStream(ctx, r, concurrentReaders, inputCap),
 		projection: fields,
 	}
 }

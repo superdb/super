@@ -10,6 +10,7 @@ import (
 
 	arc "github.com/hashicorp/golang-lru/arc/v2"
 	"github.com/superdb/super"
+	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/bsupbytes"
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/db/branches"
@@ -315,20 +316,23 @@ func (r *Root) RenamePool(ctx context.Context, id uuid.UUID, newName string) err
 	return r.pools.Rename(ctx, id, newName)
 }
 
-func (r *Root) CreatePool(ctx context.Context, name string, sortKeys order.SortKeys, thresh int64) (*Pool, error) {
+func (r *Root) CreatePool(ctx context.Context, name string, sortKeys order.SortKeys, objectCap, frameCap uint64) (*Pool, error) {
 	if name == "HEAD" {
 		return nil, fmt.Errorf("pool cannot be named %q", name)
 	}
 	if r.pools.LookupByName(ctx, name) != nil {
 		return nil, fmt.Errorf("%s: %w", name, pools.ErrExists)
 	}
-	if thresh == 0 {
-		thresh = data.DefaultThreshold
-	}
 	if len(sortKeys) > 1 {
 		return nil, errors.New("multiple pool keys not supported")
 	}
-	config := pools.NewConfig(name, sortKeys, thresh)
+	if objectCap == 0 {
+		objectCap = data.DefaultObjectCap
+	}
+	if frameCap == 0 {
+		frameCap = bsup.DefaultFrameCap
+	}
+	config := pools.NewConfig(name, sortKeys, objectCap, frameCap)
 	if err := CreatePool(ctx, r.engine, r.logger, r.path, config); err != nil {
 		return nil, err
 	}

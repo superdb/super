@@ -10,19 +10,21 @@ import (
 )
 
 type stream struct {
-	r    io.Reader
-	ch   chan result
-	done chan struct{}
-	once sync.Once
-	ctx  context.Context
+	r        io.Reader
+	ch       chan result
+	done     chan struct{}
+	once     sync.Once
+	ctx      context.Context
+	inputCap int
 }
 
-func newStream(ctx context.Context, r io.Reader, n int) *stream {
+func newStream(ctx context.Context, r io.Reader, n int, inputCap int) *stream {
 	return &stream{
-		r:    r,
-		ch:   make(chan result, n),
-		ctx:  ctx,
-		done: make(chan struct{}),
+		r:        r,
+		ch:       make(chan result, n),
+		ctx:      ctx,
+		done:     make(chan struct{}),
+		inputCap: inputCap,
 	}
 }
 
@@ -44,7 +46,7 @@ func (s *stream) next() (*vector.BytesTable, int, error) {
 
 func (s *stream) run() {
 	defer close(s.ch)
-	r := NewValReader(s.r)
+	r := NewValReader(s.r, s.inputCap)
 	for {
 		batch, startLineNum, err := readBatch(r)
 		select {
@@ -66,20 +68,20 @@ func (s *stream) close() {
 
 var bytesTablePool sync.Pool
 
-func newBytesTable() *vector.BytesTable {
+func newBytesTable(inputCap int) *vector.BytesTable {
 	b, ok := bytesTablePool.Get().(*vector.BytesTable)
 	if !ok {
-		b = new(vector.NewBytesTableEmpty(VecBatchSize))
+		b = new(vector.NewBytesTableEmpty(uint32(inputCap)))
 	}
 	b.Reset()
 	return b
 }
 
 func readBatch(r *valReader) (*vector.BytesTable, int, error) {
-	t := newBytesTable()
+	t := newBytesTable(r.inputCap)
 	start := r.lineNumber()
 	var err error
-	for range VecBatchSize {
+	for range r.inputCap {
 		var b []byte
 		if b, err = r.Next(); err != nil {
 			break

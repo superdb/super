@@ -3,6 +3,7 @@ package pools
 import (
 	"uuid"
 
+	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/db/journal"
 	"github.com/superdb/super/order"
@@ -16,24 +17,29 @@ type Config struct {
 	Name      string         `super:"name"`
 	ID        uuid.UUID      `super:"id"`
 	SortKeys  order.SortKeys `super:"layout"`
-	Threshold int64          `super:"threshold"`
+	ObjectCap uint64         `super:"objectcap"`
+	FrameCap  uint64         `super:"framecap"`
 }
 
 var _ journal.Entry = (*Config)(nil)
 
-func NewConfig(name string, sortKeys order.SortKeys, thresh int64) *Config {
+func NewConfig(name string, sortKeys order.SortKeys, objectCap, frameCap uint64) *Config {
 	if sortKeys.IsNil() {
 		sortKeys = order.SortKeys{order.NewSortKey(order.Desc, field.Dotted("ts"))}
 	}
-	if thresh == 0 {
-		thresh = data.DefaultThreshold
+	if objectCap == 0 {
+		objectCap = data.DefaultObjectCap
+	}
+	if frameCap == 0 {
+		frameCap = bsup.DefaultFrameCap
 	}
 	return &Config{
 		Ts:        nano.Now(),
 		Name:      name,
 		ID:        uuid.NewV7(),
 		SortKeys:  sortKeys,
-		Threshold: thresh,
+		ObjectCap: objectCap,
+		FrameCap:  frameCap,
 	}
 }
 

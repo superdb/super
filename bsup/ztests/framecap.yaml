@@ -1,0 +1,9 @@
+script: |
+  seq 100 | super -inputcap 5 -framecap 5 -o out.bsup -
+  super dev bsup out.bsup | super -s -c "count() by nameof(typeof(this)) | ? Header or Footer | sort count" -
+
+outputs:
+  - name: stdout
+    data: |
+      {nameof:"SuperFooter",count:1}
+      {nameof:"ColumnHeader",count:20}

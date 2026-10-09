@@ -14,45 +14,52 @@ import (
 	"github.com/superdb/super/vector/vio"
 )
 
-var maxFrameSize uint32 = 120_000
-
-// XXX a future PR will wire in compress / thresh options to command line.
-// XXX Rows is the key flag we need for the rows writer.
 type WriterOpts struct {
 	Compress bool
-	// FrameThresh is the minimum frame size in uncompressed bytes.
-	FrameThresh int
-	Rows        bool
+	FrameCap uint64
+	Rows     bool
 }
+
+const DefaultFrameCap = 20_000
 
 // ColumnWriter implements the vio.Pusher interface. A Pusher creates a vector
 // BSUP object from a stream of vector.Any.
 type ColumnWriter struct {
-	writer  io.WriteCloser
-	dynamic *vbuild.DynamicBuilder
-	sctx    *super.Context
-	fuser   fuser
-	size    uint64
-	ctrl    *RowWriter
+	writer   io.WriteCloser
+	dynamic  *vbuild.DynamicBuilder
+	sctx     *super.Context
+	fuser    fuser
+	size     uint64
+	ctrl     *RowWriter
+	framecap uint64
 }
 
 var _ vio.Pusher = (*ColumnWriter)(nil)
 
 func NewColumnWriter(w io.WriteCloser) *ColumnWriter {
+	return NewColumnWriterWithCap(w, DefaultFrameCap)
+}
+
+func NewColumnWriterWithCap(w io.WriteCloser, frameCap uint64) *ColumnWriter {
 	sctx := super.NewContext()
 	return &ColumnWriter{
-		writer:  w,
-		dynamic: vbuild.NewDynamicBuilder(),
-		sctx:    sctx,
-		fuser:   newFuser(sctx),
+		writer:   w,
+		dynamic:  vbuild.NewDynamicBuilder(),
+		sctx:     sctx,
+		fuser:    newFuser(sctx),
+		framecap: frameCap,
 	}
 }
 
 func NewWriterWithOpts(w io.WriteCloser, opt WriterOpts) vio.PushCloser {
 	if opt.Rows {
-		return NewRowWriter(w)
+		writer := NewRowWriter(w)
+		writer.framecap = uint32(opt.FrameCap)
+		return writer
 	}
-	return NewColumnWriter(w)
+	writer := NewColumnWriter(w)
+	writer.framecap = opt.FrameCap
+	return writer
 }
 
 func (c *ColumnWriter) Close() error {
@@ -87,7 +94,7 @@ func (c *ColumnWriter) WriteSuperFrame(vec vector.Any) (uint64, error) {
 func (c *ColumnWriter) Push(vec vector.Any) error {
 	if vec.Len() != 0 {
 		c.dynamic.Write(vec)
-		if c.dynamic.Len() >= maxFrameSize {
+		if c.dynamic.Len() >= uint32(c.framecap) {
 			return c.pushFrame()
 		}
 	}
@@ -202,6 +209,7 @@ type RowWriter struct {
 	size       uint64
 	bytes      []byte
 	len        uint32
+	framecap   uint32
 }
 
 var _ vio.Pusher = (*RowWriter)(nil)
@@ -215,6 +223,7 @@ func NewRowWriter(w io.WriteCloser) *RowWriter {
 		sctx:       sctx,
 		fuser:      newFuser(sctx),
 		superfuser: newFuser(sctx),
+		framecap:   DefaultFrameCap,
 	}
 }
 
@@ -237,7 +246,7 @@ func (r *RowWriter) Push(vec vector.Any) error {
 		}
 	}
 	r.len += vec.Len()
-	if r.len >= maxFrameSize {
+	if r.len >= r.framecap {
 		return r.pushFrame(false)
 	}
 	return nil
@@ -253,7 +262,7 @@ func (r *RowWriter) write(val super.Value, ctrl bool) error {
 	r.fuser.fuse(typ)
 	r.superfuser.fuse(typ)
 	r.len++
-	if r.len >= maxFrameSize || ctrl {
+	if r.len >= r.framecap || ctrl {
 		return r.pushFrame(ctrl)
 	}
 	return nil

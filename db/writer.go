@@ -50,14 +50,17 @@ func (w *Writer) newObject() *data.Object {
 }
 
 func (w *Writer) Push(vec vector.Any) error {
-	// XXX We need a threshold here (or in BSUP column writer)
-	// so we can write lots of smaller row-group-sized column frames
-	// per super frame.  This will come in a subsequent PR.
 	w.builder.Write(vec)
+	if uint64(w.builder.Len()) >= w.pool.ObjectCap {
+		return w.flush()
+	}
 	return nil
 }
 
 func (w *Writer) flush() error {
+	// Each object is one big vector limited in length by ObjectCap.
+	// Inside of the superframe are Frames which are in turn limited
+	// in length by FrameCap.
 	vec := w.builder.Build()
 	if vec.Len() == 0 {
 		return nil
@@ -78,7 +81,7 @@ func (w *Writer) flush() error {
 		object.Min = minVal
 		object.Max = maxVal
 	}
-	writer := bsup.NewColumnWriter(out)
+	writer := bsup.NewColumnWriterWithCap(out, w.pool.FrameCap)
 	size, err := writer.WriteSuperFrame(vec)
 	if err != nil {
 		out.Close()

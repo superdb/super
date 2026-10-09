@@ -29,7 +29,7 @@ type Interface interface {
 	Query(ctx context.Context, query []srcfiles.Input) (vio.Scanner, error)
 	PoolID(ctx context.Context, poolName string) (uuid.UUID, error)
 	CommitObject(ctx context.Context, poolID uuid.UUID, branchName string) (uuid.UUID, error)
-	CreatePool(context.Context, string, order.SortKeys, int64) (uuid.UUID, error)
+	CreatePool(context.Context, string, order.SortKeys, uint64, uint64) (uuid.UUID, error)
 	RemovePool(context.Context, uuid.UUID) error
 	RenamePool(context.Context, uuid.UUID, string) error
 	CreateBranch(ctx context.Context, pool uuid.UUID, name string, parent uuid.UUID) error

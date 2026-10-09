@@ -5,12 +5,12 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/cli/poolflags"
 	"github.com/superdb/super/cmd/super/db"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/charm"
-	"github.com/superdb/super/pkg/units"
 )
 
 var spec = &charm.Spec{
@@ -25,9 +25,10 @@ See https://superdb.org/command/db.html#super-db-create
 
 type Command struct {
 	*db.Command
-	sortKey string
-	thresh  units.Bytes
-	use     bool
+	sortKey   string
+	frameCap  uint64
+	objectCap uint64
+	use       bool
 }
 
 func init() {
@@ -36,8 +37,8 @@ func init() {
 
 func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*db.Command)}
-	c.thresh = data.DefaultThreshold
-	f.Var(&c.thresh, "S", "target size of pool data objects, as '10MB' or '4GiB', etc.")
+	f.Uint64Var(&c.frameCap, "framecap", bsup.DefaultFrameCap, "target number of values BSUP frames")
+	f.Uint64Var(&c.objectCap, "objectcap", data.DefaultObjectCap, "target number of values in pool data objects")
 	f.BoolVar(&c.use, "use", false, "set created pool as the current pool")
 	f.StringVar(&c.sortKey, "orderby", "ts:desc", "pool key with optional :asc or :desc suffix to organize data in pool (cannot be changed)")
 	return c, nil
@@ -61,7 +62,7 @@ func (c *Command) Run(args []string) error {
 		return err
 	}
 	poolName := args[0]
-	id, err := db.CreatePool(ctx, poolName, sortKey, int64(c.thresh))
+	id, err := db.CreatePool(ctx, poolName, sortKey, c.objectCap, c.frameCap)
 	if err != nil {
 		return err
 	}

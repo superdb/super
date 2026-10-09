@@ -31,5 +31,6 @@ outputs:
             ]
           }
         ],
-        threshold: 524288000
+        objectcap: 1048576,
+        framecap: 20000
       }

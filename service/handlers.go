@@ -259,7 +259,7 @@ func handlePoolPost(c *Core, w *ResponseWriter, r *Request) {
 	if len(req.SortKeys.Keys) > 0 {
 		sortKeys = append(sortKeys, order.NewSortKey(req.SortKeys.Order, req.SortKeys.Keys[0]))
 	}
-	pool, err := c.root.CreatePool(r.Context(), req.Name, sortKeys, req.Thresh)
+	pool, err := c.root.CreatePool(r.Context(), req.Name, sortKeys, req.ObjectCap, req.FrameCap)
 	if err != nil {
 		w.Error(err)
 		return

@@ -2,8 +2,8 @@ script: |
   source service.sh
   for order in desc asc; do
     echo === $order === | tee >(cat >&2)
-    super db create -use -q -S 1KB -orderby ts:$order test
-    seq 1000 | super -c '{ts:this-1,s:f"val{this-1}"}' - | super db load -q -
+    super db create -use -q -objectcap 50 -framecap 10 -orderby ts:$order test
+    seq 1000 | super -c '{ts:this-1,s:f"val{this-1}"}' - | super db load -q -inputcap 10 -
     super db delete -q -where 'ts > 400 and ts <= 500'
     super db -s -c 'from test | count()'
     super db delete -q -where 's == "val1" or s == "val999"'

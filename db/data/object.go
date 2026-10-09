@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	DefaultThreshold = 500 * 1024 * 1024
+	DefaultObjectCap = 1024 * 1024
 )
 
 // A FileKind is the first part of a file name, used to differentiate files
