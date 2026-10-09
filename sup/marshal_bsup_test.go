@@ -445,7 +445,7 @@ func TestInterfaceBSUPMarshal(t *testing.T) {
 	m.Decorate(super.StylePackage)
 	zv, err := m.Marshal(t1)
 	require.NoError(t, err)
-	assert.Equal(t, `"sup_test.ThingTwo"`, sup.String(zv.Type()))
+	assert.Equal(t, `sup_test.ThingTwo`, sup.String(zv.Type()))
 
 	m.Decorate(super.StyleSimple)
 	rolls := Rolls{1, 2, 3}
@@ -470,7 +470,7 @@ func TestInterfaceUnmarshal(t *testing.T) {
 	m.Decorate(super.StylePackage)
 	zv, err := m.Marshal(t1)
 	require.NoError(t, err)
-	assert.Equal(t, `"sup_test.BSUPThing"`, sup.String(zv.Type()))
+	assert.Equal(t, `sup_test.BSUPThing`, sup.String(zv.Type()))
 
 	u := super.NewUnmarshaler()
 	u.Bind(BSUPThing{}, ThingTwo{})

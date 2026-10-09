@@ -1703,6 +1703,7 @@ IdentifierName
 TypeName
   = !(IDGuard !IdentifierRest) IdentifierStart (IdentifierRest / ".")+ { return string(c.text), nil }
   / BacktickString
+  / DoubleQuotedString
 
 IdentifierStart
   = UnicodeLetter
