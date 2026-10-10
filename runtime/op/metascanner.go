@@ -1,4 +1,4 @@
-package meta
+package op
 
 import (
 	"context"
@@ -9,12 +9,13 @@ import (
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/db/commits"
 	"github.com/superdb/super/order"
-	"github.com/superdb/super/runtime/sam/expr"
+	samexpr "github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
+	"github.com/superdb/super/vector/vio"
 )
 
-func NewDBMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, meta string) (sbuf.Scanner, error) {
+func NewDBMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, meta string) (vio.Puller, error) {
 	var vals []super.Value
 	var err error
 	switch meta {
@@ -28,10 +29,10 @@ func NewDBMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, meta
 	if err != nil {
 		return nil, err
 	}
-	return sbuf.NewScanner(ctx, sbuf.NewArray(vals))
+	return vio.NewPuller(sbuf.Dematerialize(sctx, vals...)), nil
 }
 
-func NewPoolMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, poolID uuid.UUID, meta string) (sbuf.Scanner, error) {
+func NewPoolMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, poolID uuid.UUID, meta string) (vio.Puller, error) {
 	p, err := r.OpenPool(ctx, poolID)
 	if err != nil {
 		return nil, err
@@ -48,10 +49,10 @@ func NewPoolMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, po
 	default:
 		return nil, fmt.Errorf("unknown pool metadata type: %q", meta)
 	}
-	return sbuf.NewScanner(ctx, sbuf.NewArray(vals))
+	return vio.NewPuller(sbuf.Dematerialize(sctx, vals...)), nil
 }
 
-func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, poolID, commit uuid.UUID, meta string, pruner expr.Evaluator) (sbuf.Puller, error) {
+func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, poolID, commit uuid.UUID, meta string, pruner samexpr.Evaluator) (vio.Puller, error) {
 	p, err := r.OpenPool(ctx, poolID)
 	if err != nil {
 		return nil, err
@@ -62,38 +63,32 @@ func NewCommitMetaScanner(ctx context.Context, sctx *super.Context, r *db.Root, 
 		if err != nil {
 			return nil, err
 		}
-		return sbuf.NewScanner(ctx, sbuf.PullerReader(lister))
+		return lister, nil
 	case "partitions":
 		lister, err := NewLister(ctx, sctx, p, commit, pruner)
 		if err != nil {
 			return nil, err
 		}
-		slicer, err := NewSlicer(lister, sctx), nil
+		slicer, err := NewSlicer(sctx, lister), nil
 		if err != nil {
 			return nil, err
 		}
-		return sbuf.NewScanner(ctx, sbuf.PullerReader(slicer))
+		return slicer, nil
 	case "log":
 		tips, err := p.BatchifyBranchTips(ctx, sctx, nil)
 		if err != nil {
 			return nil, err
 		}
-		tipsScanner, err := sbuf.NewScanner(ctx, sbuf.NewArray(tips))
-		if err != nil {
-			return nil, err
-		}
+		tipsPuller := vio.NewPuller(sbuf.Dematerialize(sctx, tips...))
 		log := p.OpenCommitLog(ctx, sctx, commit)
-		logScanner, err := sbuf.NewScanner(ctx, log)
-		if err != nil {
-			return nil, err
-		}
-		return sbuf.MultiScanner(tipsScanner, logScanner), nil
+		logPuller := sbuf.NewDematerializer(sctx, sbuf.NewPuller(log))
+		return vio.ConcatPuller(tipsPuller, logPuller), nil
 	case "rawlog":
 		reader, err := p.OpenCommitLogAsBSUP(ctx, sctx, commit)
 		if err != nil {
 			return nil, err
 		}
-		return sbuf.NewScanner(ctx, reader)
+		return sbuf.NewDematerializer(sctx, sbuf.NewPuller(reader)), nil
 	default:
 		return nil, fmt.Errorf("unknown commit metadata type: %q", meta)
 	}

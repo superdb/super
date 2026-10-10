@@ -10,8 +10,6 @@ import (
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/expr"
 	samexpr "github.com/superdb/super/runtime/sam/expr"
-	"github.com/superdb/super/runtime/sam/op/meta"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 )
@@ -19,7 +17,7 @@ import (
 // PoolScanner implements an op that pulls metadata partitions to scan
 // from its parent and for each partition, scans the object.
 type PoolScanner struct {
-	parent      sbuf.Puller
+	parent      vio.Puller
 	scanner     vio.Puller
 	where       expr.Evaluator
 	pruner      samexpr.Evaluator
@@ -31,7 +29,7 @@ type PoolScanner struct {
 	err         error
 }
 
-func NewPoolScanner(rctx *runtime.Context, parent sbuf.Puller, pool *db.Pool, where expr.Evaluator, pruner samexpr.Evaluator, progress *vio.Progress) *PoolScanner {
+func NewPoolScanner(rctx *runtime.Context, parent vio.Puller, pool *db.Pool, where expr.Evaluator, pruner samexpr.Evaluator, progress *vio.Progress) *PoolScanner {
 	return &PoolScanner{
 		rctx:        rctx,
 		parent:      parent,
@@ -57,19 +55,19 @@ func (p *PoolScanner) Pull(done bool) (vector.Any, error) {
 	}
 	for {
 		if p.scanner == nil {
-			batch, err := p.parent.Pull(false)
-			if batch == nil || err != nil {
+			vec, err := p.parent.Pull(false)
+			if vec == nil || err != nil {
 				p.close(err)
 				return nil, err
 			}
-			vals := batch.Values()
-			if len(vals) != 1 {
+			if vec.Len() != 1 {
 				// We currently support only one partition per batch.
 				err := errors.New("system error: SequenceScanner encountered multi-valued batch")
 				p.close(err)
 				return nil, err
 			}
-			p.scanner, _, err = newScanner(p.rctx.Context, p.rctx.Sctx, p.pool, p.unmarshaler, p.pruner, p.where, p.progress, vals[0])
+			val := vector.ValueAt(nil, vec, 0)
+			p.scanner, _, err = newScanner(p.rctx.Context, p.rctx.Sctx, p.pool, p.unmarshaler, p.pruner, p.where, p.progress, val)
 			if err != nil {
 				p.close(err)
 				return nil, err
@@ -105,7 +103,7 @@ func newScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, u *supe
 		}
 		objects = []*data.Object{&object}
 	} else {
-		var part meta.Partition
+		var part data.Partition
 		if err := u.Unmarshal(val, &part); err != nil {
 			return nil, nil, err
 		}

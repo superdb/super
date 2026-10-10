@@ -1,4 +1,4 @@
-package meta
+package op
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/vector"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -22,6 +23,7 @@ import (
 // sensitivity of the downstream flowgraph.
 type Lister struct {
 	ctx       context.Context
+	sctx      *super.Context
 	pool      *db.Pool
 	pruner    *pruner
 	group     *errgroup.Group
@@ -30,8 +32,6 @@ type Lister struct {
 	objects   []*data.Object
 	err       error
 }
-
-var _ sbuf.Puller = (*Lister)(nil)
 
 func NewLister(ctx context.Context, sctx *super.Context, pool *db.Pool, commit uuid.UUID, pruner expr.Evaluator) (*Lister, error) {
 	snap, err := pool.Snapshot(ctx, commit)
@@ -58,6 +58,7 @@ func NewListerFromObjects(ctx context.Context, sctx *super.Context, pool *db.Poo
 	m.Decorate(super.StylePackage)
 	l := &Lister{
 		ctx:       ctx,
+		sctx:      sctx,
 		pool:      pool,
 		objects:   objects,
 		group:     &errgroup.Group{},
@@ -69,7 +70,7 @@ func NewListerFromObjects(ctx context.Context, sctx *super.Context, pool *db.Poo
 	return l
 }
 
-func (l *Lister) Pull(done bool) (sbuf.Batch, error) {
+func (l *Lister) Pull(done bool) (vector.Any, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.err != nil {
@@ -84,7 +85,7 @@ func (l *Lister) Pull(done bool) (sbuf.Batch, error) {
 			return nil, err
 		}
 		if !l.pruner.prune(val) {
-			return sbuf.NewArray([]super.Value{val}), nil
+			return sbuf.Dematerialize(l.sctx, val), nil
 		}
 	}
 	return nil, nil

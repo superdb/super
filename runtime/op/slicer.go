@@ -1,8 +1,7 @@
-package meta
+package op
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/superdb/super"
@@ -10,14 +9,16 @@ import (
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sbuf"
-	"github.com/superdb/super/sup"
+	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/vio"
 )
 
 // Slicer implements an op that pulls data objects and organizes
 // them into overlapping object Slices forming a sequence of
 // non-overlapping Partitions.
 type Slicer struct {
-	parent      sbuf.Puller
+	sctx        *super.Context
+	parent      vio.Puller
 	marshaler   *super.Marshaler
 	unmarshaler *super.Unmarshaler
 	objects     []*data.Object
@@ -27,10 +28,11 @@ type Slicer struct {
 	mu          sync.Mutex
 }
 
-func NewSlicer(parent sbuf.Puller, sctx *super.Context) *Slicer {
+func NewSlicer(sctx *super.Context, parent vio.Puller) *Slicer {
 	m := super.NewMarshaler(sctx)
 	m.Decorate(super.StylePackage)
 	return &Slicer{
+		sctx:        sctx,
 		parent:      parent,
 		marshaler:   m,
 		unmarshaler: super.NewUnmarshaler(),
@@ -39,7 +41,7 @@ func NewSlicer(parent sbuf.Puller, sctx *super.Context) *Slicer {
 	}
 }
 
-func (s *Slicer) Pull(done bool) (sbuf.Batch, error) {
+func (s *Slicer) Pull(done bool) (vector.Any, error) {
 	//XXX for now we use a mutex because multiple downstream trunks can call
 	// Pull concurrently here.  We should change this to use a fork.  But for now,
 	// this does not seem like a performance critical issue because the bottleneck
@@ -47,20 +49,20 @@ func (s *Slicer) Pull(done bool) (sbuf.Batch, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for {
-		batch, err := s.parent.Pull(done)
+		vec, err := s.parent.Pull(done)
 		if err != nil {
 			return nil, err
 		}
-		if batch == nil {
+		if vec == nil {
 			return s.nextPartition()
 		}
-		vals := batch.Values()
-		if len(vals) != 1 {
+		if vec.Len() != 1 {
 			// We currently support only one object per batch.
 			return nil, errors.New("system error: Slicer encountered multi-valued batch")
 		}
+		val := vector.ValueAt(nil, vec, 0)
 		var object data.Object
-		if err := s.unmarshaler.Unmarshal(vals[0], &object); err != nil {
+		if err := s.unmarshaler.Unmarshal(val, &object); err != nil {
 			return nil, err
 		}
 		if batch, err := s.stash(&object); batch != nil || err != nil {
@@ -70,8 +72,8 @@ func (s *Slicer) Pull(done bool) (sbuf.Batch, error) {
 }
 
 // nextPartition takes collected up slices and forms a partition returning
-// a batch containing a single value comprising the serialized partition.
-func (s *Slicer) nextPartition() (sbuf.Batch, error) {
+// a vector containing a single value comprising the serialized partition.
+func (s *Slicer) nextPartition() (vector.Any, error) {
 	if len(s.objects) == 0 {
 		return nil, nil
 	}
@@ -86,7 +88,7 @@ func (s *Slicer) nextPartition() (sbuf.Batch, error) {
 			max = o.Max
 		}
 	}
-	val, err := s.marshaler.Marshal(&Partition{
+	val, err := s.marshaler.Marshal(&data.Partition{
 		Min:     min,
 		Max:     max,
 		Objects: s.objects,
@@ -95,18 +97,18 @@ func (s *Slicer) nextPartition() (sbuf.Batch, error) {
 	if err != nil {
 		return nil, err
 	}
-	return sbuf.NewArray([]super.Value{val}), nil
+	return sbuf.Dematerialize(s.sctx, val), nil
 }
 
-func (s *Slicer) stash(o *data.Object) (sbuf.Batch, error) {
-	var batch sbuf.Batch
+func (s *Slicer) stash(o *data.Object) (vector.Any, error) {
+	var vec vector.Any
 	if len(s.objects) > 0 {
 		// We collect all the subsequent objects that overlap with any object in the
 		// accumulated set so far.  Since first times are non-decreasing this is
 		// guaranteed to generate partitions that are non-decreasing and non-overlapping.
 		if s.cmp(o.Max, *s.min) < 0 || s.cmp(o.Min, *s.max) > 0 {
 			var err error
-			batch, err = s.nextPartition()
+			vec, err = s.nextPartition()
 			if err != nil {
 				return nil, err
 			}
@@ -121,28 +123,5 @@ func (s *Slicer) stash(o *data.Object) (sbuf.Batch, error) {
 	if s.max == nil || s.cmp(*s.max, o.Max) < 0 {
 		s.max = o.Max.Copy().Ptr()
 	}
-	return batch, nil
-}
-
-// A Partition is a logical view of the records within a pool-key span, stored
-// in one or more data objects.  This provides a way to return the list of
-// objects that should be scanned along with a span to limit the scan
-// to only the span involved.
-type Partition struct {
-	Min     super.Value    `super:"min"`
-	Max     super.Value    `super:"max"`
-	Objects []*data.Object `super:"objects"`
-}
-
-func (p Partition) IsZero() bool {
-	return p.Objects == nil
-}
-
-func (p Partition) FormatRangeOf(index int) string {
-	o := p.Objects[index]
-	return fmt.Sprintf("[%s-%s,%s-%s]", sup.String(p.Min), sup.String(p.Max), sup.String(o.Min), sup.String(o.Max))
-}
-
-func (p Partition) FormatRange() string {
-	return fmt.Sprintf("[%s-%s]", sup.String(p.Min), sup.String(p.Max))
+	return vec, nil
 }

@@ -17,7 +17,6 @@ import (
 	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/runtime/op"
 	samexpr "github.com/superdb/super/runtime/sam/expr"
-	"github.com/superdb/super/runtime/sam/op/meta"
 	"github.com/superdb/super/runtime/sam/op/top"
 	"github.com/superdb/super/runtime/sam/op/uniq"
 	"github.com/superdb/super/sbuf"
@@ -109,46 +108,6 @@ func (b *Builder) lookupType(id int) (super.Type, error) {
 
 func (b *Builder) compileLeaf(o dag.Op, parent sbuf.Puller) (sbuf.Puller, error) {
 	switch v := o.(type) {
-	//
-	// Scanners in alphatbetical order.
-	//
-	case *dag.CommitMetaScan:
-		var pruner samexpr.Evaluator
-		if v.Tap && v.KeyPruner != nil {
-			var err error
-			pruner, err = compileExpr(v.KeyPruner)
-			if err != nil {
-				return nil, err
-			}
-		}
-		return meta.NewCommitMetaScanner(b.rctx.Context, b.sctx(), b.env.DB(), v.Pool, v.Commit, v.Meta, pruner)
-	case *dag.DBMetaScan:
-		return meta.NewDBMetaScanner(b.rctx.Context, b.sctx(), b.env.DB(), v.Meta)
-	case *dag.ListerScan:
-		if parent != nil {
-			return nil, errors.New("internal error: data source cannot have a parent operator")
-		}
-		pool, err := b.lookupPool(v.Pool)
-		if err != nil {
-			return nil, err
-		}
-		var pruner samexpr.Evaluator
-		if v.KeyPruner != nil {
-			pruner, err = compileExpr(v.KeyPruner)
-			if err != nil {
-				return nil, err
-			}
-		}
-		return meta.NewLister(b.rctx.Context, b.mctx, pool, v.Commit, pruner)
-	case *dag.NullScan:
-		return sbuf.NewPuller(sbuf.NewArray([]super.Value{super.Null})), nil
-	case *dag.PoolMetaScan:
-		return meta.NewPoolMetaScanner(b.rctx.Context, b.sctx(), b.env.DB(), v.ID, v.Meta)
-	case *dag.SlicerOp:
-		return meta.NewSlicer(parent, b.mctx), nil
-	//
-	// Non-scanner operators in alphabetical order.
-	//
 	case *dag.TopOp:
 		exprs, err := b.compileSortExprs(v.Exprs)
 		if err != nil {
