@@ -164,7 +164,7 @@ func (r *reader) Pull(done bool) (vector.Any, error) {
 				continue
 			}
 			r.dispatcher.progress.Add(vio.Progress{BytesMatched: size})
-			loader := loader.NewFrameLoader(frame)
+			loader := loader.NewFrameLoader(r.sctx, frame)
 			var proj field.Projection
 			if r.pushdown != nil {
 				proj = r.pushdown.Projection()

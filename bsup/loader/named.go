@@ -26,7 +26,7 @@ func (n *named) unmarshal(cctx *bsup.Context, projection field.Projection) {
 	n.values.unmarshal(cctx, projection)
 }
 
-func (n *named) project(loader *loader, projection field.Projection) vector.Any {
+func (n *named) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vec := n.values.project(loader, projection)
 	// Try to preserve the named type if possible but if the projection changes
 	// the underlying type, then just return the inner vector.

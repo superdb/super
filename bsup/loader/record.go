@@ -57,7 +57,7 @@ func (r *record) unmarshal(cctx *bsup.Context, projection field.Projection) {
 	}
 }
 
-func (r *record) project(loader *loader, projection field.Projection) vector.Any {
+func (r *record) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	valFields := make([]vector.Any, 0, len(r.fields))
 	types := make([]super.Field, 0, len(r.fields))
 	if len(projection) == 0 {

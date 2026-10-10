@@ -34,7 +34,7 @@ func (d *dict) unmarshal(cctx *bsup.Context, projection field.Projection) {
 	d.values.unmarshal(cctx, projection)
 }
 
-func (d *dict) project(loader *loader, projection field.Projection) vector.Any {
+func (d *dict) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	index, counts := d.load(loader)
 	vec := vector.NewDict(d.values.project(loader, projection), index, counts)
 	if len(projection) > 0 {
@@ -43,14 +43,14 @@ func (d *dict) project(loader *loader, projection field.Projection) vector.Any {
 	return vec
 }
 
-func (d *dict) load(loader *loader) ([]byte, []uint32) {
+func (d *dict) load(loader *FrameLoader) ([]byte, []uint32) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.index = make([]byte, d.meta.Index.MemLength)
-	if err := d.meta.Index.Read(loader.r, d.index); err != nil {
+	if err := d.meta.Index.Read(loader.frame.DataReader(), d.index); err != nil {
 		panic(err)
 	}
-	v, err := bsup.ReadUint32s(d.meta.Counts, loader.r)
+	v, err := bsup.ReadUint32s(d.meta.Counts, loader.frame.DataReader())
 	if err != nil {
 		panic(err)
 	}
