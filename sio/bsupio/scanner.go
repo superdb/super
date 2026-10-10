@@ -54,7 +54,7 @@ func (s *stream) Pull(done bool) (vector.Any, error) {
 	switch frame := frame.(type) {
 	case *bsup.ColFrame:
 		// XXX refactor reader into a puller that is used by both
-		loader := loader.NewFrameLoader(frame)
+		loader := loader.NewFrameLoader(s.sctx, frame)
 		vec, err := loader.Load(s.sctx, nil) //XXX can project here etc (DRY out code with reader)
 		if err != nil {
 			return nil, err

@@ -3,6 +3,7 @@ package vcache
 import (
 	"errors"
 
+	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/bsup/loader"
 )
@@ -17,7 +18,7 @@ type Object struct {
 	loaders []*loader.FrameLoader
 }
 
-func NewObject(fit bsup.FrameIter) (*Object, error) {
+func NewObject(sctx *super.Context, fit bsup.FrameIter) (*Object, error) {
 	// XXX this stub just reads all the objects.  With a seekable,
 	// we can read just the frame headers and page in when necessary.
 	// We need another layer of abstraction which is uuid/slot to
@@ -35,7 +36,7 @@ func NewObject(fit bsup.FrameIter) (*Object, error) {
 		if !ok {
 			return nil, errors.New("encountered non-column data")
 		}
-		loaders = append(loaders, loader.NewFrameLoader(colFrame))
+		loaders = append(loaders, loader.NewFrameLoader(sctx, colFrame))
 	}
 }
 

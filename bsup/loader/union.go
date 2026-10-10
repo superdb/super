@@ -41,13 +41,13 @@ func (u *union) unmarshal(cctx *bsup.Context, projection field.Projection) {
 	}
 }
 
-func (u *union) load(loader *loader) []uint32 {
+func (u *union) load(loader *FrameLoader) []uint32 {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	if u.tags != nil {
 		return u.tags
 	}
-	tags, err := bsup.ReadUint32s(u.meta.Tags, loader.r)
+	tags, err := bsup.ReadUint32s(u.meta.Tags, loader.frame.DataReader())
 	if err != nil {
 		panic(err)
 	}
@@ -55,7 +55,7 @@ func (u *union) load(loader *loader) []uint32 {
 	return tags
 }
 
-func (u *union) project(loader *loader, projection field.Projection) vector.Any {
+func (u *union) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vecs := make([]vector.Any, 0, len(u.values))
 	types := make([]super.Type, 0, len(u.values))
 	for _, shadow := range u.values {

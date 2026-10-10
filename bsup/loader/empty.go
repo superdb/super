@@ -22,7 +22,7 @@ func newEmpty(meta *bsup.Empty) *empty {
 func (e *empty) unmarshal(cctx *bsup.Context, projection field.Projection) {
 }
 
-func (e *empty) project(loader *loader, projection field.Projection) vector.Any {
+func (e *empty) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	typ, err := loader.sctx.TranslateType(e.typ)
 	if err != nil {
 		panic(err)

@@ -72,12 +72,12 @@ func (c *Command) Run(args []string) error {
 	if !ok {
 		return errors.New("input not in BSUP column form")
 	}
-	loader := loader.NewFrameLoader(colFrame)
+	sctx := super.NewContext()
+	loader := loader.NewFrameLoader(sctx, colFrame)
 	writer, err := c.outputFlags.Open(ctx, local)
 	if err != nil {
 		return err
 	}
-	sctx := super.NewContext()
 	puller := runtime.NewProjection(sctx, loader, nil)
 	if err := vio.Copy(writer, sbuf.NewDematerializer(sctx, puller)); err != nil {
 		writer.Close()

@@ -27,7 +27,7 @@ func (i *int_) length() uint32 {
 
 func (*int_) unmarshal(*bsup.Context, field.Projection) {}
 
-func (i *int_) project(loader *loader, projection field.Projection) vector.Any {
+func (i *int_) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vec := vector.NewInt(i.meta.Typ, i.load(loader))
 	if len(projection) > 0 {
 		return vector.NewWrappedError(loader.sctx, "'.': applied to non-record", vec)
@@ -35,14 +35,14 @@ func (i *int_) project(loader *loader, projection field.Projection) vector.Any {
 	return vec
 }
 
-func (i *int_) load(loader *loader) []int64 {
+func (i *int_) load(loader *FrameLoader) []int64 {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	if i.vals != nil {
 		return i.vals
 	}
 	bytes := make([]byte, i.meta.Location.MemLength)
-	if err := i.meta.Location.Read(loader.r, bytes); err != nil {
+	if err := i.meta.Location.Read(loader.frame.DataReader(), bytes); err != nil {
 		panic(err)
 	}
 	i.vals = intcomp.UncompressInt64(byteconv.ReinterpretSlice[uint64](bytes), nil)

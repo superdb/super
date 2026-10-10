@@ -26,7 +26,7 @@ func (b *bytes) length() uint32 {
 
 func (*bytes) unmarshal(*bsup.Context, field.Projection) {}
 
-func (b *bytes) project(loader *loader, projection field.Projection) vector.Any {
+func (b *bytes) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	var vec vector.Any
 	table := b.load(loader)
 	switch b.meta.Typ.ID() {
@@ -43,7 +43,7 @@ func (b *bytes) project(loader *loader, projection field.Projection) vector.Any 
 	return vec
 }
 
-func (b *bytes) load(loader *loader) vector.BytesTable {
+func (b *bytes) load(loader *FrameLoader) vector.BytesTable {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.table != nil {
@@ -54,8 +54,8 @@ func (b *bytes) load(loader *loader) vector.BytesTable {
 	return table
 }
 
-func loadBytesTable(loader *loader, offsets, bytes bsup.Segment) vector.BytesTable {
-	offs, err := bsup.ReadUint32s(offsets, loader.r)
+func loadBytesTable(loader *FrameLoader, offsets, bytes bsup.Segment) vector.BytesTable {
+	offs, err := bsup.ReadUint32s(offsets, loader.frame.DataReader())
 	if err != nil {
 		panic(err)
 	}
@@ -63,7 +63,7 @@ func loadBytesTable(loader *loader, offsets, bytes bsup.Segment) vector.BytesTab
 		offs = []uint32{0}
 	}
 	b := make([]byte, bytes.MemLength)
-	if err := bytes.Read(loader.r, b); err != nil {
+	if err := bytes.Read(loader.frame.DataReader(), b); err != nil {
 		panic(err)
 	}
 	return vector.NewBytesTable(offs, b)

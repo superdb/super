@@ -36,7 +36,7 @@ func (m *map_) unmarshal(cctx *bsup.Context, projection field.Projection) {
 	m.values.unmarshal(cctx, projection)
 }
 
-func (m *map_) project(loader *loader, projection field.Projection) vector.Any {
+func (m *map_) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	keys := m.keys.project(loader, nil)
 	vals := m.values.project(loader, nil)
 	typ := loader.sctx.LookupTypeMap(keys.Type(), vals.Type())
@@ -47,13 +47,13 @@ func (m *map_) project(loader *loader, projection field.Projection) vector.Any {
 	return vector.NewMap(typ, offs, keys, vals)
 }
 
-func (m *map_) load(loader *loader) []uint32 {
+func (m *map_) load(loader *FrameLoader) []uint32 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.offs != nil {
 		return m.offs
 	}
-	offs, err := bsup.ReadUint32s(m.meta.Lengths, loader.r)
+	offs, err := bsup.ReadUint32s(m.meta.Lengths, loader.frame.DataReader())
 	if err != nil {
 		panic(err)
 	}

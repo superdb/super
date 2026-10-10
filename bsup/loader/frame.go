@@ -15,12 +15,17 @@ import (
 // its in-memory, sctx-independent shadow. This way one shadow can be used
 // across multiple queries with different sctx.
 type FrameLoader struct {
+	sctx  *super.Context
 	frame *bsup.ColFrame
 	root  shadow
 }
 
-func NewFrameLoader(frame *bsup.ColFrame) *FrameLoader {
-	return &FrameLoader{frame: frame}
+func NewFrameLoader(sctx *super.Context, frame *bsup.ColFrame) *FrameLoader {
+	return &FrameLoader{
+		sctx:  sctx,
+		frame: frame,
+		root:  newShadow(frame.Context(), frame.Root()),
+	}
 }
 
 // Load returns the indicated projection of data in this BSUP object.
@@ -29,27 +34,27 @@ func NewFrameLoader(frame *bsup.ColFrame) *FrameLoader {
 // The vectors returned will have types from the provided sctx.  Multiple
 // Load calls to the same object may run concurrently.
 func (f *FrameLoader) Load(sctx *super.Context, projection field.Projection) (vector.Any, error) {
-	cctx := f.frame.Context()
-	f.root = newShadow(cctx, f.frame.Root())
-	f.root.unmarshal(cctx, projection)
-	loader := &loader{cctx, sctx, f.frame.DataReader()}
-	return loader.load(projection, f.root)
+	f.root.unmarshal(f.frame.Context(), projection)
+	// Load all vector data into the in-memory shadow that is needed and not yet loaded
+	// and return a new vector.Any using the data vectors in cache.  This may be called
+	// concurrently on the same shadow and fine-grained locking insures that any given
+	// data vector is loaded just once and such loads may be executed concurrently (even
+	// when only one thread is calling load).  If paths is nil, then the entire value
+	// is loaded.  All of the projected paths in the shadow must have been properly
+	// unmarshaled before calling.
+	return f.root.project(f, projection), nil //XXX always nil
 }
 
-// LoadUnordered is like Load, but if o's root vector is dynamic,
+// LoadUnordered is like Load, but if the frame's root vector is dynamic,
 // LoadUnordered returns the underlying values vectors instead of a
 // vector.Dynamic.
 func (f *FrameLoader) LoadUnordered(vecs []vector.Any, sctx *super.Context, projection field.Projection) ([]vector.Any, error) {
 	cctx := f.frame.Context()
 	f.root = newShadow(cctx, f.frame.Root())
 	f.root.unmarshal(cctx, projection)
-	loader := &loader{cctx: cctx, sctx: sctx, r: f.frame.DataReader()}
 	if d, ok := f.root.(*dynamic); ok {
-		return d.projectUnordered(vecs, loader, projection), nil
+		return d.projectUnordered(vecs, f, projection), nil
 	}
-	vec, err := loader.load(projection, f.root)
-	if err != nil {
-		return nil, err
-	}
+	vec := f.root.project(f, projection)
 	return append(vecs, vec), nil
 }

@@ -32,7 +32,7 @@ func (e *error_) unmarshal(cctx *bsup.Context, projection field.Projection) {
 	e.values.unmarshal(cctx, projection)
 }
 
-func (e *error_) project(loader *loader, projection field.Projection) vector.Any {
+func (e *error_) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vec := e.values.project(loader, projection)
 	typ := loader.sctx.LookupTypeError(vec.Type())
 	return vector.NewError(typ, vec)
