@@ -25,7 +25,7 @@ func (n *net) length() uint32 {
 
 func (*net) unmarshal(*bsup.Context, field.Projection) {}
 
-func (n *net) project(loader *loader, projection field.Projection) vector.Any {
+func (n *net) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vec := vector.NewNet(n.load(loader))
 	if len(projection) > 0 {
 		return vector.NewWrappedError(loader.sctx, "'.': applied to non-record", vec)
@@ -33,7 +33,7 @@ func (n *net) project(loader *loader, projection field.Projection) vector.Any {
 	return vec
 }
 
-func (n *net) load(loader *loader) []netip.Prefix {
+func (n *net) load(loader *FrameLoader) []netip.Prefix {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if n.vals != nil {

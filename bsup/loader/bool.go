@@ -26,7 +26,7 @@ func (b *bool_) length() uint32 {
 
 func (*bool_) unmarshal(*bsup.Context, field.Projection) {}
 
-func (b *bool_) project(loader *loader, projection field.Projection) vector.Any {
+func (b *bool_) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vec := vector.NewBool(b.load(loader))
 	if len(projection) > 0 {
 		return vector.NewWrappedError(loader.sctx, "'.': applied to non-record", vec)
@@ -34,14 +34,14 @@ func (b *bool_) project(loader *loader, projection field.Projection) vector.Any 
 	return vec
 }
 
-func (b *bool_) load(loader *loader) bitvec.Bits {
+func (b *bool_) load(loader *FrameLoader) bitvec.Bits {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.bits != nil {
 		return *b.bits
 	}
 	bytes := make([]byte, b.meta.Location.MemLength)
-	if err := b.meta.Location.Read(loader.r, bytes); err != nil {
+	if err := b.meta.Location.Read(loader.frame.DataReader(), bytes); err != nil {
 		panic(err)
 	}
 	bits := bitvec.New(byteconv.ReinterpretSlice[uint64](bytes), b.meta.Count)

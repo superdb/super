@@ -32,7 +32,7 @@ func (t *typevalue) length() uint32 {
 
 func (*typevalue) unmarshal(*bsup.Context, field.Projection) {}
 
-func (t *typevalue) project(loader *loader, projection field.Projection) vector.Any {
+func (t *typevalue) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vec := vector.NewTypeValueWithLoader(loader.sctx, t.newLoader(loader))
 	if len(projection) > 0 {
 		return vector.NewWrappedError(loader.sctx, "'.': applied to non-record", vec)
@@ -65,6 +65,6 @@ type typesLoader struct {
 var _ vector.TypesLoader = (*typesLoader)(nil)
 
 func (s *typesLoader) Load() (*super.TypeDefs, []uint32) {
-	return s.loader.frame.Context().LoadSubtypes(), s.type_.loadIDs(s.loader.r)
+	return s.loader.frame.Context().LoadSubtypes(), s.type_.loadIDs(s.loader.frame.DataReader())
 
 }

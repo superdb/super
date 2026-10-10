@@ -20,7 +20,7 @@ func (n *none) length() uint32 {
 
 func (*none) unmarshal(*bsup.Context, field.Projection) {}
 
-func (n *none) project(loader *loader, projection field.Projection) vector.Any {
+func (n *none) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vec := vector.NewNone(n.meta.Count)
 	if len(projection) > 0 {
 		return vector.NewWrappedError(loader.sctx, "'.': applied to non-record", vec)

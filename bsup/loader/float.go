@@ -26,7 +26,7 @@ func (f *float) length() uint32 {
 
 func (*float) unmarshal(*bsup.Context, field.Projection) {}
 
-func (f *float) project(loader *loader, projection field.Projection) vector.Any {
+func (f *float) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vec := vector.NewFloat(f.meta.Typ, f.load(loader))
 	if len(projection) > 0 {
 		return vector.NewWrappedError(loader.sctx, "'.': applied to non-record", vec)
@@ -34,14 +34,14 @@ func (f *float) project(loader *loader, projection field.Projection) vector.Any 
 	return vec
 }
 
-func (f *float) load(loader *loader) []float64 {
+func (f *float) load(loader *FrameLoader) []float64 {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.vals != nil {
 		return f.vals
 	}
 	bytes := make([]byte, f.meta.Location.MemLength)
-	if err := f.meta.Location.Read(loader.r, bytes); err != nil {
+	if err := f.meta.Location.Read(loader.frame.DataReader(), bytes); err != nil {
 		panic(err)
 	}
 	f.vals = byteconv.ReinterpretSlice[float64](bytes)
