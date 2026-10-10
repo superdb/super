@@ -1,0 +1,19 @@
+# A none value nested inside a container has no field to omit, so it is
+# written as JSON null rather than the string "null".
+spq: pass
+
+flags: -f json
+
+input: |
+  [none]
+  [1,none]
+  {a:[none]}
+  {a:[none::int64]}
+  error(none)
+
+output: |
+  [null]
+  [1,null]
+  {"a":[null]}
+  {"a":[null]}
+  {"error":null}
