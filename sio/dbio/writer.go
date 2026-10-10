@@ -17,7 +17,6 @@ import (
 	"github.com/superdb/super/pkg/charm"
 	"github.com/superdb/super/pkg/terminal/color"
 	"github.com/superdb/super/pkg/units"
-	"github.com/superdb/super/runtime/sam/op/meta"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector"
@@ -94,7 +93,7 @@ func (w *Writer) formatValue(t table, b *bytes.Buffer, v any, width int, colors 
 		formatDataObject(b, &v, "", 0)
 	case *data.Object:
 		formatDataObject(b, v, "", 0)
-	case meta.Partition:
+	case data.Partition:
 		formatPartition(b, v)
 	case *commits.Commit:
 		branches := w.branches[v.ID]
@@ -176,7 +175,7 @@ func formatDataObject(b *bytes.Buffer, object *data.Object, prefix string, inden
 	b.WriteByte('\n')
 }
 
-func formatPartition(b *bytes.Buffer, p meta.Partition) {
+func formatPartition(b *bytes.Buffer, p data.Partition) {
 	b.WriteString("min ")
 	b.WriteString(sup.String(p.Min))
 	b.WriteString(" max ")

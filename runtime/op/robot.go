@@ -6,7 +6,6 @@ import (
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
 	"github.com/superdb/super/runtime/expr"
-	"github.com/superdb/super/runtime/sam/op/meta"
 	"github.com/superdb/super/scode"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
@@ -154,7 +153,7 @@ func (r *Robot) openPool(id uuid.UUID) (vio.Puller, error) {
 	if err != nil {
 		return nil, err
 	}
-	l, err := meta.NewLister(ctx, r.rctx.Sctx, pool, branch, nil)
+	l, err := NewLister(ctx, r.rctx.Sctx, pool, branch, nil)
 	if err != nil {
 		return nil, err
 	}

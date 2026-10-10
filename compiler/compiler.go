@@ -14,7 +14,6 @@ import (
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
 	"github.com/superdb/super/runtime/op"
-	"github.com/superdb/super/runtime/sam/op/meta"
 	"github.com/superdb/super/vector/vio"
 )
 
@@ -76,8 +75,8 @@ func (l *compiler) NewObjectScanner(rctx *runtime.Context, poolID uuid.UUID, obj
 	if err != nil {
 		return nil, err
 	}
-	lister := meta.NewListerFromObjects(rctx, rctx.Sctx, pool, objects, nil)
-	slicer := meta.NewSlicer(lister, rctx.Sctx)
+	lister := op.NewListerFromObjects(rctx, rctx.Sctx, pool, objects, nil)
+	slicer := op.NewSlicer(rctx.Sctx, lister)
 	return op.NewPoolScanner(rctx, slicer, pool, nil, nil, nil), nil
 }
 

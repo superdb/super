@@ -15,7 +15,6 @@ import (
 	"github.com/superdb/super/runtime/op"
 	"github.com/superdb/super/runtime/op/aggregate"
 	samexpr "github.com/superdb/super/runtime/sam/expr"
-	"github.com/superdb/super/runtime/sam/op/meta"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
@@ -190,6 +189,16 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 	switch o := o.(type) {
 	case *dag.AggregateOp:
 		return b.compileVamAggregate(o, parent)
+	case *dag.CommitMetaScan:
+		var pruner samexpr.Evaluator
+		if o.Tap && o.KeyPruner != nil {
+			var err error
+			pruner, err = compileExpr(o.KeyPruner)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return op.NewCommitMetaScanner(b.rctx.Context, b.sctx(), b.env.DB(), o.Pool, o.Commit, o.Meta, pruner)
 	case *dag.CountOp:
 		var e expr.Evaluator
 		if o.Expr != nil {
@@ -209,6 +218,8 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 			return nil, err
 		}
 		return op.NewValues(b.sctx(), parent, []expr.Evaluator{e}), nil
+	case *dag.DBMetaScan:
+		return op.NewDBMetaScanner(b.rctx.Context, b.sctx(), b.env.DB(), o.Meta)
 	case *dag.DebugOp:
 		e, err := b.compileVamExpr(o.Expr)
 		if err != nil {
@@ -283,13 +294,33 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		return op.NewHead(parent, o.Count), nil
 	case *dag.InferOp:
 		return op.NewInfer(b.rctx, parent, o.Limit), nil
+	case *dag.ListerScan:
+		if parent != nil {
+			return nil, errors.New("internal error: data source cannot have a parent operator")
+		}
+		pool, err := b.lookupPool(o.Pool)
+		if err != nil {
+			return nil, err
+		}
+		var pruner samexpr.Evaluator
+		if o.KeyPruner != nil {
+			pruner, err = compileExpr(o.KeyPruner)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return op.NewLister(b.rctx.Context, b.mctx, pool, o.Commit, pruner)
 	case *dag.LoadOp:
 		return op.NewLoad(b.rctx, b.env.DB(), parent, o.Pool, o.Branch, o.Author, o.Message, o.Meta), nil
+	case *dag.NullScan:
+		return vio.NewPuller(vector.NewNull(1)), nil
 	case *dag.OutputOp:
 		b.channels[o.Name] = append(b.channels[o.Name], parent)
 		return parent, nil
 	case *dag.PassOp:
 		return parent, nil
+	case *dag.PoolMetaScan:
+		return op.NewPoolMetaScanner(b.rctx.Context, b.sctx(), b.env.DB(), o.ID, o.Meta)
 	case *dag.PutOp:
 		rec, err := newRecordExprFromAssignments(o.Args)
 		if err != nil {
@@ -326,11 +357,11 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		if err != nil {
 			return nil, err
 		}
-		l, err := meta.NewLister(b.rctx.Context, b.mctx, pool, o.Commit, nil)
+		l, err := op.NewLister(b.rctx.Context, b.mctx, pool, o.Commit, nil)
 		if err != nil {
 			return nil, err
 		}
-		slicer := meta.NewSlicer(l, b.mctx)
+		slicer := op.NewSlicer(b.mctx, l)
 		return op.NewPoolScanner(b.rctx, slicer, pool, nil, nil, b.progress), nil
 	case *dag.SeqScan:
 		pool, err := b.lookupPool(o.Pool)
@@ -351,9 +382,11 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 				return nil, err
 			}
 		}
-		return op.NewPoolScanner(b.rctx, sbuf.NewMaterializer(parent), pool, filter, pruner, b.progress), nil
+		return op.NewPoolScanner(b.rctx, parent, pool, filter, pruner, b.progress), nil
 	case *dag.SkipOp:
 		return op.NewSkip(parent, o.Count), nil
+	case *dag.SlicerOp:
+		return op.NewSlicer(b.mctx, parent), nil
 	case *dag.SortOp:
 		exprs, err := b.compileSortExprs(o.Exprs)
 		if err != nil {

@@ -1,4 +1,4 @@
-package meta
+package op
 
 import (
 	"github.com/superdb/super"
