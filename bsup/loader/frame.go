@@ -21,11 +21,10 @@ type FrameLoader struct {
 }
 
 func NewFrameLoader(sctx *super.Context, frame *bsup.ColFrame) *FrameLoader {
-	cctx := frame.Context()
 	return &FrameLoader{
 		sctx:  sctx,
 		frame: frame,
-		root:  newShadow(cctx, frame.Root()),
+		root:  newShadow(frame.Context(), frame.Root()),
 	}
 }
 
