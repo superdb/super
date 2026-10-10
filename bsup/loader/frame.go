@@ -29,18 +29,6 @@ func NewFrameLoader(sctx *super.Context, frame *bsup.ColFrame) *FrameLoader {
 	}
 }
 
-// XXX
-// loader handles loading vector data on demand for only the fields needed
-// as specified in the projection.  The load operation is implemented simply
-// by calling the project method on a shadow.  All data for that shadow
-// will be loaded from this point in the value hierarchy possibly pruned by the
-// projection argument (nil projection implies load the whole value).
-//
-// The sctx passed into the loader is dynamic and comes from each query context that
-// uses the vcache.  No sctx types are stored in the shadow (except for primitive types
-// in shadowed vector.Any primitives that are shared).  We otherwise allocate all
-// vector.Any super.Types using the passed-in sctx.
-
 // Load returns the indicated projection of data in this BSUP object.
 // If any required data is not memory resident, it will be fetched from
 // storage and cached in memory so that subsequent calls run from memory.
@@ -58,7 +46,7 @@ func (f *FrameLoader) Load(sctx *super.Context, projection field.Projection) (ve
 	return f.root.project(f, projection), nil //XXX always nil
 }
 
-// LoadUnordered is like Load, but if o's root vector is dynamic,
+// LoadUnordered is like Load, but if the frame's root vector is dynamic,
 // LoadUnordered returns the underlying values vectors instead of a
 // vector.Dynamic.
 func (f *FrameLoader) LoadUnordered(vecs []vector.Any, sctx *super.Context, projection field.Projection) ([]vector.Any, error) {
