@@ -36,12 +36,12 @@ func (d *dynamic) unmarshal(cctx *bsup.Context, projection field.Projection) {
 	}
 }
 
-func (d *dynamic) project(loader *loader, projection field.Projection) vector.Any {
+func (d *dynamic) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vecs := make([]vector.Any, 0, len(d.values))
 	for _, shadow := range d.values {
 		vecs = append(vecs, shadow.project(loader, projection))
 	}
-	tags, _ := d.load(loader.r)
+	tags, _ := d.load(loader.frame.DataReader())
 	return vector.NewDynamic(tags, vecs)
 }
 
@@ -59,7 +59,7 @@ func (d *dynamic) load(r io.ReaderAt) ([]uint32, bitvec.Bits) {
 	return tags, bitvec.Zero
 }
 
-func (d *dynamic) projectUnordered(vecs []vector.Any, loader *loader, projection field.Projection) []vector.Any {
+func (d *dynamic) projectUnordered(vecs []vector.Any, loader *FrameLoader, projection field.Projection) []vector.Any {
 	for _, shadow := range d.values {
 		vecs = append(vecs, shadow.project(loader, projection))
 	}

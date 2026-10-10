@@ -37,13 +37,13 @@ func (o *option) unmarshal(cctx *bsup.Context, projection field.Projection) {
 	o.values.unmarshal(cctx, projection)
 }
 
-func (o *option) load(loader *loader) []uint32 {
+func (o *option) load(loader *FrameLoader) []uint32 {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.tags != nil {
 		return o.tags
 	}
-	tags, err := bsup.ReadUint32s(o.meta.Tags, loader.r)
+	tags, err := bsup.ReadUint32s(o.meta.Tags, loader.frame.DataReader())
 	if err != nil {
 		panic(err)
 	}
@@ -51,7 +51,7 @@ func (o *option) load(loader *loader) []uint32 {
 	return tags
 }
 
-func (o *option) project(loader *loader, projection field.Projection) vector.Any {
+func (o *option) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	typ, err := loader.sctx.TranslateType(o.meta.Type)
 	if err != nil {
 		panic(err)

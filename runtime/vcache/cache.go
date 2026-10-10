@@ -76,7 +76,8 @@ func (c *Cache) Fetch(ctx context.Context, uri *storage.URI, id uuid.UUID) (*Obj
 	}
 	// XXX we need to refactor this interface since it's no longer aligned one
 	// cached entity per file (cache should operate on frames like parquet row groups)
-	object, err = NewObject(bsup.NewSeekable(super.NewContext(), r))
+	sctx := super.NewContext()
+	object, err = NewObject(sctx, bsup.NewSeekable(sctx, r))
 	if err != nil {
 		return nil, err
 	}

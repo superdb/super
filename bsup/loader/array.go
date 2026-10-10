@@ -33,7 +33,7 @@ func (a *array) unmarshal(cctx *bsup.Context, projection field.Projection) {
 	a.values.unmarshal(cctx, projection)
 }
 
-func (a *array) project(loader *loader, projection field.Projection) vector.Any {
+func (a *array) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vec := a.values.project(loader, nil)
 	typ := loader.sctx.LookupTypeArray(vec.Type())
 	offs := a.load(loader)
@@ -43,13 +43,13 @@ func (a *array) project(loader *loader, projection field.Projection) vector.Any 
 	return vector.NewArray(typ, offs, vec)
 }
 
-func (a *array) load(loader *loader) []uint32 {
+func (a *array) load(loader *FrameLoader) []uint32 {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.offs != nil {
 		return a.offs
 	}
-	offs, err := bsup.ReadUint32s(a.meta.Lengths, loader.r)
+	offs, err := bsup.ReadUint32s(a.meta.Lengths, loader.frame.DataReader())
 	if err != nil {
 		panic(err)
 	}
