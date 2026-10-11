@@ -47,7 +47,7 @@ func (u *union) load(loader *FrameLoader) []uint32 {
 	if u.tags != nil {
 		return u.tags
 	}
-	tags, err := bsup.ReadUint32s(u.meta.Tags, loader.frame.DataReader())
+	tags, err := bsup.ReadUint32s(u.meta.Tags, loader.frame)
 	if err != nil {
 		panic(err)
 	}

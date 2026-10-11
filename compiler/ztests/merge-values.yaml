@@ -24,12 +24,12 @@ outputs:
       | values 1, {b:1}, 1
       | output main
       ===
-      file f unordered fields a,b
+      file f unordered project [a,b]
       | aggregate
           count:=count(a) by b:=b,c:=1
       | output main
       ===
-      file f fields a.b.c.d,a.b.c.e
+      file f project [a.b.c.d,a.b.c.e]
       | values a.b.c.d, {e:a.b.c.e}
       | output main
       ===
@@ -37,17 +37,17 @@ outputs:
       | values {a:{b:1,c:2,d:3}}
       | output main
       ===
-      file f fields a,b
+      file f project [a,b]
       | values {...a,...b}
       | values {c:c}
       | output main
       ===
-      file f fields a,b
+      file f project [a,b]
       | values {a:a,...b}
       | values {a:a}
       | output main
       ===
-      file f unordered fields a,b
+      file f unordered project [a,b]
       | aggregate
           t0:=max(this!.b) by k0:=this!.a
       | aggregate
@@ -58,7 +58,7 @@ outputs:
       | values {d:2}
       | output main
       ===
-      file f fields b,c
+      file f project [b,c]
       | values {a:{...b,...c}}
       | values a.d
       | output main

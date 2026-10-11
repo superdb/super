@@ -5,7 +5,7 @@ script: |
 outputs:
   - name: stdout
     data: |
-      file /dev/null unordered
+      file /dev/null unordered project none
       | switch
         case true (
           aggregate

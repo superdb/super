@@ -23,7 +23,7 @@ outputs:
       | sort a asc nulls last
       | output main
       ===
-      file /dev/null unordered fields a,b
+      file /dev/null unordered project [a,b]
       | sort a asc nulls last
       | values b
       | output main

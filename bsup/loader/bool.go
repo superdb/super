@@ -41,7 +41,7 @@ func (b *bool_) load(loader *FrameLoader) bitvec.Bits {
 		return *b.bits
 	}
 	bytes := make([]byte, b.meta.Location.MemLength)
-	if err := b.meta.Location.Read(loader.frame.DataReader(), bytes); err != nil {
+	if err := b.meta.Location.Read(loader.frame, bytes); err != nil {
 		panic(err)
 	}
 	bits := bitvec.New(byteconv.ReinterpretSlice[uint64](bytes), b.meta.Count)

@@ -30,7 +30,7 @@ func (q *QueryTextFlags) SetFlags(fs *flag.FlagSet) {
 }
 
 func (f *Flags) SetFlags(fs *flag.FlagSet) {
-	fs.BoolVar(&f.Stats, "stats", false, "display search stats on stderr")
+	fs.BoolVar(&f.Stats, "stats", false, "display query stats on stderr")
 	f.QueryTextFlags.SetFlags(fs)
 }
 

@@ -13,39 +13,48 @@ script: |
 outputs:
   - name: stdout
     data: |
-      file f fields b,d filter (b==1 and d==2)
-         pruner (
-           expr compare(1, b.min, true)>=0 and compare(1, b.max, true)<=0 and compare(2, d.min, true)>=0 and compare(2, d.max, true)<=0
-           fields b.max,b.min,d.max,d.min
+      file f project [b,d]
+        meta-filter project [b.max,b.min,d.max,d.min] (
+          compare(1, b.min, true)>=0 and compare(1, b.max, true)<=0 and compare(2, d.min, true)>=0 and compare(2, d.max, true)<=0
+        )
+        data-filter (
+          b==1 and d==2
         )
       | where b==1 and d==2
       | values {a:b,c:d}
       | output main
       ===
-      file f fields a filter (a.b==1)
-         pruner (
-           expr compare(1, a.b.min, true)>=0 and compare(1, a.b.max, true)<=0
-           fields a.b.max,a.b.min
+      file f project [a]
+        meta-filter project [a.b.max,a.b.min] (
+          compare(1, a.b.min, true)>=0 and compare(1, a.b.max, true)<=0
+        )
+        data-filter project [a.b] (
+          a.b==1
         )
       | where a.b==1
       | values {...a}
       | output main
       ===
-      file f fields c filter (c==1)
-         pruner (
-           expr compare(1, c.min, true)>=0 and compare(1, c.max, true)<=0
-           fields c.max,c.min
+      file f project [c]
+        meta-filter project [c.max,c.min] (
+          compare(1, c.min, true)>=0 and compare(1, c.max, true)<=0
+        )
+        data-filter (
+          c==1
         )
       | where c==1
       | values {a:{b:c}}
       | output main
       ===
-      file f fields b,c,d filter (b+1>=c and b+1<=d)
+      file f project [b,c,d]
+        data-filter (
+          b+1>=c and b+1<=d
+        )
       | where b+1>=c and b+1<=d
       | values {a:b,c:c,d:d}
       | output main
       ===
-      file f fields b,c
+      file f project [b,c]
       | values {a:{...b,...c}}
       | where a.d
       | output main

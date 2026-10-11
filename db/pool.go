@@ -335,21 +335,21 @@ func (p *Pool) Main(ctx context.Context) (BranchMeta, error) {
 	return BranchMeta{p.Config, branch.Config}, nil
 }
 
-func (p *Pool) NewReader(ctx context.Context, sctx *super.Context, object *data.Object, pushdown vio.Pushdown, concurrency int) (vio.ScanCloser, error) {
+func (p *Pool) NewReader(ctx context.Context, sctx *super.Context, object *data.Object, pushdown vio.Pushdown, progress *vio.Progress, concurrency int) (vio.PullCloser, error) {
 	uri := object.URI(p.DataPath)
 	r, err := p.engine.Get(ctx, uri)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", uri, err)
 	}
-	scanner, err := bsupio.NewReader(ctx, sctx, r, pushdown, concurrency)
+	reader, err := bsupio.NewReader(ctx, sctx, r, pushdown, progress, concurrency)
 	if err != nil {
 		return nil, err
 	}
 	return &struct {
-		vio.Scanner
+		vio.Puller
 		io.Closer
 	}{
-		Scanner: scanner,
+		Puller: reader,
 		// XXX We block close because vcache does lazy loading of
 		// type values.  This relies on GC to close files.  We need
 		// to work out a better way at some point.

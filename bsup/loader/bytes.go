@@ -55,7 +55,7 @@ func (b *bytes) load(loader *FrameLoader) vector.BytesTable {
 }
 
 func loadBytesTable(loader *FrameLoader, offsets, bytes bsup.Segment) vector.BytesTable {
-	offs, err := bsup.ReadUint32s(offsets, loader.frame.DataReader())
+	offs, err := bsup.ReadUint32s(offsets, loader.frame)
 	if err != nil {
 		panic(err)
 	}
@@ -63,7 +63,7 @@ func loadBytesTable(loader *FrameLoader, offsets, bytes bsup.Segment) vector.Byt
 		offs = []uint32{0}
 	}
 	b := make([]byte, bytes.MemLength)
-	if err := bytes.Read(loader.frame.DataReader(), b); err != nil {
+	if err := bytes.Read(loader.frame, b); err != nil {
 		panic(err)
 	}
 	return vector.NewBytesTable(offs, b)

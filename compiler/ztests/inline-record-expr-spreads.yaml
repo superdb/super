@@ -4,6 +4,6 @@ script: |
 outputs:
   - name: stdout
     data: |
-      file f fields a,b
+      file f project [a,b]
       | values {a:a}, {b:b}
       | output main

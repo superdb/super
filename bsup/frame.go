@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/scode"
 	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/vio"
 )
 
 // A FrameIter iterates over the Frames of a sequence of one or more SuperFrames.
@@ -40,6 +42,7 @@ type ColFrame struct {
 	readerAt   io.ReaderAt
 	dataReader io.ReaderAt
 	header     *ColumnHeader
+	progress   *vio.Progress
 }
 
 func newColFrame(r io.ReaderAt, header *ColumnHeader) (*ColFrame, error) {
@@ -75,9 +78,45 @@ func (c *ColFrame) Size() uint64 {
 	return c.header.FrameSize
 }
 
-// vcache uses this to load segments
-func (c *ColFrame) DataReader() io.ReaderAt {
-	return c.dataReader
+func (c *ColFrame) MetaSize() uint64 {
+	return c.header.MetadataSize
+}
+
+func (c *ColFrame) TypeSize() uint64 {
+	return c.header.TypedefsSize
+}
+
+func (c *ColFrame) LinkProgress(p *vio.Progress) {
+	c.progress = p
+	r := c.cctx.subtypesReader
+	if r != nil {
+		c.cctx.subtypesReader = &typesReader{r, p}
+	}
+}
+
+type typesReader struct {
+	r        io.Reader
+	progress *vio.Progress
+}
+
+func (t *typesReader) Read(p []byte) (int, error) {
+	n, err := t.r.Read(p)
+	if err != nil {
+		return n, err
+	}
+	atomic.AddInt64(&t.progress.TypesBytesLoaded, int64(n))
+	return n, nil
+}
+
+func (c *ColFrame) ReadAt(p []byte, off int64) (int, error) {
+	n, err := c.dataReader.ReadAt(p, off)
+	if err != nil {
+		return n, err
+	}
+	if c.progress != nil {
+		atomic.AddInt64(&c.progress.DataBytesLoaded, int64(n))
+	}
+	return n, nil
 }
 
 func (c *ColFrame) ProjectMetadata(sctx *super.Context, projection field.Projection) []super.Value {
@@ -114,6 +153,10 @@ func newRowFrame(sctx *super.Context, r io.ReaderAt, header *RowHeader) (*RowFra
 
 func (r *RowFrame) Size() uint64 {
 	return r.header.FrameSize
+}
+
+func (r *RowFrame) TypeSize() uint64 {
+	return r.header.TypedefsSize
 }
 
 func (r *RowFrame) Deserialize() (vector.Any, error) {

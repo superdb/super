@@ -137,51 +137,45 @@ func newObjectsScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, 
 }
 
 func newObjectScanner(ctx context.Context, sctx *super.Context, pool *db.Pool, object *data.Object, filter expr.Evaluator, progress *vio.Progress) (vio.Puller, error) {
-	// XXX We will figure out how concurrency is determined and how
-	// the pushdown works for BSUP columns in a subsequent PR.
-	const concurrency = 1
-	scanner, err := pool.NewReader(ctx, sctx, object, nil, concurrency)
+	reader, err := pool.NewReader(ctx, sctx, object, nil, progress, 1)
 	if err != nil {
 		return nil, err
 	}
-	return &statScanner{
-		scanner:  scanner,
-		progress: progress,
-		filter:   filter,
+	return &filterScanner{
+		reader: reader,
+		filter: filter,
 	}, nil
 }
 
-type statScanner struct {
-	scanner  vio.ScanCloser
-	err      error
-	progress *vio.Progress
-	filter   expr.Evaluator
+type filterScanner struct {
+	reader vio.PullCloser
+	err    error
+	filter expr.Evaluator
 }
 
-func (s *statScanner) Pull(done bool) (vector.Any, error) {
+func (f *filterScanner) Pull(done bool) (vector.Any, error) {
 	for {
-		if s.scanner == nil {
-			return nil, s.err
+		if f.reader == nil {
+			return nil, f.err
 		}
-		vec, err := s.scanner.Pull(done)
+		vec, err := f.reader.Pull(done)
 		if vec == nil || err != nil {
-			s.progress.Add(s.scanner.Progress())
-			if err2 := s.scanner.Close(); err == nil {
+			if err2 := f.reader.Close(); err == nil {
 				err = err2
 			}
-			s.err = err
-			s.scanner = nil
+			f.err = err
+			f.reader = nil
 			return vec, err
 		}
-		if s.filter == nil {
+		if f.filter == nil {
 			return vec, err
 		}
-		if masked, ok := applyMask(vec, s.filter.Eval(vec)); ok {
+		if masked, ok := applyMask(vec, f.filter.Eval(vec)); ok {
 			return masked, nil
 		}
 	}
 }
 
-func (s *statScanner) Close() error {
+func (*filterScanner) Close() error {
 	return nil
 }

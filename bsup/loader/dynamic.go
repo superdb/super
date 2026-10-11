@@ -41,7 +41,7 @@ func (d *dynamic) project(loader *FrameLoader, projection field.Projection) vect
 	for _, shadow := range d.values {
 		vecs = append(vecs, shadow.project(loader, projection))
 	}
-	tags, _ := d.load(loader.frame.DataReader())
+	tags, _ := d.load(loader.frame)
 	return vector.NewDynamic(tags, vecs)
 }
 

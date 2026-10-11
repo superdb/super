@@ -11,19 +11,19 @@ outputs:
   - name: stdout
     data: |
       === array_agg
-      file /dev/null fields a
+      file /dev/null project [a]
       | aggregate
           array_agg:=array_agg(a)
       | values array_agg
       | output main
       === collect
-      file /dev/null fields a
+      file /dev/null project [a]
       | aggregate
           collect:=collect(a)
       | values collect
       | output main
       === array_agg and collect with an unordered aggregate
-      file /dev/null fields a
+      file /dev/null project [a]
       | aggregate
           array_agg:=array_agg(a),collect:=collect(a),count:=count()
       | output main

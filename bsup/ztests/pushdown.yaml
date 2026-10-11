@@ -1,0 +1,28 @@
+script: |
+  seq 100 | super -o t.bsup -framecap 10 -inputcap 10 -I query.spq -
+  echo "=== x > 51 ===" >&2
+  super -stats -o /dev/null -c "x >51" t.bsup
+  echo "=== tag='foo18' ===" >&2
+  super -stats -o /dev/null -c "tag='foo18'" t.bsup
+  echo "=== count() ===" >&2
+  super -stats -o /dev/null -c "count()" t.bsup
+  echo "=== values tag | this='foo18' | count() ===" >&2
+  super -stats -o /dev/null -c "values tag | this='foo18' | count()" t.bsup
+
+inputs:
+  - name: query.spq
+    data: |
+      values {x:this,y:100-this}
+      | put tag:=f"{x%2=0 ? 'foo' : 'bar'}{y}"
+
+outputs:
+  - name: stderr
+    data: |
+      === x > 51 ===
+      {bytes_scanned:10768,values_scanned:49,frames_scanned:10,frames_skipped_search_filter:0,frames_skipped_meta_filter:5,frames_skipped_data_filter:0,values_skipped_data_filter:41,meta_bytes_loaded:8066,data_bytes_loaded:1072,type_bytes_loaded:0}
+      === tag='foo18' ===
+      {bytes_scanned:10768,values_scanned:1,frames_scanned:10,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:9,values_skipped_data_filter:99,meta_bytes_loaded:8066,data_bytes_loaded:856,type_bytes_loaded:0}
+      === count() ===
+      {bytes_scanned:10768,values_scanned:100,frames_scanned:10,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:0,values_skipped_data_filter:0,meta_bytes_loaded:8066,data_bytes_loaded:0,type_bytes_loaded:0}
+      === values tag | this='foo18' | count() ===
+      {bytes_scanned:10768,values_scanned:100,frames_scanned:10,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:0,values_skipped_data_filter:0,meta_bytes_loaded:8066,data_bytes_loaded:712,type_bytes_loaded:0}

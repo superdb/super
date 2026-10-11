@@ -66,12 +66,12 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p vio.Push
 	var fields []field.Path
 	if p != nil {
 		fields = p.Projection().Paths()
-		filter, projection, err := p.MetaFilter()
+		filter, err := p.MetaFilter()
 		if err != nil {
 			return nil, err
 		}
 		if filter != nil {
-			paths := projection.Paths()
+			paths := filter.Projection.Paths()
 			for i, p := range paths {
 				// Trim trailing "max" or "min".
 				paths[i] = p[:len(p)-1]
@@ -80,11 +80,11 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p vio.Push
 			// Remove duplicates created above by trimming "max" and "min".
 			metadataColIndexes = slices.Compact(colIndexes)
 			for range concurrentReaders {
-				filter, _, err := p.MetaFilter()
+				filter, err := p.MetaFilter()
 				if err != nil {
 					return nil, err
 				}
-				metadataFilters = append(metadataFilters, filter)
+				metadataFilters = append(metadataFilters, filter.Expr)
 			}
 		}
 	}

@@ -57,7 +57,7 @@ func TestBSUPBatchBug(t *testing.T) {
 	err = w.Push(valToVec(sctx, val2))
 	err = w.Close()
 	require.NoError(t, err)
-	p, err := bsupio.NewReader(t.Context(), sctx, bytes.NewReader(b.Bytes()), nil, 1)
+	p, err := bsupio.NewReader(t.Context(), sctx, bytes.NewReader(b.Bytes()), nil, nil, 1)
 	require.NoError(t, err)
 	defer p.Pull(true)
 	r := sbuf.PullerReader(sbuf.NewMaterializer(p))

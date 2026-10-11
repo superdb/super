@@ -124,9 +124,19 @@ func demandForSimpleOp(op dag.Op, downstream demand.Demand) demand.Demand {
 		}
 		d := downstream
 		if df := op.Pushdown.DataFilter; df != nil {
-			d = demand.Union(d, demandForExpr(df.Expr))
+			exprDemand := demandForExpr(df.Expr)
+			d = demand.Union(d, exprDemand)
+			df.Projection = nil
+			// Only worth a separate pass if the filter needs a strict subset of what
+			// the scan will load anyway.
+			if !demand.IsAll(exprDemand) && !demand.IsNone(exprDemand) && !demand.IsNone(demand.Delete(d, exprDemand)) {
+				df.Projection = demand.Fields(exprDemand)
+			}
 		}
 		op.Pushdown.Projection = demand.Fields(d)
+		if demand.IsNone(d) {
+			op.Pushdown.None = true
+		}
 		return demand.None()
 	case *dag.HTTPScan, *dag.ListerScan, *dag.NullScan, *dag.PoolMetaScan, *dag.PoolScan:
 		return demand.None()

@@ -10,20 +10,24 @@ outputs:
   - name: stdout
     data: |
       === Test pruner flips comparator with literal/path
-      file test.parquet format parquet type {v:int64} filter (1<=v and 1>=v)
-         pruner (
-           expr compare(v.max, 1, true)>=0 and compare(v.min, 1, true)<=0
-           fields v.max,v.min
+      file test.parquet format parquet type {v:int64}
+        meta-filter project [v.max,v.min] (
+          compare(v.max, 1, true)>=0 and compare(v.min, 1, true)<=0
+        )
+        data-filter project [v] (
+          1<=v and 1>=v
         )
       | where 1<=v and 1>=v
       | output main
       === Test pruner optimization works with in subquery expressions
       null
       | values {x:(
-        file test.parquet format parquet type {v:int64} filter (1<=v and 1>=v)
-           pruner (
-             expr compare(v.max, 1, true)>=0 and compare(v.min, 1, true)<=0
-             fields v.max,v.min
+        file test.parquet format parquet type {v:int64}
+          meta-filter project [v.max,v.min] (
+            compare(v.max, 1, true)>=0 and compare(v.min, 1, true)<=0
+          )
+          data-filter project [v] (
+            1<=v and 1>=v
           )
         | where 1<=v and 1>=v)}
       | output main

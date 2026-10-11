@@ -314,6 +314,7 @@ type (
 // Support type for scanner types.
 type (
 	Pushdown struct {
+		None       bool         `json:"none"`
 		Projection []field.Path `json:"projection"`
 		DataFilter *ScanFilter  `json:"data_filter"`
 		MetaFilter *ScanFilter  `json:"meta_filter"`

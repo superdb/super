@@ -26,7 +26,7 @@ outputs:
           union:=union(s) by n:=n
       | output main
       ===
-      file test.bsup format bsup unordered fields a,b
+      file test.bsup format bsup unordered project [a,b]
       | scatter
         (
           aggregate partials-out

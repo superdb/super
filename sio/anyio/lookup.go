@@ -28,7 +28,7 @@ func lookupReader(ctx context.Context, sctx *super.Context, r io.Reader, opts Re
 		}
 		return newVioPuller(sctx, r), nil
 	case "bsup":
-		return bsupio.NewReader(ctx, sctx, r, opts.Pushdown, opts.ConcurrentReaders)
+		return bsupio.NewReader(ctx, sctx, r, opts.Pushdown, opts.Progress, opts.ConcurrentReaders)
 	case "csv":
 		return newVioPuller(sctx, csvio.NewReader(sctx, r, opts.CSV)), nil
 	case "line":

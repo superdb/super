@@ -30,10 +30,10 @@ outputs:
       {x:3,y:3,z:2}
       {x:4,y:4,z:2}
       ===
-      file t.json format json fields a
+      file t.json format json project [a]
       | values {"a+1":this!.a+1,"a+2":this!.a+2,"a+1_1":this!.a+1,"a+3":this!.a+3,"a+1_2":this!.a+1}
       | output main
       ===
-      file t.json format json fields a
+      file t.json format json project [a]
       | values {"a+1":this!.a+1,"a+1_1":this!.a+1}
       | output main

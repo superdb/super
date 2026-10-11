@@ -57,10 +57,8 @@ func (s *scanner) Read() (*super.Value, error) {
 		if err != nil || this == nil {
 			return nil, err
 		}
-		atomic.AddInt64(&s.progress.BytesRead, int64(len(this.Bytes())))
-		atomic.AddInt64(&s.progress.RecordsRead, 1)
-		atomic.AddInt64(&s.progress.BytesMatched, int64(len(this.Bytes())))
-		atomic.AddInt64(&s.progress.RecordsMatched, 1)
+		atomic.AddInt64(&s.progress.BytesScanned, int64(len(this.Bytes())))
+		atomic.AddInt64(&s.progress.ValuesScanned, 1)
 		return this, nil
 	}
 }

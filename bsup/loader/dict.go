@@ -47,10 +47,10 @@ func (d *dict) load(loader *FrameLoader) ([]byte, []uint32) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.index = make([]byte, d.meta.Index.MemLength)
-	if err := d.meta.Index.Read(loader.frame.DataReader(), d.index); err != nil {
+	if err := d.meta.Index.Read(loader.frame, d.index); err != nil {
 		panic(err)
 	}
-	v, err := bsup.ReadUint32s(d.meta.Counts, loader.frame.DataReader())
+	v, err := bsup.ReadUint32s(d.meta.Counts, loader.frame)
 	if err != nil {
 		panic(err)
 	}

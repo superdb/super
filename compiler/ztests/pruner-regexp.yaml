@@ -14,23 +14,30 @@ script: |
 outputs:
   - name: stdout
     data: |
-      file test.bsup format bsup filter (regexp_search(r"(?s)^cslab.*?$", x))
-         pruner (
-           expr compare("cslab", x.max, true)<=0 and compare("cslac", x.min, true)>0
-           fields x.max,x.min
+      file test.bsup format bsup
+        meta-filter project [x.max,x.min] (
+          compare("cslab", x.max, true)<=0 and compare("cslac", x.min, true)>0
+        )
+        data-filter project [x] (
+          regexp_search(r"(?s)^cslab.*?$", x)
         )
       | where regexp_search(r"(?s)^cslab.*?$", x)
       | output main
       // ===
-      file test.bsup format bsup filter (regexp_search(r"^csla[bB].*", x))
-         pruner (
-           expr compare("csla", x.max, true)<=0 and compare("cslb", x.min, true)>0
-           fields x.max,x.min
+      file test.bsup format bsup
+        meta-filter project [x.max,x.min] (
+          compare("csla", x.max, true)<=0 and compare("cslb", x.min, true)>0
+        )
+        data-filter project [x] (
+          regexp_search(r"^csla[bB].*", x)
         )
       | where regexp_search(r"^csla[bB].*", x)
       | output main
       // ===
-      file test.bsup format bsup filter (regexp_search(r"csla[bB].*", x))
+      file test.bsup format bsup
+        data-filter project [x] (
+          regexp_search(r"csla[bB].*", x)
+        )
       | where regexp_search(r"csla[bB].*", x)
       | output main
       // ===

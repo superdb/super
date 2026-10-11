@@ -3,10 +3,12 @@ script: super compile -O -C 'from /dev/null | x>1 | pass | pass | x>2 | pass'
 outputs:
   - name: stdout
     data: |
-      file /dev/null filter (x>1 and x>2)
-         pruner (
-           expr compare(x.max, 1, true)>0 and compare(x.max, 2, true)>0
-           fields x.max
+      file /dev/null
+        meta-filter project [x.max] (
+          compare(x.max, 1, true)>0 and compare(x.max, 2, true)>0
+        )
+        data-filter project [x] (
+          x>1 and x>2
         )
       | where x>1 and x>2
       | output main

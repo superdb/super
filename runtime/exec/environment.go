@@ -80,23 +80,24 @@ func (e *Environment) SortKeys(ctx context.Context, src dag.Op) order.SortKeys {
 	return nil
 }
 
-func (e *Environment) Open(ctx context.Context, sctx *super.Context, path, format string, p vio.Pushdown, concurrentReaders int) (ConcurrentPuller, error) {
+func (e *Environment) Open(ctx context.Context, sctx *super.Context, path, format string, p vio.Pushdown, progress *vio.Progress, concurrentReaders int) (ConcurrentPuller, error) {
 	if path == "-" {
 		path = "stdio:stdin"
 	}
 	if path == "stdio:stdin" && e.Stdin != nil {
 		return newConcurrentPuller(path, e.Stdin), nil
 	}
-	file, err := anyio.Open(ctx, sctx, e.engine, path, e.readerOpts(p, format, concurrentReaders))
+	file, err := anyio.Open(ctx, sctx, e.engine, path, e.readerOpts(p, progress, format, concurrentReaders))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return newConcurrentPuller(path, file.Puller), nil
 }
 
-func (e *Environment) readerOpts(p vio.Pushdown, format string, concurrentReaders int) anyio.ReaderOpts {
+func (e *Environment) readerOpts(p vio.Pushdown, progress *vio.Progress, format string, concurrentReaders int) anyio.ReaderOpts {
 	o := e.ReaderOpts
 	o.Pushdown = p
+	o.Progress = progress
 	o.ConcurrentReaders = concurrentReaders
 	if format != "" {
 		o.Format = format
@@ -114,7 +115,7 @@ func (e *Environment) OpenHTTP(ctx context.Context, sctx *super.Context, url, fo
 	if err != nil {
 		return nil, err
 	}
-	file, err := anyio.NewFile(ctx, sctx, resp.Body, url, e.readerOpts(p, format, 1))
+	file, err := anyio.NewFile(ctx, sctx, resp.Body, url, e.readerOpts(p, nil, format, 1))
 	if err != nil {
 		resp.Body.Close()
 		return nil, fmt.Errorf("%s: %w", url, err)
