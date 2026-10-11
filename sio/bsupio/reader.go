@@ -69,6 +69,7 @@ func (d *dispatcher) Progress() vio.Progress {
 func (d *dispatcher) next() (bsup.Frame, error) {
 	d.once.Do(func() {
 		go func() {
+			defer close(d.frameCh)
 			for {
 				f, err := d.fit.Next()
 				if err == io.EOF {
@@ -79,9 +80,8 @@ func (d *dispatcher) next() (bsup.Frame, error) {
 				case <-d.ctx.Done():
 					return
 				}
-				if err != nil {
-					close(d.frameCh)
-					break
+				if f == nil || err != nil {
+					return
 				}
 			}
 		}()
