@@ -87,10 +87,7 @@ func (d *dispatcher) next() (bsup.Frame, error) {
 		}()
 	})
 	select {
-	case f, ok := <-d.frameCh:
-		if !ok {
-			return nil, nil
-		}
+	case f := <-d.frameCh:
 		return f.frame, f.err
 	case <-d.ctx.Done():
 		return nil, d.ctx.Err()
