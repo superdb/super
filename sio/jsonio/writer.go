@@ -71,7 +71,7 @@ func (w *Writer) Write(val super.Value) error {
 
 func (w *Writer) writeAny(tab int, val super.Value) {
 	val = val.Under()
-	if val.IsNull() {
+	if val.IsNull() || val.Type().ID() == super.IDNone {
 		w.writeColor([]byte("null"), nullColor)
 		return
 	}
@@ -243,8 +243,6 @@ func (w *Writer) writePrimitive(val super.Value) {
 		v = super.DecodeNet(val.Bytes()).String()
 	case id == super.IDType:
 		v = sup.FormatValue(val)
-	case id == super.IDNone:
-		v = "null"
 	default:
 		panic(fmt.Sprintf("unsupported id=%d", id))
 	}
