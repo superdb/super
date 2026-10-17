@@ -21,7 +21,7 @@ func (o *Ok) Call(args ...vector.Any) vector.Any {
 func (o *Ok) call(args ...vector.Any) vector.Any {
 	vec := args[0]
 	if vec.Kind() == vector.KindError {
-		return vector.NewNone(vec.Len())
+		return vector.NewMissing(vec.Len())
 	}
 	return vec
 }

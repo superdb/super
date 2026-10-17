@@ -55,8 +55,6 @@ func Unblend(sctx *super.Context, vec vector.Any) vector.Any {
 			return dynamic.Values[idx]
 		}
 		return out
-	case vector.KindOption:
-		return Unblend(sctx, vector.DeoptionWithNone(vector.PushView(vec)))
 	}
 	return vec
 }
@@ -85,7 +83,7 @@ func unblendRecord(sctx *super.Context, in vector.Any) vector.Any {
 		var fields []super.Field
 		var fvecs []vector.Any
 		for i, vec := range vecs {
-			if _, ok := vec.(*vector.None); ok {
+			if _, ok := vec.(*vector.Missing); ok {
 				continue
 			}
 			fvecs = append(fvecs, vec)
@@ -160,8 +158,8 @@ func unblendMap(sctx *super.Context, vmap *vector.Map) vector.Any {
 }
 
 func SubsetOfList(sctx *super.Context, elements vector.Any, parentOffsets, index []uint32, typ super.Type) (vector.Any, []uint32) {
-	if typ == super.TypeNone {
-		nones := vector.NewNone(uint32(len(index)))
+	if typ == super.TypeMissing {
+		nones := vector.NewMissing(uint32(len(index)))
 		offsets := make([]uint32, len(index)+1)
 		return nones, offsets
 	}
@@ -243,7 +241,7 @@ func SlotTypesInList(sctx *super.Context, inner vector.Any, offsets []uint32) []
 	for i := range n {
 		start, end := offsets[i], offsets[i+1]
 		if start == end {
-			slotTypes[i] = super.TypeNone
+			slotTypes[i] = super.TypeMissing
 		} else if dynamic != nil {
 			slotTypes[i] = typeOfRange(sctx, dynamic, alltypes, start, end)
 		} else {

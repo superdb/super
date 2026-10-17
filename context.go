@@ -216,14 +216,14 @@ func (c *Context) MustLookupTypeUnion(types []Type) *TypeUnion {
 	return typ
 }
 
-func (c *Context) UnionWithNone(typ Type) *TypeUnion {
-	if typ == TypeNone {
+func (c *Context) UnionMissing(typ Type) *TypeUnion {
+	if typ == TypeMissing {
 		panic("cannot create none-only union")
 	}
 	var types []Type
 	if union, ok := typ.(*TypeUnion); ok {
 		for _, t := range union.Types {
-			if t == TypeNone {
+			if t == TypeMissing {
 				return union
 			}
 		}
@@ -231,7 +231,7 @@ func (c *Context) UnionWithNone(typ Type) *TypeUnion {
 	} else {
 		types = []Type{typ}
 	}
-	return c.MustLookupTypeUnion(append(types, TypeNone))
+	return c.MustLookupTypeUnion(append(types, TypeMissing))
 }
 
 func (c *Context) LookupTypeEnum(symbols []string) *TypeEnum {
@@ -402,9 +402,6 @@ func (c *Context) LookupTypeError(inner Type) *TypeError {
 func (c *Context) LookupTypeFusion(inner Type) (*TypeFusion, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if !isValidFusionType(&TypeFusion{Type: inner}) {
-		return nil, errors.New("invalid fusion type")
-	}
 	id := c.typedefs.LookupTypeWrapped(TypeDefFusion, inner)
 	if typ, ok := c.byID[id]; ok {
 		return typ.(*TypeFusion), nil
@@ -423,7 +420,7 @@ func (c *Context) MustLookupTypeFusion(inner Type) *TypeFusion {
 }
 
 func (c *Context) LookupTypeOption(inner Type) *TypeOption {
-	if _, ok := inner.(*TypeOption); ok || inner == TypeNone {
+	if _, ok := inner.(*TypeOption); ok || inner == TypeMissing {
 		panic(inner)
 	}
 	c.mu.Lock()
@@ -525,7 +522,7 @@ func (c *Context) DecodeTypeValue(tv []byte) (Type, []byte) {
 			return named, tv
 		}
 		if tv == nil {
-			c.BindTypeNamed(patch, named, TypeNone) // release waiters
+			c.BindTypeNamed(patch, named, TypeMissing) // release waiters
 			return nil, nil
 		}
 		if err := c.BindTypeNamed(patch, named, inner); err != nil {
@@ -776,10 +773,10 @@ func NullableUnion(typ Type) (*TypeUnion, int) {
 	return nil, 0
 }
 
-// Optionize returns typ if typ is TypeNone or is already an option type;
+// Optionize returns typ if typ is already an option type;
 // otherwise, it returns a new option type for typ.
 func (c *Context) Optionize(typ Type) Type {
-	if _, ok := typ.(*TypeOption); ok || typ == TypeNone {
+	if _, ok := typ.(*TypeOption); ok {
 		return typ
 	}
 	return c.LookupTypeOption(typ)
@@ -1393,7 +1390,7 @@ func (t *TypeDefsMapper) lookupType(id uint32) Type {
 			pinner := t.LookupType(p.inner)
 			if pinner == nil {
 				ok = false
-				pinner = TypeNone // release waiters; this lookup fails below
+				pinner = TypeMissing // release waiters; this lookup fails below
 			}
 			if err := t.sctx.BindTypeNamed(p.off, p.named, pinner); err != nil {
 				ok = false

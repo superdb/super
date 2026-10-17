@@ -65,7 +65,7 @@ Loop:
 
 func containsNullOrError(vec vector.Any) bool {
 	switch vec := vector.Under(vec).(type) {
-	case *vector.Null, *vector.None:
+	case *vector.Null, *vector.Missing:
 		return true
 	case *vector.Union:
 		return slices.ContainsFunc(vec.Values(), containsNullOrError)
@@ -91,7 +91,7 @@ func slotIsNullOrError(vec vector.Any, slot uint32) bool {
 	switch vec := vec.(type) {
 	case *vector.Null:
 		return true
-	case *vector.None:
+	case *vector.Missing:
 		return true
 	case *vector.Union:
 		return slotIsNullOrError(vec.Dynamic(), slot)

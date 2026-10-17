@@ -48,7 +48,7 @@ func (d *Defuse) eval(in vector.Any) vector.Any {
 		return d.defuseError(in)
 	case vector.KindFusion:
 		if in.Len() == 0 {
-			return vector.NewNone(0)
+			return vector.NewMissing(0)
 		}
 		fusion := vector.PushView(in).(*vector.Fusion)
 		if super.IsTypeAny(fusion.Type()) {
@@ -77,7 +77,7 @@ func (d *Defuse) defuseRecord(vec vector.Any) vector.Any {
 		var fields []super.Field
 		for i, f := range rec.Typ.Fields {
 			vec := vecs[i]
-			if vec.Kind() == vector.KindNone {
+			if vec.Kind() == vector.KindMissing {
 				continue
 			}
 			fields = append(fields, super.NewField(f.Name, vec.Type()))

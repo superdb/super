@@ -1,5 +1,22 @@
+# XXX we are unwrapping b here because to pass this test for now,
+# but we need proper type checking to report an error here (need
+# to use ?? etc). I don't think comparison should do auto-unwrap..
+# this is the point of type-safe queries... you should be alerted
+# by the compiler that you're not handling the missing case when you
+# should.  So what we need to do in a subsequent PR is propagate
+# errors for this condition through the where clause and make it
+# obvious that you need an unwrap or ??.  we could also have a
+# comparison that does unwrap like javascript, === (strong equality)
+# vs == (loose equality) so maybe == does auto-unwrap
+
 script: |
   super -o test.bsup -
+  super -s -c 'from test.bsup | where unwrap(b).ok()==1'
+  echo ===
+  # this should work but doesn't (XXX coming subseqeunt PR)
+  super -s -c 'from test.bsup | where b==some(1)'
+  echo ===
+  # there should be an error here
   super -s -c 'from test.bsup | where b==1'
 
 inputs:
@@ -12,3 +29,5 @@ outputs:
   - name: stdout
     data: |
       {a:1,b?:1}
+      ===
+      ===

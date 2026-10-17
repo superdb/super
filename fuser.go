@@ -56,15 +56,16 @@ func (f *Fuser) fuse(a, b Type) Type {
 			var fields []Field
 			// Fuse fields in order they appear in the first record type a.
 			// If a field is present in both a and b, the field types are fused.
-			// If present in a but not b, the field is fused with type none.
-			// This is how we recover the absence of a field vs a typed none in
-			// an option-type field (aka optional field)
+			// If present in a but not b, the field is fused with type missing.
+			// This is how we recover the absence of a field, which must be
+			// distinguishable from an option type, which is why we can't use
+			// those here.
 			for _, field := range a.Fields {
 				var typ Type
 				if k, ok := b.IndexOfField(field.Name); ok {
 					typ = f.fuse(field.Type, b.Fields[k].Type)
 				} else {
-					typ = f.fuse(field.Type, TypeNone)
+					typ = f.fuse(field.Type, TypeMissing)
 
 				}
 				fields = append(fields, NewField(field.Name, typ))
@@ -75,7 +76,7 @@ func (f *Fuser) fuse(a, b Type) Type {
 				if a.HasField(field.Name) {
 					continue
 				}
-				typ := f.fuse(field.Type, TypeNone)
+				typ := f.fuse(field.Type, TypeMissing)
 				fields = append(fields, NewField(field.Name, typ))
 			}
 			fusedRec := f.sctx.MustLookupTypeRecord(fields)

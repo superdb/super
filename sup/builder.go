@@ -53,13 +53,14 @@ func buildValue(b *scode.Builder, val Value) error {
 		return nil
 	case *None:
 		typ := val.Type()
-		if typ == super.TypeNone {
-			// none is an untyped, not inside option type
-			b.Append(nil)
-			return nil
+		if super.TypeUnder(typ) != super.TypeMissing {
+			// option nones should have been converted to Option
+			// by here.
+			panic(typ)
+
 		}
-		// none is an inside an option type
-		super.BuildNone(b)
+		// This is a none::missing
+		b.Append(nil)
 		return nil
 	}
 	return fmt.Errorf("unknown ast type: %T", val)
@@ -168,9 +169,9 @@ func BuildPrimitive(b *scode.Builder, val Primitive) error {
 		}
 		b.Append(super.EncodeNet(net.Masked()))
 		return nil
-	case *super.TypeOfNone:
+	case *super.TypeOfMissing:
 		if val.text != "" {
-			return fmt.Errorf("invalid text body of none value: %q", val.text)
+			return fmt.Errorf("invalid text body of missing value: %q", val.text)
 		}
 		b.Append(nil)
 		return nil
@@ -189,8 +190,8 @@ func BuildPrimitive(b *scode.Builder, val Primitive) error {
 func buildRecord(b *scode.Builder, val *Record) error {
 	b.BeginContainer()
 	for k, v := range val.fields {
-		if super.TypeUnder(v.Type()) == super.TypeNone {
-			return fmt.Errorf("untyped none assigned to field %s", super.TypeUnder(val.Type()).(*super.TypeRecord).Fields[k].Name)
+		if super.TypeUnder(v.Type()) == super.TypeMissing {
+			return fmt.Errorf("none::missing assigned to field %s", super.TypeUnder(val.Type()).(*super.TypeRecord).Fields[k].Name)
 		}
 		if err := buildValue(b, v); err != nil {
 			return err

@@ -22,10 +22,10 @@ func (s *Some) Call(args ...vector.Any) vector.Any {
 func (s *Some) call(args ...vector.Any) vector.Any {
 	vec := args[0]
 	switch vec.Kind() {
-	case vector.KindError, vector.KindOption, vector.KindNone:
+	case vector.KindError, vector.KindOption, vector.KindMissing:
 		return vec
 	default:
-		return vector.NewOption(s.sctx.LookupTypeOption(vec.Type()), vec)
+		return vector.NewSome(s.sctx.LookupTypeOption(vec.Type()), vec)
 	}
 }
 

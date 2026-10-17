@@ -24,7 +24,7 @@ outputs:
       {c:3}
       {d:4}
       // ===
-      {Kind:"ColumnFrameFusedType",Type:<{a:fusion(int64|none),b:fusion(int64|none)}>}
-      {Kind:"SuperFrameFusedType",Type:<{a:fusion(int64|none),b:fusion(int64|none)}>}
-      {Kind:"ColumnFrameFusedType",Type:<{c:fusion(int64|none),d:fusion(int64|none)}>}
-      {Kind:"SuperFrameFusedType",Type:<{c:fusion(int64|none),d:fusion(int64|none)}>}
+      {Kind:"ColumnFrameFusedType",Type:<{a:fusion(int64|missing),b:fusion(int64|missing)}>}
+      {Kind:"SuperFrameFusedType",Type:<{a:fusion(int64|missing),b:fusion(int64|missing)}>}
+      {Kind:"ColumnFrameFusedType",Type:<{c:fusion(int64|missing),d:fusion(int64|missing)}>}
+      {Kind:"SuperFrameFusedType",Type:<{c:fusion(int64|missing),d:fusion(int64|missing)}>}

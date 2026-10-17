@@ -29,7 +29,7 @@ func NewArrayExpr(sctx *super.Context, elems []ListElem) *ArrayExpr {
 
 func (a *ArrayExpr) Eval(this vector.Any) vector.Any {
 	if len(a.elems) == 0 {
-		typ := a.sctx.LookupTypeArray(super.TypeNone)
+		typ := a.sctx.LookupTypeArray(super.TypeMissing)
 		offsets := make([]uint32, this.Len()+1)
 		nullVec := vector.NewNull(0)
 		return vector.NewArray(typ, offsets, nullVec)

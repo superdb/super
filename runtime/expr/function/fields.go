@@ -22,7 +22,7 @@ func NewFields(sctx *super.Context) *Fields {
 }
 
 func (f *Fields) Call(args ...vector.Any) vector.Any {
-	if vec, ok := expr.CheckForErrorThenNullThenNone(f.sctx, args, "fields"); ok {
+	if vec, ok := expr.Catch(f.sctx, true, args, "fields"); ok {
 		return vec
 	}
 	val := vector.Under(args[0])

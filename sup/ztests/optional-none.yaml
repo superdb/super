@@ -5,4 +5,4 @@ flags: -i sup
 input: '{x?:none}'
 
 error: |
-  stdio:stdin: untyped none assigned to field x
+  stdio:stdin: none::missing assigned to field x

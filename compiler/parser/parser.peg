@@ -1422,8 +1422,9 @@ BooleanLiteral
 NullLiteral
   = NULL { return newPrimitive(c, "null", ""), nil }
 
+// a bare none has type missing
 NoneLiteral
-  = NONE { return newPrimitive(c, "none", ""), nil }
+  = NONE { return newPrimitive(c, "missing", ""), nil }
   
 BytesLiteral
   = "0x" HexDigit* {
@@ -1611,7 +1612,7 @@ PrimitiveType
       / "duration" / "time"
       / "bytes"
       / "ip" / "net"
-      / "type" / "null" / "none" / "all" ) {
+      / "type" / "null" / "missing" / "all" ) {
             return &ast.TypePrimitive{
                 Kind: "TypePrimitive",
                 Name: string(c.text),

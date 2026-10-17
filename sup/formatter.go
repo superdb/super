@@ -165,7 +165,7 @@ func (f *formatter) formatValueAndDecorate(typ super.Type, bytes scode.Bytes) {
 func isOptionNone(typ super.Type, bytes scode.Bytes) bool {
 	if typ, ok := typ.(*super.TypeOption); ok {
 		typ, _ := typ.Decode(bytes)
-		return super.TypeUnder(typ) == super.TypeNone
+		return typ == nil
 	}
 	return false
 }
@@ -228,7 +228,7 @@ func (f *formatter) formatValue(indent int, typ super.Type, bytes scode.Bytes, p
 		return
 	case *super.TypeOption:
 		typ, bytes := t.Decode(bytes)
-		if typ == super.TypeNone {
+		if typ == nil {
 			f.build("none")
 			isOptionNone = true
 		} else {
@@ -314,7 +314,7 @@ func isShortType(typ super.Type) bool {
 }
 
 func (f *formatter) decorate(typ super.Type, empty, isTypedNone bool, indent int) {
-	if (!empty && f.isImplied(typ)) || (empty && innerNone(typ)) || (super.IsOptionType(typ) && !f.hasName(typ) && !isTypedNone) {
+	if (!empty && f.isImplied(typ)) || (empty && innerEmptyType(typ)) || (super.IsOptionType(typ) && !f.hasName(typ) && !isTypedNone) {
 		return
 	}
 	f.startColor(color.Gray(200))
@@ -345,14 +345,14 @@ func (f *formatter) decorate(typ super.Type, empty, isTypedNone bool, indent int
 	f.formatType(indent, typ, true)
 }
 
-func innerNone(typ super.Type) bool {
+func innerEmptyType(typ super.Type) bool {
 	switch typ := typ.(type) {
 	case *super.TypeSet:
-		return typ.Type == super.TypeNone
+		return typ.Type == super.TypeMissing
 	case *super.TypeArray:
-		return typ.Type == super.TypeNone
+		return typ.Type == super.TypeMissing
 	case *super.TypeMap:
-		return typ.KeyType == super.TypeNone && typ.ValType == super.TypeNone
+		return typ.KeyType == super.TypeMissing && typ.ValType == super.TypeMissing
 	}
 	return false
 }
@@ -553,7 +553,7 @@ func formatPrimitive(b *strings.Builder, typ super.Type, bytes scode.Bytes) {
 		b.WriteString(FormatTypeValue(bytes))
 	case *super.TypeOfNull:
 		b.WriteString("null")
-	case *super.TypeOfNone:
+	case *super.TypeOfMissing:
 		b.WriteString("none")
 	case *super.TypeOfAll:
 		// Write out all values as byte encoded as they only place

@@ -35,11 +35,13 @@ func (c *Compare) Eval(val vector.Any) vector.Any {
 }
 
 func (c *Compare) eval(vecs ...vector.Any) vector.Any {
+	//XXX this shoud be check for missings
 	if vec, ok := CheckForErrorThenNull(c.sctx, vecs, c.op); ok {
 		return vec
 	}
 	lhs := vector.Under(vector.Super(vecs[0]))
 	rhs := vector.Under(vector.Super(vecs[1]))
+	//XXX missings should raise an error
 	if which, ok := compareNones(lhs, rhs); ok {
 		if c.opCode == vector.CompNE {
 			which = !which
@@ -88,13 +90,13 @@ func (c *Compare) eval(vecs ...vector.Any) vector.Any {
 }
 
 func compareNones(a, b vector.Any) (bool, bool) {
-	if a.Kind() == vector.KindNone {
-		if b.Kind() == vector.KindNone {
+	if a.Kind() == vector.KindMissing {
+		if b.Kind() == vector.KindMissing {
 			return true, true
 		}
 		return false, true
 	}
-	if b.Kind() == vector.KindNone {
+	if b.Kind() == vector.KindMissing {
 		return false, true
 	}
 	return false, false

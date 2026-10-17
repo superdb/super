@@ -9,9 +9,9 @@ input: |
   {r:{y:4::int32,z:5::int32},s:"world",r2:{x:6::int32},key:"c"}
 
 output: |
-  {key:"a",supertype:<fusion({a:fusion(string|none),r:{x:fusion(int32|none),y:int32,z:fusion(int32|none)},key:string,s:fusion(string|none),r2:fusion(none|{x:int32})})>}
-  {key:"b",supertype:<fusion({a:fusion(string|none),r:{x:fusion(int32|none),y:int32,z:fusion(int32|none)},key:string,s:fusion(string|none),r2:fusion(none|{x:int32})})>}
-  {key:"c",supertype:<fusion({a:fusion(string|none),r:{x:fusion(int32|none),y:int32,z:fusion(int32|none)},key:string,s:fusion(string|none),r2:fusion(none|{x:int32})})>}
+  {key:"a",supertype:<fusion({a:fusion(string|missing),r:{x:fusion(int32|missing),y:int32,z:fusion(int32|missing)},key:string,s:fusion(string|missing),r2:fusion(missing|{x:int32})})>}
+  {key:"b",supertype:<fusion({a:fusion(string|missing),r:{x:fusion(int32|missing),y:int32,z:fusion(int32|missing)},key:string,s:fusion(string|missing),r2:fusion(missing|{x:int32})})>}
+  {key:"c",supertype:<fusion({a:fusion(string|missing),r:{x:fusion(int32|missing),y:int32,z:fusion(int32|missing)},key:string,s:fusion(string|missing),r2:fusion(missing|{x:int32})})>}
 
 ---
 
@@ -25,7 +25,7 @@ input: |
   {fixed:{x:5},var:{s:"foo",t:{x:1}}}
 
 output: |
-  <{fixed:{x:int64},var:{s:string,a:fusion(none|[int64]),t:fusion(int64|none|{x:int64})}}>
+  <{fixed:{x:int64},var:{s:string,a:fusion(missing|[int64]),t:fusion(int64|missing|{x:int64})}}>
 
 ---
 
@@ -106,7 +106,7 @@ input: |
   {}
 
 output: |
-  <{x:fusion(none|{y:int64})}>
+  <{x:fusion(missing|{y:int64})}>
 
 ---
 
@@ -117,7 +117,7 @@ input: |
   {x?:2,y:3}
 
 output: |
-  <{x?:int64,y:fusion(int64|none)}>
+  <{x?:int64,y:fusion(int64|missing)}>
 
 ---
 
@@ -128,4 +128,4 @@ input: |
   {x?:1}
 
 output: |
-  <{x?:int64,y:fusion(int64|none)}>
+  <{x?:int64,y:fusion(int64|missing)}>

@@ -351,13 +351,13 @@ func (t *TypeOfNet) Kind() Kind {
 	return PrimitiveKind
 }
 
-type TypeOfNone struct{}
+type TypeOfMissing struct{}
 
-func (t *TypeOfNone) ID() int {
-	return IDNone
+func (t *TypeOfMissing) ID() int {
+	return IDMissing
 }
 
-func (t *TypeOfNone) Kind() Kind {
+func (t *TypeOfMissing) Kind() Kind {
 	return PrimitiveKind
 }
 

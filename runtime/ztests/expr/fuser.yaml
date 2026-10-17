@@ -27,7 +27,7 @@ input: |
   [{id:1,s:"foo"},{id:2,s:null}]
 
 output: |
-  <fusion([fusion(none|{id:int64,s:fusion(string|null)})])>
+  <fusion([fusion(missing|{id:int64,s:fusion(string|null)})])>
 
 ---
 
@@ -38,7 +38,7 @@ input: |
   []
 
 output: |
-  <fusion([fusion(none|{id:int64,s:fusion(string|null)})])>
+  <fusion([fusion(missing|{id:int64,s:fusion(string|null)})])>
 
 ---
 
@@ -106,10 +106,10 @@ input: |
   {x:2}
 
 output: |
-  {x:fusion(true::(int64|bool|none|option(int64)),<bool>)}
-  {x:fusion(none::(int64|bool|none|option(int64)),<none>)}
-  {x:fusion(some(1)::(int64|bool|none|option(int64)),<option(int64)>)}
-  {x:fusion(some(2)::(int64|bool|none|option(int64)),<int64>)}
+  {x:fusion(true::(int64|bool|missing|option(int64)),<bool>)}
+  {x:fusion(none::(int64|bool|missing|option(int64)),<missing>)}
+  {x:fusion(some(1)::(int64|bool|missing|option(int64)),<option(int64)>)}
+  {x:fusion(some(2)::(int64|bool|missing|option(int64)),<int64>)}
 
 ---
 
@@ -124,10 +124,10 @@ input: |
   {x:2}
 
 output: |
-  fusion(true::(int64|bool|none|option(int64)),<bool>)
-  error({message:"no such field x",on:{x:fusion(none::(int64|bool|none|option(int64)),<none>)}})
-  fusion(some(1)::(int64|bool|none|option(int64)),<option(int64)>)
-  fusion(some(2)::(int64|bool|none|option(int64)),<int64>)
+  fusion(true::(int64|bool|missing|option(int64)),<bool>)
+  error({message:"no such field x",on:{x:fusion(none::(int64|bool|missing|option(int64)),<missing>)}})
+  fusion(some(1)::(int64|bool|missing|option(int64)),<option(int64)>)
+  fusion(some(2)::(int64|bool|missing|option(int64)),<int64>)
 
 ---
 

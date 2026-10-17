@@ -49,11 +49,10 @@ func (c *cast) Call(args []super.Value) super.Value {
 
 func (c *cast) Cast(from super.Value, to super.Type) (super.Value, bool) {
 	if optionType, ok := to.(*super.TypeOption); ok {
-		val := from.Deoption()
-		if val.Type() == super.TypeNone {
+		if from.IsNone() {
 			return optionType.None(), true
 		}
-		val, ok := c.Cast(val, optionType.Type)
+		val, ok := c.Cast(from.Unwrap(), optionType.Type)
 		if !ok {
 			return val, ok
 		}
@@ -71,8 +70,8 @@ func (c *cast) Cast(from super.Value, to super.Type) (super.Value, bool) {
 		var b scode.Builder
 		super.BuildUnion(&b, union.TagOf(super.TypeNull), nil)
 		return super.NewValue(union, b.Bytes().Body()), true
-	case fromType == super.TypeNone:
-		// Casting a none value to a non option type.  Automatically convert
+	case fromType == super.TypeMissing:
+		// Casting a none::missing value to a non option type.  Automatically convert
 		// the target type to it's option form.
 		if _, ok := super.TypeUnder(to).(*super.TypeUnion); !ok {
 			// As in SUP, a cast applied to an untyped none implieds an
@@ -260,14 +259,23 @@ func (c *cast) toMap(from super.Value, to *super.TypeMap) (super.Value, bool) {
 }
 
 func (c *cast) toUnion(from super.Value, to *super.TypeUnion) (super.Value, bool) {
-	if typ, ok := isNoneish(to.Types); ok && !from.IsNone() {
-		return c.Cast(from, typ)
-	}
 	tag := bestUnionTag(from.Type(), to)
 	if tag < 0 {
 		from2 := from.DeunionIntoNameds()
 		tag = bestUnionTag(from2.Type(), to)
 		if tag < 0 {
+			// This is here for infer which generates single-type union missings
+			// of the form (T|missing).  It's not a general solution to which
+			// type of the union is a best option cast when there's not an exact
+			// match.  Reasonable semantics might be to pick a random one, but
+			// for now, we just handle single-element union missings.
+			if inner, ok := singletonUnionMissing(to.Types); ok {
+				val, ok := c.Cast(from2, inner)
+				if !ok {
+					return val, false
+				}
+				return c.toUnion(val, to)
+			}
 			return c.error(from, to)
 		}
 		from = from2
@@ -277,12 +285,12 @@ func (c *cast) toUnion(from super.Value, to *super.TypeUnion) (super.Value, bool
 	return super.NewValue(to, b.Bytes().Body()), true
 }
 
-func isNoneish(types []super.Type) (super.Type, bool) {
+func singletonUnionMissing(types []super.Type) (super.Type, bool) {
 	if len(types) == 2 {
-		if types[0] == super.TypeNone {
+		if types[0] == super.TypeMissing {
 			return types[1], true
 		}
-		if types[1] == super.TypeNone {
+		if types[1] == super.TypeMissing {
 			return types[0], true
 		}
 	}

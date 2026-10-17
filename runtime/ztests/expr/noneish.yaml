@@ -13,7 +13,7 @@ spq: |
   values this ?? 1
 
 input: |
-  fusion(none::(int64|none),<none>)
+  fusion(none::(int64|missing),<missing>)
 
 output: |
   1

@@ -59,7 +59,7 @@ func (w *Writer) Push(vec vector.Any) error {
 }
 
 func (w *Writer) Write(val super.Value) error {
-	if val.Deoption().IsNone() {
+	if val.IsNone() {
 		return nil
 	}
 	// writeAny doesn't return an error because any error that occurs will be
@@ -93,7 +93,7 @@ func (w *Writer) writeAny(tab int, val super.Value) {
 	case *super.TypeError:
 		w.writeError(tab, typ, val.Bytes())
 	case *super.TypeOption:
-		w.writeAny(tab, val.Deoption())
+		w.writeAny(tab, val.Coalesce(super.Null))
 	default:
 		panic(fmt.Sprintf("unsupported type: %s", sup.FormatType(typ)))
 	}
@@ -243,8 +243,8 @@ func (w *Writer) writePrimitive(val super.Value) {
 		v = super.DecodeNet(val.Bytes()).String()
 	case id == super.IDType:
 		v = sup.FormatValue(val)
-	case id == super.IDNone:
-		v = "null"
+	case id == super.IDMissing:
+		v = nil
 	default:
 		panic(fmt.Sprintf("unsupported id=%d", id))
 	}

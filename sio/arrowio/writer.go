@@ -210,7 +210,7 @@ func (w *Writer) newArrowDataType(typ super.Type) (arrow.DataType, error) {
 		return arrow.BinaryTypes.String, nil
 	case *super.TypeOfIP, *super.TypeOfNet, *super.TypeOfType:
 		return arrow.BinaryTypes.String, nil
-	case *super.TypeOfNull, *super.TypeOfNone:
+	case *super.TypeOfNull, *super.TypeOfMissing:
 		return arrow.Null, nil
 	case *super.TypeRecord:
 		if len(typ.Fields) == 0 {
@@ -311,7 +311,7 @@ func (w *Writer) newArrowField(name string, typ super.Type) (arrow.Field, error)
 		typ = u.Types[which]
 	} else {
 		// pqarrow requires that an arrow.NULL field be nullable.
-		nullable = typ == super.TypeNull || typ == super.TypeNone || opt
+		nullable = typ == super.TypeNull || typ == super.TypeMissing || opt
 	}
 	dt, err := w.newArrowDataType(typ)
 	if err != nil {
@@ -321,20 +321,20 @@ func (w *Writer) newArrowField(name string, typ super.Type) (arrow.Field, error)
 }
 
 func (w *Writer) buildArrowValue(b array.Builder, typ super.Type, bytes scode.Bytes) {
-	if typ == super.TypeNone {
+	if typ == super.TypeMissing {
 		b.AppendNull()
 		return
 	}
 	if o, ok := super.TypeUnder(typ).(*super.TypeOption); ok {
 		typ, bytes = o.Decode(bytes)
-		if typ == super.TypeNull || typ == super.TypeNone {
+		if typ == super.TypeNull || typ == nil {
 			b.AppendNull()
 			return
 		}
 	}
 	if u, which := nullableUnion(typ); which >= 0 {
 		typ, bytes = u.Untag(bytes)
-		if typ == super.TypeNull || typ == super.TypeNone {
+		if typ == super.TypeNull || typ == super.TypeMissing {
 			b.AppendNull()
 			return
 		}
@@ -523,7 +523,7 @@ func nullableUnion(typ super.Type) (*super.TypeUnion, int) {
 	}
 	which := -1
 	for k := range u.Types {
-		if u.Types[k] == super.TypeNull || u.Types[k] == super.TypeNone || super.IsOptionType(u.Types[k]) {
+		if u.Types[k] == super.TypeNull || u.Types[k] == super.TypeMissing || super.IsOptionType(u.Types[k]) {
 			continue
 		}
 		if which >= 0 {

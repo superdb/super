@@ -22,14 +22,12 @@ func (i *Noneish) Eval(this vector.Any) vector.Any {
 func (i *Noneish) eval(vecs ...vector.Any) vector.Any {
 	lhs := vecs[0]
 	rhs := vecs[1]
-	k := lhs.Kind()
-	if k == vector.KindNull || k == vector.KindNone {
+	k := vector.Under(lhs).Kind()
+	if k == vector.KindNull || k == vector.KindMissing {
 		return rhs
 	}
 	if k == vector.KindOption {
-		if lhs, ok := vector.PushView(lhs).(*vector.Option); ok {
-			return i.eval(lhs.Any, vecs[1])
-		}
+		return vector.UnderOption(lhs).Coaelesce(rhs)
 	}
 	return lhs
 }

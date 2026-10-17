@@ -9,10 +9,10 @@ input: |
   {a:null,b:null,c:null}
 
 output: |
-  {a:fusion("hello"::(string|null|none),<string>),b:fusion("world"::(int32|string|null),<string>),c:fusion(none::(string|null|none),<none>)}
-  {a:fusion(none::(string|null|none),<none>),b:fusion("goodnight"::(int32|string|null),<string>),c:fusion("gracie"::(string|null|none),<string>)}
-  {a:fusion("goodnight"::(string|null|none),<string>),b:fusion(123::int32::(int32|string|null),<int32>),c:fusion(none::(string|null|none),<none>)}
-  {a:fusion(null::(string|null|none),<null>),b:fusion(null::(int32|string|null),<null>),c:fusion(null::(string|null|none),<null>)}
+  {a:fusion("hello"::(string|null|missing),<string>),b:fusion("world"::(int32|string|null),<string>),c:fusion(none::(string|null|missing),<missing>)}
+  {a:fusion(none::(string|null|missing),<missing>),b:fusion("goodnight"::(int32|string|null),<string>),c:fusion("gracie"::(string|null|missing),<string>)}
+  {a:fusion("goodnight"::(string|null|missing),<string>),b:fusion(123::int32::(int32|string|null),<int32>),c:fusion(none::(string|null|missing),<missing>)}
+  {a:fusion(null::(string|null|missing),<null>),b:fusion(null::(int32|string|null),<null>),c:fusion(null::(string|null|missing),<null>)}
 
 ---
 
@@ -29,11 +29,11 @@ input: |
   [{a:null,b:null}]
 
 output: |
-  fusion([fusion({a:fusion(1::(int64|null|none),<int64>),b:fusion(none::(int64|null|none),<none>)},<{a:int64}>)],<[{a:int64}]>)
-  fusion([fusion({a:fusion(none::(int64|null|none),<none>),b:fusion(2::(int64|null|none),<int64>)},<{b:int64}>)],<[{b:int64}]>)
-  fusion([fusion({a:fusion(3::(int64|null|none),<int64>),b:fusion(none::(int64|null|none),<none>)},<{a:int64}>),fusion({a:fusion(none::(int64|null|none),<none>),b:fusion(3::(int64|null|none),<int64>)},<{b:int64}>)],<[{a:int64}|{b:int64}]>)
-  fusion([fusion({a:fusion(3::(int64|null|none),<int64>),b:fusion(3::(int64|null|none),<int64>)},<{a:int64,b:int64}>)],<[{a:int64,b:int64}]>)
-  fusion([fusion({a:fusion(null::(int64|null|none),<null>),b:fusion(null::(int64|null|none),<null>)},<{a:null,b:null}>)],<[{a:null,b:null}]>)
+  fusion([fusion({a:fusion(1::(int64|null|missing),<int64>),b:fusion(none::(int64|null|missing),<missing>)},<{a:int64}>)],<[{a:int64}]>)
+  fusion([fusion({a:fusion(none::(int64|null|missing),<missing>),b:fusion(2::(int64|null|missing),<int64>)},<{b:int64}>)],<[{b:int64}]>)
+  fusion([fusion({a:fusion(3::(int64|null|missing),<int64>),b:fusion(none::(int64|null|missing),<missing>)},<{a:int64}>),fusion({a:fusion(none::(int64|null|missing),<missing>),b:fusion(3::(int64|null|missing),<int64>)},<{b:int64}>)],<[{a:int64}|{b:int64}]>)
+  fusion([fusion({a:fusion(3::(int64|null|missing),<int64>),b:fusion(3::(int64|null|missing),<int64>)},<{a:int64,b:int64}>)],<[{a:int64,b:int64}]>)
+  fusion([fusion({a:fusion(null::(int64|null|missing),<null>),b:fusion(null::(int64|null|missing),<null>)},<{a:null,b:null}>)],<[{a:null,b:null}]>)
 
 ---
 
@@ -71,9 +71,9 @@ input: |
   {a:null,r:{x:null,y:null,z:null},s:null,r2:null}
 
 output: |
-  {a:fusion("hello"::(string|null|none),<string>),r:{x:fusion(1::int32::(int32|null|none),<int32>),y:fusion(2::int32::(int32|null),<int32>),z:fusion(none::(int32|null|none),<none>)},s:fusion(none::(string|null|none),<none>),r2:fusion(none::(null|none|{x:int32}),<none>)}
-  {a:fusion(none::(string|null|none),<none>),r:{x:fusion(none::(int32|null|none),<none>),y:fusion(4::int32::(int32|null),<int32>),z:fusion(5::int32::(int32|null|none),<int32>)},s:fusion("world"::(string|null|none),<string>),r2:fusion({x:6::int32}::(null|none|{x:int32}),<{x:int32}>)}
-  {a:fusion(null::(string|null|none),<null>),r:{x:fusion(null::(int32|null|none),<null>),y:fusion(null::(int32|null),<null>),z:fusion(null::(int32|null|none),<null>)},s:fusion(null::(string|null|none),<null>),r2:fusion(null::(null|none|{x:int32}),<null>)}
+  {a:fusion("hello"::(string|null|missing),<string>),r:{x:fusion(1::int32::(int32|null|missing),<int32>),y:fusion(2::int32::(int32|null),<int32>),z:fusion(none::(int32|null|missing),<missing>)},s:fusion(none::(string|null|missing),<missing>),r2:fusion(none::(null|missing|{x:int32}),<missing>)}
+  {a:fusion(none::(string|null|missing),<missing>),r:{x:fusion(none::(int32|null|missing),<missing>),y:fusion(4::int32::(int32|null),<int32>),z:fusion(5::int32::(int32|null|missing),<int32>)},s:fusion("world"::(string|null|missing),<string>),r2:fusion({x:6::int32}::(null|missing|{x:int32}),<{x:int32}>)}
+  {a:fusion(null::(string|null|missing),<null>),r:{x:fusion(null::(int32|null|missing),<null>),y:fusion(null::(int32|null),<null>),z:fusion(null::(int32|null|missing),<null>)},s:fusion(null::(string|null|missing),<null>),r2:fusion(null::(null|missing|{x:int32}),<null>)}
 
 ---
 
@@ -207,8 +207,8 @@ input: |
   {}
 
 output: |
-  fusion({y:1}::(none|{y:int64}),<{y:int64}>)
-  error({message:"no such field x",on:{x:fusion(none::(none|{y:int64}),<none>)}})
+  fusion({y:1}::(missing|{y:int64}),<{y:int64}>)
+  error({message:"no such field x",on:{x:fusion(none::(missing|{y:int64}),<missing>)}})
 
 ---
 

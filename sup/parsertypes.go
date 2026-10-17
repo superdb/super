@@ -172,9 +172,12 @@ func (p *Parser) matchTypeArray() (*ast.TypeArray, error) {
 	if ok, err := l.match('['); !ok || err != nil {
 		return nil, err
 	}
-	typ, err := p.parseType()
+	typ, err := p.matchType()
 	if err != nil {
 		return nil, err
+	}
+	if typ == nil {
+		typ = &ast.TypePrimitive{Kind: "TypePrimitive", Name: "missing"}
 	}
 	ok, err := l.match(']')
 	if err != nil {
@@ -198,9 +201,12 @@ func (p *Parser) matchTypeSetOrMap() (ast.Type, error) {
 	switch lookahead {
 	case "set[":
 		l.skip(4)
-		inner, err := p.parseType()
+		inner, err := p.matchType()
 		if err != nil {
 			return nil, err
+		}
+		if inner == nil {
+			inner = &ast.TypePrimitive{Kind: "TypePrimitive", Name: "all"}
 		}
 		ok, err := l.match(']')
 		if err != nil {
@@ -233,7 +239,7 @@ func (p *Parser) matchTypeSetOrMap() (ast.Type, error) {
 }
 
 func (p *Parser) parseTypeMap() (*ast.TypeMap, error) {
-	keyType, err := p.parseType()
+	keyType, err := p.matchType()
 	if err != nil {
 		return nil, err
 	}

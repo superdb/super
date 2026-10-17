@@ -34,8 +34,6 @@ func (d *Distinct) Pull(done bool) (vector.Any, error) {
 		var sb scode.Builder
 		var index []uint32
 		keyVec := d.defuse.Eval(d.expr.Eval(vec))
-		// XXX In a future PR we will propagate nones as structured errors encountered here; they shouldn't be silently hidden
-		keyVec = vector.DeoptionWithNone(keyVec)
 		for i := range keyVec.Len() {
 			keyVal := vector.ValueAt(&sb, keyVec, i)
 			d.key = binary.LittleEndian.AppendUint32(d.key[:0], uint32(keyVal.Type().ID()))

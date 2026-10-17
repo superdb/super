@@ -7,10 +7,10 @@ input: |
   {a:null,b:null,c:null}
 
 output: |
-  {a:"hello"::(string|null|none),b:"world"::(int32|string|null),c:none::(string|null|none)}
-  {a:none::(string|null|none),b:"goodnight"::(int32|string|null),c:"gracie"::(string|null|none)}
-  {a:"goodnight"::(string|null|none),b:123::int32::(int32|string|null),c:none::(string|null|none)}
-  {a:null::(string|null|none),b:null::(int32|string|null),c:null::(string|null|none)}
+  {a:"hello"::(string|null|missing),b:"world"::(int32|string|null),c:none::(string|null|missing)}
+  {a:none::(string|null|missing),b:"goodnight"::(int32|string|null),c:"gracie"::(string|null|missing)}
+  {a:"goodnight"::(string|null|missing),b:123::int32::(int32|string|null),c:none::(string|null|missing)}
+  {a:null::(string|null|missing),b:null::(int32|string|null),c:null::(string|null|missing)}
 
 ---
 
@@ -25,11 +25,11 @@ input: |
   [{a:null,b:null}]
 
 output: |
-  [{a:1::(int64|null|none),b:none::(int64|null|none)}]
-  [{a:none::(int64|null|none),b:2::(int64|null|none)}]
-  [{a:3::(int64|null|none),b:none::(int64|null|none)},{a:none::(int64|null|none),b:3::(int64|null|none)}]
-  [{a:3::(int64|null|none),b:3::(int64|null|none)}]
-  [{a:null::(int64|null|none),b:null::(int64|null|none)}]
+  [{a:1::(int64|null|missing),b:none::(int64|null|missing)}]
+  [{a:none::(int64|null|missing),b:2::(int64|null|missing)}]
+  [{a:3::(int64|null|missing),b:none::(int64|null|missing)},{a:none::(int64|null|missing),b:3::(int64|null|missing)}]
+  [{a:3::(int64|null|missing),b:3::(int64|null|missing)}]
+  [{a:null::(int64|null|missing),b:null::(int64|null|missing)}]
 
 ---
 
@@ -63,9 +63,9 @@ input: |
   {a:null,r:{x:null,y:null,z:null},s:null,r2:null}
 
 output: |
-  {a:"hello"::(string|null|none),r:{x:1::int32::(int32|null|none),y:2::int32::(int32|null),z:none::(int32|null|none)},s:none::(string|null|none),r2:none::(null|none|{x:int32})}
-  {a:none::(string|null|none),r:{x:none::(int32|null|none),y:4::int32::(int32|null),z:5::int32::(int32|null|none)},s:"world"::(string|null|none),r2:{x:6::int32}::(null|none|{x:int32})}
-  {a:null::(string|null|none),r:{x:null::(int32|null|none),y:null::(int32|null),z:null::(int32|null|none)},s:null::(string|null|none),r2:null::(null|none|{x:int32})}
+  {a:"hello"::(string|null|missing),r:{x:1::int32::(int32|null|missing),y:2::int32::(int32|null),z:none::(int32|null|missing)},s:none::(string|null|missing),r2:none::(null|missing|{x:int32})}
+  {a:none::(string|null|missing),r:{x:none::(int32|null|missing),y:4::int32::(int32|null),z:5::int32::(int32|null|missing)},s:"world"::(string|null|missing),r2:{x:6::int32}::(null|missing|{x:int32})}
+  {a:null::(string|null|missing),r:{x:null::(int32|null|missing),y:null::(int32|null),z:null::(int32|null|missing)},s:null::(string|null|missing),r2:null::(null|missing|{x:int32})}
 
 ---
 

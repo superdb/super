@@ -27,7 +27,8 @@ func (c *collect) Consume(vec vector.Any) {
 	if d, ok := vec.(*vector.Dynamic); ok {
 		vec = filterNonesFromDynamic(d)
 	}
-	if vec.Kind() == vector.KindNone {
+	// XXX TBD - this should be an error
+	if vec.Kind() == vector.KindMissing {
 		return
 	}
 	if c.builder == nil {
@@ -41,7 +42,8 @@ func filterNonesFromDynamic(d *vector.Dynamic) vector.Any {
 	tagMap := slices.Repeat([]int{-1}, len(d.Values))
 	var n uint32
 	for i, vec := range d.Values {
-		if vec.Kind() == vector.KindNone {
+		// XXX TBD - this should be an error
+		if vec.Kind() == vector.KindMissing {
 			continue
 		}
 		tagMap[i] = len(vecs)
@@ -52,7 +54,7 @@ func filterNonesFromDynamic(d *vector.Dynamic) vector.Any {
 		return d
 	}
 	if n == 0 {
-		return vector.NewNone(0)
+		return vector.NewMissing(0)
 	}
 	tags := make([]uint32, 0, n)
 	for _, tag := range d.Tags {
@@ -67,8 +69,8 @@ func filterNonesFromDynamic(d *vector.Dynamic) vector.Any {
 
 func (c *collect) Result(sctx *super.Context) vector.Any {
 	if c.builder == nil {
-		atyp := sctx.LookupTypeArray(super.TypeNone)
-		return vector.NewArray(atyp, []uint32{0, 0}, vector.NewNone(0))
+		atyp := sctx.LookupTypeArray(super.TypeMissing)
+		return vector.NewArray(atyp, []uint32{0, 0}, vector.NewMissing(0))
 	}
 	vec := c.builder.Build()
 	if dynamic, ok := vec.(*vector.Dynamic); ok {

@@ -49,5 +49,5 @@ blend | unblend(this)
 # expected output
 {x:1}
 {x:2,y:3}
-{x:4}
+{x:4,z?:none::int64}
 ```

@@ -55,12 +55,13 @@ func (a *Aggregator) Eval(this vector.Any) vector.Any {
 	bools, _ := BoolMask(where)
 	if bools.IsEmpty() {
 		// everything is filtered.
-		return vector.NewNone(vec.Len())
+		return vector.NewMissing(vec.Len())
 	}
 	if bools.GetCardinality() != uint64(vec.Len()) {
 		index := bools.ToArray()
-		nulls := vector.NewNone(vec.Len() - uint32(len(index)))
-		vec = vector.Combine(nulls, index, vector.Pick(vec, index))
+		// XXX TBD - add type safe error checking here
+		missing := vector.NewMissing(vec.Len() - uint32(len(index)))
+		vec = vector.Combine(missing, index, vector.Pick(vec, index))
 	}
 	if a.NoRip {
 		vec = &vector.NoRip{Any: vec}

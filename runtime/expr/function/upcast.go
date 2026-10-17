@@ -134,7 +134,7 @@ func (u *Upcast) toRecord(vec vector.Any, to *super.TypeRecord) vector.Any {
 		if ok {
 			vec = recVec.Fields[n]
 		} else {
-			vec = vector.NewNone(recVec.Len())
+			vec = vector.NewMissing(recVec.Len())
 		}
 		fieldVecs[i] = u.upcast(vec, f.Type)
 		if fieldVecs[i] == nil {
@@ -306,21 +306,21 @@ func (u *Upcast) toFusion(vec vector.Any, to *super.TypeFusion) vector.Any {
 func (u *Upcast) toOption(vec vector.Any, to *super.TypeOption) vector.Any {
 	switch vec := vector.Under(vec).(type) {
 	case *vector.Option:
-		return vec.Apply(func(tags []uint32, some vector.Any, none *vector.None) vector.Any {
+		return vec.Apply(func(tags []uint32, some vector.Any, none *vector.Missing) vector.Any {
 			if some == nil {
-				return vector.NewOption(to, none)
+				return vector.NewNone(to, none.Len())
 			}
 			some = u.upcast(some, to.Type)
 			if some == nil {
 				return nil
 			}
 			if none == nil {
-				return vector.NewOption(to, some)
+				return vector.NewSome(to, some)
 			}
-			return vector.NewOptionBoth(to, tags, some, none)
+			return vector.NewOption(to, tags, some, none)
 		})
-	case *vector.None:
-		return vector.NewOption(to, vector.NewNone(vec.Len()))
+	case *vector.Missing:
+		return vector.NewNone(to, vec.Len())
 	case *vector.View:
 		return u.toOption(vector.PushView(vec), to)
 	}
@@ -328,5 +328,5 @@ func (u *Upcast) toOption(vec vector.Any, to *super.TypeOption) vector.Any {
 	if vec == nil {
 		return nil
 	}
-	return vector.NewOption(to, vec)
+	return vector.NewSome(to, vec)
 }

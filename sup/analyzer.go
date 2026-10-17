@@ -69,8 +69,9 @@ type (
 		subtype scode.Bytes
 	}
 	None struct {
-		// Nones aren't typed but they can be named so this field holds
-		// the named type when decorated as such.
+		// Nones are either missing value (type missing) or option types.
+		// This struct serves as a placeoholder until they can be decorated
+		// into an option type, or it may remain a none::missing.
 		typ super.Type
 	}
 	Option struct {
@@ -143,7 +144,7 @@ func (a *Analyzer) BindTypeScope(decls []*ast.TypeDecl) ([]int, []error) {
 				errors[k] = err
 				haveErr = true
 				// Avoid deadlock waiting for declared-but-not-resolved type
-				inner = super.TypeNone
+				inner = super.TypeMissing
 			}
 			if err := a.sctx.BindTypeNamed(patches[k], nameds[k], inner); err != nil {
 				errors[k] = err
@@ -195,11 +196,14 @@ func (a *Analyzer) convertValue(val ast.Value) (Value, error) {
 		}
 		return a.convertValue(val.Value)
 	case *ast.None:
-		typ, err := a.convertType(val.Type)
-		if err != nil {
-			return nil, err
+		if val.Type != nil {
+			typ, err := a.convertType(val.Type)
+			if err != nil {
+				return nil, err
+			}
+			return &None{typ}, nil
 		}
-		return &None{typ: typ}, nil
+		return &None{typ: super.TypeMissing}, nil
 	case *ast.Primitive:
 		return a.convertPrimitive(val)
 	case *ast.TypeValue:
@@ -244,7 +248,7 @@ func (a *Analyzer) bindTypeDecls(decls []ast.TypeDecl) error {
 		if patch := patches[k]; patch >= 0 {
 			typ, err := a.convertType(decl.Type)
 			if err != nil {
-				typ = super.TypeNone
+				typ = super.TypeMissing
 				bindingErr = err
 			}
 			if err := a.sctx.BindTypeNamed(patch, nameds[k], typ); err != nil {
@@ -310,10 +314,10 @@ func (a *Analyzer) convertRecord(val *ast.Record) (Value, error) {
 		typ := val.Type()
 		if f.Opt {
 			// Wrap type in an option type if it's not already expressed as such.
-			// Note that we leave an untyped none as is and detect this condition
+			// Note that we leave a missing as is and detect this condition
 			// later so that decoration can turn it into an option none.  This can be
 			// especially useful for named types.
-			if !super.IsOptionType(typ) && super.TypeUnder(typ) != super.TypeNone {
+			if !super.IsOptionType(typ) && super.TypeUnder(typ) != super.TypeMissing {
 				typ = a.sctx.LookupTypeOption(typ)
 				val = &Option{
 					typ:   typ,
@@ -405,7 +409,7 @@ func (a *Analyzer) convertMap(m *ast.Map) (Value, error) {
 
 func (a *Analyzer) normalizeElems(vals []Value) ([]Value, super.Type, error) {
 	if len(vals) == 0 {
-		return nil, super.TypeNone, nil
+		return nil, super.TypeMissing, nil
 	}
 	types := make([]super.Type, len(vals))
 	for i, val := range vals {
@@ -416,7 +420,7 @@ func (a *Analyzer) normalizeElems(vals []Value) ([]Value, super.Type, error) {
 		return vals, unique[0], nil
 	}
 	if len(unique) == 0 {
-		return vals, super.TypeNone, nil
+		return vals, super.TypeMissing, nil
 	}
 	union, ok := a.sctx.LookupTypeUnion(unique)
 	if !ok {
@@ -469,8 +473,8 @@ func (a Analyzer) convertSome(val *ast.Some) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	if v.Type() == super.TypeNone {
-		return nil, errors.New("some() cannot contain a none value")
+	if v.Type() == super.TypeMissing {
+		return nil, errors.New("some() cannot contain a missing value")
 	}
 	if super.IsOptionType(v.Type()) {
 		return nil, errors.New("some() cannot contain an option value")
@@ -514,10 +518,11 @@ func (a *Analyzer) decorate(val Value, typ super.Type) (Value, error) {
 	}
 	switch val := val.(type) {
 	case *None:
-		// Decorating a pure none turns it into a typed option none, unless it
-		// is a named-type none (or redundant plain none), which stays a none.
-		if super.TypeUnder(typ) == super.TypeNone {
-			return &None{typ: typ}, nil
+		// Decorating a none turns it into a typed option none, unless it
+		// is a named-type missing (or redundantly decorated none::missing),
+		// which stays a none.
+		if super.TypeUnder(typ) == super.TypeMissing {
+			return &None{typ}, nil
 		}
 		return &Option{value: val, typ: a.sctx.LookupTypeOption(typ)}, nil
 	case *Null:
@@ -824,8 +829,8 @@ func (a Analyzer) convertType(typ ast.Type) (super.Type, error) {
 		if err != nil {
 			return nil, err
 		}
-		if super.TypeUnder(typ) == super.TypeNone {
-			return nil, fmt.Errorf("option some type cannot be none")
+		if super.TypeUnder(typ) == super.TypeMissing {
+			return nil, fmt.Errorf("option some type cannot be type missing")
 		}
 		return a.sctx.LookupTypeOption(typ), nil
 	}

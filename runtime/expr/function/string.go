@@ -48,7 +48,7 @@ type Join struct {
 }
 
 func (j *Join) Call(args ...vector.Any) vector.Any {
-	if vec, ok := expr.CheckForErrorThenNullThenNone(j.sctx, args, "join"); ok {
+	if vec, ok := expr.Catch(j.sctx, true, args, "join"); ok {
 		return vec
 	}
 	args = underAll(args)
@@ -89,7 +89,7 @@ type Levenshtein struct {
 }
 
 func (l *Levenshtein) Call(args ...vector.Any) vector.Any {
-	if vec, ok := expr.CheckForErrorThenNullThenNone(l.sctx, args, "levenshtein"); ok {
+	if vec, ok := expr.Catch(l.sctx, true, args, "levenshtein"); ok {
 		return vec
 	}
 	args = underAll(args)
@@ -113,7 +113,7 @@ type Position struct {
 }
 
 func (p *Position) Call(args ...vector.Any) vector.Any {
-	if vec, ok := expr.CheckForErrorThenNullThenNone(p.sctx, args, "position"); ok {
+	if vec, ok := expr.Catch(p.sctx, true, args, "position"); ok {
 		return vec
 	}
 	args = underAll(args)
@@ -138,7 +138,7 @@ type Replace struct {
 }
 
 func (r *Replace) Call(args ...vector.Any) vector.Any {
-	if vec, ok := expr.CheckForErrorThenNullThenNone(r.sctx, args, "replace"); ok {
+	if vec, ok := expr.Catch(r.sctx, true, args, "replace"); ok {
 		return vec
 	}
 	args = underAll(args)
@@ -163,7 +163,7 @@ type Split struct {
 }
 
 func (s *Split) Call(args ...vector.Any) vector.Any {
-	if vec, ok := expr.CheckForErrorThenNullThenNone(s.sctx, args, "split"); ok {
+	if vec, ok := expr.Catch(s.sctx, true, args, "split"); ok {
 		return vec
 	}
 	args = underAll(args)
@@ -195,7 +195,7 @@ type ToLower struct {
 }
 
 func (t *ToLower) Call(args ...vector.Any) vector.Any {
-	if vec, ok := expr.CheckForErrorThenNullThenNone(t.sctx, args, "lower"); ok {
+	if vec, ok := expr.Catch(t.sctx, true, args, "lower"); ok {
 		return vec
 	}
 	v := vector.Under(args[0])
@@ -215,7 +215,7 @@ type ToUpper struct {
 }
 
 func (t *ToUpper) Call(args ...vector.Any) vector.Any {
-	if vec, ok := expr.CheckForErrorThenNullThenNone(t.sctx, args, "upper"); ok {
+	if vec, ok := expr.Catch(t.sctx, true, args, "upper"); ok {
 		return vec
 	}
 	v := vector.Under(args[0])
@@ -235,7 +235,7 @@ type Trim struct {
 }
 
 func (t *Trim) Call(args ...vector.Any) vector.Any {
-	if vec, ok := expr.CheckForErrorThenNullThenNone(t.sctx, args, "trim"); ok {
+	if vec, ok := expr.Catch(t.sctx, true, args, "trim"); ok {
 		return vec
 	}
 	val := vector.Under(args[0])

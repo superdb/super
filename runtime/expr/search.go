@@ -60,7 +60,7 @@ func (s *search) Eval(this vector.Any) vector.Any {
 }
 
 func (s *search) applyEval(vec vector.Any) vector.Any {
-	return vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, s.eval, vec)
+	return vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions|vector.ApplyRipOptions, s.eval, vec)
 }
 
 func (s *search) eval(vecs ...vector.Any) vector.Any {
@@ -96,6 +96,11 @@ func (s *search) eval(vecs ...vector.Any) vector.Any {
 			s.evalForList(vec.Values, vec.Offsets, index, n))
 	case *vector.Error:
 		return s.eval(vec.Vals)
+	case *vector.Option:
+		if none, ok := vec.Any.(*vector.Missing); ok {
+			return vector.NewFalse(none.Len())
+		}
+		return s.applyEval(vec.Any)
 	}
 	panic(vec)
 }
@@ -159,7 +164,7 @@ func (r *regexpMatch) Eval(this vector.Any) vector.Any {
 }
 
 func (r *regexpMatch) eval(vecs ...vector.Any) vector.Any {
-	if vec, ok := CheckForErrorThenNullThenNone(r.sctx, vecs, "regexp"); ok {
+	if vec, ok := Catch(r.sctx, true, vecs, "regexp"); ok {
 		return vec
 	}
 	vec := vector.Under(vecs[0])

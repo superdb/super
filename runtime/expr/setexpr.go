@@ -18,7 +18,7 @@ func NewSetExpr(sctx *super.Context, elems []ListElem) Evaluator {
 
 func (s *setExpr) Eval(this vector.Any) vector.Any {
 	if len(s.elems) == 0 {
-		typ := s.sctx.LookupTypeSet(super.TypeNone)
+		typ := s.sctx.LookupTypeSet(super.TypeMissing)
 		offsets := make([]uint32, this.Len()+1)
 		c := vector.NewNull(0)
 		return vector.NewSet(typ, offsets, c)

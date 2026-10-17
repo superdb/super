@@ -17,7 +17,8 @@ func newCollectMap() *collectMap {
 }
 
 func (c *collectMap) Consume(vec vector.Any) {
-	if k := vec.Kind(); k == vector.KindNull || k == vector.KindError || k == vector.KindNone {
+	// XXX THIS - missing should be error
+	if k := vec.Kind(); k == vector.KindNull || k == vector.KindError || k == vector.KindMissing {
 		return
 	}
 	typ := vec.Type()

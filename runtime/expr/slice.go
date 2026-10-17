@@ -36,7 +36,7 @@ func (s *sliceExpr) Eval(vec vector.Any) vector.Any {
 }
 
 func (s *sliceExpr) eval(vecs ...vector.Any) vector.Any {
-	if vec, ok := CheckForErrorThenNullThenNone(s.sctx, vecs, "slice expression"); ok {
+	if vec, ok := Catch(s.sctx, true, vecs, "slice expression"); ok {
 		return vec
 	}
 	container := vecs[0]

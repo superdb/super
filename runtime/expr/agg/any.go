@@ -44,7 +44,7 @@ func firstNonNullSlot(vec vector.Any) int {
 		return -1
 	}
 	switch vec.Kind() {
-	case vector.KindNull, vector.KindNone:
+	case vector.KindNull, vector.KindMissing:
 		return -1
 	case vector.KindFusion:
 		return firstNonNullSlot(vector.Super(vec))

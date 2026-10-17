@@ -130,9 +130,6 @@ func (d *Downcast) downcast(vec vector.Any, to super.Type) vector.Any {
 	case *super.TypeOption:
 		return d.toOption(vec, to)
 	default:
-		if vec.Type() == super.TypeNone {
-			return d.errNonOptionNone(vec, to)
-		}
 		return d.errMismatch(vec, to)
 	}
 }
@@ -470,8 +467,8 @@ func (d *Downcast) toOption(vec vector.Any, to *super.TypeOption) vector.Any {
 	case *vector.Option:
 		return vector.Apply(vector.ApplyRipOptions, func(vecs ...vector.Any) vector.Any {
 			switch vec := vecs[0].(*vector.Option).Any.(type) {
-			case *vector.None:
-				return vector.NewOption(to, vector.NewNone(vec.Len()))
+			case *vector.Missing:
+				return vector.NewNone(to, vec.Len())
 			case *vector.Dynamic:
 				panic(vec)
 			default:
@@ -479,11 +476,9 @@ func (d *Downcast) toOption(vec vector.Any, to *super.TypeOption) vector.Any {
 				if vec2 == nil {
 					return nil
 				}
-				return vector.NewOption(to, vec2)
+				return vector.NewSome(to, vec2)
 			}
 		}, vec)
-	case *vector.None:
-		return vector.NewOption(to, vector.NewNone(vec.Len()))
 	case *vector.View:
 		return vector.NewView(d.toOption(vec.Any, to), vec.Index)
 	}
@@ -496,7 +491,7 @@ func (d *Downcast) toOption(vec vector.Any, to *super.TypeOption) vector.Any {
 		if vec.Type() != to.Type {
 			return vec
 		}
-		return vector.NewOption(to, vec)
+		return vector.NewSome(to, vec)
 	}, vec)
 }
 

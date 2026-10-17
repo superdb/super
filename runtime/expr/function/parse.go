@@ -21,7 +21,7 @@ func newParseURI(sctx *super.Context) *ParseURI {
 }
 
 func (p *ParseURI) Call(args ...vector.Any) vector.Any {
-	if vec, ok := expr.CheckForErrorThenNullThenNone(p.sctx, args, "parse_uri"); ok {
+	if vec, ok := expr.Catch(p.sctx, true, args, "parse_uri"); ok {
 		return vec
 	}
 	vec := vector.Under(args[0])
@@ -51,7 +51,7 @@ func newParseSUP(sctx *super.Context) *ParseSUP {
 }
 
 func (p *ParseSUP) Call(args ...vector.Any) vector.Any {
-	if vec, ok := expr.CheckForErrorThenNullThenNone(p.sctx, args, "parse_sup"); ok {
+	if vec, ok := expr.Catch(p.sctx, true, args, "parse_sup"); ok {
 		return vec
 	}
 	vec := vector.Under(args[0])

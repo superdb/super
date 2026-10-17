@@ -61,8 +61,20 @@ func (d *DotExpr) eval(outerVecs ...vector.Any) vector.Any {
 			if d.nullish {
 				return val
 			}
-		case *vector.None:
+		case *vector.Missing:
+			// XXX TBD - this should be an error
 			return val
+		case *vector.Option:
+			// This is either a pure some or a pure none since we called
+			// Apply with RipOptions.  For option nones with ?. access
+			// we just return the none as in its option form.
+			if _, ok := val.Any.(*vector.Missing); ok {
+				if d.noneish {
+					return val
+				}
+				return vector.NewWrappedError(d.sctx, fmt.Sprintf(".: encountered none dereferencing field %s (consider ?.)", sup.QuotedName(d.key)), val)
+			}
+			return eval(on, val.Any)
 		case *vector.Record:
 			i, ok := val.Typ.IndexOfField(d.key)
 			if !ok {
@@ -72,10 +84,10 @@ func (d *DotExpr) eval(outerVecs ...vector.Any) vector.Any {
 				return vector.NewWrappedError(d.sctx, fmt.Sprintf("no such field %s", sup.QuotedName(d.key)), val)
 			}
 			out := val.Fields[i]
-			if _, ok := out.(*vector.None); ok {
+			if _, ok := out.(*vector.Missing); ok {
 				return vector.NewWrappedError(d.sctx, fmt.Sprintf("no such field %s", sup.QuotedName(d.key)), val)
 			}
-			if !hasMissingUnion(out) {
+			if !hasUnionMissing(out) {
 				return out
 			}
 			return vector.Apply(vector.ApplyDefuseMissings, func(vecs ...vector.Any) vector.Any {
@@ -130,33 +142,33 @@ func (d *DotExpr) eval(outerVecs ...vector.Any) vector.Any {
 		return vector.NewWrappedError(d.sctx, fmt.Sprintf("'%s': applied to non-record", op), on)
 	}
 	vec := outerVecs[0]
-	return vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, eval, vector.AddNoRip(vec), vec)
+	return vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions|vector.ApplyRipOptions, eval, vector.AddNoRip(vec), vec)
 }
 
-func hasMissingUnion(vec vector.Any) bool {
+func hasUnionMissing(vec vector.Any) bool {
 	switch vec := vec.(type) {
 	case *vector.Union:
-		return hasNone(vec.Dynamic())
+		return hasMissing(vec.Dynamic())
 	case *vector.Fusion:
-		return hasMissingUnion(vec.Values)
+		return hasUnionMissing(vec.Values)
 	case *vector.Dynamic:
-		return slices.ContainsFunc(vec.Values, hasMissingUnion)
+		return slices.ContainsFunc(vec.Values, hasUnionMissing)
 	case *vector.View:
-		return hasMissingUnion(vec.Any)
+		return hasUnionMissing(vec.Any)
 	}
 	return false
 }
 
-func hasNone(vec vector.Any) bool {
+func hasMissing(vec vector.Any) bool {
 	switch vec := vec.(type) {
-	case *vector.None:
+	case *vector.Missing:
 		return vec.Len() > 0
 	case *vector.Union:
-		return hasNone(vec.Dynamic())
+		return hasMissing(vec.Dynamic())
 	case *vector.Fusion:
-		return hasNone(vec.Values)
+		return hasMissing(vec.Values)
 	case *vector.Dynamic:
-		return slices.ContainsFunc(vec.Values, hasNone)
+		return slices.ContainsFunc(vec.Values, hasMissing)
 	}
 	return false
 }

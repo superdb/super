@@ -4,8 +4,8 @@ input: |
   {a:null, b:error(0), c:"foo"::(uint64|string)}
   {a:"bar"::string, b:error(0), c:1::uint64::(uint64|string)}
   type port=int64
-  type missing=error("string")
-  {a:error("missing")::missing, b:2020::port, c:null}
+  type err=error("string")
+  {a:error("missing")::err, b:2020::port, c:null}
   {a:null, b:error("missing"), c:error(0)}
   {a:null, b:"gotme", c:"ted sando"}
   {a:null, b:error({x:1}), c:"foo"}

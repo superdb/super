@@ -94,7 +94,7 @@ func (o *Object) Equal(to *Object) bool {
 }
 
 func NewObject() Object {
-	none := super.NewValue(super.TypeNone, nil)
+	none := super.NewValue(super.TypeMissing, nil)
 	return Object{ID: uuid.NewV7(), Min: none, Max: none}
 }
 

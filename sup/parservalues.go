@@ -266,7 +266,6 @@ func (p *Parser) matchNone() (*ast.None, error) {
 	l.skip(4)
 	return &ast.None{
 		Kind: "None",
-		Type: &ast.TypePrimitive{Kind: "TypePrimitive", Name: "none"},
 	}, nil
 }
 

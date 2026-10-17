@@ -476,9 +476,9 @@ blend
 {y:"foo"}
 {x:2,y:"bar"}
 # expected output
-{x:1::(int64|none),y:none::(string|none)}
-{x:none::(int64|none),y:"foo"::(string|none)}
-{x:2::(int64|none),y:"bar"::(string|none)}
+{x:1::(int64|missing),y:none::(string|missing)}
+{x:none::(int64|missing),y:"foo"::(string|missing)}
+{x:2::(int64|missing),y:"bar"::(string|missing)}
 ```
 
 Whereas a type union for field `x` is produced in the following:
@@ -511,7 +511,7 @@ blend(this)
 {x:"foo",y:"foo"}
 {x:2,y:"bar"}
 # expected output
-<{x:int64|string,y:string|none}>
+<{x:int64|string,y:string|missing}>
 ```
 
 Since the `fuse` here is an aggregate function, it can also be used with

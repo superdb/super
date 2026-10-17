@@ -4,16 +4,16 @@ import (
 	"github.com/superdb/super/vector"
 )
 
-type noneBuilder struct {
+type missingBuilder struct {
 	len uint32
 }
 
-func (n *noneBuilder) Write(vec vector.Any) {
+func (n *missingBuilder) Write(vec vector.Any) {
 	n.len += vec.Len()
 }
 
-func (n *noneBuilder) Build() vector.Any {
-	return vector.NewNone(n.len)
+func (n *missingBuilder) Build() vector.Any {
+	return vector.NewMissing(n.len)
 }
 
 type nullBuilder struct {

@@ -59,20 +59,20 @@ func NewUnionFromRLE(typ *super.TypeUnion, rle []uint32, vecs []Any) *Union {
 
 func NewUnionNoneRLE(sctx *super.Context, vec Any, length uint32, runlens []uint32) *Union {
 	typ := vec.Type()
-	optionType := sctx.UnionWithNone(typ)
+	unionMissing := sctx.UnionMissing(typ)
 	if union, ok := vec.(*Union); ok {
 		// If it's a union, let's make it an option type by adding type none at the end.
 		// We don't (yet) bother trying to run-length encode these since there are more
 		// than two vectors.
 		types := slices.Clone(union.Typ.Types)
-		types = append(types, super.TypeNone)
+		types = append(types, super.TypeMissing)
 		vecs := slices.Clone(union.Values())
 		noneTag := uint32(len(vecs))
 		// buildTags assumes a single value at tag 0 and a none at tag 1.
 		// we'll build that then convert it from this unions tags, where the
 		// union tags are preserved and the none at tag 1 goes to the last tag (noneTag).
-		tags, noneLen := buildTags(runlens, length)
-		vecs = append(vecs, NewNone(noneLen))
+		tags, missingLen := buildTags(runlens, length)
+		vecs = append(vecs, NewMissing(missingLen))
 		var from int
 		fromTags := union.Tags()
 		for k := range tags {
@@ -83,11 +83,11 @@ func NewUnionNoneRLE(sctx *super.Context, vec Any, length uint32, runlens []uint
 				tags[k] = noneTag
 			}
 		}
-		return NewUnion(optionType, tags, vecs)
+		return NewUnion(unionMissing, tags, vecs)
 	}
 	//XXX we should use the RLEs only when substantially smaller than tags
-	vecs := []Any{vec, NewNone(noneLength(runlens))}
-	return NewUnionFromRLE(optionType, runlens, vecs)
+	vecs := []Any{vec, NewMissing(missingLength(runlens))}
+	return NewUnionFromRLE(unionMissing, runlens, vecs)
 }
 
 // verifyUnion verifies that a created union:
@@ -258,12 +258,12 @@ func (r *RLE) emit(run uint32) {
 	r.runs = append(r.runs, run)
 }
 
-// buildTags returns tags for some/none runs presuming none tag is 1 and
+// buildTags returns tags for some/none runs presuming missing tag is 1 and
 // some tag 0 (as is consistent with super.OptionSomeTag and super.OptionNoneTag)
 func buildTags(runlens []uint32, n uint32) ([]uint32, uint32) {
 	tags := make([]uint32, n)
 	off := 0
-	var noneLen uint32
+	var missingLen uint32
 	for in := 0; in < len(runlens); {
 		noneRun := runlens[in]
 		in++
@@ -271,7 +271,7 @@ func buildTags(runlens []uint32, n uint32) ([]uint32, uint32) {
 			tags[off+k] = 1
 		}
 		off += int(noneRun)
-		noneLen += noneRun
+		missingLen += noneRun
 		if in >= len(runlens) {
 			break
 		}
@@ -279,13 +279,13 @@ func buildTags(runlens []uint32, n uint32) ([]uint32, uint32) {
 		off += int(runlens[in])
 		in++
 	}
-	return tags, noneLen
+	return tags, missingLen
 }
 
-func noneLength(runlens []uint32) uint32 {
-	var noneLen uint32
+func missingLength(runlens []uint32) uint32 {
+	var missingLen uint32
 	for in := 0; in < len(runlens); {
-		noneLen += runlens[in]
+		missingLen += runlens[in]
 		in++
 		if in >= len(runlens) {
 			break
@@ -293,7 +293,7 @@ func noneLength(runlens []uint32) uint32 {
 		// skip values run
 		in++
 	}
-	return noneLen
+	return missingLen
 }
 
 // FlattenUnions takes a Dynamic and recursively replaces any Union values

@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -138,13 +137,6 @@ func handleQuery(c *Core, w *ResponseWriter, r *Request) {
 					handleError(err)
 				}
 				return
-			}
-			if d, ok := vec.(*vector.Dynamic); ok {
-				for _, v := range d.Values {
-					if _, ok := v.(*vector.Dynamic); ok {
-						fmt.Println("YO DAWG!!!")
-					}
-				}
 			}
 			if err := writer.Push(label, vec); err != nil {
 				w.Logger.Warn("Error writing data to client", zap.Error(err))

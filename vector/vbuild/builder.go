@@ -73,8 +73,8 @@ func New(typ super.Type) Builder {
 		}
 	case *super.TypeOfNull:
 		return &nullBuilder{}
-	case *super.TypeOfNone:
-		return &noneBuilder{}
+	case *super.TypeOfMissing:
+		return &missingBuilder{}
 	case *super.TypeRecord:
 		return newRecordBuilder(typ)
 	case *super.TypeArray, *super.TypeSet:

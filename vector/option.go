@@ -1,19 +1,22 @@
 package vector
 
 import (
-	"fmt"
-	"slices"
-
 	"github.com/superdb/super"
 	"github.com/superdb/super/scode"
 )
 
 // An option value is stored as any vector with its option type.
-// The Any field is a None vector for none option values and any
+// The Any field is a Missing vector for none option values and any
 // other vector for some option values.  When somes or nones are
 // mixed into a single Option vector, then Any is a two-element
 // Dynamic with the first value a some and the second value a none.
 // This design relies upon super.OptionSomeTag=0 and super.OptionNoneTag=1.
+// Note that the Missing vector use here is arbitrary: we just need a singleton
+// type that is cannot otherwise be an option type because we need to
+// distinguish the flavors of option (pure some / pure none / both)
+// by the vector type of Any.  The only way to access the noneness
+// of an option type is by expressing it through coalesce which provides
+// the subtitute value for the nones.
 type Option struct {
 	Typ *super.TypeOption
 	Any
@@ -21,24 +24,25 @@ type Option struct {
 
 var _ Any = (*Option)(nil)
 
-func NewOption(typ *super.TypeOption, vec Any) *Option {
-	return &Option{typ, vec}
+func NewSome(typ *super.TypeOption, vec Any) *Option {
+	return &Option{Typ: typ, Any: vec}
 }
 
-func NewOptionBoth(typ *super.TypeOption, tags []uint32, some Any, none *None) Any {
-	return NewOption(typ, NewDynamic(tags, []Any{some, none}))
+func NewNone(typ *super.TypeOption, noneLen uint32) *Option {
+	return &Option{Typ: typ, Any: NewMissing(noneLen)}
 }
 
-func NewOptionFromRLE(sctx *super.Context, vec Any, n uint32, rle []uint32) *Option {
-	// XXX to get things working, we just unroll the tags.  This will affect
-	// performace of the JSON path for messy data.  We should port the RLE design
-	// for two-element unions here.  This will be done in a future PR.
+func NewOption(typ *super.TypeOption, tags []uint32, some Any, none *Missing) *Option {
+	return &Option{typ, NewDynamic(tags, []Any{some, none})}
+}
+
+func NewOptionFromRLE(sctx *super.Context, some Any, n uint32, rle []uint32) *Option {
 	tags, noneLen := buildTags(rle, n)
-	optionType := sctx.LookupTypeOption(vec.Type())
+	optionType := sctx.LookupTypeOption(some.Type())
 	if noneLen == 0 {
 		panic("can't be zero")
 	}
-	return NewOption(optionType, NewDynamic(tags, []Any{vec, NewNone(noneLen)}))
+	return NewOption(optionType, tags, some, NewMissing(noneLen))
 }
 
 func (*Option) Kind() Kind {
@@ -49,12 +53,23 @@ func (o *Option) Type() super.Type {
 	return o.Typ
 }
 
+func (o *Option) SomeLen() uint32 {
+	switch vec := o.Any.(type) {
+	case *Missing:
+		return 0
+	case *Dynamic:
+		return vec.Values[0].Len()
+	default:
+		return vec.Len()
+	}
+}
+
 func (o *Option) Serialize(b *scode.Builder, slot uint32) {
 	tag := super.OptionNoneTag
 	switch vec := o.Any.(type) {
-	case *None:
+	case *Missing:
 	case *Dynamic:
-		if vec.TypeOf(slot) != super.TypeNone {
+		if vec.TypeOf(slot) != super.TypeMissing {
 			tag = super.OptionSomeTag
 		}
 	default:
@@ -68,68 +83,41 @@ func (o *Option) Serialize(b *scode.Builder, slot uint32) {
 	b.EndContainer()
 }
 
-func (o *Option) Apply(f func([]uint32, Any, *None) Any) Any {
+func (o *Option) Apply(f func([]uint32, Any, *Missing) Any) Any {
 	switch vec := o.Any.(type) {
-	case *None:
+	case *Missing:
 		return f(nil, nil, vec)
 	case *Dynamic:
-		return f(vec.Tags, vec.Values[0], vec.Values[1].(*None))
+		return f(vec.Tags, vec.Values[0], vec.Values[1].(*Missing))
 	default:
 		return f(nil, vec, nil)
 	}
 }
 
-func DeoptionWithNone(vec Any) Any {
-	switch vec := Super(vec).(type) {
-	case *None:
+func (o *Option) Coaelesce(defaults Any) Any {
+	switch vec := o.Any.(type) {
+	case *Missing:
+		return defaults
+	case *Dynamic:
+		defaults = Pick(defaults, noneIndex(vec.Tags))
+		return NewDynamic(vec.Tags, []Any{vec.Values[0], defaults})
+	default:
 		return vec
-	case *Dynamic:
-		if hasOptionTypesOrNones(vec.Values) {
-			vecs := make([]Any, 0, len(vec.Values))
-			for _, v := range vec.Values {
-				vecs = append(vecs, DeoptionWithNone(v))
-			}
-			return stitch(vec.Tags, vecs)
-		}
-	case *Option:
-		return DeoptionWithNone(vec.Any)
 	}
-	return vec
 }
 
-func DeoptionWithError(sctx *super.Context, vec, on Any, where string) Any {
-	switch vec := vec.(type) {
-	case *None:
-		return NewWrappedError(sctx, fmt.Sprintf("illegal none value in %s", where), on)
-	case *Dynamic:
-		if hasOptionTypesOrNones(vec.Values) {
-			vecs := make([]Any, 0, len(vec.Values))
-			for _, v := range vec.Values {
-				vecs = append(vecs, DeoptionWithError(sctx, v, on, where))
-			}
-			return stitch(vec.Tags, vecs)
+func noneIndex(tags []uint32) []uint32 {
+	index := make([]uint32, 0, len(tags))
+	for slot, tag := range tags {
+		if tag == super.OptionNoneTag {
+			index = append(index, uint32(slot))
 		}
-	case *Option:
-		return DeoptionWithError(sctx, vec.Any, on, where)
 	}
-	return vec
+	return index
 }
 
-func hasOptionTypesOrNones(vecs []Any) bool {
-	return slices.IndexFunc(vecs, func(vec Any) bool {
-		// XXX apparently the runtime sometimes creates nil vectors inside
-		// of Dynamics where said vector is never referenced by a tag
-		// (e.g., at the output of vector switch), so we check for nil here.
-		if vec == nil {
-			return false
-		}
-		if vec, ok := vec.(*Dynamic); ok {
-			return hasOptionTypesOrNones(vec.Values)
-		}
-		typ := vec.Type()
-		if fusion, ok := typ.(*super.TypeFusion); ok {
-			typ = fusion.Type
-		}
-		return super.IsOptionType(typ) || typ == super.TypeNone
-	}) >= 0
+// Returns the underlying Option for any vector having KindOption.
+// To be clear, this does not reach through fusion values.
+func UnderOption(vec Any) *Option {
+	return PushView(Under(vec)).(*Option)
 }

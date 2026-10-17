@@ -28,7 +28,7 @@ func (a *Arith) Eval(val vector.Any) vector.Any {
 }
 
 func (a *Arith) eval(vecs ...vector.Any) (out vector.Any) {
-	if vec, ok := CheckForErrorThenNullThenNone(a.sctx, vecs, a.op); ok {
+	if vec, ok := Catch(a.sctx, true, vecs, a.op); ok {
 		return vec
 	}
 	lhs := vector.Under(vecs[0])

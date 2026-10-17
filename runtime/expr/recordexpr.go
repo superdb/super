@@ -62,7 +62,7 @@ func (r *recordExpr) Eval(this vector.Any) vector.Any {
 		}
 		r.elemVecs = append(r.elemVecs, vec)
 	}
-	return vector.Apply(vector.ApplyRipOptions, r.eval, r.elemVecs...)
+	return vector.Apply(vector.ApplyNone, r.eval, r.elemVecs...)
 }
 
 func (r *recordExpr) eval(vecs ...vector.Any) vector.Any {
@@ -72,7 +72,7 @@ func (r *recordExpr) eval(vecs ...vector.Any) vector.Any {
 	for k, vec := range vecs {
 		switch elem := r.elems[k].(type) {
 		case *FieldElem:
-			if vec.Type() == super.TypeNone {
+			if vec.Type() == super.TypeMissing {
 				r.deleteField(elem.Name)
 				continue
 			}

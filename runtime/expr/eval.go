@@ -32,13 +32,16 @@ func CheckForErrorThenNull(sctx *super.Context, vecs []vector.Any, msg string) (
 	return nil, false
 }
 
-func CheckForErrorThenNullThenNone(sctx *super.Context, vecs []vector.Any, msg string) (vector.Any, bool) {
+func Catch(sctx *super.Context, options bool, vecs []vector.Any, msg string) (vector.Any, bool) {
 	if vec, ok := CheckForErrorThenNull(sctx, vecs, msg); ok {
 		return vec, true
 	}
 	for _, vec := range vecs {
-		if vec.Kind() == vector.KindNone {
-			return vector.NewStringError(sctx, fmt.Sprintf("%s: illegal none value", msg), vec.Len()), true
+		if vec.Kind() == vector.KindMissing {
+			return vector.NewStringError(sctx, fmt.Sprintf("%s: missing value not handled (consider ??)", msg), vec.Len()), true
+		}
+		if options && vec.Kind() == vector.KindOption {
+			return vector.NewStringError(sctx, fmt.Sprintf("%s: option value not handled (consider ??)", msg), vec.Len()), true
 		}
 	}
 	return nil, false

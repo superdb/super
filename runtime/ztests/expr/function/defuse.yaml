@@ -103,7 +103,7 @@ input: |
   fusion({a?:1,b?:none::int64,c?:none::int64},<{a:int64}>)
   fusion({a?:none::int64,b?:1,c?:2},<{b:int64,c:int64}>)
   // None-valued record fields.
-  [{a:fusion(none::(int64|none),<none>)},{a:fusion(none::(string|none),<none>)}]
+  [{a:fusion(none::(int64|missing),<missing>)},{a:fusion(none::(string|missing),<missing>)}]
 
 output: |
   {a:1}

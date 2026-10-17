@@ -57,7 +57,7 @@ func PushView(val Any) Any {
 		}
 		return NewFusion(val.Typ, Pick(val.Values, view.Index), outTypes)
 	case *Option:
-		return NewOption(val.Typ, Pick(val.Any, view.Index))
+		return Pick(val, view.Index)
 	default:
 		return view
 	}

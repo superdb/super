@@ -80,9 +80,7 @@ func (u *Upcast) toRecord(b *scode.Builder, typ super.Type, bytes scode.Bytes, t
 	for _, f := range to.Fields {
 		elemType, elemBytes, ok := derefAsBytes(recType, bytes, f.Name)
 		if !ok {
-			// If this field is not present, try upcasting a pure none value to
-			// see if it fuses as an optional value.
-			elemType = super.TypeNone
+			elemType = super.TypeMissing
 			elemBytes = nil
 		}
 		if ok := u.upcast(b, elemType, elemBytes, f.Type); !ok {

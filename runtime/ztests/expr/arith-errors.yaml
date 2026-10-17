@@ -18,7 +18,7 @@ input: |
   {a?:none::int64}
 
 output: |
-  error("+: illegal none value")
+  error("+: option value not handled (consider ??)")
 
 ---
 
@@ -30,4 +30,4 @@ input: |
   none
 
 output: |
-  error("+: illegal none value")
+  error("+: missing value not handled (consider ??)")

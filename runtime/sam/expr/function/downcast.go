@@ -85,8 +85,8 @@ func (d *downcast) downcast(typ super.Type, bytes scode.Bytes, to super.Type) (s
 				return super.NewValue(typ, bytes), nil
 			}
 		}
-		if typ == super.TypeNone {
-			return super.Value{}, d.errNonOptionNone(to)
+		if typ == super.TypeMissing {
+			return super.Value{}, d.errMissing(to)
 		}
 		return super.Value{}, d.errMismatch(typ, bytes, to)
 	}
@@ -289,8 +289,8 @@ func (d *downcast) toError(typ super.Type, bytes scode.Bytes, to *super.TypeErro
 	return super.Value{}, d.errMismatch(typ, bytes, to)
 }
 
-func (d *downcast) errNonOptionNone(to super.Type) *super.Value {
-	return d.sctx.NewErrorf("downcast: none value in non-option type: %s", sup.FormatType(to)).Ptr()
+func (d *downcast) errMissing(to super.Type) *super.Value {
+	return d.sctx.NewErrorf("downcast: missing value in non-option type: %s", sup.FormatType(to)).Ptr()
 }
 
 func (d *downcast) errMismatch(typ super.Type, bytes []byte, to super.Type) *super.Value {

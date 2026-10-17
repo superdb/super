@@ -1,6 +1,7 @@
 package vector
 
 import (
+	"github.com/superdb/super"
 	"github.com/superdb/super/vector/bitvec"
 )
 
@@ -23,8 +24,8 @@ func Pick(val Any, index []uint32) Any {
 		return NewDict(val.Any, index2, counts)
 	case *Error:
 		return NewError(val.Typ, Pick(val.Vals, index))
-	case *None:
-		return NewNone(uint32(len(index)))
+	case *Missing:
+		return NewMissing(uint32(len(index)))
 	case *NoRip:
 		return &NoRip{Pick(val.Any, index)}
 	case *Null:
@@ -44,7 +45,16 @@ func Pick(val Any, index []uint32) Any {
 		// Wrapped View under Named so vector.Under still works.
 		return &Named{val.Typ, Pick(val.Any, index)}
 	case *Option:
-		return NewOption(val.Typ, Pick(val.Any, index))
+		switch vec := val.Any.(type) {
+		case *Missing:
+			return NewNone(val.Typ, uint32(len(index)))
+		case *Dynamic:
+			tags, someIndex, noneLen := optionTags(index, vec)
+			some := Pick(vec.Values[super.OptionSomeTag], someIndex)
+			return NewOption(val.Typ, tags, some, NewMissing(noneLen))
+		default:
+			return NewSome(val.Typ, Pick(val.Any, index))
+		}
 	case nil:
 		return nil
 	}
@@ -64,6 +74,24 @@ func viewForUnionOrDynamic(index, tags, forward []uint32, values []Any) ([]uint3
 		results[k] = Pick(values[k], indexes[k])
 	}
 	return resultTags, results
+}
+
+func optionTags(index []uint32, d *Dynamic) ([]uint32, []uint32, uint32) {
+	tags := d.Tags
+	forward := d.ForwardTagMap()
+	var noneLen uint32
+	newTags := make([]uint32, 0, len(index))
+	var someIndex []uint32
+	for _, slot := range index {
+		newTag := tags[slot]
+		newTags = append(newTags, newTag)
+		if newTag == super.OptionNoneTag {
+			noneLen++
+		} else {
+			someIndex = append(someIndex, forward[slot])
+		}
+	}
+	return newTags, someIndex, noneLen
 }
 
 // ReversePick is like Pick but it builds the vector from the elements

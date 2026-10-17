@@ -27,8 +27,8 @@ type materializer struct {
 func (m *materializer) value(v Value) (vector.Any, []uint32) {
 	switch v := v.(type) {
 	case *None:
-		// nones are only used in empty arrays so length is always 0
-		return vector.NewNone(0), nil
+		//missings are only used in empty arrays so length is always 0
+		return vector.NewMissing(0), nil
 	case *Null:
 		return vector.NewNull(v.len), nil
 	case *Bool:
@@ -68,8 +68,8 @@ func (m *materializer) union(u *Union) (vector.Any, []uint32) {
 		types = append(types, vec.Type())
 	}
 	if u.None != nil {
-		types = append(types, super.TypeNone)
-		vecs = append(vecs, vector.NewEmpty(super.TypeNone))
+		types = append(types, super.TypeMissing)
+		vecs = append(vecs, vector.NewEmpty(super.TypeMissing))
 	}
 	utyp := m.sctx.MustLookupTypeUnion(super.UniqueTypes(types))
 	subtypes := m.makeUnionSubtypes(u.Tags, dynamic, fixed)
@@ -121,7 +121,7 @@ func (m *materializer) array(a *Array) (vector.Any, []uint32) {
 
 func (m *materializer) arrayID(ids []uint32) uint32 {
 	if len(ids) == 0 {
-		return m.defs.BindTypeWrapped(super.TypeDefArray, super.IDNone)
+		return m.defs.BindTypeWrapped(super.TypeDefArray, super.IDMissing)
 	}
 	id := ids[0]
 	for _, other := range ids[1:] {
@@ -222,14 +222,14 @@ func (m *materializer) missing(vec vector.Any, ids []uint32, fixed uint32, n uin
 	// If vec is itself a union, its tags are kept and none is appended.
 	u := vector.NewUnionNoneRLE(m.sctx, vec, n, rle)
 	// Tags index the union's vectors, not Typ.Types, so find none there.
-	noneTag := uint32(slices.IndexFunc(u.Values(), func(v vector.Any) bool {
-		return v.Type() == super.TypeNone
+	missingTag := uint32(slices.IndexFunc(u.Values(), func(v vector.Any) bool {
+		return v.Type() == super.TypeMissing
 	}))
 	subtypes := make([]uint32, 0, n)
 	for _, tag := range u.Tags() {
 		switch {
-		case tag == noneTag:
-			subtypes = append(subtypes, super.IDNone)
+		case tag == missingTag:
+			subtypes = append(subtypes, super.IDMissing)
 		case ids != nil:
 			subtypes = append(subtypes, ids[0])
 			ids = ids[1:]

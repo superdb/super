@@ -85,15 +85,15 @@ var (
 	TypeFloat32  = &TypeOfFloat32{}
 	TypeFloat64  = &TypeOfFloat64{}
 	// XXX add TypeDecimal
-	TypeBool   = &TypeOfBool{}
-	TypeBytes  = &TypeOfBytes{}
-	TypeString = &TypeOfString{}
-	TypeIP     = &TypeOfIP{}
-	TypeNet    = &TypeOfNet{}
-	TypeType   = &TypeOfType{}
-	TypeNull   = &TypeOfNull{}
-	TypeNone   = &TypeOfNone{}
-	TypeAll    = &TypeOfAll{}
+	TypeBool    = &TypeOfBool{}
+	TypeBytes   = &TypeOfBytes{}
+	TypeString  = &TypeOfString{}
+	TypeIP      = &TypeOfIP{}
+	TypeNet     = &TypeOfNet{}
+	TypeType    = &TypeOfType{}
+	TypeNull    = &TypeOfNull{}
+	TypeMissing = &TypeOfMissing{}
+	TypeAll     = &TypeOfAll{}
 )
 
 // Primary Type IDs
@@ -129,7 +129,7 @@ const (
 	IDNet         = 27
 	IDType        = 28
 	IDNull        = 29
-	IDNone        = 30
+	IDMissing     = 30
 	IDAll         = 31
 	IDTypeComplex = 32
 )
@@ -219,8 +219,8 @@ func LookupPrimitive(name string) Type {
 		return TypeType
 	case "null":
 		return TypeNull
-	case "none":
-		return TypeNone
+	case "missing":
+		return TypeMissing
 	case "all":
 		return TypeAll
 	}
@@ -269,8 +269,8 @@ func PrimitiveName(typ Type) string {
 		return "type"
 	case *TypeOfNull:
 		return "null"
-	case *TypeOfNone:
-		return "none"
+	case *TypeOfMissing:
+		return "missing"
 	case *TypeOfAll:
 		return "all"
 	default:
@@ -326,8 +326,8 @@ func LookupPrimitiveByID(id int) (Type, error) {
 		return TypeType, nil
 	case IDNull:
 		return TypeNull, nil
-	case IDNone:
-		return TypeNone, nil
+	case IDMissing:
+		return TypeMissing, nil
 	case IDAll:
 		return TypeAll, nil
 	}

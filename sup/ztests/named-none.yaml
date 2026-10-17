@@ -3,11 +3,11 @@ spq: pass
 flags: -i sup
 
 input: |
-  type foo=none
+  type foo=missing
   {a?:none::option(foo)}
 
 error: |
-  stdio:stdin: option some type cannot be none
+  stdio:stdin: option some type cannot be type missing
 
 ---
 
@@ -16,18 +16,18 @@ spq: pass
 flags: -i sup
 
 input: |
-  type foo=none
+  type foo=missing
   {a:none::foo}
 
 error: |
-  stdio:stdin: untyped none assigned to field a
+  stdio:stdin: none::missing assigned to field a
 
 ---
 
 spq: pass
 
 input: &input |
-  type foo=none
+  type foo=missing
   none::foo
 
 output: *input
@@ -37,11 +37,11 @@ output: *input
 spq: values this ?? none::bar
 
 input: |
-  type foo=none
+  type foo=missing
   type bar=foo
   none::foo
 
 output: |
-  type foo=none
+  type foo=missing
   type bar=foo
   none::bar

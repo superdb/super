@@ -2,8 +2,8 @@
 spq: unblend(this)
 
 input: |
-  {x:{y:2::(int64|bool)},z?:"foo"}
-  {x:{y:true::(int64|bool)},z?:none::string}
+  {x:{y:2::(int64|bool)},z:"foo"::(missing|string)}
+  {x:{y:true::(int64|bool)},z:none::(missing|string)}
   {}
 
 output: |

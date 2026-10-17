@@ -34,6 +34,8 @@ func (i *Index) eval(args ...vector.Any) vector.Any {
 		return indexRecord(i.sctx, container, index, i.base1)
 	case vector.KindMap:
 		return indexMap(i.sctx, container, index)
+	case vector.KindOption:
+		return vector.NewWrappedError(i.sctx, "option value cannot be indexed (consider ??)", container)
 	default:
 		return vector.NewWrappedError(i.sctx, "value cannot be indexed", container)
 	}
@@ -181,7 +183,7 @@ func indexMap(sctx *super.Context, vec, indexVec vector.Any) vector.Any {
 	}
 	vals := vector.Pick(vector.Deunion(m.Values), valIndexes)
 	if len(nones) > 0 {
-		return vector.Combine(vals, nones, vector.NewNone(uint32(len(nones))))
+		return vector.Combine(vals, nones, vector.NewMissing(uint32(len(nones))))
 	}
 	return vals
 }

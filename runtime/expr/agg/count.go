@@ -10,10 +10,15 @@ type count struct {
 }
 
 func (a *count) Consume(vec vector.Any) {
-	if k := vec.Kind(); k == vector.KindNull || k == vector.KindNone {
+	switch vec.Kind() {
+	// XXX TBD - missing should be error
+	case vector.KindNull, vector.KindMissing:
 		return
+	case vector.KindOption:
+		a.count += int64(vector.UnderOption(vec).SomeLen())
+	default:
+		a.count += int64(vec.Len())
 	}
-	a.count += int64(vec.Len())
 }
 
 func (a *count) Result(*super.Context) vector.Any {

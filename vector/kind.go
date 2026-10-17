@@ -27,8 +27,9 @@ const (
 	KindUnion   = 16
 	KindEnum    = 17
 	KindFusion  = 19
-	KindNone    = 20
+	KindMissing = 20
 	KindOption  = 21
+	KindNil     = 22
 )
 
 const (
@@ -60,8 +61,8 @@ func KindFromString(v string) Kind {
 		return KindMap
 	case "Record":
 		return KindRecord
-	case "None":
-		return KindNone
+	case "Missing":
+		return KindMissing
 	case "Option":
 		return KindOption
 	default:

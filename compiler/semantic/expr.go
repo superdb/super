@@ -791,9 +791,9 @@ func (t *translator) semCallByName(call *ast.CallExpr, name string, args []sem.E
 				Node: call,
 				Op:   "??",
 				LHS:  sem.NewCall(call, "ok", args),
-				RHS:  sem.NewLiteral(call, super.NewValue(super.TypeNone, nil), t.defs),
+				RHS:  sem.NewLiteral(call, super.NewValue(super.TypeMissing, nil), t.defs),
 			},
-			RHS: sem.NewLiteral(call, super.NewValue(super.TypeNone, nil), t.defs),
+			RHS: sem.NewLiteral(call, super.NewValue(super.TypeMissing, nil), t.defs),
 		}, super.TypeBool
 	case nameLower == "map":
 		return t.semMapCall(call, args, argTypes)

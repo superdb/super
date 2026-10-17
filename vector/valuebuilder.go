@@ -80,8 +80,8 @@ func NewValueBuilder(typ super.Type) ValueBuilder {
 		return &netValueBuilder{}
 	case *super.TypeOfType:
 		return newTypeValueValueBuilder()
-	case *super.TypeOfNone:
-		return &noneValueBuilder{}
+	case *super.TypeOfMissing:
+		return &missingValueBuilder{}
 	case *super.TypeOfNull:
 		return &nullValueBuilder{}
 	case *super.TypeRecord:
@@ -309,7 +309,7 @@ func newOptionValueBuilder(typ *super.TypeOption) ValueBuilder {
 
 func (o *optionValueBuilder) Write(bytes scode.Bytes) {
 	typ, bytes := o.typ.Decode(bytes)
-	if typ == super.TypeNone {
+	if typ == nil {
 		o.tags = append(o.tags, super.OptionNoneTag)
 		o.nones++
 	} else {
@@ -320,14 +320,13 @@ func (o *optionValueBuilder) Write(bytes scode.Bytes) {
 
 func (o *optionValueBuilder) Build(sctx *super.Context) Any {
 	if len(o.tags) == o.nones {
-		return NewOption(o.typ, NewNone(uint32(o.nones)))
+		return NewNone(o.typ, uint32(o.nones))
 	}
 	if o.nones == 0 {
-		return NewOption(o.typ, o.values.Build(sctx))
+		return NewSome(o.typ, o.values.Build(sctx))
 	}
-	none := NewNone(uint32(o.nones))
 	some := o.values.Build(sctx)
-	return NewOptionBoth(o.typ, o.tags, some, none)
+	return NewOption(o.typ, o.tags, some, NewMissing(uint32(o.nones)))
 }
 
 type enumValueBuilder struct {
@@ -491,16 +490,16 @@ func (c *nullValueBuilder) Build(*super.Context) Any {
 	return NewNull(c.n)
 }
 
-type noneValueBuilder struct {
+type missingValueBuilder struct {
 	len uint32
 }
 
-func (n *noneValueBuilder) Write(scode.Bytes) {
-	n.len++
+func (m *missingValueBuilder) Write(scode.Bytes) {
+	m.len++
 }
 
-func (n *noneValueBuilder) Build(*super.Context) Any {
-	return NewNone(n.len)
+func (m *missingValueBuilder) Build(*super.Context) Any {
+	return NewMissing(m.len)
 }
 
 func DefuseAny(vec *Fusion) Any {

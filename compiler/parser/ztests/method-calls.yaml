@@ -15,7 +15,7 @@ output: |
 ---
 
 spq: |
-  fn Has(r,field) : r[field].is_ok()
+  fn Has(r,field) : unwrap(r)[field].is_ok()
   values x.Has('y')
 
 input: |

@@ -51,9 +51,9 @@ func Apply(opt ApplyOpt, eval func(...Any) Any, vecs ...Any) Any {
 	}
 	if opt&ApplyRipUnions != 0 {
 		for k := range vecs {
-			if vec, ok := Under(vecs[k]).(*Option); ok {
-				vecs[k] = vec.Any
-			}
+			//if vec, ok := Under(vecs[k]).(*Option); ok {
+			//	vecs[k] = vec.Any
+			//}
 			if vec, ok := Under(vecs[k]).(*Union); ok {
 				vecs[k] = vec.Dynamic()
 			}
@@ -212,25 +212,21 @@ func AddNoRip(vec Any) Any {
 func ripOption(o *Option) Any {
 	if d, ok := o.Any.(*Dynamic); ok {
 		optionType := super.TypeUnder(o.Type()).(*super.TypeOption)
-		some := NewOption(optionType, d.Values[super.OptionSomeTag])
-		none := NewOption(optionType, d.Values[super.OptionNoneTag])
+		some := NewSome(optionType, d.Values[super.OptionSomeTag])
+		none := NewNone(optionType, d.Values[super.OptionNoneTag].Len())
 		return NewDynamic(d.Tags, []Any{some, none})
 	}
 	return o
 }
 
-type Missing struct {
-	Any
-}
-
 func defuseMissing(vec Any, union *Union) Any {
-	noneTag := findNone(union.Values())
-	if noneTag < 0 {
+	missingTag := findMissing(union.Values())
+	if missingTag < 0 {
 		return vec
 	}
 	var index, tags []uint32
 	for k, tag := range union.Tags() {
-		if int(tag) != noneTag {
+		if int(tag) != missingTag {
 			index = append(index, uint32(k))
 			tags = append(tags, 0)
 		} else {
@@ -238,13 +234,13 @@ func defuseMissing(vec Any, union *Union) Any {
 		}
 	}
 	vals := Pick(vec, index)
-	missings := &Missing{NewNone(vec.Len() - uint32(len(index)))}
+	missings := NewMissing(vec.Len() - uint32(len(index)))
 	return NewDynamic(tags, []Any{vals, missings})
 }
 
-func findNone(vecs []Any) int {
+func findMissing(vecs []Any) int {
 	for k, vec := range vecs {
-		if vec.Type() == super.TypeNone {
+		if vec.Type() == super.TypeMissing {
 			if vec.Len() != 0 {
 				return k
 			}

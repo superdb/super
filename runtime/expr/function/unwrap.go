@@ -22,6 +22,9 @@ func (u *Unwrap) Call(args ...vector.Any) vector.Any {
 func (u *Unwrap) call(args ...vector.Any) vector.Any {
 	vec := args[0]
 	if option, ok := vector.Under(vec).(*vector.Option); ok {
+		if _, ok := option.Any.(*vector.Missing); ok {
+			return vector.NewWrappedError(u.sctx, "unwrap on none", vec)
+		}
 		return option.Any
 	}
 	return vec

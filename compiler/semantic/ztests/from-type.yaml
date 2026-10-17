@@ -23,10 +23,10 @@ outputs:
   - name: stdout
     data: |
       === bsup (default)
-      file test.bsup format bsup type {x:fusion(int64|none),y:fusion(int64|none)}
+      file test.bsup format bsup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
       === bsup (static)
-      file test.bsup format bsup type {x:fusion(int64|none),y:fusion(int64|none)}
+      file test.bsup format bsup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
       === bsup (default pipe)
       file /dev/stdin
@@ -39,7 +39,7 @@ outputs:
       file test.json format json
       | output main
       === json (static)
-      file test.json format json type {x:fusion(int64|none),y:fusion(int64|none)}
+      file test.json format json type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
       === json (default pipe)
       file /dev/stdin
@@ -62,10 +62,10 @@ outputs:
       from /dev/stdin
            ~~~~~~~~~~
       === sup (default)
-      file test.sup format sup type {x:fusion(int64|none),y:fusion(int64|none)}
+      file test.sup format sup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
       === sup (static)
-      file test.sup format sup type {x:fusion(int64|none),y:fusion(int64|none)}
+      file test.sup format sup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
       === sup (default pipe)
       file /dev/stdin

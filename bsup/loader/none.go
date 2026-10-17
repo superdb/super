@@ -21,5 +21,5 @@ func (n *none) length() uint32 {
 func (*none) unmarshal(*bsup.Context, field.Projection) {}
 
 func (n *none) project(loader *FrameLoader, projection field.Projection) vector.Any {
-	return vector.NewNone(n.meta.Count)
+	return vector.NewMissing(n.meta.Count)
 }

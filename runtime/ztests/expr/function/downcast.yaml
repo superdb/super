@@ -22,7 +22,7 @@ output: |
   {y:"foo"}
   {x:1::(int64|string)}
   {x?:1}
-  error("downcast: none value in non-option type: int64")
+  error({message:"downcast: type mismatch to int64",on:none})
 
 ---
 
