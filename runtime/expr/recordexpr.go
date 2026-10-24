@@ -106,9 +106,17 @@ func (r *recordExpr) addOrUpdateField(name string, vec vector.Any) {
 }
 
 func (r *recordExpr) deleteField(name string) {
-	if i, ok := r.fieldIndexes[name]; ok {
-		r.fields = slices.Delete(r.fields, i, i+1)
-		r.fieldVecs = slices.Delete(r.fieldVecs, i, i+1)
+	i, ok := r.fieldIndexes[name]
+	if !ok {
+		return
+	}
+	r.fields = slices.Delete(r.fields, i, i+1)
+	r.fieldVecs = slices.Delete(r.fieldVecs, i, i+1)
+	delete(r.fieldIndexes, name)
+	for name, j := range r.fieldIndexes {
+		if j > i {
+			r.fieldIndexes[name] = j - 1
+		}
 	}
 }
 

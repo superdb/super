@@ -1,0 +1,25 @@
+# A field of the same name as an earlier field from a spread replaces it
+# in place, a field whose value is none deletes it, and a later field of
+# the same name is appended.  The literal spreads exercise the optimizer's
+# inlining of spreads, which must preserve the same semantics.
+spq: |
+  values
+    {...r,a:"x"},
+    {...{a:1,b:2},a:"x"},
+    {...r,a:none,b:3},
+    {...r,a:none,...r},
+    {...{a:1,b:2},a:none,...{a:3}},
+    {...r,b:none,...{b:3}},
+    {a:true,...r}
+
+input: |
+  {r:{a:1,b:2}}
+
+output: |
+  {a:"x",b:2}
+  {a:"x",b:2}
+  {b:3}
+  {b:2,a:1}
+  {b:2,a:3}
+  {a:1,b:3}
+  {a:1,b:2}

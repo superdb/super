@@ -416,32 +416,89 @@ func matchFilter(seq dag.Seq) (dag.Expr, dag.Seq) {
 	return filter.Expr, seq[1:]
 }
 
-// inlineRecordExprSpreads transforms "{...{a}}" to "{a}".
+// inlineRecordExprSpreads transforms "{...{a}}" to "{a}" and then removes
+// the duplicate fields this may create while preserving the runtime's
+// semantics for a record expression, where a field of the same name as an
+// earlier field replaces it in place and a field whose value is none deletes
+// it (so that a subsequent field of that name is appended).  For example,
+// "{d:3,...{d:1},...{d:2}}" becomes "{d:2}".
 func inlineRecordExprSpreads(v any) {
 	walkT(reflect.ValueOf(v), func(r *dag.RecordExpr) *dag.RecordExpr {
-		for i := range r.Elems {
-			s, ok := r.Elems[i].(*dag.Spread)
-			if !ok {
-				continue
-			}
-			r2, ok := s.Expr.(*dag.RecordExpr)
-			if !ok {
-				continue
-			}
-			r.Elems = slices.Concat(r.Elems[:i], r2.Elems, r.Elems[i+1:])
-		}
-		// dedupe elems from spreads
-		m := map[string]struct{}{}
-		for i, elem := range slices.Backward(r.Elems) {
-			if f, ok := elem.(*dag.Field); ok {
-				if _, ok := m[f.Name]; ok {
-					r.Elems = slices.Delete(r.Elems, i, i+1)
+		var elems []dag.RecordElem
+		for _, elem := range r.Elems {
+			if s, ok := elem.(*dag.Spread); ok {
+				if r2, ok := s.Expr.(*dag.RecordExpr); ok {
+					elems = append(elems, r2.Elems...)
+					continue
 				}
-				m[f.Name] = struct{}{}
 			}
+			elems = append(elems, elem)
 		}
+		r.Elems = dedupeRecordElems(elems)
 		return r
 	})
+}
+
+// dedupeRecordElems removes duplicate fields from elems as described in
+// inlineRecordExprSpreads.  A duplicate is left in place for the runtime to
+// handle when a spread whose fields aren't known appears between the two
+// fields (since the spread might update the field) or when the earlier
+// field's value might be none at runtime (since the later field would then
+// be appended rather than replacing the earlier field in place).
+func dedupeRecordElems(elems []dag.RecordElem) []dag.RecordElem {
+	var out []dag.RecordElem
+	index := map[string]int{}
+	for _, elem := range elems {
+		f, ok := elem.(*dag.Field)
+		if !ok {
+			// The spread may update any field so stop deduping across it.
+			clear(index)
+			out = append(out, elem)
+			continue
+		}
+		k, ok := index[f.Name]
+		if !ok {
+			index[f.Name] = len(out)
+			out = append(out, f)
+			continue
+		}
+		prev := out[k].(*dag.Field)
+		switch {
+		case isNoneLiteral(f.Value):
+			out = slices.Delete(out, k, k+1)
+			delete(index, f.Name)
+			for name, j := range index {
+				if j > k {
+					index[name] = j - 1
+				}
+			}
+		case isNonNoneLiteral(prev.Value):
+			out[k] = f
+		default:
+			index[f.Name] = len(out)
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func isNoneLiteral(e dag.Expr) bool {
+	p, ok := e.(*dag.PrimitiveExpr)
+	return ok && p.Value == "none"
+}
+
+// isNonNoneLiteral reports whether e is a constant that isn't none, which
+// is all that matters for deduping since none is the only value that
+// deletes a field.
+func isNonNoneLiteral(e dag.Expr) bool {
+	switch e := e.(type) {
+	case *dag.PrimitiveExpr:
+		return e.Value != "none"
+	case *dag.RecordExpr, *dag.ArrayExpr, *dag.SetExpr, *dag.MapExpr:
+		// A container expression is never none even if its elements are.
+		return true
+	}
+	return false
 }
 
 func joinFilterPullup(seq dag.Seq) dag.Seq {

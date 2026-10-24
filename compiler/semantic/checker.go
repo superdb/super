@@ -732,9 +732,8 @@ func (c *checker) formRecordElems(elems []sem.RecordElem, types []super.Type) su
 				continue
 			}
 			if k, ok := order[elem.Name]; ok {
-				// XXX We need to handle duplicate fields here.  SQL has logic for
-				// this but there are some bugs in how the runtime and optimizer handles
-				// them in general.  This will be fixed in a subsequent PR.
+				// As in the runtime, a field of the same name as an earlier
+				// field (e.g., from a spread) replaces it in place.
 				fields[k] = super.NewField(elem.Name, typ)
 			} else {
 				order[elem.Name] = len(fields)
