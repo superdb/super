@@ -4,6 +4,8 @@ spq: |
     else a AND b
   end
 
+flags: -dynamic
+
 input: |
   "=== TRUE ==="
   {a:true,b:true}
