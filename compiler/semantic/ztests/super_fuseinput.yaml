@@ -20,7 +20,7 @@ outputs:
       | fuse
       | output main
       === dag.HttpScan
-      get http://host
+      get http://host format auto
       | fuse
       | output main
       === dag.RobotScan

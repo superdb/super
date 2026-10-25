@@ -9,6 +9,7 @@ package sem
 
 import (
 	"maps"
+	"strings"
 	"uuid"
 
 	"github.com/superdb/super"
@@ -48,6 +49,7 @@ type (
 	}
 	HTTPScan struct {
 		ast.Node
+		Type    super.Type
 		URL     string
 		Format  string
 		Method  string
@@ -315,6 +317,7 @@ func CopyOp(op Op) Op {
 	case *HTTPScan:
 		return &HTTPScan{
 			Node:    op.Node,
+			Type:    op.Type,
 			URL:     op.URL,
 			Format:  op.Format,
 			Method:  op.Method,
@@ -523,4 +526,10 @@ func copySortExprs(exprs []SortExpr) []SortExpr {
 		})
 	}
 	return out
+}
+
+// IsPlainGet reports whether the scan is an HTTP GET with no headers or
+// body, which is read like any other input (see anyio.Source).
+func (h *HTTPScan) IsPlainGet() bool {
+	return (h.Method == "" || strings.EqualFold(h.Method, "GET")) && h.Headers == nil && h.Body == ""
 }

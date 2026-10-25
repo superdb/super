@@ -21,8 +21,9 @@ import (
 )
 
 type Environment struct {
-	engine storage.Engine
-	db     *db.Root
+	engine  storage.Engine
+	sources *anyio.Sources
+	db      *db.Root
 
 	Dynamic          bool
 	FuseInput        bool
@@ -33,8 +34,13 @@ type Environment struct {
 }
 
 func NewEnvironment(engine storage.Engine, d *db.Root) *Environment {
+	var sources *anyio.Sources
+	if engine != nil {
+		sources = anyio.NewSources(engine)
+	}
 	return &Environment{
 		engine:    engine,
+		sources:   sources,
 		db:        d,
 		FuseInput: os.Getenv("SUPER_FUSEINPUT") != "",
 	}
@@ -42,6 +48,21 @@ func NewEnvironment(engine storage.Engine, d *db.Root) *Environment {
 
 func (e *Environment) Engine() storage.Engine {
 	return e.engine
+}
+
+// FileType returns the fused type of the input at path or nil if the input
+// is dynamically typed.  See anyio.Source.Type.
+func (e *Environment) FileType(ctx context.Context, sctx *super.Context, path, format string) (super.Type, error) {
+	if e.Dynamic || e.sources == nil {
+		return nil, nil
+	}
+	src, err := e.sources.Lookup(path)
+	if err != nil {
+		return nil, err
+	}
+	opts := e.ReaderOpts
+	opts.Format = format
+	return src.Type(ctx, sctx, opts, e.Static)
 }
 
 func (e *Environment) IsAttached() bool {
@@ -91,7 +112,11 @@ func (e *Environment) Open(ctx context.Context, sctx *super.Context, path, forma
 	if path == "stdio:stdin" && e.Stdin != nil {
 		return newConcurrentPuller(path, e.Stdin), nil
 	}
-	file, err := anyio.Open(ctx, sctx, e.engine, path, e.readerOpts(p, progress, format, concurrentReaders))
+	src, err := e.sources.Lookup(path)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	file, err := src.Open(ctx, sctx, e.readerOpts(p, progress, format, concurrentReaders))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}

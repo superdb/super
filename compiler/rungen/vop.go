@@ -295,6 +295,11 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 	case *dag.FuseOp:
 		return op.NewFuse(b.sctx(), parent, o.Complete), nil
 	case *dag.HTTPScan:
+		if o.IsPlainGet() {
+			// Read a plain GET like any other input so the runtime reuses
+			// whatever the compiler read to determine its type.
+			return b.env.Open(b.rctx.Context, b.sctx(), o.URL, o.Format, nil, b.progress, 1)
+		}
 		body := strings.NewReader(o.Body)
 		return b.env.OpenHTTP(b.rctx.Context, b.sctx(), o.URL, o.Format, o.Method, o.Headers, body, nil)
 	case *dag.HeadOp:
