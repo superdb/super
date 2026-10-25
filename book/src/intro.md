@@ -177,7 +177,7 @@ Conversion Error:
 Could not convert string 'foo' to INT32
 
 LINE 1: SELECT [1,'foo']
-                  ^
+                  ^^^^^
 $ datafusion-cli -c "SELECT [1,'foo']"
 DataFusion CLI v52.1.0
 Error: Optimizer rule 'simplify_expressions' failed
