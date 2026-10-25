@@ -44,6 +44,20 @@ func NewWriter(ctx context.Context, sctx *super.Context, table *Table) (*Writer,
 	}, nil
 }
 
+// NewSortedWriter returns a Writer for input that is already in the table's
+// sort order, such as a merge of the table's own data objects during
+// compaction.  Such a writer never splits a run of equal sort keys across
+// objects, so the objects it writes don't overlap.  An object may therefore
+// exceed the table's ObjectCap when many values share a key.
+func NewSortedWriter(ctx context.Context, sctx *super.Context, table *Table) (*Writer, error) {
+	w, err := NewWriter(ctx, sctx, table)
+	if err != nil {
+		return nil, err
+	}
+	w.inputSorted = true
+	return w, nil
+}
+
 func (w *Writer) newObject() *data.Object {
 	w.objects = append(w.objects, data.NewObject())
 	return &w.objects[len(w.objects)-1]
@@ -52,32 +66,92 @@ func (w *Writer) newObject() *data.Object {
 func (w *Writer) Push(vec vector.Any) error {
 	w.builder.Write(vec)
 	if uint64(w.builder.Len()) >= w.table.ObjectCap {
-		return w.flush()
+		return w.flush(false)
 	}
 	return nil
 }
 
-func (w *Writer) flush() error {
+// flush writes the buffered values as data objects.  final is true when no
+// more input will follow.
+func (w *Writer) flush(final bool) error {
 	// Each object is one big vector limited in length by ObjectCap.
 	// Inside of the superframe are Frames which are in turn limited
 	// in length by FrameCap.
 	vec := w.builder.Build()
+	w.builder = vbuild.NewDynamicBuilder()
 	if vec.Len() == 0 {
 		return nil
 	}
+	sortkey, sorted := w.table.SortKeys.Primary()
+	if !sorted {
+		return w.writeObject(vec, nil)
+	}
+	// first and last are the first and last keys in sort order.
+	vec, first, last := w.sort(vec)
+	if !w.inputSorted {
+		return w.writeObject(vec, &keyRange{first, last, sortkey.Order})
+	}
+	return w.flushSorted(vec, sortkey.Path, sortkey.Order, final)
+}
+
+// flushSorted writes objects of about ObjectCap values from vec, which is in
+// sort order, cutting only where the sort key changes so no key spans two
+// objects.  Unless final is true, values after the last cut stay buffered
+// since equal keys may still be arriving.
+func (w *Writer) flushSorted(vec vector.Any, path field.Path, o order.Which, final bool) error {
+	keys := w.deref(vec, path)
+	key := func(slot uint32) super.Value {
+		val := vector.ValueAt(nil, keys, slot)
+		return val.MissingAsNull()
+	}
+	objectCap := uint32(min(w.table.ObjectCap, uint64(vec.Len())))
+	n := vec.Len()
+	var start uint32
+	for objectCap > 0 && n-start > objectCap {
+		k := start + objectCap
+		// Since vec is sorted, if the last key equals the key at the cut
+		// point, then so do all the keys in between and there's no cut.
+		if key(k - 1).Equal(key(n - 1)) {
+			break
+		}
+		for key(k).Equal(key(k - 1)) {
+			k++
+		}
+		head := vector.Pick(vec, span(start, k))
+		if err := w.writeObject(head, &keyRange{key(start), key(k - 1), o}); err != nil {
+			return err
+		}
+		start = k
+	}
+	rest := vec
+	if start > 0 {
+		rest = vector.Pick(vec, span(start, n))
+	}
+	if !final {
+		w.builder.Write(rest)
+		return nil
+	}
+	return w.writeObject(rest, &keyRange{key(start), key(n - 1), o})
+}
+
+// keyRange holds the first and last sort keys of an object's values in
+// sort order.
+type keyRange struct {
+	first, last super.Value
+	order       order.Which
+}
+
+func (w *Writer) writeObject(vec vector.Any, keys *keyRange) error {
 	object := w.newObject()
+	if keys != nil {
+		object.Min, object.Max = keys.first, keys.last
+		if keys.order == order.Desc {
+			object.Min, object.Max = object.Max, object.Min
+		}
+	}
 	out, err := w.table.engine.Put(w.ctx, object.URI(w.table.DataPath))
 	if err != nil {
 		return err
-	}
-	if sortkey, ok := w.table.SortKeys.Primary(); ok {
-		var minVal, maxVal super.Value
-		vec, minVal, maxVal = w.sort(vec)
-		if sortkey.Order == order.Desc {
-			minVal, maxVal = maxVal, minVal
-		}
-		object.Min = minVal
-		object.Max = maxVal
 	}
 	writer := bsup.NewColumnWriterWithCap(out, w.table.FrameCap)
 	size, err := writer.WriteSuperFrame(vec)
@@ -93,12 +167,19 @@ func (w *Writer) flush() error {
 		RecordBytesWritten: int64(size),
 		RecordsWritten:     int64(vec.Len()),
 	})
-	w.builder = vbuild.NewDynamicBuilder()
 	return writer.Close()
 }
 
+func span(from, to uint32) []uint32 {
+	index := make([]uint32, 0, to-from)
+	for k := from; k < to; k++ {
+		index = append(index, k)
+	}
+	return index
+}
+
 func (w *Writer) Close() error {
-	return w.flush()
+	return w.flush(true)
 }
 
 func (w *Writer) Stats() ImportStats {

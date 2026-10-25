@@ -1,20 +1,24 @@
 # This tests behavior in super db manage that compacts non-overlapping consecutive
-# objects if their combined size is less than threshold.
-
-skip: need to address defusion of any values
+# objects if their combined count fits within the table's objectcap.
 
 script: |
   super db init -q test
   super db attach -q test
-  super db create -q -use -orderby ts:asc -S 800B test
+  super db create -q -use -orderby ts:asc -objectcap 120 test
   seq 0 50 | super -c '{ts:this,x:1}' - | super db load -q -
   seq 100 150 | super -c '{ts:this,x:1}' - | super db load -q -
   seq 200 250 | super -c '{ts:this,x:1}' - | super db load -q -
-  super db manage -q
-  super db -s -c 'from test@main:objects | drop id'
+  super db manage -log.path=log1.json
+  super db manage -log.path=log2.json
+  super db -s -c 'from test@main:objects | drop id,type,size'
+  echo ===
+  super -s -c 'msg=="compaction completed" | values {runs_found,objects_compacted}' log1.json log2.json
 
 outputs:
   - name: stdout
     data: |
-      {min:0,max:150,count:102::uint64,size:604}
-      {min:200,max:250,count:51::uint64,size:245}
+      {min:0,max:150,count:102::uint64}
+      {min:200,max:250,count:51::uint64}
+      ===
+      {runs_found:1,objects_compacted:2}
+      {runs_found:0,objects_compacted:0}

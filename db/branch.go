@@ -260,7 +260,9 @@ func (b *Branch) Compact(ctx context.Context, c runtime.Compiler, objectIDs []uu
 	if err != nil {
 		return uuid.Nil(), err
 	}
-	w, err := NewWriter(ctx, sctx, b.table)
+	// The scanner merges the objects in sort order, so a sorted writer
+	// produces objects that don't overlap one another.
+	w, err := NewSortedWriter(ctx, sctx, b.table)
 	if err != nil {
 		return uuid.Nil(), err
 	}

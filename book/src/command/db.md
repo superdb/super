@@ -322,8 +322,9 @@ creates a commit on HEAD replacing the old objects with the new ones.
 ```
 super db create [-orderby key[,key...][:asc|:desc]] <name>
 ```
-* `-orderby key` sort key with optional :asc or :desc suffix to organize data in the table (cannot be changed) (default "ts:desc")
-* `-S size` target size of table data objects, as '10MB' or '4GiB', etc. (default "500MiB")
+* `-framecap n` target number of values in each BSUP frame of a data object (default 20000)
+* `-objectcap n` target number of values in each data object (default 1048576)
+* `-orderby key` sort key with optional :asc or :desc suffix to organize data in the table (cannot be changed)
 * `-use` select created table as the current working table (default "false")
 * [Global](options.md#global)
 * [Database](options.md#database)
@@ -335,8 +336,11 @@ which may be any valid UTF-8 string.
 The `-orderby` option indicates the [sort key](#sort-key) that is used to sort
 the data in the table, which may be in ascending or descending order.
 
-If a sort key is not specified, then it defaults to
-the [special value `this`](../super-sql/intro.md#pipe-scoping).
+If a sort key is not specified, the table is unsorted.
+
+The `-objectcap` option sets the target number of values in each of the
+table's data objects, which [manage](#super-db-manage) uses when compacting
+the table.
 
 A newly created table is initialized with a branch called `main`.
 
@@ -593,7 +597,6 @@ super db manage [options]
 * `-log.path path` path to send logs (values: stderr, stdout, path in file system) (default "stderr")
 * `-monitor` continuously monitor the database for updates
 * `-table table` table to manage (all if unset, can be specified multiple times)
-* `-vectors` create vectors for objects
 * [Global](options.md#global)
 * [Database](options.md#database)
 * [Output](options.md#output)
@@ -602,7 +605,22 @@ The `manage` command performs maintenance tasks on a database.
 
 Currently the only supported task is _compaction_, which reduces fragmentation
 by reading data objects in a table and writing their contents back to large,
-non-overlapping objects.
+non-overlapping objects.  The table's `-objectcap` (see
+[create](#super-db-create)) sets the target number of values per object.
+
+For a table with a sort key, compaction merges objects whose key ranges
+overlap and also merges neighboring objects in key order when their combined
+size fits within the target.  The merged data is written back as objects of
+about the target size, but a run of values with the same key is never split
+across objects, so an object holding many equal keys may exceed the target.
+
+For a table without a sort key, key ranges have no meaning, so compaction
+instead packs objects holding fewer than half the target number of values
+into larger objects that fit within the target.  Larger objects are left
+as is.
+
+Each pass leaves objects that a following pass won't compact again, so
+repeated passes over an unchanged table do no work.
 
 If the `-monitor` option is specified and the database is
 [configured](#database-connection)

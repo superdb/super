@@ -1,8 +1,10 @@
 package dbmanage
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"slices"
 	"uuid"
 
 	"github.com/superdb/super"
@@ -18,41 +20,48 @@ import (
 	"github.com/superdb/super/sio"
 )
 
-func scan(ctx context.Context, it *objectIterator, config *tables.Config, runCh chan<- []uuid.UUID, vecCh chan<- uuid.UUID) error {
-	send := func(r *runBuilder) error {
-		switch len(r.objects) {
-		case 0: // do nothing
-		case 1:
-			if !r.objects[0].Vector {
-				select {
-				case vecCh <- r.objects[0].ID:
-				case <-ctx.Done():
-					return ctx.Err()
-				}
-			}
-		default:
-			select {
-			case runCh <- r.objectIDs():
-			case <-ctx.Done():
-				return ctx.Err()
-			}
+// scan reads the table's data objects from it and sends runs of two or more
+// object IDs to compact on runCh.  The strategy depends on whether the table
+// is sorted; see scanSorted and scanUnsorted.
+func scan(ctx context.Context, it *objectIterator, config *tables.Config, runCh chan<- []uuid.UUID) error {
+	send := func(objects []*data.Object) error {
+		// Compacting a lone object would just rewrite it.
+		if len(objects) < 2 {
+			return nil
 		}
-		return nil
+		select {
+		case runCh <- objectIDs(objects):
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
+	if _, ok := config.SortKeys.Primary(); ok {
+		return scanSorted(it, config.ObjectCap, send)
+	}
+	return scanUnsorted(it, config.ObjectCap, send)
+}
+
+// scanSorted builds runs from objects in key order.  Objects whose key
+// ranges overlap are always compacted together, regardless of objectCap,
+// since a scan of the table must otherwise merge them.  Consecutive objects
+// that don't overlap are also compacted when their combined count fits
+// within objectCap.
+func scanSorted(it *objectIterator, objectCap uint64, send func([]*data.Object) error) error {
 	run := newRunBuilder()
 	for {
 		o, err := it.next()
-		if o == nil {
-			return send(run)
-		}
 		if err != nil {
 			return err
 		}
-		if run.overlaps(o.Min, o.Max) || run.len+o.Count < config.ObjectCap {
+		if o == nil {
+			return send(run.objects)
+		}
+		if run.overlaps(o.Min, o.Max) || run.len+o.Count <= objectCap {
 			run.add(o)
 			continue
 		}
-		if err := send(run); err != nil {
+		if err := send(run.objects); err != nil {
 			return err
 		}
 		run.reset()
@@ -60,12 +69,54 @@ func scan(ctx context.Context, it *objectIterator, config *tables.Config, runCh 
 	}
 }
 
+// smallObjectFraction determines which objects scanUnsorted considers for
+// compaction: those holding fewer than objectCap/smallObjectFraction values.
+const smallObjectFraction = 2
+
+// scanUnsorted compacts small objects in a table without a sort key, where
+// key overlap has no meaning.  Objects smaller than objectCap/
+// smallObjectFraction are packed, smallest first, into runs whose combined
+// count fits within objectCap.  Larger objects are left alone.  Each
+// compaction reduces the number of objects, so repeated passes converge.
+func scanUnsorted(it *objectIterator, objectCap uint64, send func([]*data.Object) error) error {
+	threshold := objectCap / smallObjectFraction
+	var small []*data.Object
+	for {
+		o, err := it.next()
+		if err != nil {
+			return err
+		}
+		if o == nil {
+			break
+		}
+		if o.Count < threshold {
+			small = append(small, o)
+		}
+	}
+	slices.SortStableFunc(small, func(a, b *data.Object) int {
+		return cmp.Compare(a.Count, b.Count)
+	})
+	var run []*data.Object
+	var n uint64
+	for _, o := range small {
+		if len(run) > 0 && n+o.Count > objectCap {
+			if err := send(run); err != nil {
+				return err
+			}
+			run, n = nil, 0
+		}
+		run = append(run, o)
+		n += o.Count
+	}
+	return send(run)
+}
+
+// iteratorQuery lists a branch's data objects in order of their minimum key.
+// It sorts on the defused value but leaves min and max as type any so they
+// unmarshal into data.Object.
 const iteratorQuery = `
 from %q@%q:objects
-| left join (from %q@%q:vectors) using (id)
-| values {...left, vector: has(right)}
-| min:=defuse(min),max:=defuse(max)
-| sort min
+| sort defuse(min)
 `
 
 type objectIterator struct {
@@ -75,7 +126,7 @@ type objectIterator struct {
 }
 
 func newObjectIterator(ctx context.Context, db api.Interface, head *dbid.Committish) (*objectIterator, error) {
-	query := fmt.Sprintf(iteratorQuery, head.Table, head.Branch, head.Table, head.Branch)
+	query := fmt.Sprintf(iteratorQuery, head.Table, head.Branch)
 	q, err := db.Query(ctx, srcfiles.Plain(query))
 	if err != nil {
 		return nil, err
@@ -90,16 +141,14 @@ func newObjectIterator(ctx context.Context, db api.Interface, head *dbid.Committ
 	}, nil
 }
 
-func (r *objectIterator) next() (*object, error) {
+func (r *objectIterator) next() (*data.Object, error) {
 	val, err := r.reader.Read()
 	if val == nil || err != nil {
 		return nil, err
 	}
-	var o object
-	// XXX Embedded structs currently not supported in marshal so unmarshal
-	// embedded object struct separately.
-	if err := r.unmarshaler.Unmarshal(*val, &o.Object); err != nil {
-		return nil, err
+	o := data.Object{
+		Min: super.None,
+		Max: super.None,
 	}
 	if err := r.unmarshaler.Unmarshal(*val, &o); err != nil {
 		return nil, err
@@ -112,15 +161,10 @@ func (r *objectIterator) close() error {
 	return err
 }
 
-type object struct {
-	data.Object
-	Vector bool `super:"vector"` //XXX remove
-}
-
 type runBuilder struct {
 	span    extent.Span
 	cmp     expr.CompareFn
-	objects []*object
+	objects []*data.Object
 	len     uint64
 }
 
@@ -135,7 +179,7 @@ func (r *runBuilder) overlaps(first, last super.Value) bool {
 	return r.span.Overlaps(first, last)
 }
 
-func (r *runBuilder) add(o *object) {
+func (r *runBuilder) add(o *data.Object) {
 	r.objects = append(r.objects, o)
 	r.len += o.Count
 	if r.span == nil {
@@ -146,9 +190,9 @@ func (r *runBuilder) add(o *object) {
 	r.span.Extend(o.Max)
 }
 
-func (r *runBuilder) objectIDs() []uuid.UUID {
-	var ids []uuid.UUID
-	for _, o := range r.objects {
+func objectIDs(objects []*data.Object) []uuid.UUID {
+	ids := make([]uuid.UUID, 0, len(objects))
+	for _, o := range objects {
 		ids = append(ids, o.ID)
 	}
 	return ids

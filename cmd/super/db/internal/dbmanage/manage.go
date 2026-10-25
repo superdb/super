@@ -13,9 +13,10 @@ import (
 	"github.com/superdb/super/db/tables"
 	"github.com/superdb/super/dbid"
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 )
 
+// Update runs one maintenance pass over the configured tables.  A failure on
+// one table doesn't stop the others; all failures are returned together.
 func Update(ctx context.Context, db api.Interface, conf Config, logger *zap.Logger) error {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -24,14 +25,15 @@ func Update(ctx context.Context, db api.Interface, conf Config, logger *zap.Logg
 	if err != nil {
 		return err
 	}
-	group, ctx := errgroup.WithContext(ctx)
+	var errs []error
 	for _, branch := range branches {
 		branch.logger.Info("updating table")
 		if err := branch.run(ctx); err != nil {
 			branch.logger.Error("update error", zap.Error(err))
+			errs = append(errs, fmt.Errorf("table %q: %w", branch.table.Name, err))
 		}
 	}
-	return group.Wait()
+	return errors.Join(errs...)
 }
 
 func Monitor(ctx context.Context, conn *client.Connection, conf Config, logger *zap.Logger) error {
@@ -62,9 +64,13 @@ func monitor(ctx context.Context, db api.Interface, conf Config, logger *zap.Log
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-		err := Update(ctx, db, conf, logger)
-		if err != nil {
-			return err
+		if err := Update(ctx, db, conf, logger); err != nil {
+			// Let Monitor handle a lost connection.  Otherwise keep
+			// monitoring since a later pass may succeed (e.g., after a
+			// conflicting commit); Update has already logged the error.
+			if errors.Is(err, syscall.ECONNREFUSED) || ctx.Err() != nil {
+				return err
+			}
 		}
 	}
 }

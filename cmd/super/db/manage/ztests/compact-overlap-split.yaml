@@ -1,0 +1,31 @@
+# Loads whose key ranges all overlap are compacted into non-overlapping
+# objects of objectcap values each, with the data intact and in order.
+
+script: |
+  super db init -q test
+  super db attach -q test
+  super db create -q -use -orderby ts:asc -objectcap 300 test
+  for i in 0 1 2 3; do
+    seq $i 4 1999 | super -c '{ts:this}' - | super db load -q -
+  done
+  super db manage -log.path=log1.json
+  super db manage -log.path=log2.json
+  super db -s -c 'from test@main:objects | sort defuse(min) | drop id,type,size'
+  super -s -c 'msg=="compaction completed" | values {runs_found,objects_compacted}' log1.json log2.json
+  super db -f line -c 'from test | values ts' > got.txt
+  seq 0 1999 > want.txt
+  cmp want.txt got.txt && echo data ok
+
+outputs:
+  - name: stdout
+    data: |
+      {min:0,max:299,count:300::uint64}
+      {min:300,max:599,count:300::uint64}
+      {min:600,max:899,count:300::uint64}
+      {min:900,max:1199,count:300::uint64}
+      {min:1200,max:1499,count:300::uint64}
+      {min:1500,max:1799,count:300::uint64}
+      {min:1800,max:1999,count:200::uint64}
+      {runs_found:1,objects_compacted:4}
+      {runs_found:0,objects_compacted:0}
+      data ok

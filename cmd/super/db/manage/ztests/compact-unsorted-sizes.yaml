@@ -1,0 +1,29 @@
+# In a table without a sort key, objects with fewer than half of objectcap
+# values are packed together, smallest first, into objects that fit within
+# objectcap.  Larger objects are left alone.
+
+script: |
+  super db init -q test
+  super db attach -q test
+  super db create -q -use -objectcap 1000 test
+  seq 600 | super -c '{n:this}' - | super db load -q -
+  seq 700 | super -c '{n:this}' - | super db load -q -
+  for i in {1..10}; do
+    seq 150 | super -c '{n:this}' - | super db load -q -
+  done
+  super db manage -log.path=log1.json
+  super db manage -log.path=log2.json
+  super db -s -c 'from test@main:objects | sort count | values count'
+  super -s -c 'msg=="compaction completed" | values {runs_found,objects_compacted}' log1.json log2.json
+  super db -s -c 'from test | count()'
+
+outputs:
+  - name: stdout
+    data: |
+      600::uint64
+      600::uint64
+      700::uint64
+      900::uint64
+      {runs_found:2,objects_compacted:10}
+      {runs_found:0,objects_compacted:0}
+      2800

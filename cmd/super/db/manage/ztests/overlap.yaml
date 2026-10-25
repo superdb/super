@@ -1,19 +1,23 @@
-# Test ensures that super db manage merges objects with the same key into one object 
+# Test ensures that super db manage merges objects with the same key into one object
 # even if the object is greater than objectcap threshold.
-
-skip: need to address defusion of any values
 
 script: |
   super db init -q test
   super db attach -q test
-  super db create -q -use -orderby x:asc -S 100B test
+  super db create -q -use -orderby x:asc -objectcap 100 test
   for i in {1..5}; do
     seq 100 | super -c '{ts:this,x:1}' - | super db load -q -
   done
-  super db manage -q
-  super db -s -c 'from test@main:objects | drop id | min:=defuse(min),max:=defuse(max)'
+  super db manage -log.path=log1.json
+  super db manage -log.path=log2.json
+  super db -s -c 'from test@main:objects | drop id,type,size'
+  echo ===
+  super -s -c 'msg=="compaction completed" | values {runs_found,objects_compacted}' log1.json log2.json
 
 outputs:
   - name: stdout
     data: |
-      {min:1,max:1,count:500::uint64,size:543}
+      {min:1,max:1,count:500::uint64}
+      ===
+      {runs_found:1,objects_compacted:5}
+      {runs_found:0,objects_compacted:0}

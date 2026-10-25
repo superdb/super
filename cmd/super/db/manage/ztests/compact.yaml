@@ -1,4 +1,4 @@
-skip: need to address defusion of any values
+# Small objects in a table without a sort key are packed together.
 
 script: |
   super db init -q test
@@ -9,9 +9,11 @@ script: |
     seq 200 | super -c '{ts:this}' - | super db load -q -
   done
   super db manage -q
-  super db -s -c 'from test@main:objects | drop id'
+  super db -s -c 'from test@main:objects | drop id,type,size'
+  super db -s -c 'from test | count()'
 
 outputs:
   - name: stdout
     data: |
-      {min:1,max:200,count:2000::uint64,size:1038}
+      {count:2000::uint64}
+      2000

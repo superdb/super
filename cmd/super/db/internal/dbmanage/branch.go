@@ -43,12 +43,10 @@ func (b *branch) run(ctx context.Context) error {
 	}
 	defer it.close()
 	runCh := make(chan []uuid.UUID)
-	vecCh := make(chan uuid.UUID)
 	group, ctx := errgroup.WithContext(ctx)
 	group.Go(func() error {
-		err := scan(ctx, it, b.table, runCh, vecCh)
+		err := scan(ctx, it, b.table, runCh)
 		close(runCh)
-		close(vecCh)
 		return err
 	})
 	var found int

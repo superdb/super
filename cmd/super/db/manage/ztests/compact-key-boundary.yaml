@@ -1,0 +1,42 @@
+# Compacting overlapping objects splits the result into objects of about
+# objectcap values but never splits a run of equal keys, so the new objects
+# don't overlap and a second pass has nothing to do.  Each of the 10 keys has
+# 100 values and objectcap is 150, so each object holds two whole keys.
+
+script: |
+  super db init -q test
+  super db attach -q test
+  for dir in asc desc; do
+    echo "=== $dir"
+    super db create -q -orderby x:$dir -objectcap 150 $dir
+    for i in {1..4}; do
+      seq 250 | super -c '{ts:this,x:this%10}' - | super db load -q -use $dir -
+    done
+    super db manage -table $dir -log.path=$dir-1.json
+    super db manage -table $dir -log.path=$dir-2.json
+    super db -s -c "from $dir@main:objects | sort defuse(min) | drop id,type,size"
+    super -s -c 'msg=="compaction completed" | values {runs_found,objects_compacted}' $dir-1.json $dir-2.json
+    super db -f line -c "from $dir | values x" | uniq -c | awk '{print $2 ":" $1}' | paste -sd ' ' -
+  done
+
+outputs:
+  - name: stdout
+    data: |
+      === asc
+      {min:0,max:1,count:200::uint64}
+      {min:2,max:3,count:200::uint64}
+      {min:4,max:5,count:200::uint64}
+      {min:6,max:7,count:200::uint64}
+      {min:8,max:9,count:200::uint64}
+      {runs_found:1,objects_compacted:4}
+      {runs_found:0,objects_compacted:0}
+      0:100 1:100 2:100 3:100 4:100 5:100 6:100 7:100 8:100 9:100
+      === desc
+      {min:0,max:1,count:200::uint64}
+      {min:2,max:3,count:200::uint64}
+      {min:4,max:5,count:200::uint64}
+      {min:6,max:7,count:200::uint64}
+      {min:8,max:9,count:200::uint64}
+      {runs_found:1,objects_compacted:4}
+      {runs_found:0,objects_compacted:0}
+      9:100 8:100 7:100 6:100 5:100 4:100 3:100 2:100 1:100 0:100
