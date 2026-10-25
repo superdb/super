@@ -20,11 +20,6 @@ import (
 	"github.com/superdb/super/vector/vio"
 )
 
-type ConcurrentPuller interface {
-	vio.Puller
-	ConcurrentPull(done bool, id int) (vector.Any, error)
-}
-
 type Environment struct {
 	engine storage.Engine
 	db     *db.Root
@@ -89,7 +84,7 @@ func (e *Environment) SortKeys(ctx context.Context, src dag.Op) order.SortKeys {
 	return nil
 }
 
-func (e *Environment) Open(ctx context.Context, sctx *super.Context, path, format string, p vio.Pushdown, progress *vio.Progress, concurrentReaders int) (ConcurrentPuller, error) {
+func (e *Environment) Open(ctx context.Context, sctx *super.Context, path, format string, p vio.Pushdown, progress *vio.Progress, concurrentReaders int) (vio.ConcurrentPuller, error) {
 	if path == "-" {
 		path = "stdio:stdin"
 	}
@@ -132,8 +127,8 @@ func (e *Environment) OpenHTTP(ctx context.Context, sctx *super.Context, url, fo
 	return file, nil
 }
 
-func newConcurrentPuller(path string, puller vio.Puller) ConcurrentPuller {
-	cp, ok := puller.(ConcurrentPuller)
+func newConcurrentPuller(path string, puller vio.Puller) vio.ConcurrentPuller {
+	cp, ok := puller.(vio.ConcurrentPuller)
 	if !ok {
 		cp = &concurrentPuller{Puller: puller}
 	}
@@ -153,7 +148,7 @@ func (c *concurrentPuller) ConcurrentPull(done bool, id int) (vector.Any, error)
 }
 
 type errorPrefixConcurrentPuller struct {
-	ConcurrentPuller
+	vio.ConcurrentPuller
 	prefix string
 }
 

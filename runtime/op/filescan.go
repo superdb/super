@@ -21,7 +21,7 @@ type FileScan struct {
 	progress *vio.Progress
 
 	mu                   sync.Mutex
-	current              exec.ConcurrentPuller
+	current              vio.ConcurrentPuller
 	eos                  bool
 	inputValuesRemaining int
 	nextPath             int
@@ -85,7 +85,7 @@ func (f *FileScan) done() (allDone bool, err error) {
 	return true, err
 }
 
-func (f *FileScan) nextFile(current exec.ConcurrentPuller) (exec.ConcurrentPuller, error) {
+func (f *FileScan) nextFile(current vio.ConcurrentPuller) (vio.ConcurrentPuller, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.eos {
@@ -112,7 +112,7 @@ func (f *FileScan) nextFile(current exec.ConcurrentPuller) (exec.ConcurrentPulle
 	}
 }
 
-func (f *FileScan) openNextPath() (exec.ConcurrentPuller, error) {
+func (f *FileScan) openNextPath() (vio.ConcurrentPuller, error) {
 	for f.nextPath < len(f.paths) {
 		path := f.paths[f.nextPath]
 		format := f.formats[f.nextPath]
@@ -135,7 +135,7 @@ type concurrentPuller struct {
 	f  *FileScan
 	id int
 
-	current exec.ConcurrentPuller
+	current vio.ConcurrentPuller
 	wait    bool
 	waitCh  chan struct{}
 }
