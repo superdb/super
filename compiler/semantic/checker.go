@@ -909,7 +909,11 @@ func (c *checker) putInto(recType *super.TypeRecord, path []string, leaf super.T
 	if recType != nil {
 		fields := slices.Clone(recType.Fields)
 		if index, ok := recType.IndexOfField(path[0]); ok {
-			fields[index].Type = c.putInto(nil, path[1:], leaf)
+			// Put into an existing record field so its other fields are
+			// kept, as the runtime does.  A field that isn't a record is
+			// replaced by a record holding the rest of the path.
+			inner, _ := super.TypeUnder(defuse(fields[index].Type)).(*super.TypeRecord)
+			fields[index].Type = c.putInto(inner, path[1:], leaf)
 		} else {
 			fields = append(fields, super.NewField(path[0], c.putInto(nil, path[1:], leaf)))
 		}
