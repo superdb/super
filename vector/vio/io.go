@@ -11,6 +11,11 @@ type Puller interface {
 	Pull(done bool) (vector.Any, error)
 }
 
+type ConcurrentPuller interface {
+	Puller
+	ConcurrentPull(done bool, id int) (vector.Any, error)
+}
+
 type PullCloser interface {
 	Puller
 	io.Closer
