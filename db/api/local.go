@@ -25,9 +25,17 @@ type local struct {
 	compiler runtime.Compiler
 }
 
-var _ Interface = (*local)(nil)
+var _ runtime.Database = (*local)(nil)
 
-func OpenLocalDB(ctx context.Context, logger *zap.Logger, path string) (Interface, error) {
+func OpenLocalDB(ctx context.Context, logger *zap.Logger, path string) (runtime.Database, error) {
+	root, err := OpenDirect(ctx, logger, path)
+	if err != nil {
+		return nil, err
+	}
+	return FromRoot(root), nil
+}
+
+func OpenDirect(ctx context.Context, logger *zap.Logger, path string) (*db.Root, error) {
 	uri, err := storage.ParseURI(path)
 	if err != nil {
 		return nil, err
@@ -37,10 +45,10 @@ func OpenLocalDB(ctx context.Context, logger *zap.Logger, path string) (Interfac
 	if err != nil {
 		return nil, err
 	}
-	return FromRoot(root), nil
+	return root, nil
 }
 
-func CreateLocalDB(ctx context.Context, logger *zap.Logger, path string) (Interface, error) {
+func CreateLocalDB(ctx context.Context, logger *zap.Logger, path string) (runtime.Database, error) {
 	uri, err := storage.ParseURI(path)
 	if err != nil {
 		return nil, err
@@ -53,7 +61,7 @@ func CreateLocalDB(ctx context.Context, logger *zap.Logger, path string) (Interf
 	return FromRoot(root), nil
 }
 
-func FromRoot(d *db.Root) Interface {
+func FromRoot(d *db.Root) runtime.Database {
 	return &local{db: d, compiler: compiler.NewCompilerForDB(d)}
 }
 
@@ -105,7 +113,7 @@ func (l *local) Compact(ctx context.Context, tableID uuid.UUID, branchName strin
 	return branch.Compact(ctx, l.compiler, objects, commit.Author, commit.Body, commit.Meta)
 }
 
-func (l *local) Query(ctx context.Context, inputs []srcfiles.Input) (vio.Scanner, error) {
+func (l *local) Query(ctx context.Context, inputs []srcfiles.Input) (vio.ScanCloser, error) {
 	ast, err := parser.ParseFiles(inputs)
 	if err != nil {
 		return nil, err
@@ -114,7 +122,15 @@ func (l *local) Query(ctx context.Context, inputs []srcfiles.Input) (vio.Scanner
 	if err != nil {
 		return nil, err
 	}
-	return q, nil
+	return &nopCloser{q}, nil
+}
+
+type nopCloser struct {
+	vio.Scanner
+}
+
+func (*nopCloser) Close() error {
+	return nil
 }
 
 func (l *local) TableID(ctx context.Context, tableName string) (uuid.UUID, error) {

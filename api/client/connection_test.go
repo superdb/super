@@ -6,19 +6,25 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"strings"
 	"testing"
 	"uuid"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/superdb/super"
 	"github.com/superdb/super/api"
 	"github.com/superdb/super/api/client/auth0"
 	"github.com/superdb/super/bsupbytes"
+	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/sio/bsupio"
+	"github.com/superdb/super/sup"
+	"github.com/superdb/super/vector"
 )
 
 func TestClientRedirectReplay(t *testing.T) {
-	const expected = "hello world"
+	sctx := super.NewContext()
+	expected, err := sup.ParseValue(sctx, `"hello world"`)
+	require.NoError(t, err)
 	mux := http.NewServeMux()
 	ts := httptest.NewServer(mux)
 	mux.HandleFunc("/auth/method", func(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +44,7 @@ func TestClientRedirectReplay(t *testing.T) {
 		}{"12345"})
 	})
 	var requests int
-	var body string
+	var result super.Value
 	mux.HandleFunc("/table/", func(w http.ResponseWriter, r *http.Request) {
 		if requests == 0 {
 			requests++
@@ -46,9 +52,13 @@ func TestClientRedirectReplay(t *testing.T) {
 			io.WriteString(w, "invalid token")
 			return
 		}
-		b, err := io.ReadAll(r.Body)
+		b, err := bsupio.NewReader(t.Context(), sctx, r.Body, nil, nil, 1)
 		require.NoError(t, err)
-		body = string(b)
+		vec, err := b.Pull(false)
+		require.NoError(t, err)
+		require.NoError(t, r.Body.Close())
+		assert.Equal(t, uint32(1), vec.Len())
+		result = vector.ValueAt(nil, vec, 0)
 	})
 	conn := NewConnectionTo(ts.URL)
 	store := auth0.NewStore(filepath.Join(t.TempDir(), "credentials.json"))
@@ -57,7 +67,7 @@ func TestClientRedirectReplay(t *testing.T) {
 		Refresh: "98765",
 	})
 	conn.SetAuthStore(store)
-	_, err := conn.Load(t.Context(), uuid.NewV7(), "main", "", strings.NewReader(expected), api.CommitMessage{})
+	_, err = conn.Load(t.Context(), nil, uuid.NewV7(), "main", sbuf.ValToPuller(sctx, expected), api.CommitMessage{})
 	require.NoError(t, err)
-	assert.Equal(t, expected, body)
+	assert.Equal(t, expected, result)
 }

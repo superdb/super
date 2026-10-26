@@ -2,7 +2,7 @@ package service_test
 
 import (
 	"bytes"
-	"io"
+	"strings"
 	"testing"
 	"uuid"
 
@@ -13,12 +13,10 @@ import (
 	"github.com/superdb/super/compiler/srcfiles"
 	"github.com/superdb/super/db"
 	dbapi "github.com/superdb/super/db/api"
-	"github.com/superdb/super/db/branches"
 	"github.com/superdb/super/db/tables"
 	"github.com/superdb/super/runtime/exec"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
-	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/sio/supio"
 )
 
@@ -34,15 +32,13 @@ func (c *testClient) TestTableStats(id uuid.UUID) exec.TableStats {
 }
 
 func (c *testClient) TestTableGet(id uuid.UUID) (config tables.Config) {
-	remote := dbapi.NewRemoteDB(c.Connection)
-	table, err := dbapi.LookupTableByID(c.Context(), remote, id)
+	table, err := dbapi.LookupTableByID(c.Context(), c.Connection, id)
 	require.NoError(c, err)
 	return *table
 }
 
 func (c *testClient) TestBranchGet(id uuid.UUID) (config db.BranchMeta) {
-	remote := dbapi.NewRemoteDB(c.Connection)
-	branch, err := dbapi.LookupBranchByID(c.Context(), remote, id)
+	branch, err := dbapi.LookupBranchByID(c.Context(), c.Connection, id)
 	require.NoError(c, err)
 	return *branch
 }
@@ -50,11 +46,9 @@ func (c *testClient) TestBranchGet(id uuid.UUID) (config db.BranchMeta) {
 func (c *testClient) TestTableList() []tables.Config {
 	r, err := c.Query(c.Context(), srcfiles.Plain("from :tables"))
 	require.NoError(c, err)
-	defer r.Body.Close()
+	defer r.Close()
 	var configs []tables.Config
-	puller, err := bsupio.NewReader(c.Context(), super.NewContext(), r.Body, nil, nil, 1)
-	require.NoError(c, err)
-	reader := sbuf.PullerReader(sbuf.NewMaterializer(puller))
+	reader := sbuf.PullerReader(sbuf.NewMaterializer(r))
 	for {
 		rec, err := reader.Read()
 		require.NoError(c, err)
@@ -69,33 +63,35 @@ func (c *testClient) TestTableList() []tables.Config {
 }
 
 func (c *testClient) TestTablePost(payload api.TablePostRequest) uuid.UUID {
-	r, err := c.Connection.CreateTable(c.Context(), payload)
+	id, err := c.Connection.CreateTable(c.Context(), payload.Name, payload.SortKeys, payload.ObjectCap, payload.FrameCap)
 	require.NoError(c, err)
-	return r.Table.ID
+	return id
 }
 
-func (c *testClient) TestBranchPost(tableID uuid.UUID, payload api.BranchPostRequest) branches.Config {
-	r, err := c.Connection.CreateBranch(c.Context(), tableID, payload)
+/*
+
+func (c *testClient) TestBranchPost(tableID uuid.UUID, payload api.BranchPostRequest) {
+	err := c.Connection.CreateBranch(c.Context(), tableID, payload.Name, payload.Commit)
 	require.NoError(c, err)
-	return r
 }
+*/
 
 func (c *testClient) TestQuery(query string) string {
-	r, err := c.Connection.Query(c.Context(), srcfiles.Plain(query))
+	scanner, err := c.Connection.Query(c.Context(), srcfiles.Plain(query))
 	require.NoError(c, err)
-	defer r.Body.Close()
-	zr, err := bsupio.NewReader(c.Context(), super.NewContext(), r.Body, nil, nil, 1)
-	require.NoError(c, err)
+	defer scanner.Close()
 	var buf bytes.Buffer
 	zw := supio.NewWriter(sio.NopCloser(&buf), supio.WriterOpts{})
-	require.NoError(c, sio.Copy(zw, sbuf.PullerReader(sbuf.NewMaterializer(zr))))
+	require.NoError(c, sio.Copy(zw, sbuf.PullerReader(sbuf.NewMaterializer(scanner))))
 	return buf.String()
 }
 
-func (c *testClient) TestLoad(tableID uuid.UUID, branchName string, r io.Reader) uuid.UUID {
-	commit, err := c.Connection.Load(c.Context(), tableID, branchName, "", r, api.CommitMessage{})
+func (c *testClient) TestLoad(tableID uuid.UUID, branchName string, sup string) uuid.UUID {
+	sctx := super.NewContext()
+	reader := sbuf.NewDematerializer(sctx, sbuf.NewPuller(supio.NewReader(sctx, strings.NewReader(sup))))
+	commit, err := c.Connection.Load(c.Context(), nil, tableID, branchName, reader, api.CommitMessage{})
 	require.NoError(c, err)
-	return commit.Commit
+	return commit
 }
 
 func (c *testClient) TestAuthMethod() api.AuthMethodResponse {

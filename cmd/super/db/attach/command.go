@@ -73,7 +73,7 @@ func (c *Command) Run(args []string) error {
 		if err := c.attachService(ctx, u.String()); err != nil {
 			return err
 		}
-	} else if _, err := dbapi.Connect(ctx, zap.NewNop(), u.String()); err != nil {
+	} else if _, err := dbapi.OpenLocalDB(ctx, zap.NewNop(), u.String()); err != nil {
 		if errors.Is(err, superdb.ErrNotExist) {
 			return fmt.Errorf("%w\n(hint: run 'super db init %s' first)", err, u)
 		}

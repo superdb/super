@@ -10,10 +10,10 @@ import (
 	"github.com/superdb/super/cli/tableflags"
 	"github.com/superdb/super/cmd/super/db"
 	"github.com/superdb/super/compiler/srcfiles"
-	"github.com/superdb/super/db/api"
 	"github.com/superdb/super/dbid"
 	"github.com/superdb/super/pkg/charm"
 	"github.com/superdb/super/pkg/storage"
+	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/vector/vio"
 )
 
@@ -104,7 +104,7 @@ func (c *Command) Run(args []string) error {
 	return nil
 }
 
-func (c *Command) list(ctx context.Context, db api.Interface) error {
+func (c *Command) list(ctx context.Context, db runtime.Database) error {
 	head, err := c.tableFlags.HEAD()
 	if err != nil {
 		return err
@@ -126,6 +126,7 @@ func (c *Command) list(ctx context.Context, db api.Interface) error {
 		w.Close()
 		return err
 	}
+	defer q.Close()
 	defer q.Pull(true)
 	err = vio.Copy(w, q)
 	if closeErr := w.Close(); err == nil {

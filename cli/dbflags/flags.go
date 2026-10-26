@@ -15,6 +15,7 @@ import (
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/db/api"
 	"github.com/superdb/super/pkg/storage"
+	"github.com/superdb/super/runtime"
 	"go.uber.org/zap"
 )
 
@@ -62,23 +63,34 @@ func (l *Flags) Connection() (*client.Connection, error) {
 	return conn, nil
 }
 
-func (l *Flags) Open(ctx context.Context) (api.Interface, error) {
+func (l *Flags) Open(ctx context.Context) (runtime.Database, error) {
 	uri, err := l.URI()
 	if err != nil {
 		return nil, err
 	}
 	if api.IsRemote(uri.String()) {
-		conn, err := l.Connection()
-		if err != nil {
-			return nil, err
-		}
-		return api.NewRemoteDB(conn), nil
+		return l.Connection()
 	}
-	DB, err := api.Connect(ctx, zap.Must(zap.NewProduction()), uri.String())
+	DB, err := api.OpenLocalDB(ctx, zap.Must(zap.NewProduction()), uri.String())
 	if errors.Is(err, db.ErrNotExist) {
 		return nil, fmt.Errorf("%w\n(hint: run 'super db init %s' to initialize a database at this location)", err, uri)
 	}
 	return DB, err
+}
+
+func (l *Flags) OpenDirect(ctx context.Context) (*db.Root, error) {
+	uri, err := l.URI()
+	if err != nil {
+		return nil, err
+	}
+	if api.IsRemote(uri.String()) {
+		return nil, errors.New("cannot run on a remote database")
+	}
+	root, err := api.OpenDirect(ctx, zap.Must(zap.NewProduction()), uri.String())
+	if errors.Is(err, db.ErrNotExist) {
+		return nil, fmt.Errorf("%w\n(hint: run 'super db init %s' to initialize a database at this location)", err, uri)
+	}
+	return root, err
 }
 
 // URI returns the location of the database given by the -attach flag or,
