@@ -6,7 +6,7 @@ error: |
   named type "foo" cannot contain a fusion at line 1, column 10:
   type foo=fusion(int64)
            ~~~~~~~~~~~~~
-  no such field "foo" at line 2, column 8:
+  no such field "foo": . applied to null at line 2, column 8:
   values foo
          ~~~
 

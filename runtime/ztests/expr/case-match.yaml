@@ -1,5 +1,7 @@
 spq: values case x when 1 then "foo" when 2 then "bar" else {y:12} end
 
+flags: -dynamic
+
 # If we are following SQL then this should have a test with a mismatched typed
 # value that gets an error, however we can't do this because mismatched
 # comparisons do not currently return errors.

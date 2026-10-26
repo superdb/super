@@ -77,7 +77,7 @@ values apply([1,2,3], 1)
 # input
 
 # expected output
-no such field "val" at line 3, column 18:
+no such field "val": . applied to int64 at line 3, column 18:
   | collect(this+val)
                  ~~~
 ```
@@ -189,7 +189,7 @@ values apply([1,2,3], 1)
 # input
 
 # expected output
-no such field "val" at line 3, column 18:
+no such field "val": . applied to int64 at line 3, column 18:
   | collect(this+val)
                  ~~~
 ```

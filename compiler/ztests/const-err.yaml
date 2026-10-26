@@ -5,6 +5,6 @@ input: |
   {a:2}
 
 error: |
-  no such field "a" at line 1, column 9:
+  no such field "a": . applied to null at line 1, column 9:
   const t=a put x:=t
           ~

@@ -61,3 +61,21 @@ input: |
 output: |
   {a?:1,b:1}
   {a?:none::int64,b:error("no such field x")}
+
+---
+
+spq: values ok(1,1)
+
+error: |
+  too many arguments at line 1, column 8:
+  values ok(1,1)
+         ~~~~~~~
+
+---
+
+spq: values ok()
+
+error: |
+  too few arguments at line 1, column 8:
+  values ok()
+         ~~~~

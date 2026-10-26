@@ -24,3 +24,16 @@ output: |
   {a:{c:{a:3},a:1,b:2,d:4},pre:"pre",b:5,post:"post"}
   {pre:"pre",a:{x:10,b:2,c:{a:3},d:4,a:1},b:5,post:"post"}
   {other:"other",pre:"pre",a:{a:1,b:2,c:{a:3},d:4},b:5,post:"post"}
+
+---
+
+# The type of a put into a nested record keeps the record's other fields
+# so they can still be referenced when the query is type checked.
+spq: put a.b:=2 | values a.c, a
+
+input: |
+  {a:{c:1}}
+
+output: |
+  1
+  {c:1,b:2}

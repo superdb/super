@@ -5,7 +5,7 @@ script: |
     | where kind=='commit' and commit.operation=='create'
     | count()
         by
-          event := commit.collection,
+          event := commit.collection.ok(),
           did
     | count := sum(count),
       users := count()

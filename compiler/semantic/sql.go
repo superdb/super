@@ -689,6 +689,7 @@ func (t *translator) groupBy(sch *selectScope, in []ast.Expr, inType super.Type)
 		} else {
 			e, typ = t.expr(expr, inType)
 		}
+		t.checker.groupKey(expr, typ)
 		out = append(out, exprloc{expr, e, typ})
 	}
 	return out

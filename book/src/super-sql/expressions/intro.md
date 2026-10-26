@@ -120,6 +120,7 @@ Operators have the following precedence from highest to lowest:
 * `like`, `in`, `between` [comparisons](comparisons.md)
 * `and` [logical AND](logic.md)
 * `or` [logical OR](logic.md)
+* `??` none coalescing, which replaces a none or null with its right-hand side (see [ok](../functions/generics/ok.md))
 * `?:` [ternary conditional](conditional.md#ternary-conditional)
 
 Some operators like [case expressions](conditional.md#case-expressions)

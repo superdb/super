@@ -96,6 +96,8 @@ spq: |
   const m = map{"a":1,"b":2}
   values {b1: x in m,b2: "a" in a}
 
+flags: -dynamic
+
 input: |
   {x:"a"}
   {x:1}

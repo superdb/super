@@ -1,0 +1,10 @@
+spq: values y
+
+input: |
+  {x:1}
+
+error: |
+  no such field "y" at line 1, column 8:
+  values y
+         ~
+

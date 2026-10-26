@@ -1,5 +1,5 @@
 script: |
-  super compile -C -dag -dynamic 'from /dev/null | ?foo | fork ( count() by x:=this["@foo"] ) ( sum(x) ) ( put a:=b*c ) | cut cake,x | sort -r x'
+  super compile -C -dag -dynamic 'from /dev/null | ?foo | fork ( count() by x:=this["@foo"] ) ( sum(x) ) ( put a:=b*c ) | cut count,x | sort -r x'
 
 outputs:
   - name: stdout
@@ -19,6 +19,6 @@ outputs:
         (
           put a:=b*c
         )
-      | cut cake:=cake,x:=x
+      | cut count:=count,x:=x
       | sort x desc nulls last
       | output main

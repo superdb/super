@@ -31,7 +31,7 @@ outputs:
       no such field "foo" at line 1, column 30:
       fork (pass) (pass) | join on foo.key=left.key
                                    ~~~
-      no such field "key" at line 1, column 43:
+      no such field "key": . applied to null at line 1, column 43:
       fork (pass) (pass) | join on foo.key=left.key
                                                 ~~~
       // ===

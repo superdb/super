@@ -1,5 +1,7 @@
 spq: s/0
 
+flags: -dynamic
+
 input: |
   {}
   {s:error("other")}
@@ -12,13 +14,41 @@ output: |
 
 ---
 
+spq: s/0
+
+input: |
+  {}
+  {s:error("other")}
+  {s:1}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 1:
+  s/0
+  ~
+
+---
+
 spq: a+1
+
+flags: -dynamic
 
 input: |
   {a?:none::int64}
 
 output: |
   error("+: option value not handled (consider ??)")
+
+---
+
+spq: a+1
+
+input: |
+  {a?:none::int64}
+
+error: |
+  option(int64): none not handled (consider ?? or ?.) at line 1, column 1:
+  a+1
+  ~
 
 ---
 

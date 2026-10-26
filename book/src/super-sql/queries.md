@@ -74,7 +74,7 @@ as a field reference `this.PI` via pipe scoping.
 # input
 
 # expected output
-no such field "PI" at line 5, column 15:
+no such field "PI": . applied to float64 at line 5, column 15:
 | values this+PI
               ~~
 ```

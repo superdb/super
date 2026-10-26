@@ -9,6 +9,6 @@ error: |
   cannot read data in constant expression at line 1, column 41:
   const x = [values {x:1},2 | put y[(from noa.json | bar+1)]:=1]
                                           ~~~~~~~~
-  no such field "bar" at line 1, column 52:
+  no such field "bar": . applied to null at line 1, column 52:
   const x = [values {x:1},2 | put y[(from noa.json | bar+1)]:=1]
                                                      ~~~

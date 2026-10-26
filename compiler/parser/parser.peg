@@ -316,7 +316,7 @@ AggName
   / AND
   / OR
 
-FilterClause = _ FILTER __ "(" __ (WHERE _)? expr:LogicalOrExpr __ ")" { return expr, nil }
+FilterClause = _ FILTER __ "(" __ (WHERE _)? expr:Expr __ ")" { return expr, nil }
 
 AggAssignments
   = first:AggAssignment rest:(__ "," __ AggAssignment)* {
