@@ -79,7 +79,7 @@ type Header interface {
 // Structure of ColumnFrame
 //
 // S U P C (4 byte string)
-// Version (2 bytes)
+// Version (2 bytes) - 6-bit major and 10-bit minor (see Version)
 // Frame size (8 bytes) - entire frame including header to end of data section
 // Root ID (4 bytes)
 // Fused type size (8 bytes) - 0 if not present
@@ -119,8 +119,7 @@ func (c *ColumnHeader) Size() uint64 {
 func (c ColumnHeader) Serialize() []byte {
 	var bytes [ColumnHeaderSize]byte
 	copy(bytes[0:4], []byte(ColumnMagic))
-	bytes[4] = c.Version.Major
-	bytes[5] = c.Version.Minor
+	c.Version.Serialize(bytes[4:])
 	binary.LittleEndian.PutUint64(bytes[6:], c.FrameSize)
 	binary.LittleEndian.PutUint32(bytes[14:], c.Root)
 	binary.LittleEndian.PutUint64(bytes[18:], c.MetadataSize)
@@ -130,8 +129,7 @@ func (c ColumnHeader) Serialize() []byte {
 }
 
 func (c *ColumnHeader) Deserialize(bytes [ColumnHeaderSize]byte) {
-	c.Version.Major = bytes[4]
-	c.Version.Minor = bytes[5]
+	c.Version.Deserialize(bytes[4:])
 	c.FrameSize = binary.LittleEndian.Uint64(bytes[6:])
 	c.Root = binary.LittleEndian.Uint32(bytes[14:])
 	c.MetadataSize = binary.LittleEndian.Uint64(bytes[18:])
@@ -175,7 +173,7 @@ func (c ColumnHeader) check() error {
 // Structure of RowFrame
 //
 // S U P R (4 byte string)
-// Version (2 bytes)
+// Version (2 bytes) - 6-bit major and 10-bit minor (see Version)
 // Frame size (8 bytes) - entire frame including header to end of data section
 // Fused type size (8 bytes) - 0 if not present
 // Typedefs section size (8 bytes)
@@ -213,8 +211,7 @@ func (r RowHeader) Serialize(ctrl bool) []byte {
 	} else {
 		copy(bytes[0:4], []byte(RowMagic))
 	}
-	bytes[4] = r.Version.Major
-	bytes[5] = r.Version.Minor
+	r.Version.Serialize(bytes[4:])
 	binary.LittleEndian.PutUint64(bytes[6:], r.FrameSize)
 	binary.LittleEndian.PutUint64(bytes[14:], r.FusedTypeSize)
 	binary.LittleEndian.PutUint64(bytes[22:], r.TypedefsSize)
@@ -222,8 +219,7 @@ func (r RowHeader) Serialize(ctrl bool) []byte {
 }
 
 func (r *RowHeader) Deserialize(bytes [RowHeaderSize]byte) {
-	r.Version.Major = bytes[4]
-	r.Version.Minor = bytes[5]
+	r.Version.Deserialize(bytes[4:])
 	r.FrameSize = binary.LittleEndian.Uint64(bytes[6:])
 	r.FusedTypeSize = binary.LittleEndian.Uint64(bytes[14:])
 	r.TypedefsSize = binary.LittleEndian.Uint64(bytes[22:])
@@ -257,7 +253,7 @@ func (r RowHeader) check() error {
 // Structure of SuperFrame footer
 //
 // S U P S (4 byte string)
-// Version (2 bytes)
+// Version (2 bytes) - 6-bit major and 10-bit minor (see Version)
 // Footer size (8 bytes) - total size of footer including SuperFooterPad
 // Total size of previous SuperFrame (8 bytes) - excludes this SuperFrame footer
 // Fused type value (variable bytes)
@@ -303,8 +299,7 @@ func (s SuperFooter) StatsSection() (int64, int64) {
 func (s SuperFooter) Serialize() []byte {
 	var bytes [SuperFooterSize]byte
 	copy(bytes[0:4], []byte(SuperMagic))
-	bytes[4] = s.Version.Major
-	bytes[5] = s.Version.Minor
+	s.Version.Serialize(bytes[4:])
 	binary.LittleEndian.PutUint64(bytes[6:], s.FooterSize)
 	binary.LittleEndian.PutUint64(bytes[14:], s.FusedTypeSize)
 	binary.LittleEndian.PutUint64(bytes[22:], s.StatsSize)
@@ -313,8 +308,7 @@ func (s SuperFooter) Serialize() []byte {
 }
 
 func (s *SuperFooter) Deserialize(bytes [SuperFooterSize]byte) {
-	s.Version.Major = bytes[4]
-	s.Version.Minor = bytes[5]
+	s.Version.Deserialize(bytes[4:])
 	s.FooterSize = binary.LittleEndian.Uint64(bytes[6:])
 	s.FusedTypeSize = binary.LittleEndian.Uint64(bytes[14:])
 	s.StatsSize = binary.LittleEndian.Uint64(bytes[22:])
