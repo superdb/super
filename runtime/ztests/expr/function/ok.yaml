@@ -61,3 +61,10 @@ input: |
 output: |
   {a?:1,b:1}
   {a?:none::int64,b:error("no such field x")}
+
+---
+
+spq: values ok(1,1)
+
+error: |
+  TBD
