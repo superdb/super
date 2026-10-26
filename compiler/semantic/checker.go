@@ -559,25 +559,21 @@ func (c *checker) binary(op string, loc, lloc, rloc ast.Node, lhs, rhs super.Typ
 	lhs = defuse(lhs)
 	rhs = defuse(rhs)
 	if op != "==" && op != "!=" && op != "??" {
-		if !isUnknown(lhs) {
-			if hasMissing(lhs) {
-				c.error(lloc, errMissing)
-				return c.unknown
-			}
-			if hasOption(lhs) || hasNone(lhs) {
-				c.error(lloc, fmt.Errorf("%s: %w", sup.FormatType(lhs), errNone))
-				return c.unknown
-			}
+		if hasMissing(lhs) {
+			c.error(lloc, errMissing)
+			return c.unknown
 		}
-		if !isUnknown(rhs) {
-			if hasMissing(rhs) {
-				c.error(rloc, errMissing)
-				return c.unknown
-			}
-			if hasOption(rhs) || hasNone(rhs) {
-				c.error(rloc, fmt.Errorf("%s: %w", sup.FormatType(rhs), errNone))
-				return c.unknown
-			}
+		if hasOption(lhs) || hasNone(lhs) {
+			c.error(lloc, fmt.Errorf("%s: %w", sup.FormatType(lhs), errNone))
+			return c.unknown
+		}
+		if hasMissing(rhs) {
+			c.error(rloc, errMissing)
+			return c.unknown
+		}
+		if hasOption(rhs) || hasNone(rhs) {
+			c.error(rloc, fmt.Errorf("%s: %w", sup.FormatType(rhs), errNone))
+			return c.unknown
 		}
 	}
 	switch strings.ToLower(op) {
