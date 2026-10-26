@@ -3,7 +3,6 @@ package loader
 import (
 	"sync"
 
-	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/vector"
@@ -44,6 +43,5 @@ func (f *_any) unmarshal(bctx *bsup.Context, projection field.Projection) {
 
 func (f *_any) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vec := f.values.project(loader, projection)
-	typ := loader.sctx.MustLookupTypeFusion(super.TypeAll)
-	return vector.NewFusionWithLoader(loader.sctx, typ, f.subtypes.newLoader(loader), vec)
+	return vector.NewFusionWithLoader(loader.sctx, loader.sctx.TypeAny(), f.subtypes.newLoader(loader), vec)
 }

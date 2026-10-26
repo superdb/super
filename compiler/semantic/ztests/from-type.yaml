@@ -33,13 +33,13 @@ outputs:
       === bsup (default)
       file test.bsup format bsup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
-      file test.bsup format bsup type {x:int64|missing,y:int64|missing}
+      file test.bsup format bsup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | pass
       | output main
       === bsup (static)
       file test.bsup format bsup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
-      file test.bsup format bsup type {x:int64|missing,y:int64|missing}
+      file test.bsup format bsup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | pass
       | output main
       === bsup (default pipe)
@@ -54,7 +54,7 @@ outputs:
       === bsup (static pipe)
       file /dev/stdin format auto type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
-      file /dev/stdin format auto type {x:int64|missing,y:int64|missing}
+      file /dev/stdin format auto type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | pass
       | output main
       === bsup.gz (default)
@@ -66,7 +66,7 @@ outputs:
       === bsup.gz (static)
       file test.bsup.gz format bsup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
-      file test.bsup.gz format bsup type {x:int64|missing,y:int64|missing}
+      file test.bsup.gz format bsup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | pass
       | output main
       === bsup.gz (default pipe)
@@ -81,7 +81,7 @@ outputs:
       === bsup.gz (static pipe)
       file /dev/stdin format auto type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
-      file /dev/stdin format auto type {x:int64|missing,y:int64|missing}
+      file /dev/stdin format auto type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | pass
       | output main
       === json (default)
@@ -93,7 +93,7 @@ outputs:
       === json (static)
       file test.json format json type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
-      file test.json format json type {x:int64|missing,y:int64|missing}
+      file test.json format json type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | pass
       | output main
       === json (default pipe)
@@ -108,7 +108,7 @@ outputs:
       === json (static pipe)
       file /dev/stdin format auto type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
-      file /dev/stdin format auto type {x:int64|missing,y:int64|missing}
+      file /dev/stdin format auto type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | pass
       | output main
       === parquet (default)
@@ -141,13 +141,13 @@ outputs:
       === sup (default)
       file test.sup format sup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
-      file test.sup format sup type {x:int64|missing,y:int64|missing}
+      file test.sup format sup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | pass
       | output main
       === sup (static)
       file test.sup format sup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
-      file test.sup format sup type {x:int64|missing,y:int64|missing}
+      file test.sup format sup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | pass
       | output main
       === sup (default pipe)
@@ -162,19 +162,19 @@ outputs:
       === sup (static pipe)
       file /dev/stdin format auto type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
-      file /dev/stdin format auto type {x:int64|missing,y:int64|missing}
+      file /dev/stdin format auto type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | pass
       | output main
       === sup.gz (default)
       file test.sup.gz format sup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
-      file test.sup.gz format sup type {x:int64|missing,y:int64|missing}
+      file test.sup.gz format sup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | pass
       | output main
       === sup.gz (static)
       file test.sup.gz format sup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
-      file test.sup.gz format sup type {x:int64|missing,y:int64|missing}
+      file test.sup.gz format sup type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | pass
       | output main
       === sup.gz (default pipe)
@@ -189,6 +189,6 @@ outputs:
       === sup.gz (static pipe)
       file /dev/stdin format auto type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | output main
-      file /dev/stdin format auto type {x:int64|missing,y:int64|missing}
+      file /dev/stdin format auto type {x:fusion(int64|missing),y:fusion(int64|missing)}
       | pass
       | output main

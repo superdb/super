@@ -156,7 +156,7 @@ func (t *translator) sqlTableExpr(e ast.SQLTableExpr, seq sem.Seq) (sem.Seq, rel
 				}
 				var typ super.Type
 				seq, typ, name = t.fromSource(input.Source, input.Args, seq)
-				table = newTableFromType(typ, t.checker.unknown)
+				table = newTableFromType(typ)
 				if _, ok := table.(*dynamicTable); !ok && alias == nil {
 					alias = &ast.TableAlias{Name: name, Loc: input.Loc}
 				}
