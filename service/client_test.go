@@ -68,14 +68,6 @@ func (c *testClient) TestTablePost(payload api.TablePostRequest) uuid.UUID {
 	return id
 }
 
-/*
-
-func (c *testClient) TestBranchPost(tableID uuid.UUID, payload api.BranchPostRequest) {
-	err := c.Connection.CreateBranch(c.Context(), tableID, payload.Name, payload.Commit)
-	require.NoError(c, err)
-}
-*/
-
 func (c *testClient) TestQuery(query string) string {
 	scanner, err := c.Connection.Query(c.Context(), srcfiles.Plain(query))
 	require.NoError(c, err)
