@@ -186,7 +186,7 @@ func (c *checker) join(types []super.Type, op *sem.JoinOp) super.Type {
 	if len(types) != 2 {
 		c.error(op, errors.New("join requires two query inputs"))
 	}
-	typ := c.record([]super.Field{
+	typ := c.t.sctx.MustLookupTypeRecord([]super.Field{
 		super.NewField(op.LeftAlias, types[0]),
 		super.NewField(op.RightAlias, types[1]),
 	})
@@ -242,7 +242,7 @@ func (c *checker) unnestCheck(loc ast.Node, typ super.Type) (super.Type, bool) {
 			return c.unknown, false
 		}
 		fields := []super.Field{typ.Fields[0], {Name: arrayField.Name, Type: arrayElemType}}
-		return c.record(fields), true
+		return c.t.sctx.MustLookupTypeRecord(fields), true
 	default:
 		c.error(loc, errors.New("unnest value must be array or record"))
 		return c.unknown, false
@@ -748,15 +748,6 @@ func (c *checker) formRecordElems(elems []sem.RecordElem, types []super.Type) su
 			panic(elem)
 		}
 	}
-	return c.record(fields)
-}
-
-func (c *checker) record(fields []super.Field) super.Type {
-	if slices.ContainsFunc(fields, func(f super.Field) bool {
-		return f.Type == c.unknown
-	}) {
-		return c.unknown
-	}
 	return c.t.sctx.MustLookupTypeRecord(fields)
 }
 
@@ -855,7 +846,7 @@ func (c *checker) dropPath(typ super.Type, drop path) super.Type {
 	} else {
 		fields[off].Type = childType
 	}
-	types[pick] = c.record(fields)
+	types[pick] = c.t.sctx.MustLookupTypeRecord(fields)
 	if len(types) > 1 {
 		return c.union(super.Flatten(types))
 	}
@@ -911,15 +902,22 @@ func (c *checker) putInto(recType *super.TypeRecord, path []string, leaf super.T
 		if index, ok := recType.IndexOfField(path[0]); ok {
 			// Put into an existing record field so its other fields are
 			// kept, as the runtime does.  A field that isn't a record is
-			// replaced by a record holding the rest of the path.
-			inner, _ := super.TypeUnder(defuse(fields[index].Type)).(*super.TypeRecord)
-			fields[index].Type = c.putInto(inner, path[1:], leaf)
+			// replaced by a record holding the rest of the path, but the
+			// fields of a field of unknown type aren't known, so putting
+			// into it leaves it unknown.
+			switch typ := fields[index].Type; {
+			case len(path) > 1 && hasUnknown(typ):
+				fields[index].Type = c.unknown
+			default:
+				inner, _ := super.TypeUnder(defuse(typ)).(*super.TypeRecord)
+				fields[index].Type = c.putInto(inner, path[1:], leaf)
+			}
 		} else {
 			fields = append(fields, super.NewField(path[0], c.putInto(nil, path[1:], leaf)))
 		}
-		return c.record(fields)
+		return c.t.sctx.MustLookupTypeRecord(fields)
 	}
-	return c.record([]super.Field{super.NewField(path[0], c.putInto(nil, path[1:], leaf))})
+	return c.t.sctx.MustLookupTypeRecord([]super.Field{super.NewField(path[0], c.putInto(nil, path[1:], leaf))})
 }
 
 type path struct {
