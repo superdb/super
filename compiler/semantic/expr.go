@@ -692,8 +692,9 @@ func (t *translator) semCall(call *ast.CallExpr, inType super.Type) (sem.Expr, s
 	switch f := call.Func.(type) {
 	case *ast.FuncNameExpr:
 		if f.Name == "ok" {
-			if len(call.Args) != 1 {
-				t.error(f, fmt.Errorf("\"ok\": expected 1 param but called with %d", len(call.Args)))
+			if err := function.CheckArgCount(len(call.Args), 1, 1); err != nil {
+				t.error(call, err)
+				return badExpr, t.checker.unknown
 			}
 			t.checker.pushErrs()
 			e, typ := t.expr(call.Args[0], inType)

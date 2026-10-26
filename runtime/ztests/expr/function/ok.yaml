@@ -67,4 +67,15 @@ output: |
 spq: values ok(1,1)
 
 error: |
-  TBD
+  too many arguments at line 1, column 8:
+  values ok(1,1)
+         ~~~~~~~
+
+---
+
+spq: values ok()
+
+error: |
+  too few arguments at line 1, column 8:
+  values ok()
+         ~~~~
