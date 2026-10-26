@@ -92,7 +92,7 @@ func (c *Command) Run(args []string) error {
 	env.ReaderOpts = c.inputFlags.ReaderOpts
 	env.Static = c.inputFlags.Static
 	comp := compiler.NewCompilerWithEnv(env)
-	query, err := runtime.CompileQuery(ctx, super.NewContext(), comp, ast, nil)
+	query, err := runtime.CompileQuery(ctx, super.NewContext(), comp, ast)
 	if err != nil {
 		return err
 	}

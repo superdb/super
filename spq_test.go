@@ -18,12 +18,13 @@ import (
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler"
 	"github.com/superdb/super/compiler/parser"
+	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
+	"github.com/superdb/super/runtime/exec"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/anyio"
 	"github.com/superdb/super/sio/arrowio"
-	"github.com/superdb/super/sio/supio"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 	"github.com/superdb/super/ztest"
@@ -163,17 +164,16 @@ func runAllBoomerangs(t *testing.T, format string, data map[string]string) {
 func runOneBoomerang(t *testing.T, format, data string) {
 	// Create an auto-detecting puller for data.
 	sctx := super.NewContext()
-	dataPuller, err := anyio.NewReader(t.Context(), sctx, strings.NewReader(data), anyio.ReaderOpts{Format: "auto"})
-	require.NoError(t, err)
-	defer dataPuller.Pull(true)
-
+	var dataPuller vio.Puller
+	var err error
 	if format == "parquet" {
 		// Fuse data for formats that require uniform values.
-		q, err := newQuery(t.Context(), sctx, "fuse", dataPuller)
-		require.NoError(t, err)
-		defer q.Pull(true)
-		dataPuller = q
+		dataPuller, err = newQuery(t.Context(), sctx, "fuse", "auto", data)
+	} else {
+		dataPuller, err = anyio.NewReader(t.Context(), sctx, strings.NewReader(data), anyio.ReaderOpts{Format: "auto"})
 	}
+	require.NoError(t, err)
+	defer dataPuller.Pull(true)
 
 	baseline, err := serialize(dataPuller, format)
 	if err != nil {
@@ -238,9 +238,7 @@ func runOneFusionBoomerang(t *testing.T, data string) {
 
 func fuseDefuse(ctx context.Context, s string) (string, error) {
 	sctx := super.NewContext()
-	r := supio.NewReader(sctx, strings.NewReader(s))
-	p := sbuf.NewDematerializer(sctx, sbuf.NewPuller(r))
-	q, err := newQuery(ctx, sctx, "fuse | defuse(this)", p)
+	q, err := newQuery(ctx, sctx, "fuse | defuse(this)", "sup", s)
 	if err != nil {
 		return "", err
 	}
@@ -248,13 +246,20 @@ func fuseDefuse(ctx context.Context, s string) (string, error) {
 	return serialize(q, "sup")
 }
 
-func newQuery(ctx context.Context, sctx *super.Context, spq string, p vio.Puller) (vio.Puller, error) {
+// newQuery returns a query for spq that reads input in format as standard
+// input.
+func newQuery(ctx context.Context, sctx *super.Context, spq, format, input string) (vio.Puller, error) {
 	ast, err := parser.ParseText(spq)
 	if err != nil {
 		return nil, err
 	}
+	ast.PrependFileScan([]string{"stdio:stdin"})
+	engine := storage.NewInternalEngine()
+	engine.AddBytes("stdio:stdin", []byte(input))
+	env := exec.NewEnvironment(engine, nil)
+	env.ReaderOpts.Format = format
 	rctx := runtime.NewContext(ctx, sctx)
-	q, err := compiler.NewCompiler(nil).NewQuery(rctx, ast, []vio.Puller{p}, 0)
+	q, err := compiler.NewCompilerWithEnv(env).NewQuery(rctx, ast, 0)
 	if err != nil {
 		return nil, err
 	}

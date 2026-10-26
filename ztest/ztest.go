@@ -474,16 +474,14 @@ func (z *ZTest) runInternal(ctx context.Context) (string, error) {
 	eng := storage.NewInternalEngine()
 	if i := z.Input; i != nil {
 		ast.PrependFileScan([]string{"stdio:stdin"})
-		eng.AddOpenFunc("stdio:stdin", func() (storage.Reader, error) {
-			return &nopCloseStringsReader{strings.NewReader(*i)}, nil
-		})
+		eng.AddBytes("stdio:stdin", []byte(*i))
 	}
 	env := exec.NewEnvironment(eng, nil)
 	env.Dynamic = inflags.Dynamic
 	env.ReaderOpts = inflags.ReaderOpts
 	// Do static type checking for all tests except those with -dynamic.
 	env.Static = !inflags.Dynamic
-	q, err := runtime.CompileQuery(ctx, super.NewContext(), compiler.NewCompilerWithEnv(env), ast, nil)
+	q, err := runtime.CompileQuery(ctx, super.NewContext(), compiler.NewCompilerWithEnv(env), ast)
 	if err != nil {
 		return "", err
 	}
@@ -499,7 +497,3 @@ func (z *ZTest) runInternal(ctx context.Context) (string, error) {
 	}
 	return outbuf.String(), err
 }
-
-type nopCloseStringsReader struct{ *strings.Reader }
-
-func (*nopCloseStringsReader) Close() error { return nil }
