@@ -106,8 +106,8 @@ import (
 	"os"
 
 	"github.com/superdb/super"
+	"github.com/superdb/super/api/client"
 	"github.com/superdb/super/compiler/srcfiles"
-	"github.com/superdb/super/db/api"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/sup"
 	"github.com/superdb/super/sbuf"
@@ -122,14 +122,12 @@ func main() {
 		log.Fatalln(err)
 	}
 	ctx := context.TODO()
-	db, err := api.Connect(ctx, nil, uri.String())
-	if err != nil {
-		log.Fatalln(err)
-	}
+	db := client.NewConnectionTo(uri.String())
 	q, err := db.Query(ctx, srcfiles.Plain("from Demo"))
 	if err != nil {
 		log.Fatalln(err)
 	}
+	defer q.Close()
 	defer q.Pull(true)
 	reader := sbuf.PullerReader(sbuf.NewMaterializer(q))
 	for {

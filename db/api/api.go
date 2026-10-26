@@ -7,60 +7,30 @@ import (
 	"uuid"
 
 	"github.com/superdb/super"
-	"github.com/superdb/super/api"
-	"github.com/superdb/super/api/client"
 	"github.com/superdb/super/compiler/srcfiles"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/db/commits"
 	"github.com/superdb/super/db/tables"
 	"github.com/superdb/super/dbid"
-	"github.com/superdb/super/order"
-	"github.com/superdb/super/pkg/nano"
+	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
-	"go.uber.org/zap"
 )
-
-type Interface interface {
-	Root() *db.Root
-	Query(ctx context.Context, query []srcfiles.Input) (vio.Scanner, error)
-	TableID(ctx context.Context, tableName string) (uuid.UUID, error)
-	CommitObject(ctx context.Context, tableID uuid.UUID, branchName string) (uuid.UUID, error)
-	CreateTable(context.Context, string, order.SortKeys, uint64, uint64) (uuid.UUID, error)
-	RemoveTable(context.Context, uuid.UUID) error
-	RenameTable(context.Context, uuid.UUID, string) error
-	CreateBranch(ctx context.Context, tableID uuid.UUID, name string, parent uuid.UUID) error
-	RemoveBranch(ctx context.Context, tableID uuid.UUID, branchName string) error
-	MergeBranch(ctx context.Context, tableID uuid.UUID, childBranch, parentBranch string, message api.CommitMessage) (uuid.UUID, error)
-	Compact(ctx context.Context, tableID uuid.UUID, branch string, objects []uuid.UUID, message api.CommitMessage) (uuid.UUID, error)
-	Load(ctx context.Context, sctx *super.Context, tableID uuid.UUID, branch string, r vio.Puller, message api.CommitMessage) (uuid.UUID, error)
-	Delete(ctx context.Context, tableID uuid.UUID, branchName string, tags []uuid.UUID, message api.CommitMessage) (uuid.UUID, error)
-	DeleteWhere(ctx context.Context, tableID uuid.UUID, branchName, src string, commit api.CommitMessage) (uuid.UUID, error)
-	Revert(ctx context.Context, tableID uuid.UUID, branch string, commitID uuid.UUID, commit api.CommitMessage) (uuid.UUID, error)
-	Vacate(ctx context.Context, table string, time nano.Ts, dryrun bool) ([]uuid.UUID, error)
-	Vacuum(ctx context.Context, table, revision string, dryrun bool) ([]uuid.UUID, error)
-}
-
-func Connect(ctx context.Context, logger *zap.Logger, u string) (Interface, error) {
-	if IsRemote(u) {
-		return NewRemoteDB(client.NewConnectionTo(u)), nil
-	}
-	return OpenLocalDB(ctx, logger, u)
-}
 
 func IsRemote(u string) bool {
 	return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://")
 }
 
-func LookupTableByName(ctx context.Context, api Interface, name string) (*tables.Config, error) {
+func LookupTableByName(ctx context.Context, db runtime.Database, name string) (*tables.Config, error) {
 	b := newBuffer(tables.Config{})
 	query := fmt.Sprintf("from :tables | name == '%s'", name)
-	q, err := api.Query(ctx, srcfiles.Plain(query))
+	q, err := db.Query(ctx, srcfiles.Plain(query))
 	if err != nil {
 		return nil, err
 	}
+	defer q.Close()
 	defer q.Pull(true)
 	if err := vio.Copy(b, q); err != nil {
 		return nil, err
@@ -79,12 +49,13 @@ func LookupTableByName(ctx context.Context, api Interface, name string) (*tables
 	}
 }
 
-func GetTables(ctx context.Context, api Interface) ([]*tables.Config, error) {
+func GetTables(ctx context.Context, db runtime.Database) ([]*tables.Config, error) {
 	b := newBuffer(tables.Config{})
-	q, err := api.Query(ctx, srcfiles.Plain("from :tables"))
+	q, err := db.Query(ctx, srcfiles.Plain("from :tables"))
 	if err != nil {
 		return nil, err
 	}
+	defer q.Close()
 	defer q.Pull(true)
 	if err := vio.Copy(b, q); err != nil {
 		return nil, err
@@ -96,13 +67,14 @@ func GetTables(ctx context.Context, api Interface) ([]*tables.Config, error) {
 	return pls, nil
 }
 
-func LookupTableByID(ctx context.Context, api Interface, id uuid.UUID) (*tables.Config, error) {
+func LookupTableByID(ctx context.Context, db runtime.Database, id uuid.UUID) (*tables.Config, error) {
 	b := newBuffer(tables.Config{})
 	query := fmt.Sprintf("from :tables | id == %s", id)
-	q, err := api.Query(ctx, srcfiles.Plain(query))
+	q, err := db.Query(ctx, srcfiles.Plain(query))
 	if err != nil {
 		return nil, err
 	}
+	defer q.Close()
 	defer q.Pull(true)
 	if err := vio.Copy(b, q); err != nil {
 		return nil, err
@@ -121,13 +93,14 @@ func LookupTableByID(ctx context.Context, api Interface, id uuid.UUID) (*tables.
 	}
 }
 
-func LookupBranchByName(ctx context.Context, api Interface, tableName, branchName string) (*db.BranchMeta, error) {
+func LookupBranchByName(ctx context.Context, api runtime.Database, tableName, branchName string) (*db.BranchMeta, error) {
 	b := newBuffer(db.BranchMeta{})
 	query := fmt.Sprintf("from :branches | table.name == '%s' branch.name == '%s'", tableName, branchName)
 	q, err := api.Query(ctx, srcfiles.Plain(query))
 	if err != nil {
 		return nil, err
 	}
+	defer q.Close()
 	defer q.Pull(true)
 	if err := vio.Copy(b, q); err != nil {
 		return nil, err
@@ -146,13 +119,14 @@ func LookupBranchByName(ctx context.Context, api Interface, tableName, branchNam
 	}
 }
 
-func LookupBranchByID(ctx context.Context, api Interface, id uuid.UUID) (*db.BranchMeta, error) {
+func LookupBranchByID(ctx context.Context, api runtime.Database, id uuid.UUID) (*db.BranchMeta, error) {
 	b := newBuffer(db.BranchMeta{})
 	query := fmt.Sprintf("from :branches | branch.id == %s", id)
 	q, err := api.Query(ctx, srcfiles.Plain(query))
 	if err != nil {
 		return nil, err
 	}
+	defer q.Close()
 	defer q.Pull(true)
 	if err := vio.Copy(b, q); err != nil {
 		return nil, err
@@ -171,24 +145,25 @@ func LookupBranchByID(ctx context.Context, api Interface, id uuid.UUID) (*db.Bra
 	}
 }
 
-func GetCommit(ctx context.Context, api Interface, tableName, revision string) (*commits.Commit, error) {
-	tableID, err := api.TableID(ctx, tableName)
+func GetCommit(ctx context.Context, db runtime.Database, tableName, revision string) (*commits.Commit, error) {
+	tableID, err := db.TableID(ctx, tableName)
 	if err != nil {
 		return nil, err
 	}
 	commit, err := dbid.ParseID(revision)
 	if err != nil {
-		// LookupBranchByName(ctx
-		if commit, err = api.CommitObject(ctx, tableID, revision); err != nil {
+		// LookupBranchByName(ctx. XXX?
+		if commit, err = db.CommitObject(ctx, tableID, revision); err != nil {
 			return nil, err
 		}
 	}
 	b := newBuffer(commits.Commit{})
 	query := fmt.Sprintf("from %q:log | where id == %s", tableID, commit)
-	q, err := api.Query(ctx, srcfiles.Plain(query))
+	q, err := db.Query(ctx, srcfiles.Plain(query))
 	if err != nil {
 		return nil, err
 	}
+	defer q.Close()
 	defer q.Pull(true)
 	if err := vio.Copy(b, q); err != nil {
 		return nil, err

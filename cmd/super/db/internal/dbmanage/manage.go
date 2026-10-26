@@ -8,16 +8,16 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/superdb/super/api/client"
 	"github.com/superdb/super/db/api"
 	"github.com/superdb/super/db/tables"
 	"github.com/superdb/super/dbid"
+	"github.com/superdb/super/runtime"
 	"go.uber.org/zap"
 )
 
 // Update runs one maintenance pass over the configured tables.  A failure on
 // one table doesn't stop the others; all failures are returned together.
-func Update(ctx context.Context, db api.Interface, conf Config, logger *zap.Logger) error {
+func Update(ctx context.Context, db runtime.Database, conf Config, logger *zap.Logger) error {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -36,12 +36,11 @@ func Update(ctx context.Context, db api.Interface, conf Config, logger *zap.Logg
 	return errors.Join(errs...)
 }
 
-func Monitor(ctx context.Context, conn *client.Connection, conf Config, logger *zap.Logger) error {
+func Monitor(ctx context.Context, db runtime.Database, conf Config, logger *zap.Logger) error {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 	logger.Info("monitoring")
-	db := api.NewRemoteDB(conn)
 	for {
 		err := monitor(ctx, db, conf, logger)
 		if errors.Is(err, syscall.ECONNREFUSED) {
@@ -57,7 +56,7 @@ func Monitor(ctx context.Context, conn *client.Connection, conf Config, logger *
 	}
 }
 
-func monitor(ctx context.Context, db api.Interface, conf Config, logger *zap.Logger) error {
+func monitor(ctx context.Context, db runtime.Database, conf Config, logger *zap.Logger) error {
 	for {
 		select {
 		case <-time.After(conf.interval()):
@@ -75,7 +74,7 @@ func monitor(ctx context.Context, db api.Interface, conf Config, logger *zap.Log
 	}
 }
 
-func getBranches(ctx context.Context, conf Config, db api.Interface, logger *zap.Logger) ([]*branch, error) {
+func getBranches(ctx context.Context, conf Config, db runtime.Database, logger *zap.Logger) ([]*branch, error) {
 	tables, err := getTables(ctx, conf, db)
 	if err != nil {
 		return nil, err
@@ -89,7 +88,7 @@ func getBranches(ctx context.Context, conf Config, db api.Interface, logger *zap
 	return branches, nil
 }
 
-func getTables(ctx context.Context, conf Config, db api.Interface) ([]*tables.Config, error) {
+func getTables(ctx context.Context, conf Config, db runtime.Database) ([]*tables.Config, error) {
 	tabs, err := api.GetTables(ctx, db)
 	if err != nil {
 		return nil, err

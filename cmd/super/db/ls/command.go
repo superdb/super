@@ -88,6 +88,7 @@ func (c *Command) Run(args []string) error {
 		w.Close()
 		return err
 	}
+	defer q.Close()
 	defer q.Pull(true)
 	err = vio.Copy(w, q)
 	if closeErr := w.Close(); err == nil {

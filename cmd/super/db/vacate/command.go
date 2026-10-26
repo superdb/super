@@ -14,6 +14,7 @@ import (
 	"github.com/superdb/super/pkg/charm"
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/plural"
+	"github.com/superdb/super/runtime"
 )
 
 var spec = &charm.Spec{
@@ -85,7 +86,7 @@ func (c *Command) Run(args []string) error {
 	return nil
 }
 
-func (c *Command) getTsFromCommittish(ctx context.Context, db api.Interface, at *dbid.Committish) (nano.Ts, error) {
+func (c *Command) getTsFromCommittish(ctx context.Context, db runtime.Database, at *dbid.Committish) (nano.Ts, error) {
 	commit, err := api.GetCommit(ctx, db, at.Table, at.Branch)
 	if err != nil {
 		return 0, err

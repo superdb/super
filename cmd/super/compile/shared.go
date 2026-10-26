@@ -59,11 +59,11 @@ func (s *Shared) Run(ctx context.Context, args []string, dbFlags *dbflags.Flags,
 	}
 	var root *db.Root
 	if dbFlags != nil {
-		dbAPI, err := dbFlags.Open(ctx)
+		var err error
+		root, err = dbFlags.OpenDirect(ctx)
 		if err != nil {
 			return err
 		}
-		root = dbAPI.Root()
 	}
 	ast, err := parser.ParseFiles(s.queryFlags.Query)
 	if err != nil {

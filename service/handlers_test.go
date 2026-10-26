@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 	"uuid"
 
@@ -29,7 +28,7 @@ func TestQuery(t *testing.T) {
 `
 	_, conn := newCore(t)
 	tableID := conn.TestTablePost(api.TablePostRequest{Name: "test", SortKeys: []order.SortKey{{Path: []string{"ts"}, Order: order.Desc}}})
-	conn.TestLoad(tableID, "main", strings.NewReader(src))
+	conn.TestLoad(tableID, "main", src)
 	assert.Equal(t, expected, conn.TestQuery("from test | _path == 'b'"))
 }
 
@@ -46,7 +45,7 @@ func TestTableStats(t *testing.T) {
 `
 	_, conn := newCore(t)
 	tableID := conn.TestTablePost(api.TablePostRequest{Name: "test", SortKeys: []order.SortKey{{Path: []string{"ts"}, Order: order.Desc}}})
-	conn.TestLoad(tableID, "main", strings.NewReader(src))
+	conn.TestLoad(tableID, "main", src)
 
 	span := nano.Span{Ts: 1e9, Dur: 1e9 + 1}
 	expected := exec.TableStats{
@@ -75,7 +74,7 @@ func TestTablePostNameOnly(t *testing.T) {
 func TestTablePostDuplicateName(t *testing.T) {
 	_, conn := newCore(t)
 	conn.TestTablePost(api.TablePostRequest{Name: "test"})
-	_, err := conn.CreateTable(t.Context(), api.TablePostRequest{Name: "test"})
+	_, err := conn.CreateTable(t.Context(), "test", nil, 0, 0)
 	require.Equal(t, errors.Is(err, client.ErrTableExists), true)
 }
 
@@ -83,14 +82,14 @@ func TestTableInvalidName(t *testing.T) {
 	t.Skip("verify invalid characters for a table name")
 	_, conn := newCore(t)
 	t.Run("Post", func(t *testing.T) {
-		_, err := conn.CreateTable(t.Context(), api.TablePostRequest{Name: "𝚭𝚴𝚪 is.good"})
+		_, err := conn.CreateTable(t.Context(), "𝚭𝚴𝚪 is.good", nil, 0, 0)
 		require.NoError(t, err)
-		_, err = conn.CreateTable(t.Context(), api.TablePostRequest{Name: "𝚭𝚴𝚪/bad"})
+		_, err = conn.CreateTable(t.Context(), "𝚭𝚴𝚪/bad", nil, 0, 0)
 		require.EqualError(t, err, "status code 400: name may not contain '/' or non-printable characters")
 	})
 	t.Run("Put", func(t *testing.T) {
 		tableID := conn.TestTablePost(api.TablePostRequest{Name: "𝚭𝚴𝚪1"})
-		err := conn.RenameTable(t.Context(), tableID, api.TablePutRequest{Name: "𝚭𝚴𝚪/2"})
+		err := conn.RenameTable(t.Context(), tableID, "𝚭𝚴𝚪/2")
 		require.EqualError(t, err, "status code 400: name may not contain '/' or non-printable characters")
 	})
 }
@@ -99,14 +98,14 @@ func TestTablePutDuplicateName(t *testing.T) {
 	_, conn := newCore(t)
 	tableID := conn.TestTablePost(api.TablePostRequest{Name: "test"})
 	conn.TestTablePost(api.TablePostRequest{Name: "test1"})
-	err := conn.RenameTable(t.Context(), tableID, api.TablePutRequest{Name: "test"})
+	err := conn.RenameTable(t.Context(), tableID, "test")
 	assert.EqualError(t, err, "status code 409: test: table already exists")
 }
 
 func TestTablePut(t *testing.T) {
 	_, conn := newCore(t)
 	tableID := conn.TestTablePost(api.TablePostRequest{Name: "test"})
-	err := conn.RenameTable(t.Context(), tableID, api.TablePutRequest{Name: "new_name"})
+	err := conn.RenameTable(t.Context(), tableID, "new_name")
 	require.NoError(t, err)
 	info := conn.TestTableGet(tableID)
 	assert.Equal(t, "new_name", info.Name)
@@ -160,7 +159,7 @@ func TestEventsHandler(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "table-new", kind)
 	assert.Equal(t, &api.EventTable{TableID: id}, v)
-	commit := conn.TestLoad(id, "main", strings.NewReader("{ts:0}"))
+	commit := conn.TestLoad(id, "main", "{ts:0}")
 	kind, v, err = ev.Recv()
 	require.NoError(t, err)
 	assert.Equal(t, "branch-commit", kind)

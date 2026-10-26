@@ -78,6 +78,7 @@ func (c *Command) Run(args []string) error {
 		w.Close()
 		return err
 	}
+	defer query.Close()
 	defer query.Pull(true)
 	out := map[string]vio.Pusher{
 		"main":  w,

@@ -9,11 +9,11 @@ import (
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/srcfiles"
-	"github.com/superdb/super/db/api"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/db/tables"
 	"github.com/superdb/super/dbid"
 	"github.com/superdb/super/order"
+	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/runtime/sam/expr/extent"
 	"github.com/superdb/super/sbuf"
@@ -125,7 +125,7 @@ type objectIterator struct {
 	unmarshaler *super.Unmarshaler
 }
 
-func newObjectIterator(ctx context.Context, db api.Interface, head *dbid.Committish) (*objectIterator, error) {
+func newObjectIterator(ctx context.Context, db runtime.Database, head *dbid.Committish) (*objectIterator, error) {
 	query := fmt.Sprintf(iteratorQuery, head.Table, head.Branch)
 	q, err := db.Query(ctx, srcfiles.Plain(query))
 	if err != nil {

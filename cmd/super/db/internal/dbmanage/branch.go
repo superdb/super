@@ -5,21 +5,21 @@ import (
 	"uuid"
 
 	"github.com/superdb/super/api"
-	dbapi "github.com/superdb/super/db/api"
 	"github.com/superdb/super/db/tables"
 	"github.com/superdb/super/dbid"
+	"github.com/superdb/super/runtime"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
 type branch struct {
 	config TableConfig
-	db     dbapi.Interface
+	db     runtime.Database
 	logger *zap.Logger
 	table  *tables.Config
 }
 
-func newBranch(c Config, table *tables.Config, db dbapi.Interface, logger *zap.Logger) *branch {
+func newBranch(c Config, table *tables.Config, db runtime.Database, logger *zap.Logger) *branch {
 	config := c.tableConfig(table)
 	logger = logger.Named("table").With(
 		zap.String("name", table.Name),
