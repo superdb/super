@@ -22,7 +22,8 @@ In both cases, "from" can also retrieve data from HTTP APIs via URL.
 
 See the "super compile" command help for further information.
 `,
-	New: New,
+	New:         New,
+	HiddenFlags: compile.HiddenFlags,
 }
 
 func init() {

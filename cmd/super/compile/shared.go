@@ -8,6 +8,7 @@ import (
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/cli/dbflags"
+	"github.com/superdb/super/cli/inputflags"
 	"github.com/superdb/super/cli/outputflags"
 	"github.com/superdb/super/cli/queryflags"
 	"github.com/superdb/super/compiler"
@@ -23,34 +24,40 @@ import (
 	"github.com/superdb/super/vector/vio"
 )
 
+const HiddenFlags = "" +
+	// inputflags
+	"inputcap," +
+	// outputflags
+	"framecap," +
+	"noheader," +
+	"rows," +
+	"split," +
+	"splitsize," +
+	"unbuffered"
+
 type Shared struct {
+	OutputFlags outputflags.Flags
+	inputFlags  inputflags.Flags
+	queryFlags  queryflags.QueryTextFlags
 	dag         bool
-	dynamic     bool
 	optimize    bool
 	parallel    int
 	query       bool
-	static      bool
-	queryFlags  queryflags.QueryTextFlags
-	OutputFlags outputflags.Flags
 }
 
 func (s *Shared) SetFlags(fs *flag.FlagSet) {
+	s.OutputFlags.SetFlags(fs)
+	s.inputFlags.SetFlags(fs)
+	s.queryFlags.SetFlags(fs)
 	fs.BoolVar(&s.dag, "dag", false, "display output as DAG (implied by -O or -P)")
-	fs.BoolVar(&s.dynamic, "dynamic", false, "disable static type checking of inputs on DAG")
 	fs.BoolVar(&s.optimize, "O", false, "display optimized DAG")
 	fs.IntVar(&s.parallel, "P", 0, "display parallelized DAG")
 	fs.BoolVar(&s.query, "C", false, "display DAG or AST as query text")
-	fs.BoolVar(&s.static, "static", false, "force static type checking of inputs on DAG")
-	s.OutputFlags.SetFlags(fs)
-	s.queryFlags.SetFlags(fs)
 }
 
 func (s *Shared) Run(ctx context.Context, args []string, dbFlags *dbflags.Flags, desc bool) error {
 	if len(s.queryFlags.Query) == 0 && len(args) == 0 {
 		return errors.New("no query specified")
-	}
-	if s.dynamic && s.static {
-		return errors.New("-static and -dynamic flags cannot both be enabled")
 	}
 	var inputs []string
 	if len(args) > 0 {
@@ -87,8 +94,9 @@ func (s *Shared) Run(ctx context.Context, args []string, dbFlags *dbflags.Flags,
 	}
 	rctx := runtime.DefaultContext()
 	env := exec.NewEnvironment(storage.NewLocalEngine(), root)
-	env.Dynamic = s.dynamic
-	env.Static = s.static
+	env.Dynamic = s.inputFlags.Dynamic
+	env.ReaderOpts = s.inputFlags.ReaderOpts
+	env.Static = s.inputFlags.Static
 	dag, err := compiler.Analyze(rctx, ast, env, false)
 	if err != nil {
 		return err
