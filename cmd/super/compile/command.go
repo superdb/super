@@ -14,7 +14,8 @@ var spec = &charm.Spec{
 	Long: `
 See https://superdb.org/command/compile.html
 `,
-	New: New,
+	New:         New,
+	HiddenFlags: HiddenFlags,
 }
 
 func init() {
