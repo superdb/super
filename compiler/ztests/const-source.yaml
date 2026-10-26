@@ -20,7 +20,7 @@ outputs:
       file A.sup format sup
       | output main
       ===
-      get http://brimdata.io
+      get http://brimdata.io format auto
       | output main
   - name: stderr
     data: |

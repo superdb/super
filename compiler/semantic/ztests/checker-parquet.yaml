@@ -2,7 +2,9 @@ script: |
   super -o t.parquet -c "values {x:1,y:2}"
   ! super -c "from t.parquet | values z"
   echo === auto-detection >&2
-  ! super -c "from 'stdio:stdin' | values z" < t.parquet
+  # Standard input is dynamically typed unless -static.
+  super -s -c "from 'stdio:stdin' | values z" < t.parquet >&2
+  ! super -static -c "from 'stdio:stdin' | values z" < t.parquet
   echo === multiple files >&2
   super -o a.parquet -c "values {a:1}"
   ! super -c "values z" a.parquet t.parquet 
@@ -14,6 +16,7 @@ outputs:
       from t.parquet | values z
                               ~
       === auto-detection
+      error("no such field z")
       no such field "z" at line 1, column 29:
       from 'stdio:stdin' | values z
                                   ~

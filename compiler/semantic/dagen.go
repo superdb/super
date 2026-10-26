@@ -93,6 +93,10 @@ func (d *dagen) op(op sem.Op) dag.Op {
 			Type:    typ,
 		}
 	case *sem.HTTPScan:
+		var typ string
+		if op.Type != nil && !isUnknown(op.Type) {
+			typ = sup.FormatType(op.Type)
+		}
 		return &dag.HTTPScan{
 			Kind:    "HTTPScan",
 			URL:     op.URL,
@@ -100,6 +104,7 @@ func (d *dagen) op(op sem.Op) dag.Op {
 			Method:  op.Method,
 			Headers: op.Headers,
 			Body:    op.Body,
+			Type:    typ,
 		}
 	case *sem.NullScan:
 		return &dag.NullScan{

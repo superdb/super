@@ -1,0 +1,19 @@
+# The format of a URL without a known extension is detected, and the
+# extension is taken from the URL's path so a query string doesn't hide it.
+script: |
+  super compile -C -dag 'from https://api.github.com/repos/brimdata/super'
+  super compile -C -dag 'from "https://host/data.json?page=2"'
+  super compile -C -dag 'from "https://host/data.sup.gz"'
+  super compile -C -dag "from https://host/api (method 'POST')"
+
+outputs:
+  - name: stdout
+    data: |
+      get https://api.github.com/repos/brimdata/super format auto
+      | output main
+      get https://host/data.json?page=2 format json
+      | output main
+      get https://host/data.sup.gz format sup
+      | output main
+      post https://host/api format auto
+      | output main

@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"slices"
+	"strings"
 	"uuid"
 
 	"github.com/superdb/super/pkg/field"
@@ -281,6 +282,7 @@ type (
 		Method  string              `json:"method"`
 		Headers map[string][]string `json:"headers"`
 		Body    string              `json:"body"`
+		Type    string              `json:"type"`
 	}
 	TableScan struct {
 		Kind   string    `json:"kind" unpack:""`
@@ -442,4 +444,10 @@ func WalkTWithError[T any](v reflect.Value, post func(T) (T, error)) error {
 		}
 	}
 	return nil
+}
+
+// IsPlainGet reports whether the scan is an HTTP GET with no headers or
+// body, which is read like any other input.
+func (h *HTTPScan) IsPlainGet() bool {
+	return (h.Method == "" || strings.EqualFold(h.Method, "GET")) && h.Headers == nil && h.Body == ""
 }

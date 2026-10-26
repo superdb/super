@@ -394,11 +394,12 @@ These fused types are maintained in the super-structured database and the binary
 forms of super-structured file formats provide efficient ways to retrieve their
 fused type.
 
-For traditional formats like JSON or CSV, the file is read by the compiler and
-the fused type computed on the fly.  When such files are sufficiently large
-creating too much overhead for the compilation stage, this step may be skipped
-using a configurable limit and the compilation completed with more limited
-type checking, instead creating runtime errors when type errors are encountered.
+For traditional formats like JSON or CSV, computing the fused type requires
+reading all of the data at compile time, so by default these inputs are
+dynamically typed and type errors in queries over them are instead
+runtime errors.  The `-static` flag causes the compiler to read such inputs
+and compute their fused types on the fly.  See
+[type checking of inputs](../command/input.md#type-checking) for the details.
 
 In other words, dynamic data is statically type checked when possible.
 This works by computing fused types of each operator's output and propagating
@@ -424,12 +425,13 @@ Now supposing this data is in the file `input.json`:
 {"b":3,"c":4}
 ```
 If we run the query from above without type checking data from the source
-(enabled with the `-dynamic` flag), then the query runs even though there are type
-errors.  In this case, "missing" values are produced:
+(the default for JSON, or for any input with the `-dynamic` flag), then the
+query runs even though there are type errors.  In this case, dynamic type
+errors turn into SQL NULL for SQL queries:
 ```
 $ super -dynamic -c "select a from input.json"
-{a:error("missing")}
-{a:error("missing")}
+{a:null}
+{a:null}
 ```
 Even though the reference to column "a" is dynamically evaluated, all
 the data is still strongly typed, i.e.,

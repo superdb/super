@@ -23,7 +23,6 @@ import (
 	"github.com/superdb/super/runtime/expr/function"
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sbuf"
-	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/anyio"
 	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector"
@@ -73,7 +72,7 @@ func (t *translator) scanType(seq sem.Seq) super.Type {
 	switch seq[0].(type) {
 	case *sem.BadOp:
 		return badType
-	case *sem.TableScan, *sem.FileScan, *sem.ForkOp:
+	case *sem.TableScan, *sem.FileScan, *sem.HTTPScan, *sem.ForkOp:
 		return t.checker.op(nil, seq[0])
 	}
 	return t.checker.unknown
@@ -328,16 +327,7 @@ func (t *translator) fileFormat(name string) string {
 }
 
 func (t *translator) fileType(path, format string) (super.Type, error) {
-	if t.env.Dynamic {
-		return t.checker.unknown, nil
-	}
-	engine := t.env.Engine()
-	if engine == nil {
-		return t.checker.unknown, nil
-	}
-	opts := t.env.ReaderOpts
-	opts.Format = format
-	typ, err := anyio.FileType(t.ctx, t.sctx, engine, path, opts, t.env.Static)
+	typ, err := t.env.FileType(t.ctx, t.sctx, path, format)
 	if typ == nil {
 		typ = t.checker.unknown
 	}
@@ -386,9 +376,9 @@ func (t *translator) fromURL(urlLoc ast.Node, u string, args []ast.OpArg) sem.Op
 		}
 	}
 	if format == "" {
-		format = sio.FormatFromPath(u)
+		format = anyio.ReadFormatFromPath(u)
 	}
-	return &sem.HTTPScan{
+	scan := &sem.HTTPScan{
 		Node:    urlLoc,
 		URL:     u,
 		Format:  format,
@@ -396,6 +386,17 @@ func (t *translator) fromURL(urlLoc ast.Node, u string, args []ast.OpArg) sem.Op
 		Headers: headers,
 		Body:    body,
 	}
+	if scan.IsPlainGet() {
+		// A plain GET is read like any other input, so it can be
+		// statically typed (see anyio.Source).
+		typ, err := t.fileType(u, format)
+		if err != nil {
+			t.error(urlLoc, err)
+			typ = badType
+		}
+		scan.Type = typ
+	}
+	return scan
 }
 
 func unmarshalHeaders(val super.Value) (map[string][]string, error) {

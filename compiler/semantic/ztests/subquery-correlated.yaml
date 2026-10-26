@@ -38,7 +38,7 @@ outputs:
       === dag.HTTPScan
       null
       | values (
-        get http://host)
+        get http://host format auto)
       | output main
       === dag.RobotScan
       null

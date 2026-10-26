@@ -331,7 +331,17 @@ func (c *canonDAG) op(o dag.Op) {
 		}
 	case *dag.HTTPScan:
 		c.next()
-		c.write("get %s", o.URL)
+		if o.Method != "" && !strings.EqualFold(o.Method, "GET") {
+			c.write("%s %s", strings.ToLower(o.Method), o.URL)
+		} else {
+			c.write("get %s", o.URL)
+		}
+		if o.Format != "" {
+			c.write(" format %s", o.Format)
+		}
+		if o.Type != "" {
+			c.write(" type %s", o.Type)
+		}
 	case *dag.ListerScan:
 		c.next()
 		c.open("lister")

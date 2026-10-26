@@ -58,7 +58,8 @@ the data formats of its inputs.
 For files with a well known extension (like `.json`, `.parquet`, `.sup` etc.),
 the format is implied by the extension.
 
-For standard input, `super` attempts
+For standard input and for HTTP, HTTPS, and S3 inputs whose path has
+no well known extension (e.g., a REST API endpoint), `super` attempts
 to detect the format by reading and parsing some of the data.
 
 For other inputs, or
@@ -97,3 +98,25 @@ requires `-i` or `(format line)` for reading.
 >[!NOTE]
 > Parquet and CSUP require a seekable input and cannot be operated upon
 > when read on standard input.
+
+## Type Checking
+
+When possible, the compiler determines the
+[fused type](../super-sql/type-fusion.md) of each input to statically
+type check the query.  An input whose type isn't determined is
+_dynamically typed_ and its type errors are found at run time.
+
+By default, the compiler determines the type of an input for local file
+when the format carries its type, i.e., BSUP, Parquet, and Arrow.
+Other formats (e.g., JSON and CSV, or compressed files) are dynamically
+typed by default.
+
+The `-static` flag causes all inputs to be statically typed.  For formats
+that don't carry types or for non-seekable inputs, the compiler reads an input
+as needed to compute its fused type, then the query scans from memory
+when it runs.
+
+The `-dynamic` flag causes all inputs to be dynamically typed.
+
+Database tables are statically typed unless `-dynamic` is given since the
+database keeps the fused type of each table.
