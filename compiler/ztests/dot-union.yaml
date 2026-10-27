@@ -1,0 +1,39 @@
+# A field access on a union type checks only if it checks for every type in
+# the union.
+spq: values x
+
+input: |
+  1::(int64|string)
+
+error: |
+  no such field "x": . applied to int64|string at line 1, column 8:
+  values x
+         ~
+
+---
+
+spq: values x
+
+input: |
+  {x:1}::({x:int64}|string)
+  "foo"::({x:int64}|string)
+
+error: |
+  no such field "x": . applied to string in string|{x:int64} at line 1, column 8:
+  values x
+         ~
+
+---
+
+# ok() turns the errors for the types that don't have the field into none.
+spq: values x.ok(), typeof(x.ok())
+
+input: |
+  {x:1}::({x:int64}|string)
+  "foo"::({x:int64}|string)
+
+output: |
+  1
+  <int64>
+  none
+  <none>

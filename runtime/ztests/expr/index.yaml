@@ -89,6 +89,8 @@ output: |
 # Test index on named values.
 spq: values this[1],this["x"]
 
+flags: -dynamic
+
 input: |
   type foo=[int64]
   [1,2,3]::foo
@@ -113,6 +115,8 @@ output: |
 
 # Test index on fused values
 spq: val[1].r
+
+flags: -dynamic
 
 input: |
   {val:fusion(2::(int64|[int64|{r:int64}]),<int64>)}

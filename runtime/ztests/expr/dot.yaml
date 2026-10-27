@@ -1,5 +1,7 @@
 spq: values a.b
 
+flags: -dynamic
+
 input: |
   {a:{b:1}}
   {a:{b:1::(int64|string)}}

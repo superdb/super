@@ -179,6 +179,8 @@ output: |
 
 spq: values this?.x
 
+flags: -dynamic
+
 input: |
   missing
   none::int64
@@ -194,6 +196,8 @@ output: |
 ---
 
 spq: values this?.x?.y
+
+flags: -dynamic
 
 input: |
   missing

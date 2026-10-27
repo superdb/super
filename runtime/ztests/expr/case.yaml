@@ -1,5 +1,7 @@
 spq: 'values case when x==1 then "foo" when x==2 then "bar" else {y:12} end'
 
+flags: -dynamic
+
 input: |
   {x:1}
   {x:2,y:3}
