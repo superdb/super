@@ -11,9 +11,9 @@ name: "Perf canary"
 # * It can also be run manually to compare any two commits.
 #
 # Significant changes never fail the job.  Instead, the results are reported
-# in a separate "Perf canary results" check, which is neutral (gray) if
-# anything regressed and successful (green) otherwise, with the details in
-# the check and the job summary.
+# in a separate "Perf canary results" check, which fails (red) if anything
+# regressed, failed, or changed its output and is successful (green)
+# otherwise, with the details in the check and the job summary.
 
 on:
   pull_request:
@@ -133,8 +133,8 @@ jobs:
           title=$(head -1 "$out/summary.md" | sed 's/^## //')
           case "$(jq -r .verdict "$out/results.json")" in
             regressed|attention)
-              echo "::warning title=Perf canary::$title"
-              conclusion=neutral
+              echo "::error title=Perf canary::$title"
+              conclusion=failure
               ;;
             *)
               echo "::notice title=Perf canary::$title"
@@ -156,6 +156,8 @@ jobs:
           TITLE: ${{ steps.report.outputs.title }}
           CONCLUSION: ${{ steps.report.outputs.conclusion }}
           DETAILS_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # A check's summary is limited to 65,535 characters, so a longer
+        # report is cut short there (the job summary has all of it).
         run: |
           jq -n \
             --arg sha "$HEAD_SHA" \
@@ -163,7 +165,8 @@ jobs:
             --arg title "$TITLE" \
             --arg url "$DETAILS_URL" \
             --rawfile summary "$RUNNER_TEMP/perf-canary/summary.md" \
-            '{name: "Perf canary results", head_sha: $sha, status: "completed",
+            '($summary | if length > 65000 then .[:65000] + "\n\n… (cut short; see the job summary for the full report)" else . end) as $summary |
+             {name: "Perf canary results", head_sha: $sha, status: "completed",
               conclusion: $conclusion, details_url: $url,
               output: {title: $title, summary: $summary}}' |
             gh api "repos/$REPO/check-runs" --input - > /dev/null

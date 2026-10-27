@@ -273,10 +273,10 @@ func (rep *report) markdown() string {
 	var problems []string
 	for _, r := range rep.Rows {
 		if r.BaseErr != "" {
-			problems = append(problems, fmt.Sprintf("- **%s** failed with base: `%s`", r.Test, r.BaseErr))
+			problems = append(problems, fmt.Sprintf("- **%s** failed with base: `%s`", r.Test, shortErr(r.BaseErr)))
 		}
 		if r.TargetErr != "" {
-			problems = append(problems, fmt.Sprintf("- **%s** failed with target: `%s`", r.Test, r.TargetErr))
+			problems = append(problems, fmt.Sprintf("- **%s** failed with target: `%s`", r.Test, shortErr(r.TargetErr)))
 		}
 		if r.OutputMismatch {
 			problems = append(problems, fmt.Sprintf("- **%s** output differs between base and target (timings may not be comparable)", r.Test))
@@ -361,6 +361,22 @@ func statusIcon(s status) string {
 		return "🟢"
 	}
 	return ""
+}
+
+// maxErrLen limits how much of an error the report shows.  An error can
+// include a huge type, and the "Perf canary results" check's summary is
+// limited to 65,535 characters.  The full errors are in results.json.
+const maxErrLen = 300
+
+func shortErr(err string) string {
+	line, _, multiline := strings.Cut(err, "\n")
+	if r := []rune(line); len(r) > maxErrLen {
+		return string(r[:maxErrLen]) + "…"
+	}
+	if multiline {
+		return line + " …"
+	}
+	return line
 }
 
 func pct(change float64) string {

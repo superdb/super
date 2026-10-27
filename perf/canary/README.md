@@ -77,10 +77,10 @@ automatically:
 
 Changes that touch only `book/` or Markdown files are skipped.
 
-It never fails because of a regression. Instead, it adds a separate
-**Perf canary results** check to the commit, which is:
+The job itself never fails because of what it finds. Instead, it adds a
+separate **Perf canary results** check to the commit, which is:
 
-* neutral (gray) if any test regressed, failed, or changed its output, or
+* failed (red) if any test regressed, failed, or changed its output, or
 * successful (green) otherwise.
 
 The check's title gives the verdict (e.g., "🔴 Perf canary: 2 of 16 tests
