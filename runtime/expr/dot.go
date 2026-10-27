@@ -58,6 +58,8 @@ func (d *DotExpr) eval(vecs ...vector.Any) vector.Any {
 		if d.nullish {
 			return vec
 		}
+	case *vector.Const:
+		return vector.NewConst(d.eval(vec.Any), vec.Len())
 	case *vector.Missing:
 		if d.noneish {
 			return vec
