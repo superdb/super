@@ -164,8 +164,7 @@ func indexMap(sctx *super.Context, vec, indexVec vector.Any) vector.Any {
 		}
 	}
 	var valIndexes, nones []uint32
-	cmp := NewCompare(sctx, "==", nil, nil).eval
-	hits := vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, cmp, vector.Pick(indexVec, pick), m.Keys)
+	hits := mapKeyEqual(sctx, vector.Pick(indexVec, pick), m.Keys)
 	bits := FlattenBool(hits).Bits
 	for i := range vec.Len() {
 		selected := -1
@@ -186,4 +185,32 @@ func indexMap(sctx *super.Context, vec, indexVec vector.Any) vector.Any {
 		return vector.Combine(vals, nones, vector.NewNone(uint32(len(nones))))
 	}
 	return vals
+}
+
+// mapKeyEqual compares index values to map keys for equality.  Unlike the
+// "==" operator, option values are unwrapped so that some(x) matches x and
+// an option none matches only another option none.  A bare none never
+// matches since a map entry with a none key is equivalent to no entry.
+func mapKeyEqual(sctx *super.Context, index, keys vector.Any) vector.Any {
+	cmp := NewCompare(sctx, "==", nil, nil).eval
+	opts := vector.ApplyRipFusions | vector.ApplyRipUnions
+	return vector.Apply(opts|vector.ApplyRipOptions, func(vecs ...vector.Any) vector.Any {
+		var nones int
+		for k, vec := range vecs {
+			switch vec.Kind() {
+			case vector.KindNone:
+				return vector.NewConstBool(false, vec.Len())
+			case vector.KindOption:
+				inner := vector.UnderOption(vec).Any
+				if inner.Kind() == vector.KindNone {
+					nones++
+				}
+				vecs[k] = inner
+			}
+		}
+		if nones > 0 {
+			return vector.NewConstBool(nones == len(vecs), vecs[0].Len())
+		}
+		return vector.Apply(opts, cmp, vecs...)
+	}, index, keys)
 }
