@@ -442,12 +442,17 @@ func (t *translator) dottedBaseCase(loc ast.Node, lhs *ast.IDExpr, rhs *ast.IDEx
 }
 
 func (t *translator) deref(loc ast.Node, lhs sem.Expr, id *ast.IDExpr, noneish bool, inType super.Type) (sem.Expr, super.Type) {
-	typ := t.checker.deref(id, inType, id.Name, noneish)
 	if lhs, ok := lhs.(*sem.ThisExpr); ok {
 		lhs.Chain = lhs.Chain.Append(id.Name, noneish)
 		lhs.Node = loc
-		return lhs, typ
+		// The appended element inherits nullish from the chain (e.g., c in
+		// a.b.c for SQL column a), so type check it the same way.
+		if lhs.Chain[len(lhs.Chain)-1].Nullish {
+			return lhs, t.checker.derefNullish(id, inType, id.Name, noneish)
+		}
+		return lhs, t.checker.deref(id, inType, id.Name, noneish)
 	}
+	typ := t.checker.deref(id, inType, id.Name, noneish)
 	return &sem.DotExpr{
 		Node:    loc,
 		LHS:     lhs,

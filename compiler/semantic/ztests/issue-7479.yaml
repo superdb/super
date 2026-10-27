@@ -1,0 +1,23 @@
+script: super -s -I query.spq
+
+inputs:
+  - name: query.spq
+    data: |
+      SELECT commit.record.$type as t
+      FROM in.sup
+      GROUP BY commit.record.$type
+      ORDER BY t
+  - name: in.sup
+    data: |
+      {did:"did:plc:an6qnziaahzzjcamfdngnm7t",time_us:1732206827791567,kind:"commit",commit:{rev:"3lbhve7phst2n",operation:"create",collection:"app.bsky.feed.repost",rkey:"3lbhve7pcwl2n",record:{$type:"app.bsky.feed.repost",createdAt:"2024-11-21T16:33:45.567Z",subject:{cid:"bafyreigsk3kd4ouhejzchhs7qyygbzuvqwgatz75yvwkbeum4ddl72nwtm",uri:"at://did:plc:tut6ef4yvszhoh2ajgl7smxg/app.bsky.feed.post/3lbhgmuqwtc2k"}},cid:"bafyreihpqspesktoloaukzcntz7i64neumcfa242wqulxptm5g62eczf6m"}}
+      {did:"did:plc:dxcre3vigcg3wbritni7grsf",time_us:1732206827793815,kind:"commit",commit:{rev:"3lbhvdfn53o2x",operation:"create",collection:"app.bsky.graph.follow",rkey:"3lbhvdfn25w2x",record:{$type:"app.bsky.graph.follow",createdAt:"2024-11-21T16:33:14.608Z",subject:"did:plc:2cjyu2liiojdjmq7whnqxrym"},cid:"bafyreicydqur2wajcgekfri2hypddx2tbimnqzdkcwy7jiyztad6psrfi4"}}
+      {did:"did:plc:6tcbfeckzo2aqjnn57yyebrk",time_us:1732206827794512,kind:"commit",commit:{rev:"3lbhvdcudck26",operation:"delete",collection:"app.bsky.graph.follow",rkey:"3lbczkug6om23"}}
+      {did:"did:plc:2dtvzdnwwhikc4i62eh47uir",time_us:1732206349164509,kind:"identity",identity:{did:"did:plc:2dtvzdnwwhikc4i62eh47uir",handle:"cjackson292.bsky.social",seq:4148295340,timestamp:"2024-11-21T16:25:48.604Z"}}
+      {did:"did:plc:k7w43rbnuh2nup6qlbfwhne3",time_us:1732206349006664,kind:"commit",commit:{rev:"3lbhuuns4yz27",operation:"create",collection:"app.bsky.feed.repost",rkey:"3lbhuunrz3z27",record:{$type:"app.bsky.feed.repost",createdAt:"2024-11-21T16:25:00.486Z",subject:{cid:"bafyreifd3m2sereigl27ezracazhfoqwjg74cljvwmptsmpls7rcsx7ffe",uri:"at://did:plc:ur46cint3yxztzj42q4aqxjn/app.bsky.feed.post/3lbgzmv6j4k2s"}},cid:"bafyreifkoyniygj4b6bw4tldgcip6nvivnjswwey3e52ygtc74pmywyaue"}}
+
+outputs:
+  - name: stdout
+    data: | 
+      {t:"app.bsky.feed.repost"}
+      {t:"app.bsky.graph.follow"}
+      {t:null}
