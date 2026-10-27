@@ -20,6 +20,7 @@ import (
 	"github.com/superdb/super/compiler/parser"
 	"github.com/superdb/super/compiler/semantic"
 	"github.com/superdb/super/pkg/nano"
+	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
 	"github.com/superdb/super/sbuf"
@@ -74,21 +75,22 @@ func WriteBSUP(t testing.TB, sctx *super.Context, valuesIn []super.Value, buf *b
 }
 
 func RunQueryBSUP(t testing.TB, buf *bytes.Buffer, querySource string) []super.Value {
-	sctx := super.NewContext()
-	p, err := bsupio.NewReader(t.Context(), sctx, bytes.NewReader(buf.Bytes()), nil, nil, 1)
-	require.NoError(t, err)
-	defer p.Pull(true)
-	return RunQuery(t, sctx, p, querySource, func(_ demand.Demand) {})
+	return RunQuery(t, super.NewContext(), buf.Bytes(), querySource, func(_ demand.Demand) {})
 }
 
-func RunQuery(t testing.TB, sctx *super.Context, p vio.Puller, querySource string, useDemand func(demandIn demand.Demand)) []super.Value {
+// RunQuery runs querySource on input, which is read as standard input with
+// its format detected.
+func RunQuery(t testing.TB, sctx *super.Context, input []byte, querySource string, useDemand func(demandIn demand.Demand)) []super.Value {
 	// Compile query
-	comp := compiler.NewCompiler(nil)
+	engine := storage.NewInternalEngine()
+	engine.AddBytes("stdio:stdin", input)
+	comp := compiler.NewCompiler(engine)
 	ast, err := parser.ParseText(querySource)
 	if err != nil {
 		t.Skipf("%v", err)
 	}
-	query, err := runtime.CompileQuery(t.Context(), sctx, comp, ast, []vio.Puller{p})
+	ast.PrependFileScan([]string{"stdio:stdin"})
+	query, err := runtime.CompileQuery(t.Context(), sctx, comp, ast)
 	if err != nil {
 		t.Skipf("%v", err)
 	}
@@ -97,7 +99,7 @@ func RunQuery(t testing.TB, sctx *super.Context, p vio.Puller, querySource strin
 	// Infer demand
 	// TODO This is a hack and should be replaced by a cleaner interface in CompileQuery.
 	env := exec.NewEnvironment(nil, nil)
-	main, err := semantic.Analyze(t.Context(), ast, env, true)
+	main, err := semantic.Analyze(t.Context(), ast, env, false)
 	if err != nil {
 		t.Skipf("%v", err)
 	}

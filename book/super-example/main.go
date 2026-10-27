@@ -83,7 +83,7 @@ func run(opts opts) wasm.Promise {
 			eng.AddReader("stdio:stdin", r)
 		}
 		comp := compiler.NewCompiler(eng)
-		query, err := runtime.CompileQuery(context.Background(), super.NewContext(), comp, flowgraph, nil)
+		query, err := runtime.CompileQuery(context.Background(), super.NewContext(), comp, flowgraph)
 		if err != nil {
 			return "", err
 		}

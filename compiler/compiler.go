@@ -38,11 +38,11 @@ func NewCompilerWithEnv(env *exec.Environment) runtime.Compiler {
 	return &compiler{env}
 }
 
-func (c *compiler) NewQuery(rctx *runtime.Context, ast *parser.AST, readers []vio.Puller, parallelism int) (runtime.Query, error) {
+func (c *compiler) NewQuery(rctx *runtime.Context, ast *parser.AST, parallelism int) (runtime.Query, error) {
 	if parallelism == 0 {
 		parallelism = Parallelism
 	}
-	return CompileWithAST(rctx, ast, c.env, true, parallelism, readers)
+	return CompileWithAST(rctx, ast, c.env, true, parallelism)
 }
 
 func (l *compiler) NewDeleteQuery(rctx *runtime.Context, ast *parser.AST, head *dbid.Committish) (runtime.DeleteQuery, error) {

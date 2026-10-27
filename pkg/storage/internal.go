@@ -20,6 +20,14 @@ func (i *InternalEngine) AddOpenFunc(uri string, o OpenFunc) {
 	i.openFuncs[uri] = o
 }
 
+// AddBytes makes b the contents of uri.  Each open of uri reads b from the
+// start, and the reader supports io.ReaderAt and io.Seeker.
+func (i *InternalEngine) AddBytes(uri string, b []byte) {
+	i.openFuncs[uri] = func() (Reader, error) {
+		return NewBytesReader(b), nil
+	}
+}
+
 func (i *InternalEngine) AddReader(uri string, r io.Reader) {
 	i.openFuncs[uri] = func() (Reader, error) {
 		return &notSupportedReaderAt{io.NopCloser(r)}, nil

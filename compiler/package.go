@@ -27,10 +27,6 @@ func Optimize(ctx context.Context, main *dag.Main, env *exec.Environment, parall
 		return err
 	}
 	if parallel > 1 {
-		// For an internal reader (like a shaper on intake), we don't do
-		// any parallelization right now though this could be potentially
-		// beneficial depending on where the bottleneck is for a given shaper.
-		// See issue #2641.
 		if err := o.Parallelize(main, parallel); err != nil {
 			return err
 		}
@@ -56,12 +52,8 @@ func BuildWithBuilder(rctx *runtime.Context, main *dag.Main, env *exec.Environme
 	return outputs, debugs, b, nil
 }
 
-func CompileWithAST(rctx *runtime.Context, ast *parser.AST, env *exec.Environment, optimize bool, parallel int, readers []vio.Puller) (*exec.Query, error) {
-	if len(readers) > 0 {
-		env = new(*env)
-		env.Stdin = vio.ConcatPuller(readers...)
-	}
-	main, err := Analyze(rctx, ast, env, len(readers) > 0)
+func CompileWithAST(rctx *runtime.Context, ast *parser.AST, env *exec.Environment, optimize bool, parallel int) (*exec.Query, error) {
+	main, err := Analyze(rctx, ast, env, false)
 	if err != nil {
 		return nil, err
 	}
@@ -78,12 +70,12 @@ func CompileWithAST(rctx *runtime.Context, ast *parser.AST, env *exec.Environmen
 	return exec.NewQuery(rctx, bundleOutputs(rctx, outputs, debugs), meter), nil
 }
 
-func Compile(rctx *runtime.Context, env *exec.Environment, optimize bool, parallel int, readers []vio.Puller, inputs []srcfiles.Input) (*exec.Query, error) {
+func Compile(rctx *runtime.Context, env *exec.Environment, optimize bool, parallel int, inputs []srcfiles.Input) (*exec.Query, error) {
 	ast, err := parser.ParseFiles(inputs)
 	if err != nil {
 		return nil, err
 	}
-	return CompileWithAST(rctx, ast, env, optimize, parallel, readers)
+	return CompileWithAST(rctx, ast, env, optimize, parallel)
 }
 
 func bundleOutputs(rctx *runtime.Context, outputs map[string]vio.Puller, chans *op.DebugChans) vio.Puller {

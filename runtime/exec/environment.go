@@ -30,7 +30,6 @@ type Environment struct {
 	IgnoreOpenErrors bool
 	ReaderOpts       anyio.ReaderOpts
 	Static           bool
-	Stdin            vio.Puller
 }
 
 func NewEnvironment(engine storage.Engine, d *db.Root) *Environment {
@@ -108,9 +107,6 @@ func (e *Environment) SortKeys(ctx context.Context, src dag.Op) order.SortKeys {
 func (e *Environment) Open(ctx context.Context, sctx *super.Context, path, format string, p vio.Pushdown, progress *vio.Progress, concurrentReaders int) (vio.ConcurrentPuller, error) {
 	if path == "-" {
 		path = "stdio:stdin"
-	}
-	if path == "stdio:stdin" && e.Stdin != nil {
-		return newConcurrentPuller(path, e.Stdin), nil
 	}
 	src, err := e.sources.Lookup(path)
 	if err != nil {
