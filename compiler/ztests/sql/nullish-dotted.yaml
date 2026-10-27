@@ -1,0 +1,34 @@
+# Field accesses trailing a SQL column reference are nullish so a null or
+# missing intermediate value yields null rather than an error, both at
+# runtime and in the static type checker.
+script: |
+  for f in -dynamic -static; do
+    echo "=== $f"
+    super $f -s -c 'select a.b.c from "t.json"'
+    super $f -s -c "select a.b['c'] as c from \"t.json\""
+  done
+
+inputs:
+  - name: t.json
+    data: |
+      {"a":{"b":{"c":3}}}
+      {"a":{"b":null}}
+      {"a":null}
+
+outputs:
+  - name: stdout
+    data: |
+      === -dynamic
+      {c:3}
+      {c:null}
+      {c:null}
+      {c:3}
+      {c:null}
+      {c:null}
+      === -static
+      {c:3}
+      {c:null}
+      {c:null}
+      {c:3}
+      {c:null}
+      {c:null}

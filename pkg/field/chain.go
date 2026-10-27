@@ -24,8 +24,12 @@ func NewChainNullish(ids ...string) Chain {
 	return chain
 }
 
+// Append appends id to c.  The new element is nullish if the last element of
+// c is, so a field access on a nullish chain (e.g., c in a.b.c, where a.b is
+// a SQL column reference) is nullish too.
 func (c Chain) Append(id string, noneish bool) Chain {
-	return append(c, ChainElem{id, noneish, false})
+	nullish := len(c) > 0 && c[len(c)-1].Nullish
+	return append(c, ChainElem{id, noneish, nullish})
 }
 
 func (c Chain) AppendNullish(id string) Chain {
