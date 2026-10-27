@@ -1074,7 +1074,7 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 			}
 			return c.orNone(c.deref(loc, rest, field, noneish))
 		}
-		// A field access on a union type checks only if it checks for every
+		// A field access on a union type checks only if it type checks for every
 		// type in the union, so the query handles every case (e.g., with
 		// ok(), which turns the errors into none).  The result is the fused
 		// type of the field in the types where it checks, which is what's
