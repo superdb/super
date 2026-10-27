@@ -1,6 +1,0 @@
-FROM '__SOURCE__'
-| UNNEST [...payload.pull_request.assignees, payload.pull_request.assignee]
-| WHERE this IS NOT NULL
-| AGGREGATE count() BY assignee:=login
-| ORDER BY count DESC, assignee ASC
-| LIMIT 5;
