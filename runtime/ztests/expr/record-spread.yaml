@@ -1,5 +1,7 @@
 spq: values {...r,b:b,c:2,...s}
 
+flags: -dynamic
+
 input: |
   123
   {r:{x:2},b:3}

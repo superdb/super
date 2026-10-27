@@ -1,6 +1,8 @@
 spq: |
   by a:=a[0], b:=b.c | sort this
 
+flags: -dynamic
+
 input: |
   {a:"a",b:"b"}
   {a:[]::[null],b:{c:1}}

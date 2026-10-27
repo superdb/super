@@ -839,7 +839,11 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 			Expr: e,
 		}), inType
 	case *ast.DropOp:
-		args, _ := t.fields(o.Args, inType)
+		// Drop passes through values that aren't records, so the fields
+		// aren't type checked against the input as expressions would be
+		// (e.g., as x.y on a union with a type that isn't a record).
+		// Instead, dropPaths checks that the fields are present.
+		args, _ := t.fields(o.Args, t.checker.unknown)
 		if len(args) == 0 {
 			t.error(o, errors.New("no fields given"))
 			return append(seq, badOp), t.checker.unknown
@@ -848,10 +852,7 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 		if drops == nil {
 			panic(drops)
 		}
-		// Ignore errors in dropPaths since t.fields will get them.
-		t.checker.pushErrs()
 		typ := t.checker.dropPaths(inType, drops)
-		t.checker.popErrs()
 		return append(seq, &sem.DropOp{
 			Node: o,
 			Args: args,

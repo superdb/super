@@ -3,6 +3,8 @@ spq: |
   const PI=3.14
   is(src,<socket>) | put pi:=PI
 
+flags: -dynamic
+
 input: |
   type socket={addr:ip, port:uint16}
   type conn={info:string,src:socket,dst:socket}

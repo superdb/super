@@ -1,6 +1,6 @@
 spq: values {x:{y:1,w:1},z:1} | drop x.y | drop x.y
 
 error: |
-  no such field "y" at line 1, column 46:
+  no such field "y" at line 1, column 44:
   values {x:{y:1,w:1},z:1} | drop x.y | drop x.y
-                                               ~
+                                             ~~~

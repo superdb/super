@@ -445,20 +445,24 @@ func (c *checker) ok(typ super.Type, call *sem.CallExpr) super.Type {
 	return c.checkOk(typ, call, c.popErrs())
 }
 
+// checkOk returns the type of ok(e) where typ is the type of e and errs are
+// the type errors found in e.  ok() turns an error or missing value into none,
+// so the type errors in e aren't reported, and the value of ok(e) is either of
+// one of the types of e that isn't an error or missing, or none.
 func (c *checker) checkOk(typ super.Type, call *sem.CallExpr, errs []errloc) super.Type {
-	others, _ := stripMissing(errs)
-	if len(others) != 0 {
-		c.keepErrs(others[:1])
-		return c.unknown
-	}
-	// ok() turns a missing value into none, so its value is either one of
-	// the types that aren't missing or none.
-	typ, ok := c.withoutTypes(defuse(typ), isMissingType)
+	typ, ok := c.withoutTypes(defuse(typ), func(typ super.Type) bool {
+		return isMissingType(typ) || isErrorType(typ)
+	})
 	if !ok {
-		// The value is always missing so ok() is always none.
+		// The value is always an error or missing so ok() is always none.
 		return super.TypeNone
 	}
 	return c.orNone(typ)
+}
+
+func isErrorType(typ super.Type) bool {
+	_, ok := super.TypeUnder(defuse(typ)).(*super.TypeError)
+	return ok
 }
 
 // orNone returns fusion(typ|none), the type of a value that is either of
@@ -621,14 +625,35 @@ func (c *checker) binary(op string, loc, lloc, rloc ast.Node, lhs, rhs super.Typ
 
 func (c *checker) this(loc ast.Node, this *sem.ThisExpr, typ super.Type) super.Type {
 	for _, comp := range this.Chain {
-		typ = c.deref(loc, typ, comp.ID, comp.Noneish)
 		if comp.Nullish {
-			// A nullish deref (e.g., a SQL column reference) produces
-			// null in place of a missing field.
-			typ = c.missingAsNull(typ)
+			typ = c.derefNullish(loc, typ, comp.ID, comp.Noneish)
+		} else {
+			typ = c.deref(loc, typ, comp.ID, comp.Noneish)
 		}
 	}
 	return typ
+}
+
+// derefNullish is deref for a nullish field access (e.g., a SQL column
+// reference), which produces null for a null value and in place of a missing
+// field.
+func (c *checker) derefNullish(loc ast.Node, typ super.Type, field string, noneish bool) super.Type {
+	if isUnknown(typ) {
+		return c.unknown
+	}
+	isNull := func(typ super.Type) bool {
+		return super.TypeUnder(typ) == super.TypeNull
+	}
+	rest, ok := c.withoutTypes(defuse(typ), isNull)
+	if !ok {
+		return super.TypeNull
+	}
+	out := c.missingAsNull(c.deref(loc, rest, field, noneish))
+	if rest != defuse(typ) {
+		// The value may be null, in which case the field is null.
+		out = c.fuse([]super.Type{out, super.TypeNull})
+	}
+	return out
 }
 
 // missingAsNull returns typ with any missing type replaced by null.
@@ -759,6 +784,14 @@ func (c *checker) formRecordElems(elems []sem.RecordElem, types []super.Type) su
 	return c.t.sctx.MustLookupTypeRecord(fields)
 }
 
+// unionOf returns the single type in types or else the union of types.
+func (c *checker) unionOf(types []super.Type) super.Type {
+	if len(types) == 1 {
+		return types[0]
+	}
+	return c.union(types)
+}
+
 func (c *checker) union(types []super.Type) super.Type {
 	if slices.ContainsFunc(types, isUnknown) {
 		return c.unknown
@@ -841,7 +874,7 @@ func (c *checker) dropPath(typ super.Type, drop path) super.Type {
 	off, ok := rec.IndexOfField(drop.elems[0])
 	if !ok {
 		if !hasUnknown(typ) {
-			c.error(drop.loc, errors.New("expression not present in drop input"))
+			c.error(drop.loc, fmt.Errorf("no such field %q", drop.elems[0]))
 		}
 		return c.unknown
 	}
@@ -1021,7 +1054,7 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 		which, ok := typ.IndexOfField(field)
 		if !ok {
 			if !hasUnknown(typ) {
-				c.error(loc, newMissing(field))
+				c.error(loc, fmt.Errorf("no such field %q", field))
 			}
 			return c.unknown
 		}
@@ -1041,27 +1074,32 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 			}
 			return c.orNone(c.deref(loc, rest, field, noneish))
 		}
-		c.pushErrs()
-		var types []super.Type
-		for _, t := range typ.Types {
-			types = append(types, c.deref(loc, t, field, noneish))
-		}
+		// A field access on a union type checks only if it checks for every
+		// type in the union, so the query handles every case (e.g., with
+		// ok(), which turns the errors into none).  The result is the fused
+		// type of the field in the types where it checks, which is what's
+		// left for ok() when there are errors.
+		//
 		// XXX COOL IDEA: if we have a case on kind() then we can strip the relevant
 		// types out of the union and, e.g., precisely type check records under
 		// case type(x)="record" (...), or switch, this is like typecase but is
 		// kindcase (which is the same is case kind(e) when the cases are const string)
-		//
-		errs := c.popErrs()
-		_, missings := stripMissing(errs)
-		recs := recTypes(typ.Types)
-		if len(missings) == len(recs) && len(recs) > 0 {
-			var in string
-			if len(recs) == 1 {
-				in = sup.FormatType(recs[0])
+		var types, failed []super.Type
+		for _, t := range typ.Types {
+			c.pushErrs()
+			fieldType := c.deref(loc, t, field, noneish)
+			if len(c.popErrs()) == 0 {
+				types = append(types, fieldType)
 			} else {
-				in = sup.FormatType(c.union(recs))
+				failed = append(failed, t)
 			}
-			c.error(missings[0].loc, fmt.Errorf("no such field %s in %s", field, in))
+		}
+		if len(types) == 0 {
+			c.error(loc, fmt.Errorf("no such field %q: . applied to %s", field, sup.FormatType(inType)))
+			return c.unknown
+		}
+		if len(failed) > 0 {
+			c.error(loc, fmt.Errorf("no such field %q: . applied to %s in %s", field, sup.FormatType(c.unionOf(failed)), sup.FormatType(inType)))
 		}
 		return c.fuse(types)
 	case *super.TypeOption:
@@ -1088,36 +1126,6 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 	c.error(loc, fmt.Errorf("no such field %q: . applied to %s", field, sup.FormatType(inType)))
 	return c.unknown
 
-}
-
-func recTypes(types []super.Type) []super.Type {
-	var out []super.Type
-	for _, typ := range types {
-		if _, ok := under(defuse(typ)).(*super.TypeRecord); ok {
-			out = append(out, typ)
-		}
-	}
-	return out
-}
-
-type missing struct {
-	error
-}
-
-func newMissing(field string) error {
-	return &missing{fmt.Errorf("no such field %q", field)}
-}
-
-func stripMissing(errs errlist) (errlist, errlist) {
-	var missings, others errlist
-	for _, errloc := range errs {
-		if _, ok := errloc.err.(*missing); ok {
-			missings = append(missings, errloc)
-		} else {
-			others = append(others, errloc)
-		}
-	}
-	return others, missings
 }
 
 func (c *checker) logical(lloc, rloc ast.Node, lhs, rhs super.Type) {

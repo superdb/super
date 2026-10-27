@@ -1,5 +1,7 @@
 spq: assert a==1
 
+flags: -dynamic
+
 input: |
   {a:1}
   {a:1::(int64|null)}
