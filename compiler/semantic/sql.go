@@ -301,9 +301,9 @@ func (t *translator) selectFrom(loc ast.Loc, from ast.SQLTableExpr, seq sem.Seq,
 		// in which case we should model an empty table.
 		if inType == nil || inType == super.TypeNull {
 			// Model no or null input as an input table so that column checks fail.
-			return seq, newTableFromType(t.sctx.MustLookupTypeRecord([]super.Field{}), t.checker.unknown)
+			return seq, newTableFromType(t.sctx.MustLookupTypeRecord([]super.Field{}))
 		}
-		return seq, newTableFromType(inType, t.checker.unknown)
+		return seq, newTableFromType(inType)
 	}
 	off := len(seq)
 	hasParent := off > 0
@@ -372,7 +372,7 @@ func (t *translator) sqlFromPipe(pipe *ast.SQLPipe, seq sem.Seq) (sem.Seq, relTa
 	// join where the input to the pipe might depend on the table-expression to the left
 	// may change how we wire things up here.
 	seq, typ := t.seq(pipe.Body, super.TypeNull)
-	return seq, newTableFromType(typ, t.checker.unknown)
+	return seq, newTableFromType(typ)
 }
 
 func maybeSQLQueryBody(pipe *ast.SQLPipe) (ast.SQLQueryBody, bool) {

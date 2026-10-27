@@ -632,10 +632,9 @@ func (a *Analyzer) createAny(val Value) Value {
 	if super.IsTypeAny(val.Type()) {
 		return val
 	}
-	typ := a.sctx.MustLookupTypeFusion(super.TypeAll)
 	return &Fusion{
 		value:   val,
-		typ:     typ,
+		typ:     a.sctx.TypeAny(),
 		subtype: a.sctx.LookupTypeValue(val.Type()).Bytes(),
 	}
 }

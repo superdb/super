@@ -15,14 +15,14 @@ import (
 type checker struct {
 	t       *translator
 	checked map[super.Type]super.Type
-	unknown *super.TypeError
+	unknown super.Type
 	estack  []errlist
 }
 
 func newChecker(t *translator) *checker {
 	return &checker{
 		t:       t,
-		unknown: t.sctx.LookupTypeError(t.sctx.MustLookupTypeRecord(nil)),
+		unknown: t.sctx.TypeAny(),
 		checked: make(map[super.Type]super.Type),
 	}
 }
@@ -209,11 +209,11 @@ func (c *checker) unnest(loc ast.Node, typ super.Type) super.Type {
 }
 
 func (c *checker) unnestCheck(loc ast.Node, typ super.Type) (super.Type, bool) {
-	switch typ := super.TypeUnder(typ).(type) {
+	if isUnknown(typ) {
+		return c.unknown, true
+	}
+	switch typ := under(typ).(type) {
 	case *super.TypeError:
-		if isUnknown(typ) {
-			return c.unknown, true
-		}
 		c.error(loc, errors.New("unnested record cannot be an error"))
 		return c.unknown, false
 	case *super.TypeUnion:
@@ -469,7 +469,7 @@ func (c *checker) orNone(typ super.Type) super.Type {
 		return typ
 	}
 	typ = defuse(typ)
-	if super.TypeUnder(typ) == super.TypeNone {
+	if under(typ) == super.TypeNone {
 		return typ
 	}
 	types := super.Flatten([]super.Type{typ, super.TypeNone})
@@ -480,7 +480,7 @@ func (c *checker) orNone(typ super.Type) super.Type {
 // from it (from its members if it's a union).  It returns false if nothing
 // is left.
 func (c *checker) withoutTypes(typ super.Type, drop func(super.Type) bool) (super.Type, bool) {
-	u, ok := super.TypeUnder(typ).(*super.TypeUnion)
+	u, ok := under(typ).(*super.TypeUnion)
 	if !ok {
 		return typ, !drop(typ)
 	}
@@ -502,17 +502,17 @@ func (c *checker) withoutTypes(typ super.Type, drop func(super.Type) bool) (supe
 }
 
 func isMissingType(typ super.Type) bool {
-	return super.TypeUnder(typ) == super.TypeMissing
+	return under(typ) == super.TypeMissing
 }
 
 func isNoneType(typ super.Type) bool {
-	return super.TypeUnder(typ) == super.TypeNone
+	return under(typ) == super.TypeNone
 }
 
 // isNoneishType reports whether typ is a type whose values ?? replaces with
 // its right-hand side.
 func isNoneishType(typ super.Type) bool {
-	switch super.TypeUnder(typ) {
+	switch under(typ) {
 	case super.TypeNone, super.TypeNull:
 		return true
 	}
@@ -532,7 +532,7 @@ func (c *checker) coalesce(lhs, rhs super.Type) super.Type {
 			types = append(types, typ)
 		}
 	}
-	if u, ok := super.TypeUnder(lhs).(*super.TypeUnion); ok {
+	if u, ok := under(lhs).(*super.TypeUnion); ok {
 		for _, t := range u.Types {
 			unwrap(t)
 		}
@@ -549,8 +549,18 @@ func (c *checker) optionize(typ super.Type) super.Type {
 	return c.t.sctx.Optionize(typ)
 }
 
+// under returns the underlying type of typ with any named types and a
+// fusion type removed (except for the any type, which stays fusion(all)),
+// as the checker treats a fusion type as its supertype.
+func under(typ super.Type) super.Type {
+	return super.TypeUnder(defuse(super.TypeUnder(typ)))
+}
+
 func defuse(typ super.Type) super.Type {
 	if typ, ok := typ.(*super.TypeFusion); ok {
+		if typ.Type == super.TypeAll {
+			return typ
+		}
 		return typ.Type
 	}
 	return typ
@@ -635,15 +645,14 @@ func (c *checker) missingAsNull(typ super.Type) super.Type {
 }
 
 func (c *checker) isContainer(containerType super.Type) (super.Type, bool) {
-	switch typ := super.TypeUnder(containerType).(type) {
+	if isUnknown(containerType) {
+		return c.unknown, true
+	}
+	switch typ := under(containerType).(type) {
 	case *super.TypeArray:
 		return defuse(typ.Type), true
 	case *super.TypeSet:
 		return defuse(typ.Type), true
-	case *super.TypeError:
-		if isUnknown(typ) {
-			return c.unknown, true
-		}
 	}
 	return nil, false
 }
@@ -707,7 +716,7 @@ func (c *checker) formRecordElems(elems []sem.RecordElem, types []super.Type) su
 				return c.unknown
 			}
 			// If it's not unknown, it should have passed type checking as a record.
-			recType, ok := super.TypeUnder(typ).(*super.TypeRecord)
+			recType, ok := under(typ).(*super.TypeRecord)
 			if !ok {
 				//XXX
 				return c.unknown
@@ -751,16 +760,14 @@ func (c *checker) formRecordElems(elems []sem.RecordElem, types []super.Type) su
 }
 
 func (c *checker) union(types []super.Type) super.Type {
-	if slices.ContainsFunc(types, func(t super.Type) bool {
-		return t == c.unknown
-	}) {
+	if slices.ContainsFunc(types, isUnknown) {
 		return c.unknown
 	}
 	return c.t.sctx.MustLookupTypeUnion(types)
 }
 
 func (c *checker) array(typ super.Type) super.Type {
-	if typ == c.unknown {
+	if isUnknown(typ) {
 		return typ
 	}
 	return c.t.sctx.LookupTypeArray(typ)
@@ -830,7 +837,7 @@ func (c *checker) dropPath(typ super.Type, drop path) super.Type {
 		// drop passes through non-records
 		return typ
 	}
-	rec := super.TypeUnder(types[pick]).(*super.TypeRecord)
+	rec := under(types[pick]).(*super.TypeRecord)
 	off, ok := rec.IndexOfField(drop.elems[0])
 	if !ok {
 		if !hasUnknown(typ) {
@@ -853,13 +860,13 @@ func (c *checker) dropPath(typ super.Type, drop path) super.Type {
 }
 
 func pickRec(typ super.Type) ([]super.Type, int) {
-	switch typ := deoption(super.TypeUnder(typ)).(type) {
+	switch typ := deoption(under(typ)).(type) {
 	case *super.TypeRecord:
 		return []super.Type{typ}, 0
 	case *super.TypeUnion:
 		types := slices.Clone(typ.Types)
 		for k := range types {
-			if _, ok := super.TypeUnder(types[k]).(*super.TypeRecord); ok {
+			if _, ok := under(types[k]).(*super.TypeRecord); ok {
 				return types, k
 			}
 		}
@@ -868,7 +875,7 @@ func pickRec(typ super.Type) ([]super.Type, int) {
 }
 
 func deoption(typ super.Type) super.Type {
-	if typ, ok := super.TypeUnder(typ).(*super.TypeOption); ok {
+	if typ, ok := under(typ).(*super.TypeOption); ok {
 		return typ.Type
 	}
 	return typ
@@ -877,7 +884,7 @@ func deoption(typ super.Type) super.Type {
 func (c *checker) putPaths(inType super.Type, puts []pathType) super.Type {
 	// Fuse each path as a single-record path into the input type.
 	//fuser.fuse(typ)
-	recType, ok := super.TypeUnder(inType).(*super.TypeRecord)
+	recType, ok := under(inType).(*super.TypeRecord)
 	if !ok {
 		return c.unknown
 	}
@@ -908,7 +915,7 @@ func (c *checker) putInto(recType *super.TypeRecord, path []string, leaf super.T
 			case len(path) > 1 && hasUnknown(typ):
 				fields[index].Type = c.unknown
 			default:
-				inner, _ := super.TypeUnder(defuse(typ)).(*super.TypeRecord)
+				inner, _ := under(defuse(typ)).(*super.TypeRecord)
 				fields[index].Type = c.putInto(inner, path[1:], leaf)
 			}
 		} else {
@@ -964,7 +971,7 @@ func typeCheck(typ super.Type, check func(super.Type) bool) bool {
 	if isUnknown(typ) {
 		return true
 	}
-	if u, ok := super.TypeUnder(typ).(*super.TypeUnion); ok {
+	if u, ok := under(typ).(*super.TypeUnion); ok {
 		for _, t := range u.Types {
 			if typeCheck(t, check) {
 				return true
@@ -972,7 +979,7 @@ func typeCheck(typ super.Type, check func(super.Type) bool) bool {
 		}
 		return false
 	}
-	if o, ok := super.TypeUnder(typ).(*super.TypeOption); ok {
+	if o, ok := under(typ).(*super.TypeOption); ok {
 		return typeCheck(o.Type, check)
 	}
 	return check(typ)
@@ -1003,11 +1010,10 @@ func (c *checker) number(loc ast.Node, typ super.Type) bool {
 // so typeof(e?.f) is option(typeof(e.f))
 // but only if e is an option type, otherwise the type is error|typeof(e.f)
 func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish bool) super.Type {
-	switch typ := defuse(super.TypeUnder(inType)).(type) {
-	case *super.TypeError:
-		if isUnknown(typ) {
-			return typ
-		}
+	if isUnknown(inType) {
+		return c.unknown
+	}
+	switch typ := under(inType).(type) {
 	case *super.TypeMap:
 		t, _ := c.indexMap(loc, typ, super.TypeString)
 		return t
@@ -1087,7 +1093,7 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 func recTypes(types []super.Type) []super.Type {
 	var out []super.Type
 	for _, typ := range types {
-		if _, ok := super.TypeUnder(defuse(typ)).(*super.TypeRecord); ok {
+		if _, ok := under(defuse(typ)).(*super.TypeRecord); ok {
 			out = append(out, typ)
 		}
 	}
@@ -1120,10 +1126,11 @@ func (c *checker) logical(lloc, rloc ast.Node, lhs, rhs super.Type) {
 }
 
 func (c *checker) in(loc, lloc, rloc ast.Node, lhs, rhs super.Type) bool {
-	switch typ := super.TypeUnder(rhs).(type) {
+	if isUnknown(rhs) {
+		return true
+	}
+	switch typ := under(rhs).(type) {
 	case *super.TypeOfNull:
-	case *super.TypeError:
-		return isUnknown(typ)
 	case *super.TypeArray:
 		if !comparable(lhs, typ.Type) {
 			c.error(lloc, errors.New("left-hand side of in operator be compatible with array type"))
@@ -1195,13 +1202,13 @@ func comparable(a, b super.Type) bool {
 	if isUnknown(a) || isUnknown(b) {
 		return true
 	}
-	if a, ok := super.TypeUnder(a).(*super.TypeOption); ok {
+	if a, ok := under(a).(*super.TypeOption); ok {
 		return comparable(a.Type, b)
 	}
-	if b, ok := super.TypeUnder(b).(*super.TypeOption); ok {
+	if b, ok := under(b).(*super.TypeOption); ok {
 		return comparable(a, b.Type)
 	}
-	if u, ok := super.TypeUnder(a).(*super.TypeUnion); ok {
+	if u, ok := under(a).(*super.TypeUnion); ok {
 		for _, t := range u.Types {
 			if comparable(t, b) {
 				return true
@@ -1209,7 +1216,7 @@ func comparable(a, b super.Type) bool {
 		}
 		return false
 	}
-	if u, ok := super.TypeUnder(b).(*super.TypeUnion); ok {
+	if u, ok := under(b).(*super.TypeUnion); ok {
 		for _, t := range u.Types {
 			if comparable(a, t) {
 				return true
@@ -1217,32 +1224,32 @@ func comparable(a, b super.Type) bool {
 		}
 		return false
 	}
-	aid := super.TypeUnder(a).ID()
-	bid := super.TypeUnder(b).ID()
+	aid := under(a).ID()
+	bid := under(b).ID()
 	if aid == bid || aid == super.IDNull || bid == super.IDNull {
 		return true
 	}
 	if super.IsNumber(aid) {
 		return super.IsNumber(bid)
 	}
-	switch super.TypeUnder(a).(type) {
+	switch under(a).(type) {
 	case *super.TypeRecord:
-		_, ok := super.TypeUnder(b).(*super.TypeRecord)
+		_, ok := under(b).(*super.TypeRecord)
 		return ok
 	case *super.TypeArray:
-		if _, ok := super.TypeUnder(b).(*super.TypeArray); ok {
+		if _, ok := under(b).(*super.TypeArray); ok {
 			return ok
 		}
-		_, ok := super.TypeUnder(b).(*super.TypeSet)
+		_, ok := under(b).(*super.TypeSet)
 		return ok
 	case *super.TypeSet:
-		if _, ok := super.TypeUnder(b).(*super.TypeArray); ok {
+		if _, ok := under(b).(*super.TypeArray); ok {
 			return ok
 		}
-		_, ok := super.TypeUnder(b).(*super.TypeSet)
+		_, ok := under(b).(*super.TypeSet)
 		return ok
 	case *super.TypeMap:
-		_, ok := super.TypeUnder(b).(*super.TypeMap)
+		_, ok := under(b).(*super.TypeMap)
 		return ok
 	}
 	return false
@@ -1269,25 +1276,26 @@ func (c *checker) plus(loc ast.Node, lhs, rhs super.Type) super.Type {
 }
 
 func hasNumber(typ super.Type) bool {
-	id := super.TypeUnder(typ).ID()
+	id := under(typ).ID()
 	if super.IsNumber(id) || id == super.IDNull {
 		return true
 	}
-	if u, ok := super.TypeUnder(typ).(*super.TypeUnion); ok {
+	if u, ok := under(typ).(*super.TypeUnion); ok {
 		if slices.ContainsFunc(u.Types, hasNumber) {
 			return true
 		}
 	}
-	if o, ok := super.TypeUnder(typ).(*super.TypeOption); ok {
+	if o, ok := under(typ).(*super.TypeOption); ok {
 		return hasNumber(o.Type)
 	}
 	return false
 }
 
 func hasString(typ super.Type) bool {
-	switch typ := super.TypeUnder(typ).(type) {
-	case *super.TypeError:
-		return isUnknown(typ)
+	if isUnknown(typ) {
+		return true
+	}
+	switch typ := under(typ).(type) {
 	case *super.TypeOfString, *super.TypeOfNull:
 		return true
 	case *super.TypeUnion:
@@ -1296,64 +1304,62 @@ func hasString(typ super.Type) bool {
 	return false
 }
 
+// isUnknown reports whether typ is the checker's unknown type, which is
+// the any type, i.e., fusion(all).
 func isUnknown(typ super.Type) bool {
-	if err, ok := super.TypeUnder(typ).(*super.TypeError); ok {
-		if rec, ok := err.Type.(*super.TypeRecord); ok {
-			return len(rec.Fields) == 0
-		}
-	}
-	return false
+	fusion, ok := typ.(*super.TypeFusion)
+	return ok && fusion.Type == super.TypeAll
 }
 
 func hasUnknown(typ super.Type) bool {
-	if u, ok := super.TypeUnder(typ).(*super.TypeUnion); ok {
+	if u, ok := under(typ).(*super.TypeUnion); ok {
 		if slices.ContainsFunc(u.Types, hasUnknown) {
 			return true
 		}
 	}
-	if o, ok := super.TypeUnder(typ).(*super.TypeOption); ok {
+	if o, ok := under(typ).(*super.TypeOption); ok {
 		return hasUnknown(o.Type)
 	}
 	return isUnknown(typ)
 }
 
 func hasMissing(typ super.Type) bool {
-	if u, ok := super.TypeUnder(typ).(*super.TypeUnion); ok {
+	if u, ok := under(typ).(*super.TypeUnion); ok {
 		if slices.ContainsFunc(u.Types, hasMissing) {
 			return true
 		}
 	}
-	return super.TypeUnder(typ) == super.TypeMissing
+	return under(typ) == super.TypeMissing
 }
 
 // mayBeMissing reports whether typ is a union with missing as one of its
 // types, as for a field that's absent from some records.
 func mayBeMissing(typ super.Type) bool {
-	u, ok := super.TypeUnder(typ).(*super.TypeUnion)
+	u, ok := under(typ).(*super.TypeUnion)
 	return ok && slices.ContainsFunc(u.Types, hasMissing)
 }
 
 // hasNone reports whether typ is none or a union with none as one of its
 // types.
 func hasNone(typ super.Type) bool {
-	if u, ok := super.TypeUnder(typ).(*super.TypeUnion); ok {
+	if u, ok := under(typ).(*super.TypeUnion); ok {
 		return slices.ContainsFunc(u.Types, hasNone)
 	}
-	return super.TypeUnder(typ) == super.TypeNone
+	return under(typ) == super.TypeNone
 }
 
 func hasOption(typ super.Type) bool {
-	if u, ok := super.TypeUnder(typ).(*super.TypeUnion); ok {
+	if u, ok := under(typ).(*super.TypeUnion); ok {
 		if slices.ContainsFunc(u.Types, hasOption) {
 			return true
 		}
 	}
-	_, ok := super.TypeUnder(typ).(*super.TypeOption)
+	_, ok := under(typ).(*super.TypeOption)
 	return ok
 }
 
 func (c *checker) hasArray(typ super.Type) (super.Type, bool) {
-	switch typ := super.TypeUnder(typ).(type) {
+	switch typ := under(typ).(type) {
 	case *super.TypeUnion:
 		for _, t := range typ.Types {
 			if elemType, ok := c.hasArray(t); ok {
@@ -1376,7 +1382,7 @@ func (c *checker) indexOf(cloc, iloc ast.Node, container, index super.Type) (sup
 	if hasUnknown(container) {
 		return c.unknown, true
 	}
-	switch typ := super.TypeUnder(container).(type) {
+	switch typ := under(container).(type) {
 	case *super.TypeArray:
 		c.pushErrs()
 		c.integer(iloc, index)
@@ -1395,7 +1401,7 @@ func (c *checker) indexOf(cloc, iloc ast.Node, container, index super.Type) (sup
 		return typ.Type, true
 	case *super.TypeRecord:
 		ok := typeCheck(index, func(typ super.Type) bool {
-			id := super.TypeUnder(typ).ID()
+			id := under(typ).ID()
 			return id == super.IDString || super.IsInteger(id) || id == super.IDNull
 		})
 		if !ok {
@@ -1451,7 +1457,7 @@ func (c *checker) sliceable(loc ast.Node, typ super.Type) {
 	if hasUnknown(typ) {
 		return
 	}
-	switch super.TypeUnder(typ).(type) {
+	switch under(typ).(type) {
 	case *super.TypeArray, *super.TypeSet, *super.TypeRecord, *super.TypeOfString, *super.TypeOfBytes:
 	default:
 		c.error(loc, fmt.Errorf("sliced entity is not sliceable"))
@@ -1462,7 +1468,7 @@ func (c *checker) coerceable(from, to super.Type) bool {
 	if isUnknown(from) || isUnknown(to) {
 		return true
 	}
-	if u, ok := super.TypeUnder(from).(*super.TypeUnion); ok {
+	if u, ok := under(from).(*super.TypeUnion); ok {
 		for _, t := range u.Types {
 			if c.coerceable(t, to) {
 				return true
@@ -1470,7 +1476,7 @@ func (c *checker) coerceable(from, to super.Type) bool {
 		}
 		return false
 	}
-	if u, ok := super.TypeUnder(to).(*super.TypeUnion); ok {
+	if u, ok := under(to).(*super.TypeUnion); ok {
 		for _, t := range u.Types {
 			if c.coerceable(from, t) {
 				return true
@@ -1478,32 +1484,32 @@ func (c *checker) coerceable(from, to super.Type) bool {
 		}
 		return false
 	}
-	fromID := super.TypeUnder(from).ID()
-	toID := super.TypeUnder(to).ID()
+	fromID := under(from).ID()
+	toID := under(to).ID()
 	if fromID == toID || fromID == super.IDNull || toID == super.IDNull {
 		return true
 	}
 	if super.IsNumber(toID) {
 		return super.IsNumber(fromID)
 	}
-	switch super.TypeUnder(to).(type) {
+	switch under(to).(type) {
 	case *super.TypeRecord:
-		_, ok := super.TypeUnder(from).(*super.TypeRecord)
+		_, ok := under(from).(*super.TypeRecord)
 		return ok
 	case *super.TypeArray:
-		if _, ok := super.TypeUnder(from).(*super.TypeArray); ok {
+		if _, ok := under(from).(*super.TypeArray); ok {
 			return ok
 		}
-		_, ok := super.TypeUnder(from).(*super.TypeSet)
+		_, ok := under(from).(*super.TypeSet)
 		return ok
 	case *super.TypeSet:
-		if _, ok := super.TypeUnder(from).(*super.TypeArray); ok {
+		if _, ok := under(from).(*super.TypeArray); ok {
 			return ok
 		}
-		_, ok := super.TypeUnder(from).(*super.TypeSet)
+		_, ok := under(from).(*super.TypeSet)
 		return ok
 	case *super.TypeMap:
-		_, ok := super.TypeUnder(from).(*super.TypeMap)
+		_, ok := under(from).(*super.TypeMap)
 		return ok
 	}
 	return false
@@ -1530,9 +1536,7 @@ func (c *checker) error(loc ast.Node, err error) {
 }
 
 func (c *checker) newFuser() *fuser {
-	//XXX "complete" option will be true when we have dual support for fusion
-	// and static types
-	return &fuser{super.NewFuser(c.t.sctx, false), c.unknown}
+	return &fuser{super.NewFuser(c.t.sctx, true), c.unknown}
 }
 
 type fuser struct {

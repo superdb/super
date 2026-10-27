@@ -433,6 +433,10 @@ func (c *Context) MustLookupTypeFusion(inner Type) *TypeFusion {
 	return typ
 }
 
+func (c *Context) TypeAny() *TypeFusion {
+	return c.MustLookupTypeFusion(TypeAll)
+}
+
 func (c *Context) LookupTypeOption(inner Type) *TypeOption {
 	if _, ok := inner.(*TypeOption); ok || inner == TypeMissing || inner == TypeNone {
 		panic(inner)

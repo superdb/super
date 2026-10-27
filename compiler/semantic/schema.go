@@ -34,7 +34,7 @@ type relScope interface {
 	resolveTable(n ast.Node, table string, path []string) (sem.Expr, bool, error)
 	star(n ast.Node, table string, path field.Path) ([]*sem.ThisExpr, error)
 	this(n ast.Node, path []string) sem.Expr
-	superType(sctx *super.Context, unknown *super.TypeError) super.Type
+	superType(sctx *super.Context, unknown super.Type) super.Type
 }
 
 type (
@@ -114,7 +114,7 @@ type (
 	}
 )
 
-func newTableFromType(typ super.Type, unknown *super.TypeError) relTable {
+func newTableFromType(typ super.Type) relTable {
 	if typ == badType {
 		return badTable
 	}
@@ -161,7 +161,7 @@ func newJoinUsingScope(j *joinScope, columns []string) *joinUsingScope {
 
 func (*staticTable) relTableType() {}
 
-func (s *staticTable) superType(sctx *super.Context, unknown *super.TypeError) super.Type {
+func (s *staticTable) superType(sctx *super.Context, unknown super.Type) super.Type {
 	if s.typ == nil {
 		return unknown
 	}
@@ -181,7 +181,7 @@ func (s *selectScope) isGrouped() bool {
 
 func (*dynamicTable) relTableType() {}
 
-func (d *dynamicTable) superType(sctx *super.Context, unknown *super.TypeError) super.Type {
+func (d *dynamicTable) superType(sctx *super.Context, unknown super.Type) super.Type {
 	return unknown
 }
 
@@ -571,14 +571,14 @@ func (s *subqueryScope) String() string {
 	return fmt.Sprintf("subquery:\n  outer: %s\n  inner: %s", s.outer, s.inner)
 }
 
-func (j *joinScope) superType(sctx *super.Context, unknown *super.TypeError) super.Type {
+func (j *joinScope) superType(sctx *super.Context, unknown super.Type) super.Type {
 	return sctx.MustLookupTypeRecord([]super.Field{
 		super.NewField("left", j.left.superType(sctx, unknown)),
 		super.NewField("right", j.right.superType(sctx, unknown)),
 	})
 }
 
-func (s *selectScope) superType(sctx *super.Context, unknown *super.TypeError) super.Type {
+func (s *selectScope) superType(sctx *super.Context, unknown super.Type) super.Type {
 	fields := []super.Field{super.NewField("in", s.in.superType(sctx, unknown))}
 	if s.isGrouped() {
 		fields = append(fields, super.NewField("g", s.gType(sctx)))
@@ -600,7 +600,7 @@ func (s *selectScope) gType(sctx *super.Context) super.Type {
 	return sctx.MustLookupTypeRecord(fields)
 }
 
-func (s *subqueryScope) superType(sctx *super.Context, unknown *super.TypeError) super.Type {
+func (s *subqueryScope) superType(sctx *super.Context, unknown super.Type) super.Type {
 	// We are currently treating a subquery like the select body and
 	// not wrapping inner/outer paths etc. so for proper type checking
 	// we just use the inner type for now without any prefix.
