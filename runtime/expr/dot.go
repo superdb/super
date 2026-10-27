@@ -93,6 +93,12 @@ func (d *DotExpr) eval(vecs ...vector.Any) vector.Any {
 		}
 		out := vec.Fields[i]
 		if _, ok := out.(*vector.Missing); ok {
+			// A missing field (e.g., from a projection of a record type
+			// without the field) is the same as no field.  For nullish
+			// expressions, turn missing into null.
+			if d.nullish {
+				return vector.NewNull(vec.Len())
+			}
 			return d.noFieldErr(vec)
 		}
 		if !hasUnionMissing(out) {

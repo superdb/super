@@ -1,0 +1,17 @@
+# A SQL column reference to a field the BSUP reader projects from a record
+# type that doesn't have it is null rather than an error.
+script: |
+  super -f bsup -o t1.bsup -c "type foo={a:int64} values cast({a:1},foo), {b:2}"
+  super -f bsup -o t2.bsup -c "values {a:1}, {b:2}"
+  super -s -c "SELECT * FROM 't1.bsup'"
+  echo ===
+  super -s -c "SELECT a FROM 't2.bsup'"
+
+outputs:
+  - name: stdout
+    data: |
+      {a:1}
+      {a:null}
+      ===
+      {a:1}
+      {a:null}
