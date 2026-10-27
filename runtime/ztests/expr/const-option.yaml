@@ -1,0 +1,16 @@
+spq: |
+  const s = some(1)
+  const n = none::int64
+  const r = some({x:1})
+  const a = some([1,2])
+  const f = {x:some(1),y:none::int64}
+  values unwrap(s), unwrap(n), unwrap(s), r.x, unwrap(a)[0], unwrap(f.x), unwrap(f.y)
+
+output: |
+  1
+  error({message:"unwrap on none",on?:none::int64})
+  1
+  1
+  1
+  1
+  error({message:"unwrap on none",on?:none::int64})

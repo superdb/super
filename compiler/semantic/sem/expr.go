@@ -280,9 +280,6 @@ func NewLiteral(n ast.Node, val super.Value, defs *super.Context) Expr {
 			ID:   super.TypeID(typ),
 		}
 	}
-	if super.IsPrimitiveType(val.Type()) {
-		return &PrimitiveExpr{Node: n, Value: sup.FormatValue(val)}
-	}
 	return valueToExpr(n, val.Type(), val.Bytes(), defs)
 }
 
@@ -487,7 +484,7 @@ func copyArrayElems(elems []ArrayElem) []ArrayElem {
 }
 
 func valueToExpr(loc ast.Node, typ super.Type, bytes scode.Bytes, defs *super.Context) Expr {
-	if super.IsPrimitiveType(typ) {
+	if !super.IsOptionType(typ) && super.IsPrimitiveType(typ) {
 		if super.TypeUnder(typ) == super.TypeType {
 			t, err := defs.LookupByValue(bytes)
 			if err != nil {
@@ -517,6 +514,8 @@ func valueToExpr(loc ast.Node, typ super.Type, bytes scode.Bytes, defs *super.Co
 		return unionToExpr(loc, typ, bytes, defs)
 	case *super.TypeMap:
 		return mapToExpr(loc, typ, bytes, defs)
+	case *super.TypeOption:
+		return optionToExpr(loc, typ, bytes, defs)
 	case *super.TypeError:
 		args := []Expr{valueToExpr(loc, typ.Type, bytes, defs)}
 		return NewCall(loc, "error", args)
@@ -584,6 +583,14 @@ func mapToExpr(loc ast.Node, typ *super.TypeMap, bytes scode.Bytes, defs *super.
 		Node:    loc,
 		Entries: entries,
 	}
+}
+
+func optionToExpr(loc ast.Node, typ *super.TypeOption, bytes scode.Bytes, defs *super.Context) Expr {
+	someType, someBytes := typ.Decode(bytes)
+	if someType == nil {
+		return NewCast(loc, &PrimitiveExpr{Node: loc, Value: "none"}, typ, defs)
+	}
+	return NewCall(loc, "some", []Expr{valueToExpr(loc, someType, someBytes, defs)})
 }
 
 func NewCast(loc ast.Node, e Expr, typ super.Type, defs *super.Context) Expr {
