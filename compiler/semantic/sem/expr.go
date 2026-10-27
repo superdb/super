@@ -270,16 +270,6 @@ func NewStringError(n ast.Node, message string) Expr {
 }
 
 func NewLiteral(n ast.Node, val super.Value, defs *super.Context) Expr {
-	if val.Type() == super.TypeType {
-		typ, err := defs.LookupByValue(val.Bytes())
-		if err != nil {
-			panic(err)
-		}
-		return &TypeExpr{
-			Node: n,
-			ID:   super.TypeID(typ),
-		}
-	}
 	return valueToExpr(n, val.Type(), val.Bytes(), defs)
 }
 
@@ -484,22 +474,6 @@ func copyArrayElems(elems []ArrayElem) []ArrayElem {
 }
 
 func valueToExpr(loc ast.Node, typ super.Type, bytes scode.Bytes, defs *super.Context) Expr {
-	if !super.IsOptionType(typ) && super.IsPrimitiveType(typ) {
-		if super.TypeUnder(typ) == super.TypeType {
-			t, err := defs.LookupByValue(bytes)
-			if err != nil {
-				panic(err)
-			}
-			return &TypeExpr{
-				Node: loc,
-				ID:   super.TypeID(t),
-			}
-		}
-		return &PrimitiveExpr{
-			Node:  loc,
-			Value: sup.FormatValue(super.NewValue(typ, bytes)),
-		}
-	}
 	switch typ := typ.(type) {
 	case *super.TypeNamed:
 		_, _ = defs.LookupTypeNamed(typ.Name, typ.Type)
@@ -519,8 +493,23 @@ func valueToExpr(loc ast.Node, typ super.Type, bytes scode.Bytes, defs *super.Co
 	case *super.TypeError:
 		args := []Expr{valueToExpr(loc, typ.Type, bytes, defs)}
 		return NewCall(loc, "error", args)
+	case *super.TypeOfType:
+		t, err := defs.LookupByValue(bytes)
+		if err != nil {
+			panic(err)
+		}
+		return &TypeExpr{
+			Node: loc,
+			ID:   super.TypeID(t),
+		}
 	default:
-		panic(typ)
+		if !super.IsPrimitiveType(typ) {
+			panic(typ)
+		}
+		return &PrimitiveExpr{
+			Node:  loc,
+			Value: sup.FormatValue(super.NewValue(typ, bytes)),
+		}
 	}
 }
 

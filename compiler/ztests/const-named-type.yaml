@@ -1,0 +1,8 @@
+spq: |
+  type port = uint16
+  const p = 2::port
+  values p
+
+output: |
+  type port=uint16
+  2::port
