@@ -326,9 +326,7 @@ func (c *canonDAG) op(o dag.Op) {
 		}
 		c.scanFilter("meta-filter", o.Pushdown.MetaFilter)
 		c.scanFilter("search-filter", o.Pushdown.SearchFilter)
-		if o.Pushdown.DataFilter != nil && o.Pushdown.DataFilter.HasProjection {
-			c.scanFilter("data-filter", o.Pushdown.DataFilter)
-		}
+		c.scanFilter("data-filter", o.Pushdown.DataFilter)
 	case *dag.HTTPScan:
 		c.next()
 		if o.Method != "" && !strings.EqualFold(o.Method, "GET") {

@@ -39,8 +39,30 @@ func (p Projection) insertPath(path Path) Projection {
 	return p
 }
 
+func (p Projection) Contains(q Projection) bool {
+	if p == nil {
+		// p can be considered to contain all columns.
+		return true
+	}
+	if q == nil {
+		// q can be considered to contain all columns.
+		return false
+	}
+	pmap := map[string]Projection{}
+	for _, node := range p {
+		pmap[node.Name] = node.Proj
+	}
+	for _, qnode := range q {
+		pproj, ok := pmap[qnode.Name]
+		if !ok || !pproj.Contains(qnode.Proj) {
+			return false
+		}
+	}
+	return true
+}
+
 func (p Projection) IsEmpty() bool {
-	return len(p) == 0 && p != nil
+	return p != nil && len(p) == 0
 }
 
 func (p Projection) Paths() []Path {

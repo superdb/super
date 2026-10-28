@@ -250,12 +250,18 @@ func (o *Optimizer) optimizeSourcePaths(seq dag.Seq) (dag.Seq, error) {
 			seq = append(seq, chain...)
 		case *dag.FileScan:
 			o.nent++
-			// Here, we install the filter without a projection.
-			// The demand pass comes subsequently and will add
-			// the projection.
-			op.Pushdown.DataFilter = &dag.ScanFilter{Expr: filter}
-			op.Pushdown.MetaFilter = newMetaFilter(filter)
-			return seq, nil
+			if filter != nil {
+				// Here, we install the filter without a projection.
+				// The demand pass comes subsequently and will add
+				// the projection.
+				op.Pushdown.DataFilter = &dag.ScanFilter{Expr: filter}
+				op.Pushdown.MetaFilter = newMetaFilter(filter)
+				if !slices.ContainsFunc(op.Formats, func(s string) bool { return s != "bsup" }) {
+					// We only have BSUP and the BSUP reader applies
+					// the filter so drop the dag.FilterOp.
+					seq = append(dag.Seq{op}, chain...)
+				}
+			}
 		case *dag.CommitMetaScan:
 			o.nent++
 			if op.Tap {

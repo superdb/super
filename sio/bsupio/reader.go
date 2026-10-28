@@ -131,21 +131,26 @@ func (d *dispatcher) next() (bsup.Frame, error) {
 }
 
 type reader struct {
-	ctx  context.Context
-	sctx *super.Context
+	ctx        context.Context
+	sctx       *super.Context
+	dispatcher *dispatcher
+	progress   *vio.Progress
 
-	dispatcher   *dispatcher
-	metaFilter   *vio.ValueFilter
-	dataFilter   *vio.Filter
-	searchFilter vio.SearchEvaluator
-	pushdown     vio.Pushdown
-	progress     *vio.Progress
-	q            []vector.Any
+	searchFilter       vio.SearchEvaluator
+	metaFilter         *vio.ValueFilter
+	dataFilter         *vio.Filter
+	projection         field.Projection
+	unordered          bool
+	dfProjContainsProj bool
+
+	q []vector.Any
 }
 
 func newReader(ctx context.Context, sctx *super.Context, d *dispatcher, pushdown vio.Pushdown, progress *vio.Progress) (reader, error) {
 	var dataFilter *vio.Filter
 	var searchFilter vio.SearchEvaluator
+	var projection field.Projection
+	var unordered bool
 	if pushdown != nil {
 		var err error
 		dataFilter, err = pushdown.DataFilter()
@@ -156,15 +161,19 @@ func newReader(ctx context.Context, sctx *super.Context, d *dispatcher, pushdown
 		if err != nil {
 			return reader{}, err
 		}
+		projection = pushdown.Projection()
+		unordered = pushdown.Unordered()
 	}
 	return reader{
-		ctx:          ctx,
-		sctx:         sctx,
-		dispatcher:   d,
-		dataFilter:   dataFilter,
-		searchFilter: searchFilter,
-		pushdown:     pushdown,
-		progress:     progress,
+		ctx:                ctx,
+		sctx:               sctx,
+		dispatcher:         d,
+		progress:           progress,
+		dataFilter:         dataFilter,
+		searchFilter:       searchFilter,
+		projection:         projection,
+		unordered:          unordered,
+		dfProjContainsProj: dataFilter != nil && dataFilter.Projection.Contains(projection),
 	}, nil
 }
 
@@ -176,14 +185,7 @@ func (r *reader) Pull(done bool) (vector.Any, error) {
 	if err := r.ctx.Err(); err != nil {
 		return nil, err
 	}
-	if k := len(r.q); k > 0 {
-		// Order doesn't matter here so peel the vectors off end of q
-		// so we can reuse the underlying slice when we pass it back
-		// to LoadUnordered for the next set of vectors.
-		vec := r.q[k-1]
-		r.q = r.q[:k-1]
-		n := int64(vec.Len())
-		r.progress.Add(vio.Progress{ValuesScanned: n})
+	if vec, ok := r.nextUnorderedVec(); ok {
 		return vec, nil
 	}
 	for {
@@ -200,72 +202,75 @@ func (r *reader) Pull(done bool) (vector.Any, error) {
 			// pollutes the type context.  We should use the BSUP local context for
 			// this filtering but this will require a little compiler refactoring to be
 			// able to build runtime expressions that use different type contexts.
-			size := int64(frame.Size())
 			r.progress.Add(vio.Progress{
-				BytesScanned:     size,
+				BytesScanned:     int64(frame.Size()),
 				FramesScanned:    1,
 				MetaBytesLoaded:  int64(frame.MetaSize()),
 				TypesBytesLoaded: int64(frame.TypeSize()),
 			})
 			loader := loader.NewFrameLoader(r.sctx, frame)
-			if r.searchFilter != nil {
-				if !loader.Search(r.searchFilter) {
-					atomic.AddInt64(&r.progress.FramesSkippedSearchFilter, 1)
-					continue
-				}
+			if r.searchFilter != nil && !loader.Search(r.searchFilter) {
+				atomic.AddInt64(&r.progress.FramesSkippedSearchFilter, 1)
+				continue
 			}
-			var pick []uint32
-			if r.dataFilter != nil && len(r.dataFilter.Projection) != 0 {
-				index, ok := r.evalDataFilter(loader)
-				if !ok {
-					atomic.AddInt64(&r.progress.ValuesSkippedDataFilter, int64(loader.Len()))
-					atomic.AddInt64(&r.progress.FramesSkippedDataFilter, 1)
-					continue
-				}
-				pick = index
-				atomic.AddInt64(&r.progress.ValuesSkippedDataFilter, int64(loader.Len()-uint32(len(pick))))
-			}
-			var proj field.Projection
-			var none bool
-			if r.pushdown != nil {
-				proj = r.pushdown.Projection()
-				if proj != nil && len(proj) == 0 {
-					none = true
-				}
-			}
-			var vec vector.Any
-			if none {
-				vec = vector.NewNull(loader.Len())
-			} else {
-				if r.pushdown != nil && r.pushdown.Unordered() {
-					r.q = loader.LoadUnordered(r.q[:0], proj)
-					n := len(r.q)
-					vec = r.q[n-1]
-					r.q = r.q[:n-1]
-				} else {
-					vec = loader.Load(proj)
-					if pick != nil {
-						vec = vector.Pick(vec, pick)
+			if r.unordered {
+				r.q = r.q[:0]
+				var valuesScanned int64
+				for l := range loader.UnorderedLoaders() {
+					if vec, ok := r.loadAndFilter(l); ok {
+						r.q = append(r.q, vec)
+						valuesScanned += int64(vec.Len())
 					}
 				}
+				valuesLoaded := int64(loader.Len())
+				vec, ok := r.nextUnorderedVec()
+				if !ok {
+					atomic.AddInt64(&r.progress.FramesSkippedDataFilter, 1)
+					atomic.AddInt64(&r.progress.ValuesSkippedDataFilter, valuesLoaded)
+					continue
+				}
+				if valuesLoaded > valuesScanned {
+					atomic.AddInt64(&r.progress.ValuesSkippedDataFilter, valuesLoaded-valuesScanned)
+				}
+				atomic.AddInt64(&r.progress.ValuesScanned, valuesScanned)
+				return vec, nil
+			} else {
+				valuesLoaded := int64(loader.Len())
+				vec, ok := r.loadAndFilter(loader)
+				if !ok {
+					atomic.AddInt64(&r.progress.FramesSkippedDataFilter, 1)
+					atomic.AddInt64(&r.progress.ValuesSkippedDataFilter, valuesLoaded)
+					continue
+				}
+				valuesScanned := int64(vec.Len())
+				if valuesLoaded > valuesScanned {
+					atomic.AddInt64(&r.progress.ValuesSkippedDataFilter, valuesLoaded-valuesScanned)
+				}
+				atomic.AddInt64(&r.progress.ValuesScanned, valuesScanned)
+				return vec, nil
 			}
-			n := int64(vec.Len())
-			atomic.AddInt64(&r.progress.ValuesScanned, n)
-			return vec, nil
 		case *bsup.RowFrame:
 			vec, err := frame.Deserialize()
 			if err != nil {
 				return nil, err
 			}
-			n := int64(vec.Len())
-			size := int64(frame.Size())
-			typeSize := int64(frame.TypeSize())
 			r.progress.Add(vio.Progress{
-				BytesScanned:     size,
-				ValuesScanned:    n,
+				BytesScanned:     int64(frame.Size()),
 				FramesScanned:    1,
-				TypesBytesLoaded: typeSize,
+				TypesBytesLoaded: int64(frame.TypeSize()),
 			})
+			valuesLoaded := int64(vec.Len())
+			if r.dataFilter != nil {
+				if index, ok := r.evalDataFilter(vec); !ok {
+					atomic.AddInt64(&r.progress.FramesSkippedDataFilter, 1)
+					atomic.AddInt64(&r.progress.ValuesSkippedDataFilter, valuesLoaded)
+					continue
+				} else if n := len(index); n > 0 {
+					vec = vector.Pick(vec, index)
+					atomic.AddInt64(&r.progress.ValuesSkippedDataFilter, valuesLoaded-int64(n))
+				}
+			}
+			atomic.AddInt64(&r.progress.ValuesScanned, int64(vec.Len()))
 			return vec, nil
 		default:
 			panic(frame)
@@ -273,19 +278,63 @@ func (r *reader) Pull(done bool) (vector.Any, error) {
 	}
 }
 
-func (r *reader) evalDataFilter(loader *loader.FrameLoader) (pickIndex []uint32, ok bool) {
-	vec := loader.Load(r.dataFilter.Projection)
+func (r *reader) loadAndFilter(loader loader.Loader) (vector.Any, bool) {
+	var vec vector.Any
+	var index []uint32
+	if df := r.dataFilter; df != nil {
+		if df.Projection.IsEmpty() {
+			vec = vector.NewNull(loader.Len())
+		} else {
+			vec = loader.Load(df.Projection)
+		}
+		var ok bool
+		index, ok = r.evalDataFilter(vec)
+		if !ok {
+			return nil, false
+		}
+	}
+	if r.projection.IsEmpty() {
+		if n := len(index); n > 0 {
+			// Creating a new vector is cheaper than vector.Pick.
+			vec = vector.NewNull(uint32(n))
+		} else if vec == nil {
+			vec = vector.NewNull(loader.Len())
+		}
+	} else {
+		// If the data filter projection contains the query projection, then optimize by
+		// returning vec from the data filter projection.
+		if vec == nil || !r.dfProjContainsProj {
+			vec = loader.Load(r.projection)
+		}
+		if len(index) > 0 {
+			vec = vector.Pick(vec, index)
+		}
+	}
+	return vec, true
+}
+
+func (r *reader) evalDataFilter(vec vector.Any) (pickIndex []uint32, ok bool) {
 	result := r.dataFilter.Expr.Eval(vec)
-	// XXX should pass down a flag here to ignore errors since this can happen often in fast path
 	bits, _ := expr.BoolMask(result)
 	if bits.IsEmpty() {
 		return nil, false
 	}
-	if bits.GetCardinality() == uint64(result.Len()) {
+	if bits.GetCardinality() == uint64(vec.Len()) {
 		return nil, true
 	}
-	// Return the pick index for stuff not ruled out.
 	return bits.ToArray(), true
+}
+
+func (r *reader) nextUnorderedVec() (vector.Any, bool) {
+	// Order doesn't matter here so peel the vectors off end of q
+	// so we can reuse the underlying slice for the next set of vectors.
+	n := len(r.q)
+	if n == 0 {
+		return nil, false
+	}
+	vec := r.q[n-1]
+	r.q = r.q[:n-1]
+	return vec, true
 }
 
 type frame struct {

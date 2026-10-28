@@ -17,6 +17,9 @@ outputs:
         meta-filter project [b.max,b.min,d.max,d.min] (
           compare(1, b.min, true)>=0 and compare(1, b.max, true)<=0 and compare(2, d.min, true)>=0 and compare(2, d.max, true)<=0
         )
+        data-filter project [b,d] (
+          b==1 and d==2
+        )
       | where b==1 and d==2
       | values {a:b,c:d}
       | output main
@@ -36,11 +39,17 @@ outputs:
         meta-filter project [c.max,c.min] (
           compare(1, c.min, true)>=0 and compare(1, c.max, true)<=0
         )
+        data-filter project [c] (
+          c==1
+        )
       | where c==1
       | values {a:{b:c}}
       | output main
       ===
       file f project [b,c,d]
+        data-filter project [b,c,d] (
+          b+1>=c and b+1<=d
+        )
       | where b+1>=c and b+1<=d
       | values {a:b,c:c,d:d}
       | output main
