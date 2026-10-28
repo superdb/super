@@ -1,6 +1,8 @@
 package loader
 
 import (
+	"iter"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/pkg/field"
@@ -50,15 +52,40 @@ func (f *FrameLoader) Load(projection field.Projection) vector.Any {
 	return f.root.project(f, projection)
 }
 
-// LoadUnordered is like Load, but if the frame's root vector is dynamic,
-// LoadUnordered returns the underlying values vectors instead of a
-// vector.Dynamic.
-func (f *FrameLoader) LoadUnordered(vecs []vector.Any, projection field.Projection) []vector.Any {
-	f.root.unmarshal(f.frame.Context(), projection)
-	if d, ok := f.root.(*dynamic); ok {
-		return d.projectUnordered(vecs, f, projection)
+type Loader interface {
+	Len() uint32
+	Load(field.Projection) vector.Any
+}
+
+// UnorderedLoaders iterates over loaders for the frame's root vector, producing
+// a single loader unless the root vector is dynamic, in which case it produces
+// one loader per underlying values vector.
+func (f *FrameLoader) UnorderedLoaders() iter.Seq[Loader] {
+	return func(yield func(Loader) bool) {
+		if d, ok := f.root.(*dynamic); ok {
+			for _, shadow := range d.shadows(f.frame.Context()) {
+				if !yield(&shadowLoader{f, shadow}) {
+					return
+				}
+			}
+			return
+		}
+		yield(f)
 	}
-	return append(vecs, f.root.project(f, projection))
+}
+
+type shadowLoader struct {
+	frameLoader *FrameLoader
+	shadow      shadow
+}
+
+func (s *shadowLoader) Len() uint32 {
+	return s.shadow.length()
+}
+
+func (s *shadowLoader) Load(projection field.Projection) vector.Any {
+	s.shadow.unmarshal(s.frameLoader.frame.Context(), projection)
+	return s.shadow.project(s.frameLoader, projection)
 }
 
 // Strings loads every string buffer in the frame (string columns, dict

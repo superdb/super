@@ -1,13 +1,17 @@
 script: |
-  seq 100 | super -o t.bsup -framecap 10 -inputcap 10 -I query.spq -
-  echo "=== x > 51 ===" >&2
-  super -stats -o /dev/null -c "x >51" t.bsup
-  echo "=== tag='foo18' ===" >&2
-  super -stats -o /dev/null -c "tag='foo18'" t.bsup
-  echo "=== count() ===" >&2
-  super -stats -o /dev/null -c "count()" t.bsup
-  echo "=== values tag | this='foo18' | count() ===" >&2
-  super -stats -o /dev/null -c "values tag | this='foo18' | count()" t.bsup
+  for rows in -rows=false -rows=true; do
+    seq 100 | super -o t.bsup -framecap 10 -inputcap 10 $rows -I query.spq -
+    echo "=== x > 51 $rows" >&2
+    super -stats -f null -c "x >51" t.bsup
+    echo "=== search foo18 $rows" >&2
+    super -stats -f null -c "search foo18" t.bsup
+    echo "=== tag='foo18' $rows" >&2
+    super -stats -f null -c "tag='foo18'" t.bsup
+    echo "=== count() $rows" >&2
+    super -stats -f null -c "count()" t.bsup
+    echo "=== values tag | this='foo18' | count() $rows" >&2
+    super -stats -f null -c "values tag | this='foo18' | count()" t.bsup
+  done
 
 inputs:
   - name: query.spq
@@ -18,11 +22,23 @@ inputs:
 outputs:
   - name: stderr
     data: |
-      === x > 51 ===
-      {bytes_scanned:5065,values_scanned:49,frames_scanned:5,frames_skipped_search_filter:0,frames_skipped_meta_filter:5,frames_skipped_data_filter:0,values_skipped_data_filter:41,meta_bytes_loaded:3714,data_bytes_loaded:1076,type_bytes_loaded:0}
-      === tag='foo18' ===
+      === x > 51 -rows=false
+      {bytes_scanned:5065,values_scanned:49,frames_scanned:5,frames_skipped_search_filter:0,frames_skipped_meta_filter:5,frames_skipped_data_filter:0,values_skipped_data_filter:1,meta_bytes_loaded:3714,data_bytes_loaded:1076,type_bytes_loaded:0}
+      === search foo18 -rows=false
       {bytes_scanned:10140,values_scanned:1,frames_scanned:10,frames_skipped_search_filter:9,frames_skipped_meta_filter:0,frames_skipped_data_filter:0,values_skipped_data_filter:9,meta_bytes_loaded:7429,data_bytes_loaded:865,type_bytes_loaded:0}
-      === count() ===
+      === tag='foo18' -rows=false
+      {bytes_scanned:10140,values_scanned:1,frames_scanned:10,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:9,values_skipped_data_filter:99,meta_bytes_loaded:7429,data_bytes_loaded:865,type_bytes_loaded:0}
+      === count() -rows=false
       {bytes_scanned:10140,values_scanned:100,frames_scanned:10,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:0,values_skipped_data_filter:0,meta_bytes_loaded:7429,data_bytes_loaded:0,type_bytes_loaded:0}
-      === values tag | this='foo18' | count() ===
+      === values tag | this='foo18' | count() -rows=false
       {bytes_scanned:10140,values_scanned:100,frames_scanned:10,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:0,values_skipped_data_filter:0,meta_bytes_loaded:7429,data_bytes_loaded:721,type_bytes_loaded:0}
+      === x > 51 -rows=true
+      {bytes_scanned:1749,values_scanned:49,frames_scanned:10,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:5,values_skipped_data_filter:51,meta_bytes_loaded:0,data_bytes_loaded:0,type_bytes_loaded:130}
+      === search foo18 -rows=true
+      {bytes_scanned:1749,values_scanned:1,frames_scanned:10,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:9,values_skipped_data_filter:99,meta_bytes_loaded:0,data_bytes_loaded:0,type_bytes_loaded:130}
+      === tag='foo18' -rows=true
+      {bytes_scanned:1749,values_scanned:1,frames_scanned:10,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:9,values_skipped_data_filter:99,meta_bytes_loaded:0,data_bytes_loaded:0,type_bytes_loaded:130}
+      === count() -rows=true
+      {bytes_scanned:1749,values_scanned:100,frames_scanned:10,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:0,values_skipped_data_filter:0,meta_bytes_loaded:0,data_bytes_loaded:0,type_bytes_loaded:130}
+      === values tag | this='foo18' | count() -rows=true
+      {bytes_scanned:1749,values_scanned:100,frames_scanned:10,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:0,values_skipped_data_filter:0,meta_bytes_loaded:0,data_bytes_loaded:0,type_bytes_loaded:130}

@@ -21,7 +21,6 @@ outputs:
         data-filter project [x] (
           regexp_search(r"(?s)^cslab.*?$", x)
         )
-      | where regexp_search(r"(?s)^cslab.*?$", x)
       | output main
       // ===
       file test.bsup format bsup
@@ -31,14 +30,12 @@ outputs:
         data-filter project [x] (
           regexp_search(r"^csla[bB].*", x)
         )
-      | where regexp_search(r"^csla[bB].*", x)
       | output main
       // ===
       file test.bsup format bsup
         data-filter project [x] (
           regexp_search(r"csla[bB].*", x)
         )
-      | where regexp_search(r"csla[bB].*", x)
       | output main
       // ===
       {x:"a"}

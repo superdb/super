@@ -14,7 +14,6 @@ outputs:
         data-filter project [x] (
           x in ["foo","bar"]
         )
-      | where x in ["foo","bar"]
       | output main
       // ===
       file test.bsup format bsup
@@ -24,5 +23,4 @@ outputs:
         data-filter project [x] (
           x in {c0:"foo",c1:"bar"}
         )
-      | where x in {c0:"foo",c1:"bar"}
       | output main

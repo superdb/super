@@ -36,6 +36,17 @@ func (d *dynamic) unmarshal(bctx *bsup.Context, projection field.Projection) {
 	}
 }
 
+func (d *dynamic) shadows(bctx *bsup.Context) []shadow {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for k := range d.values {
+		if d.values[k] == nil {
+			d.values[k] = newShadow(bctx, d.meta.Values[k])
+		}
+	}
+	return d.values
+}
+
 func (d *dynamic) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vecs := make([]vector.Any, 0, len(d.values))
 	for _, shadow := range d.values {
@@ -57,11 +68,4 @@ func (d *dynamic) load(r io.ReaderAt) ([]uint32, bitvec.Bits) {
 	}
 	d.tags = tags
 	return tags, bitvec.Zero
-}
-
-func (d *dynamic) projectUnordered(vecs []vector.Any, loader *FrameLoader, projection field.Projection) []vector.Any {
-	for _, shadow := range d.values {
-		vecs = append(vecs, shadow.project(loader, projection))
-	}
-	return vecs
 }
