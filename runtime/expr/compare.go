@@ -35,8 +35,18 @@ func (c *Compare) Eval(val vector.Any) vector.Any {
 }
 
 func (c *Compare) eval(vecs ...vector.Any) vector.Any {
-	if vec, ok := CatchFirst(c.sctx, CatchBasic|CatchOption, vecs, c.op); ok {
+	if vec, ok := CatchFirst(c.sctx, CatchOption, vecs, c.op); ok {
 		return vec
+	}
+	return c.evalAllowingOption(vecs...)
+}
+
+func (c *Compare) evalAllowingOption(vecs ...vector.Any) vector.Any {
+	if vec, ok := CatchFirst(c.sctx, CatchBasic, vecs, c.op); ok {
+		return vec
+	}
+	if vecs[0].Kind() == vector.KindOption || vecs[1].Kind() == vector.KindOption {
+		return c.compareOptions(vecs[0], vecs[1])
 	}
 	lhs := vector.Under(vector.Super(vecs[0]))
 	rhs := vector.Under(vector.Super(vecs[1]))
@@ -87,6 +97,30 @@ func (c *Compare) eval(vecs ...vector.Any) vector.Any {
 		return vector.NewConstBool(false, lhs.Len())
 	}
 	return f(lhs, rhs)
+}
+
+// compareOptions compares the payloads of some values while an option none
+// equals only another option none.  An option is never equal to a non-option.
+func (c *Compare) compareOptions(lhs, rhs vector.Any) vector.Any {
+	return vector.Apply(vector.ApplyRipOptions, func(vecs ...vector.Any) vector.Any {
+		if vecs[0].Kind() != vector.KindOption || vecs[1].Kind() != vector.KindOption {
+			return vector.NewConstBool(c.opCode == vector.CompNE, vecs[0].Len())
+		}
+		lhs := vector.UnderOption(vecs[0]).Any
+		rhs := vector.UnderOption(vecs[1]).Any
+		lhsNone, rhsNone := lhs.Kind() == vector.KindNone, rhs.Kind() == vector.KindNone
+		if lhsNone || rhsNone {
+			eq := lhsNone && rhsNone
+			switch c.opCode {
+			case vector.CompEQ:
+				return vector.NewConstBool(eq, lhs.Len())
+			case vector.CompNE:
+				return vector.NewConstBool(!eq, lhs.Len())
+			}
+			return vector.NewConstBool(false, lhs.Len())
+		}
+		return vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, c.evalAllowingOption, lhs, rhs)
+	}, lhs, rhs)
 }
 
 func compareNones(a, b vector.Any) (bool, bool) {
