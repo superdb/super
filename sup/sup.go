@@ -7,6 +7,7 @@
 package sup
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -77,6 +78,9 @@ func ParseValue(sctx *super.Context, sup string) (super.Value, error) {
 	ast, err := NewParser(strings.NewReader(sup)).ParseValue()
 	if err != nil {
 		return super.Null, err
+	}
+	if ast == nil {
+		return super.Null, fmt.Errorf("invalid value: %q", sup)
 	}
 	val, err := NewAnalyzer(sctx).ConvertValue(ast)
 	if err != nil {

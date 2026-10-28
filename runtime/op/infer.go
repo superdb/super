@@ -4,7 +4,7 @@ import (
 	"github.com/superdb/super"
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/expr"
-	"github.com/superdb/super/runtime/sam/expr/function"
+	"github.com/superdb/super/runtime/expr/cast"
 	"github.com/superdb/super/scode"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
@@ -76,7 +76,6 @@ func (i *Infer) eos() {
 type converter struct {
 	rctx   *runtime.Context
 	queues map[super.Type][]super.Value
-	caster function.Caster
 	target map[super.Type]super.Type
 	limit  int
 	sb     scode.Builder
@@ -86,19 +85,27 @@ func newConverter(rctx *runtime.Context, limit int) *converter {
 	return &converter{
 		rctx:   rctx,
 		queues: make(map[super.Type][]super.Value),
-		caster: function.NewCaster(rctx.Sctx),
 		target: make(map[super.Type]super.Type),
 		limit:  limit,
 	}
 }
 
 func (c *converter) process(vec vector.Any) (vector.Any, error) {
-	b := vector.NewDynamicValueBuilder()
+	// Values whose type has a target are converted now while the others
+	// are queued until their target is inferred.
+	var index []uint32
 	for i := range vec.Len() {
 		val := vector.ValueAt(&c.sb, vec, i)
-		if val, ok := c.convert(val); ok {
-			b.Write(val)
+		if _, ok := c.target[val.Type()]; ok || c.enq(val) {
+			index = append(index, i)
 		}
+	}
+	b := vector.NewDynamicValueBuilder()
+	if len(index) > 0 {
+		if len(index) != int(vec.Len()) {
+			vec = vector.Pick(vec, index)
+		}
+		c.convert(b, vec)
 	}
 	return c.drain(b, false)
 }
@@ -112,13 +119,11 @@ func (c *converter) drain(b *vector.DynamicValueBuilder, force bool) (vector.Any
 		if force || (c.limit != 0 && len(q) >= c.limit) {
 			c.infer(q)
 			delete(c.queues, typ)
+			qb := vector.NewValueBuilder(typ)
 			for _, val := range q {
-				val, ok := c.convert(val)
-				if !ok {
-					panic(c)
-				}
-				b.Write(val)
+				qb.Write(val.Bytes())
 			}
+			c.convert(b, qb.Build(c.rctx.Sctx))
 		}
 	}
 	vec := b.Build(c.rctx.Sctx)
@@ -128,20 +133,29 @@ func (c *converter) drain(b *vector.DynamicValueBuilder, force bool) (vector.Any
 	return vec, nil
 }
 
-func (c *converter) convert(val super.Value) (super.Value, bool) {
-	if to, ok := c.target[val.Type()]; ok {
-		if to != nil {
-			if converted, ok := c.caster.Cast(val, to); ok {
-				return converted, true
-			}
-			return c.rctx.Sctx.WrapError("inference cast failed (try larger sample size)", val), true
+// convert casts the values of vec, whose types all have targets, to their
+// targets and writes the results to b.
+func (c *converter) convert(b *vector.DynamicValueBuilder, vec vector.Any) {
+	sctx := c.rctx.Sctx
+	out := vector.Apply(vector.ApplyNone, func(vecs ...vector.Any) vector.Any {
+		vec := vecs[0]
+		if to := c.target[vec.Type()]; to != nil {
+			return cast.Cast(sctx, vec, to)
 		}
-		return val, true
+		return vec
+	}, vec)
+	var ob scode.Builder
+	for i := range out.Len() {
+		val := vector.ValueAt(&ob, out, i)
+		// A cast that failed (in whole or in part) yields an error.
+		if typ := val.Type(); cast.HasError(typ) {
+			in := vector.ValueAt(&c.sb, vec, i)
+			if to := c.target[in.Type()]; to != nil && typ != to {
+				val = sctx.WrapError("inference cast failed (try larger sample size)", in)
+			}
+		}
+		b.Write(val)
 	}
-	if c.enq(val) {
-		return val, true
-	}
-	return super.Value{}, false
 }
 
 func (c *converter) enq(val super.Value) bool {

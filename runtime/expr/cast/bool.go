@@ -33,7 +33,7 @@ func numberToBool[E numeric](s []E, index []uint32) *vector.Bool {
 		n = uint32(len(index))
 	}
 	out := vector.NewFalse(n)
-	for i := range uint32(len(s)) {
+	for i := range n {
 		idx := i
 		if index != nil {
 			idx = index[i]

@@ -10,6 +10,8 @@ func To(sctx *super.Context, vec vector.Any, typ super.Type) vector.Any {
 	if named, ok := typ.(*super.TypeNamed); ok {
 		return castNamed(sctx, vec, named)
 	}
+	// orig keeps any named type for error values.
+	orig := vec
 	vec = vector.Under(vec)
 	switch vec.Kind() {
 	case vector.KindNull:
@@ -35,7 +37,7 @@ func To(sctx *super.Context, vec vector.Any, typ super.Type) vector.Any {
 		return vec
 	}
 	if super.IsUnimplemented(typ) {
-		return errCastFailed(sctx, vec, typ, "type not yet implemented")
+		return errCastFailed(sctx, orig, typ, "type not yet implemented")
 	}
 	var c caster
 	id := typ.ID()
@@ -62,15 +64,18 @@ func To(sctx *super.Context, vec vector.Any, typ super.Type) vector.Any {
 				return castToType(sctx, vec, index)
 			}
 		default:
-			return errCastFailed(sctx, vec, typ, "")
+			return errCastFailed(sctx, orig, typ, "")
 		}
 	}
-	return assemble(sctx, vec, typ, c)
+	return assemble(sctx, vec, orig, typ, c)
 }
 
 type caster func(vector.Any, []uint32) (vector.Any, []uint32, string, bool)
 
-func assemble(sctx *super.Context, vec vector.Any, typ super.Type, fn caster) vector.Any {
+// assemble applies fn to vec, whose underlying vector is vec, and returns
+// the results with errors for values that failed, which wrap the values
+// of orig.
+func assemble(sctx *super.Context, vec, orig vector.Any, typ super.Type, fn caster) vector.Any {
 	var out vector.Any
 	var errs []uint32
 	var errMsg string
@@ -79,7 +84,7 @@ func assemble(sctx *super.Context, vec vector.Any, typ super.Type, fn caster) ve
 	case *vector.Const:
 		out, errs, errMsg, ok = fn(vec.Any, nil)
 		if !ok || len(errs) > 0 {
-			return errCastFailed(sctx, vec, typ, errMsg)
+			return errCastFailed(sctx, orig, typ, errMsg)
 		}
 		return vector.NewConst(out, vec.Len())
 	case *vector.View:
@@ -99,10 +104,10 @@ func assemble(sctx *super.Context, vec vector.Any, typ super.Type, fn caster) ve
 		out, errs, errMsg, ok = fn(vec, nil)
 	}
 	if !ok {
-		return errCastFailed(sctx, vec, typ, errMsg)
+		return errCastFailed(sctx, orig, typ, errMsg)
 	}
 	if len(errs) > 0 {
-		return vector.Combine(out, errs, errCastFailed(sctx, vector.Pick(vec, errs), typ, errMsg))
+		return vector.Combine(out, errs, errCastFailed(sctx, vector.Pick(orig, errs), typ, errMsg))
 	}
 	return out
 }

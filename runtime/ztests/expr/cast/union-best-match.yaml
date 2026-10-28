@@ -1,0 +1,27 @@
+# A record cast to a union of record types (e.g., a sum type of event
+# types) becomes the member it best matches.  Missing fields become none
+# when their type is an option.
+spq: |
+  type Event = (
+    {type:string,actor:string,ref:string,commits:[{sha:string}]}
+    |{type:string,actor:string,action:string,issue:{number:int64,title:option(string)}}
+    |{type:string,actor:string,action:string,pr:{number:int64,merged:option(bool)}}
+  )
+  values cast(this, <Event>)
+
+input: |
+  {type:"PushEvent",actor:"a",ref:"main",commits:[{sha:"1"}]}
+  {type:"IssuesEvent",actor:"b",action:"opened",issue:{number:1,title:"bug"}}
+  {type:"IssuesEvent",actor:"c",action:"closed",issue:{number:"2"}}
+  {type:"PullRequestEvent",actor:"d",action:"closed",pr:{number:3,merged:true}}
+  {type:"PullRequestEvent",actor:"e",action:"opened",pr:{number:4}}
+  {type:"WatchEvent",actor:"f"}
+
+output: |
+  type Event={type:string,actor:string,action:string,issue:{number:int64,title?:string}}|{type:string,actor:string,action:string,pr:{number:int64,merged?:bool}}|{type:string,actor:string,ref:string,commits:[{sha:string}]}
+  {type:"PushEvent",actor:"a",ref:"main",commits:[{sha:"1"}]}::Event
+  {type:"IssuesEvent",actor:"b",action:"opened",issue:{number:1,title?:"bug"}}::Event
+  {type:"IssuesEvent",actor:"c",action:"closed",issue:{number:2,title?:none::string}}::Event
+  {type:"PullRequestEvent",actor:"d",action:"closed",pr:{number:3,merged?:true}}::Event
+  {type:"PullRequestEvent",actor:"e",action:"opened",pr:{number:4,merged?:none::bool}}::Event
+  error({message:"cannot cast to {type:string,actor:string,action:string,issue:{number:int64,title?:string}}|{type:string,actor:string,action:string,pr:{number:int64,merged?:bool}}|{type:string,actor:string,ref:string,commits:[{sha:string}]}",on:{type:"WatchEvent",actor:"f"}})
