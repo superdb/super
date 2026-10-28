@@ -1494,13 +1494,9 @@ EasyType
       }, nil
     }
   / ANY {
-      return &ast.TypeFusion{
-          Kind: "TypeFusion",
-          Type: &ast.TypePrimitive{
-            Kind: "TypePrimitive",
-            Name: "all",
-            Loc: loc(c),
-          },
+      return &ast.TypePrimitive{
+          Kind: "TypePrimitive",
+          Name: "any",
           Loc: loc(c),
       }, nil
     }

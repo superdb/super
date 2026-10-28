@@ -18,7 +18,7 @@ outputs:
       type FrameStats={Offset:uint64}
       {Offset:0}::FrameStats
       type Path=[string]
-      type ColumnStats={Path:Path,Min:any,Max:any}
+      type ColumnStats={Path:Path,Min:fusion(all),Max:fusion(all)}
       {Path:["a"],Min:1::any,Max:1::any}::ColumnStats
       {Path:["a","b"],Min:1::any,Max:"zz"::any}::ColumnStats
       {Path:["a","c"],Min:"bar"::any,Max:"foo"::any}::ColumnStats

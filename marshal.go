@@ -217,7 +217,7 @@ func (m *Marshaler) encodeAny(v reflect.Value) (Type, error) {
 		return val.Type(), nil
 	case Value:
 		// Encode as {Fusion:<any>,Bytes:bytes,Subtype:typ}
-		anyType := m.sctx.TypeAny()
+		anyType := m.sctx.FusionAll()
 		typeVal := m.sctx.LookupTypeValue(v.Type())
 		BuildFusion(&m.builder, v.Bytes(), typeVal.Bytes())
 		return anyType, nil
@@ -499,7 +499,7 @@ func (m *Marshaler) lookupType(t reflect.Type) (Type, error) {
 		// caused redefinition errors.  Otherwise, since we don't know the
 		// underlying concrete type of interfaces, we encode them as the null type.
 		if t.PkgPath() == "super" && t.Name() == "Type" {
-			typ = m.sctx.TypeAny()
+			typ = m.sctx.FusionAll()
 		} else {
 			typ = TypeNull
 		}

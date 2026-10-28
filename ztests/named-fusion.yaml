@@ -17,6 +17,6 @@ spq: |
   values foo
 
 output: |
-  type foo=any
+  type foo=fusion(all)
   <foo>
 

@@ -361,7 +361,9 @@ func BuildFusion(b *scode.Builder, superVal scode.Bytes, subType scode.Bytes) {
 	b.EndContainer()
 }
 
-func IsTypeAny(typ Type) bool {
+// IsFusionAll returns true if typ is fusion(all), the type of a value of
+// any type.
+func IsFusionAll(typ Type) bool {
 	fusion, ok := TypeUnder(typ).(*TypeFusion)
 	return ok && fusion.Type == TypeAll
 }

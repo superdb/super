@@ -17,6 +17,8 @@ func NewLiteralCast(sctx *super.Context, expr Evaluator, literal *Literal) (Eval
 		if err != nil {
 			return nil, err
 		}
+		// Casting to any yields fusion(all) values.
+		typ = sctx.AnyToFusion(typ)
 		if typ.ID() >= super.IDTypeComplex {
 			return nil, fmt.Errorf("cast: casting to type %s not currently supported in vector runtime", sup.FormatType(typ))
 		}

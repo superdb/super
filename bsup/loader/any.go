@@ -43,5 +43,5 @@ func (f *_any) unmarshal(bctx *bsup.Context, projection field.Projection) {
 
 func (f *_any) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vec := f.values.project(loader, projection)
-	return vector.NewFusionWithLoader(loader.sctx, loader.sctx.TypeAny(), f.subtypes.newLoader(loader), vec)
+	return vector.NewFusionWithLoader(loader.sctx, loader.sctx.FusionAll(), f.subtypes.newLoader(loader), vec)
 }

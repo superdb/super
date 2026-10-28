@@ -27,12 +27,14 @@ func (u *Upcast) Call(args []super.Value) super.Value {
 	}
 	val, ok := u.Cast(from, typ)
 	if !ok {
-		return u.sctx.WrapError("upcast: value not a subtype of "+sup.FormatType(typ), from)
+		return u.sctx.WrapError("upcast: value not a subtype of "+sup.FormatType(u.sctx.AnyToFusion(typ)), from)
 	}
 	return val
 }
 
 func (u *Upcast) Cast(from super.Value, to super.Type) (super.Value, bool) {
+	// Upcasting to any yields fusion(all) values.
+	to = u.sctx.AnyToFusion(to)
 	var b scode.Builder
 	if ok := u.upcast(&b, from.Type(), from.Bytes(), to); ok {
 		return super.NewValue(to, b.Bytes().Body()), true

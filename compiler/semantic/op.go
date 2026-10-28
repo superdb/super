@@ -651,7 +651,9 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 		}
 		return seq, typ
 	case *ast.FileScan:
-		fuser := t.checker.newFuser()
+		// The scan's type is a type of the data model (the fused type of
+		// the files) rather than a type checker type.
+		fuser := super.NewFuser(t.sctx)
 		paths := slices.Clone(o.Paths)
 		var formats []string
 		for i, p := range paths {
@@ -669,11 +671,11 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 				fuser = nil
 				break
 			}
-			fuser.fuse(typ)
+			fuser.Fuse(typ)
 		}
 		typ := super.Type(t.checker.unknown)
 		if fuser != nil {
-			typ = fuser.Type()
+			typ = fuser.FusedType()
 		}
 		return append(seq, &sem.FileScan{
 			Node:    o,

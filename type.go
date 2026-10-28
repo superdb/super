@@ -98,6 +98,12 @@ var (
 	TypeMissing   = &TypeOfMissing{}
 	TypeNone      = &TypeOfNone{}
 	TypeAll       = &TypeOfAll{}
+	// TypeAny is the top type of the type system, to which every type
+	// conforms.  It exists only in the type system: no value has type
+	// any.  A value cast to any (or stored where any is expected) has type
+	// fusion(all), the data model's type for a value of any type, which
+	// carries the value's own type (see Context.AnyToFusion).
+	TypeAny = &TypeOfAny{}
 )
 
 // Primitive types whose IDs are reserved but whose values are not yet
@@ -196,6 +202,7 @@ const (
 	IDMissing       = 38
 	IDNone          = 39
 	IDAll           = 40
+	IDAny           = 41
 	IDTypeComplex   = 48
 )
 
@@ -291,6 +298,8 @@ func LookupPrimitive(name string) Type {
 		return TypeNone
 	case "all":
 		return TypeAll
+	case "any":
+		return TypeAny
 	case "uuid":
 		return TypeUUID
 	case "timestamp_ntz(9)":
@@ -354,6 +363,8 @@ func PrimitiveName(typ Type) string {
 		return "none"
 	case *TypeOfAll:
 		return "all"
+	case *TypeOfAny:
+		return "any"
 	case *TypeOfUUID:
 		return "uuid"
 	case *TypeOfUnimplemented:
@@ -417,6 +428,8 @@ func LookupPrimitiveByID(id int) (Type, error) {
 		return TypeNone, nil
 	case IDAll:
 		return TypeAll, nil
+	case IDAny:
+		return TypeAny, nil
 	case IDUUID:
 		return TypeUUID, nil
 	}

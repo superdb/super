@@ -501,6 +501,9 @@ func (a Analyzer) convertSome(val *ast.Some) (Value, error) {
 }
 
 func (a *Analyzer) decorate(val Value, typ super.Type) (Value, error) {
+	// Decorating a value with any (e.g., 1::any) makes it a value of type
+	// fusion(all) as no value has type any.
+	typ = a.sctx.AnyToFusion(typ)
 	if val.Type() == typ {
 		return val, nil
 	}
@@ -519,7 +522,7 @@ func (a *Analyzer) decorate(val Value, typ super.Type) (Value, error) {
 	if _, ok := super.TypeUnder(typ).(*super.TypeUnion); ok {
 		return a.createUnion(val, typ)
 	}
-	if super.IsTypeAny(typ) {
+	if super.IsFusionAll(typ) {
 		return a.createAny(val), nil
 	}
 	if union, ok := val.(*Union); ok {
@@ -629,12 +632,12 @@ func (a *Analyzer) createUnion(val Value, decorator super.Type) (Value, error) {
 }
 
 func (a *Analyzer) createAny(val Value) Value {
-	if super.IsTypeAny(val.Type()) {
+	if super.IsFusionAll(val.Type()) {
 		return val
 	}
 	return &Fusion{
 		value:   val,
-		typ:     a.sctx.TypeAny(),
+		typ:     a.sctx.FusionAll(),
 		subtype: a.sctx.LookupTypeValue(val.Type()).Bytes(),
 	}
 }

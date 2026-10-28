@@ -41,7 +41,8 @@ func (c *cast) Call(args []super.Value) super.Value {
 		if err != nil {
 			panic(err)
 		}
-		val, _ := c.Cast(from, typ)
+		// Casting to any yields fusion(all) values.
+		val, _ := c.Cast(from, c.sctx.AnyToFusion(typ))
 		return val
 	}
 	return c.sctx.WrapError("cast target must be a type or type name", to)

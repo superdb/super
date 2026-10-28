@@ -1,0 +1,33 @@
+# any exists only in the type system: a value cast to any (or upcast to
+# a type containing any) has type fusion(all), which carries the value's
+# own type, while type values may contain any.
+script: |
+  super -s -fusion -c "values 1::any, cast('x', <any>), {a:1}::{a:any}, [1,'a']::[any], upcast({a:1}, <{a:any}>)"
+  echo ===
+  super -s -c "values <any>, <{a:any,b:[any]}>, typeof(<any>), typeof(1::any)"
+  echo ===
+  super -s -fusion -c "type foo={a:any} values {a:1}::foo"
+  echo ===
+  echo '<any> {t:<{a:any}>} 1::any {a:"x"::any}' | super -f bsup - | super -s -fusion -
+
+outputs:
+  - name: stdout
+    data: |
+      1::any
+      "x"::any
+      {a:1::any}
+      [1::any,"a"::any]
+      {a:1::any}
+      ===
+      <any>
+      <{a:any,b:[any]}>
+      <type>
+      <int64>
+      ===
+      type foo={a:fusion(all)}
+      {a:1::any}::foo
+      ===
+      <any>
+      {t:<{a:any}>}
+      1::any
+      {a:"x"::any}
