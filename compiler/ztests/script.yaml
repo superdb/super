@@ -1,0 +1,42 @@
+# The statements of a script run in order, each followed by its status
+# record, and the declarations at the top of a script are in scope for
+# each statement.  A script stops at the first statement that fails.
+script: |
+  super -s -c "const x = 1 values x; values x + 1 | values this * 10; select x + 2 as y" | super -s -c "drop start,end" -
+  echo ===
+  super -s -c "type port=uint16; const y = 2; values 1::port, y; values y" | super -s -c "drop start,end" -
+  echo ===
+  ! super -s -c "values 1; values nosuch(); values 3" | super -s -c "drop start,end" -
+  echo ===
+  ! super -s -c "values 1; create table t (a int)" | super -s -c "drop start,end" -
+
+outputs:
+  - name: stdout
+    data: |
+      1
+      {kind:"query",stmt:"values x",info:{values:1::uint64},error:null}
+      20
+      {kind:"query",stmt:"values x + 1 | values this * 10",info:{values:1::uint64},error:null}
+      {y:3}
+      {kind:"query",stmt:"select x + 2 as y",info:{values:1::uint64},error:null}
+      ===
+      type port=uint16
+      1::port
+      2
+      {kind:"query",stmt:"values 1::port, y",info:{values:2::uint64},error:null}
+      2
+      {kind:"query",stmt:"values y",info:{values:1::uint64},error:null}
+      ===
+      1
+      {kind:"query",stmt:"values 1",info:{values:1::uint64},error:null}
+      {kind:"query",stmt:"values nosuch()",info:null,error:"no such function at line 1, column 18:\nvalues 1; values nosuch(); values 3\n                 ~~~~~~~~"}
+      ===
+      1
+      {kind:"query",stmt:"values 1",info:{values:1::uint64},error:null}
+      {kind:"create_table",stmt:"create table t (a int)",info:null,error:"CREATE TABLE requires a database"}
+  - name: stderr
+    data: |
+      no such function at line 1, column 18:
+      values 1; values nosuch(); values 3
+                       ~~~~~~~~
+      CREATE TABLE requires a database

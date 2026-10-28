@@ -39,6 +39,8 @@ type TablePostRequest struct {
 	SortKeys  order.SortKeys `json:"sort_keys"`
 	ObjectCap uint64         `json:"object_cap"`
 	FrameCap  uint64         `json:"frame_cap"`
+	Type      string         `json:"type,omitempty"`
+	SQL       bool           `json:"sql,omitempty"`
 }
 
 type TablePutRequest struct {

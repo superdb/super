@@ -42,7 +42,9 @@ outputs:
           }
         ]::order.SortKeys,
         objectcap: 1048576::uint64,
-        framecap: 20000::uint64
+        framecap: 20000::uint64,
+        type: 0x,
+        sql: false
       }
       {
         name: "tableB",
@@ -55,7 +57,9 @@ outputs:
           }
         ]::order.SortKeys,
         objectcap: 1048576::uint64,
-        framecap: 20000::uint64
+        framecap: 20000::uint64,
+        type: 0x,
+        sql: false
       }
       ===
       {

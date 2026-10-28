@@ -1,0 +1,69 @@
+# CREATE SUPER TABLE casts loaded values to the table type, here a sum type
+# of event types computed from the data, and a value that can't be cast
+# aborts the load so nothing is committed.
+script: |
+  super db init -q test
+  super db attach -q test
+  super db create -q raw
+  super db load -q -use raw events.sup
+  super db -s -c "
+  type Event = (
+    from raw
+    | blend(this) by type
+    | collect_map(map{type:optionize(blend)})
+    | sum_type(this)
+  )
+  create super table events Event;
+  insert into events from raw;
+  from events | sort type, this
+  " | super -s -c "drop start,end,info.id,info.commit" -
+  echo ===
+  super db -s -c "
+  create super table t {a:int64,b:option(string)};
+  insert into t values {a:'1'}, {a:2,b:'x'};
+  insert into t values {a:3}, {a:'bad'}
+  " | super -s -c "drop start,end,info.id,info.commit" - || true
+  super db -s -c "from t | sort a"
+  echo ===
+  super db create -q -type '{a:int64}' s
+  ! super db load -q -use s bad.sup
+  super db -s -c "from s | count()"
+
+inputs:
+  - name: events.sup
+    data: |
+      {type:"PushEvent",ref:"main",commits:[{sha:"1"}]}
+      {type:"WatchEvent",action:"started"}
+      {type:"PushEvent",ref:"dev"}
+      {type:"IssuesEvent",action:"opened",issue:{number:1}}
+  - name: bad.sup
+    data: |
+      {a:"1"}
+      {a:"x"}
+
+outputs:
+  - name: stdout
+    data: |
+      {kind:"create_table",stmt:"create super table events Event",info:{table:"events",created:true},error:null}
+      {kind:"insert",stmt:"insert into events from raw",info:{table:"events",values:4::uint64},error:null}
+      type IssuesEvent={type:string,action:string,issue:{number:int64}}
+      type PushEvent={type:string,ref:string,commits?:[{sha:string}]}
+      type WatchEvent={type:string,action:string}
+      type Event=IssuesEvent|PushEvent|WatchEvent
+      {type:"IssuesEvent",action:"opened",issue:{number:1}}::IssuesEvent::Event
+      {type:"PushEvent",ref:"dev"}::PushEvent::Event
+      {type:"PushEvent",ref:"main",commits?:[{sha:"1"}]}::PushEvent::Event
+      {type:"WatchEvent",action:"started"}::WatchEvent::Event
+      {kind:"query",stmt:"from events | sort type, this",info:{values:4::uint64},error:null}
+      ===
+      {kind:"create_table",stmt:"create super table t {a:int64,b:option(string)}",info:{table:"t",created:true},error:null}
+      {kind:"insert",stmt:"insert into t values {a:'1'}, {a:2,b:'x'}",info:{table:"t",values:2::uint64},error:null}
+      {kind:"insert",stmt:"insert into t values {a:3}, {a:'bad'}",info:null,error:"value {a:error({message:\"cannot cast to int64\",on:\"bad\"}),b?:none::string} cannot be cast to table type {a:int64,b?:string}"}
+      {a:1,b?:none::string}
+      {a:2,b?:"x"}
+      ===
+      0
+  - name: stderr
+    data: |
+      value {a:error({message:"cannot cast to int64",on:"bad"}),b?:none::string} cannot be cast to table type {a:int64,b?:string}
+      value {a:error({message:"cannot cast to int64",on:"x"})} cannot be cast to table type {a:int64}

@@ -25,5 +25,7 @@ outputs:
         id: 0,
         sortkeys: [],
         objectcap: 1048576,
-        framecap: 20000
+        framecap: 20000,
+        type: "0x",
+        sql: false
       }

@@ -1,0 +1,31 @@
+# Table types must be their own fusion, INSERT shapes only values that pass
+# a filter, and a table type's named types must agree with their uses.
+script: |
+  super db init -q test
+  super db attach -q test
+  echo "// INSERT shapes only the values that pass a filter"
+  super db -c "create table src; insert into src values {s:'1'}, {s:'bad'}, {s:'2'}; create table t (a int not null)" > /dev/null
+  super db -c "insert into t (a) select s from src where s != 'bad'" > /dev/null
+  super db -c "insert into t (a) from src | head 1 | values {a:s}" > /dev/null
+  super db -s -c "from t | sort a"
+  echo "// a named type in a table type must agree with its use"
+  super db -c "type port=uint16; create table p1 (p port)" > /dev/null
+  super db -c "type port=string; create table p2 (p port)" > /dev/null
+  super db -c "insert into p1 values (80)" > /dev/null
+  super db -c "type port=int64 values {p:1::port} | load p1" 2>&1 > /dev/null || true
+  super db -c "insert into p1 values (81); insert into p2 values ('http')" 2>&1 > /dev/null || true
+  super db -s -c "from p1 | sort p"
+
+outputs:
+  - name: stdout
+    data: |
+      // INSERT shapes only the values that pass a filter
+      {a:1::int32}
+      {a:1::int32}
+      {a:2::int32}
+      // a named type in a table type must agree with its use
+      table "p1": type {p:port|null} conflicts with a type of the same name: bad type value encoding
+      table "p2": type {p:port|null} conflicts with a type of the same name: bad type value encoding
+      type port=uint16
+      {p:80::port}
+      {p:81::port}

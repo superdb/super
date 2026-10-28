@@ -18,6 +18,13 @@ type Config struct {
 	SortKeys  order.SortKeys `super:"sortkeys"`
 	ObjectCap uint64         `super:"objectcap"`
 	FrameCap  uint64         `super:"framecap"`
+	// Type is the encoded type value (see super.EncodeTypeValue) of the
+	// type to which the table's values must conform or empty if the table
+	// has no type.
+	Type []byte `super:"type"`
+	// SQL is true if the table was created with SQL columns, in which case
+	// a column missing from a loaded value is null if its type admits null.
+	SQL bool `super:"sql"`
 }
 
 var _ journal.Entry = (*Config)(nil)

@@ -104,6 +104,12 @@ var unpacker = unpack.New(
 	ValuesOp{},
 	WhereOp{},
 	DBMeta{},
+	// Script statements
+	CreateTableStmt{},
+	DropTableStmt{},
+	InsertStmt{},
+	QueryStmt{},
+	Script{},
 	// SuperSQL
 	SQLFromItem{},
 	SQLPipe{},

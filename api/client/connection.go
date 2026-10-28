@@ -29,6 +29,7 @@ import (
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/bsupio"
+	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector/vio"
 )
 
@@ -244,12 +245,16 @@ func (c *Connection) CommitObject(ctx context.Context, tableID uuid.UUID, branch
 	return commit.Commit, err
 }
 
-func (c *Connection) CreateTable(ctx context.Context, name string, sortKeys order.SortKeys, objectCap, frameCap uint64) (uuid.UUID, error) {
+func (c *Connection) CreateTable(ctx context.Context, name string, sortKeys order.SortKeys, objectCap, frameCap uint64, typ super.Type, sql bool) (uuid.UUID, error) {
 	message := api.TablePostRequest{
 		Name:      name,
 		SortKeys:  sortKeys,
 		ObjectCap: objectCap,
 		FrameCap:  frameCap,
+		SQL:       sql,
+	}
+	if typ != nil {
+		message.Type = sup.FormatTypeValueWithTypes(typ)
 	}
 	req := c.NewRequest(ctx, http.MethodPost, "/table", message)
 	var meta db.BranchMeta

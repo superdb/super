@@ -1,0 +1,33 @@
+# The query endpoint runs scripts of statements.
+script: |
+  source service.sh
+  super db -s -c "create table t (a int not null); insert into t values (1), (2); select sum(a) as s from t" | super -s -c "drop start,end,info.id,info.commit" -
+  echo ===
+  ! super db -s -c "insert into t values (null); values 1" | super -s -c "drop start,end,info.id,info.commit" -
+  super db -s -c "from t | sort a"
+  echo ===
+  super db create -q -type '{x:string,y:[int64]}' typed
+  ! echo '{x:"a",y:[1]} {x:"b",y:["c"]}' | super db load -q -use typed -
+  echo '{x:"a",y:[1]}' | super db load -q -use typed -
+  super db -s -c "from typed"
+
+inputs:
+  - name: service.sh
+
+outputs:
+  - name: stdout
+    data: |
+      {kind:"create_table",stmt:"create table t (a int not null)",info:{table:"t",created:true},error:null}
+      {kind:"insert",stmt:"insert into t values (1), (2)",info:{table:"t",values:2::uint64},error:null}
+      {s:3}
+      {kind:"query",stmt:"select sum(a) as s from t",info:{values:1::uint64},error:null}
+      ===
+      {kind:"insert",stmt:"insert into t values (null)",info:null,error:"INSERT of null into NOT NULL column \"a\""}
+      {a:1::int32}
+      {a:2::int32}
+      ===
+      {x:"a",y:[1]}
+  - name: stderr
+    data: |
+      INSERT of null into NOT NULL column "a"
+      status code 400: value {x:"b",y:[error({message:"cannot cast to int64",on:"c"})]} cannot be cast to table type {x:string,y:[int64]}

@@ -1,0 +1,18 @@
+# As in SQL, a parenthesized query that is the entire body of an INSERT is
+# the query itself rather than a subquery expression.
+script: |
+  super db init -q test
+  super db attach -q test
+  super db -c "create table baz (x int64, y int64); insert into baz (values 1,2|{x:this,y:this*2}); insert into baz (select 5, 6)" > /dev/null
+  super db -s -c "select * from baz order by x"
+  ! super db -c "insert into baz values (values 1,2)" > /dev/null
+
+outputs:
+  - name: stdout
+    data: |
+      {x:1,y:2}
+      {x:2,y:4}
+      {x:5,y:6}
+  - name: stderr
+    data: |
+      value error("query expression produced multiple values (consider [subquery])") cannot be cast to table type {x:int64|null,y:int64|null}

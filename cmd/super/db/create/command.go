@@ -5,17 +5,19 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/cli/tableflags"
 	"github.com/superdb/super/cmd/super/db"
 	"github.com/superdb/super/db/data"
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/charm"
+	"github.com/superdb/super/sup"
 )
 
 var spec = &charm.Spec{
 	Name:  "create",
-	Usage: "create [-orderby key[:asc|:desc]] name",
+	Usage: "create [-orderby key[:asc|:desc]] [-type type] name",
 	Short: "create a new data table",
 	Long: `
 See https://superdb.org/command/db.html#super-db-create
@@ -26,6 +28,7 @@ See https://superdb.org/command/db.html#super-db-create
 type Command struct {
 	*db.Command
 	sortKey   string
+	typ       string
 	frameCap  uint64
 	objectCap uint64
 	use       bool
@@ -41,6 +44,7 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	f.Uint64Var(&c.objectCap, "objectcap", data.DefaultObjectCap, "target number of values in table data objects")
 	f.BoolVar(&c.use, "use", false, "configure new table as the current table")
 	f.StringVar(&c.sortKey, "orderby", "", "sort key with optional :asc or :desc suffix to organize data in a table (cannot be changed)")
+	f.StringVar(&c.typ, "type", "", "SUP type to which all values loaded into the table are cast (cannot be changed)")
 	return c, nil
 }
 
@@ -61,8 +65,14 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
+	var typ super.Type
+	if c.typ != "" {
+		if typ, err = sup.ParseType(super.NewContext(), c.typ); err != nil {
+			return err
+		}
+	}
 	tableName := args[0]
-	id, err := db.CreateTable(ctx, tableName, sortKey, c.objectCap, c.frameCap)
+	id, err := db.CreateTable(ctx, tableName, sortKey, c.objectCap, c.frameCap, typ, false)
 	if err != nil {
 		return err
 	}

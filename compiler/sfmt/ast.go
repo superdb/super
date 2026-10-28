@@ -16,11 +16,14 @@ func AST(seq ast.Seq) string {
 		return ""
 	}
 	c := &canon{shared: shared{formatter{tab: 2}}, head: true, first: true}
-	if scope, ok := seq[0].(*ast.ScopeOp); ok {
-		c.scope(scope, false)
-	} else {
-		c.seq(seq)
+	if len(seq) == 1 {
+		if script, ok := seq[0].(*ast.Script); ok {
+			c.script(script)
+			c.flush()
+			return c.String()
+		}
 	}
+	c.query(seq)
 	c.flush()
 	return c.String()
 }
@@ -958,6 +961,89 @@ func (c *canon) scope(s *ast.ScopeOp, parens bool) {
 		c.ret()
 		c.flush()
 		c.write(")")
+	}
+}
+
+func (c *canon) query(seq ast.Seq) {
+	if len(seq) > 0 {
+		if scope, ok := seq[0].(*ast.ScopeOp); ok {
+			c.scope(scope, false)
+			return
+		}
+	}
+	c.seq(seq)
+}
+
+func (c *canon) script(s *ast.Script) {
+	for _, d := range s.Decls {
+		c.decl(d)
+		c.ret()
+	}
+	for k, stmt := range s.Stmts {
+		if k > 0 {
+			c.write(";")
+			c.ret()
+			c.flush()
+		}
+		c.head, c.first = true, true
+		c.stmt(stmt)
+	}
+}
+
+func (c *canon) stmt(stmt ast.Stmt) {
+	switch stmt := stmt.(type) {
+	case *ast.QueryStmt:
+		c.query(stmt.Body)
+	case *ast.CreateTableStmt:
+		if stmt.Type != nil {
+			c.write("create super table ")
+		} else {
+			c.write("create table ")
+		}
+		if stmt.IfNotExists {
+			c.write("if not exists ")
+		}
+		c.write(sup.QuotedString(stmt.Name.Text))
+		if len(stmt.Columns) > 0 {
+			c.write(" (")
+			for k, col := range stmt.Columns {
+				if k > 0 {
+					c.write(", ")
+				}
+				c.write("%s ", sup.QuotedName(col.Name.Name))
+				c.typ(col.Type)
+				if col.NotNull {
+					c.write(" not null")
+				}
+			}
+			c.write(")")
+		} else if stmt.Type != nil {
+			c.write(" ")
+			c.typ(stmt.Type)
+		}
+		if stmt.OrderBy != nil {
+			c.write(" order by")
+			c.sortExprs(stmt.OrderBy.Exprs)
+		}
+	case *ast.DropTableStmt:
+		c.write("drop table ")
+		if stmt.IfExists {
+			c.write("if exists ")
+		}
+		c.write(sup.QuotedString(stmt.Name.Text))
+	case *ast.InsertStmt:
+		c.write("insert into %s", sup.QuotedString(stmt.Table.Text))
+		if len(stmt.Columns) > 0 {
+			c.write(" (")
+			c.ids(stmt.Columns)
+			c.write(")")
+		}
+		c.ret()
+		c.flush()
+		c.head, c.first = true, true
+		c.query(stmt.Body)
+	default:
+		c.write("unknown statement: %T", stmt)
 	}
 }
 

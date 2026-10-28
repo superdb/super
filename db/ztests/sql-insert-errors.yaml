@@ -1,0 +1,66 @@
+# INSERT INTO and db load fail without committing anything when a value
+# can't be cast to the table type.
+script: |
+  super db init -q test
+  super db attach -q test
+  super db -c "create table t (a int not null, b varchar)" > /dev/null
+  for stmt in \
+    "insert into t (b) values ('x')" \
+    "insert into t values ('x', 'y')" \
+    "insert into t values (1, 'x', 2)" \
+    "insert into t (c) values (1)" \
+    "insert into t (a, a) values (1, 2)" \
+    "insert into t values {a:1::int32}" \
+    "insert into t values {a:2::int32,c:1}" \
+    "insert into t values 1" \
+    "insert into t values (1, 'ok'), (null, 'bad')" \
+    "insert into nosuch values (1)"; do
+    echo "// $stmt"
+    super db -c "$stmt" 2>&1 > /dev/null || true
+  done
+  echo "// only {a:1} was inserted, with b null"
+  super db -s -c "from t"
+  echo "// db load is checked too"
+  echo '{a:1::int32,b:"x"} {a:2::int32,b:null}' | super db load -q -use t -
+  echo '{a:3::int32}' | super db load -q -use t - 2>&1 || true
+  echo '{a:4::int32} {a:5::int32,c:1}' | super db load -q -use t - 2>&1 || true
+  super db -s -c "from t | sort a, b"
+  echo "// db create -type"
+  super db create -q -type '{x:string}' typed
+  echo '{x:"ok"} {x:1} {x:2,y:3}' | super db load -q -use typed - 2>&1 || true
+  echo '{x:"ok"}' | super db load -q -use typed -
+  super db -s -c "from typed"
+
+outputs:
+  - name: stdout
+    data: |
+      // insert into t (b) values ('x')
+      INSERT has no value for NOT NULL column "a"
+      // insert into t values ('x', 'y')
+      INSERT column "a": error({message:"cannot cast to int32",on:"x"})
+      // insert into t values (1, 'x', 2)
+      INSERT has more expressions (3) than target columns (2)
+      // insert into t (c) values (1)
+      INSERT column "c" is not in table type {a:int32,b:string|null}
+      // insert into t (a, a) values (1, 2)
+      INSERT column "a" specified more than once
+      // insert into t values {a:1::int32}
+      // insert into t values {a:2::int32,c:1}
+      value {a:2::int32,c:1} cannot be cast to table type {a:int32,b:string|null}: no field c in type
+      // insert into t values 1
+      value 1 cannot be cast to table type {a:int32,b:string|null}
+      // insert into t values (1, 'ok'), (null, 'bad')
+      INSERT of null into NOT NULL column "a"
+      // insert into nosuch values (1)
+      nosuch: table not found
+      // only {a:1} was inserted, with b null
+      {a:1::int32,b:null}
+      // db load is checked too
+      value {a:5::int32,c:1} cannot be cast to table type {a:int32,b:string|null}: no field c in type
+      {a:1::int32,b:"x"}
+      {a:1::int32,b:null}
+      {a:2::int32,b:null}
+      {a:3::int32,b:null}
+      // db create -type
+      value {x:2,y:3} cannot be cast to table type {x:string}: no field y in type
+      {x:"ok"}

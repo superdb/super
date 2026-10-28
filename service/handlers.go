@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/anyio"
 	"github.com/superdb/super/sio/csvio"
+	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 	"go.uber.org/zap"
@@ -246,7 +248,25 @@ func handleTablePost(c *Core, w *ResponseWriter, r *Request) {
 	if !r.Unmarshal(w, &req) {
 		return
 	}
-	table, err := c.root.CreateTable(r.Context(), req.Name, req.SortKeys, req.ObjectCap, req.FrameCap)
+	var typ super.Type
+	if req.Type != "" {
+		sctx := super.NewContext()
+		val, err := sup.ParseValue(sctx, req.Type)
+		if err != nil {
+			w.Error(srverr.ErrInvalid(err))
+			return
+		}
+		if val.Type() != super.TypeType {
+			w.Error(srverr.ErrInvalid(fmt.Errorf("bad type: %s", sup.FormatValue(val))))
+			return
+		}
+		typ, err = sctx.LookupByValue(val.Bytes())
+		if err != nil {
+			w.Error(srverr.ErrInvalid(err))
+			return
+		}
+	}
+	table, err := c.root.CreateTable(r.Context(), req.Name, req.SortKeys, req.ObjectCap, req.FrameCap, typ, req.SQL)
 	if err != nil {
 		w.Error(err)
 		return
@@ -470,6 +490,9 @@ func handleBranchLoad(c *Core, w *ResponseWriter, r *Request) {
 		}
 		if errors.Is(err, db.ErrInvalidCommitMeta) {
 			err = srverr.ErrInvalid("invalid commit metadata in request")
+		}
+		if errors.Is(err, db.ErrCastFailed) {
+			err = srverr.ErrInvalid(err)
 		}
 		w.Error(err)
 		return

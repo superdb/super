@@ -116,3 +116,43 @@ func makeUnicodeChar(chars any) string {
 
 	return string(r)
 }
+
+// newScript returns the top-level Seq of a program comprising the
+// declarations decls and the statements first and rest.  A program with
+// a single query statement is just that query (as a ScopeOp if there are
+// declarations) while any other program is a Script.
+func newScript(decls, first, rest any) []any {
+	stmts := append([]ast.Stmt{first.(ast.Stmt)}, sliceOf[ast.Stmt](rest)...)
+	declList := sliceOf[ast.Decl](decls)
+	if len(stmts) == 1 {
+		if q, ok := stmts[0].(*ast.QueryStmt); ok {
+			if len(declList) == 0 {
+				return toAnySlice(q.Body)
+			}
+			return []any{&ast.ScopeOp{
+				Kind:  "ScopeOp",
+				Decls: declList,
+				Body:  q.Body,
+				Loc:   ast.NewLoc(declList[0].Pos(), q.Body.End()),
+			}}
+		}
+	}
+	pos := stmts[0].Pos()
+	if len(declList) > 0 {
+		pos = declList[0].Pos()
+	}
+	return []any{&ast.Script{
+		Kind:  "Script",
+		Decls: declList,
+		Stmts: stmts,
+		Loc:   ast.NewLoc(pos, stmts[len(stmts)-1].End()),
+	}}
+}
+
+func toAnySlice(seq ast.Seq) []any {
+	out := make([]any, len(seq))
+	for i, op := range seq {
+		out[i] = op
+	}
+	return out
+}

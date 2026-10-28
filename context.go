@@ -707,6 +707,9 @@ func (c *Context) DecodeTypeValue(tv []byte) (Type, []byte) {
 		for range n {
 			var typ Type
 			typ, tv = c.DecodeTypeValue(tv)
+			if typ == nil {
+				return nil, nil
+			}
 			types = append(types, typ)
 		}
 		typ, ok := c.LookupTypeUnion(types)
