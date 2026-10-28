@@ -1544,7 +1544,7 @@ func (c *checker) error(loc ast.Node, err error) {
 }
 
 func (c *checker) newFuser() *fuser {
-	return &fuser{super.NewFuser(c.t.sctx, true), c.unknown}
+	return &fuser{super.NewFuser(c.t.sctx), c.unknown}
 }
 
 type fuser struct {
@@ -1557,7 +1557,7 @@ func (f *fuser) fuse(typ super.Type) {
 }
 
 func (f *fuser) Type() super.Type {
-	typ := f.fuser.Type()
+	typ := f.fuser.FusedType() //XXX might want to use SuperType here
 	if typ == nil {
 		return f.unknown
 	}

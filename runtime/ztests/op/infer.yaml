@@ -82,13 +82,13 @@ input: |
   {y:"foo"}
 
 output: |
-  {x:1::(int64|missing),y:missing::(string|missing),ts:missing::(timestamp|missing),a:missing::(missing|[bool]),b:missing::(missing|[int64])}
-  {x:missing::(int64|missing),y:"2"::(string|missing),ts:missing::(timestamp|missing),a:missing::(missing|[bool]),b:missing::(missing|[int64])}
-  {x:missing::(int64|missing),y:missing::(string|missing),ts:missing::(timestamp|missing),a:missing::(missing|[bool]),b:[1,2]::(missing|[int64])}
-  {x:missing::(int64|missing),y:missing::(string|missing),ts:missing::(timestamp|missing),a:[true,false]::(missing|[bool]),b:missing::(missing|[int64])}
-  {x:missing::(int64|missing),y:missing::(string|missing),ts:2025-06-02T00:00:00Z::(timestamp|missing),a:missing::(missing|[bool]),b:missing::(missing|[int64])}
-  {x:missing::(int64|missing),y:missing::(string|missing),ts:2025-06-01T00:00:00Z::(timestamp|missing),a:missing::(missing|[bool]),b:missing::(missing|[int64])}
-  {x:missing::(int64|missing),y:"foo"::(string|missing),ts:missing::(timestamp|missing),a:missing::(missing|[bool]),b:missing::(missing|[int64])}
+  {a:missing::(missing|[bool]),b:missing::(missing|[int64]),ts:missing::(timestamp|missing),x:1::(int64|missing),y:missing::(string|missing)}
+  {a:missing::(missing|[bool]),b:missing::(missing|[int64]),ts:missing::(timestamp|missing),x:missing::(int64|missing),y:"2"::(string|missing)}
+  {a:missing::(missing|[bool]),b:missing::(missing|[int64]),ts:missing::(timestamp|missing),x:missing::(int64|missing),y:"foo"::(string|missing)}
+  {a:missing::(missing|[bool]),b:missing::(missing|[int64]),ts:2025-06-02T00:00:00Z::(timestamp|missing),x:missing::(int64|missing),y:missing::(string|missing)}
+  {a:missing::(missing|[bool]),b:missing::(missing|[int64]),ts:2025-06-01T00:00:00Z::(timestamp|missing),x:missing::(int64|missing),y:missing::(string|missing)}
+  {a:missing::(missing|[bool]),b:[1,2]::(missing|[int64]),ts:missing::(timestamp|missing),x:missing::(int64|missing),y:missing::(string|missing)}
+  {a:[true,false]::(missing|[bool]),b:missing::(missing|[int64]),ts:missing::(timestamp|missing),x:missing::(int64|missing),y:missing::(string|missing)}
 
 ---
 

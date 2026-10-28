@@ -53,7 +53,7 @@ func (f *fuse) Result(sctx *super.Context) vector.Any {
 	if len(f.types)+len(f.partials) == 0 {
 		return vector.NewNull(1)
 	}
-	fuser := super.NewFuser(sctx, f.complete)
+	fuser := super.NewFuser(sctx)
 	for _, p := range f.partials {
 		typ, err := sctx.LookupByValue(p.Bytes())
 		if err != nil {
@@ -64,7 +64,13 @@ func (f *fuse) Result(sctx *super.Context) vector.Any {
 	for _, typ := range f.types {
 		fuser.Fuse(typ)
 	}
-	return vector.NewTypeValue([]super.Type{fuser.Type()})
+	var typ super.Type
+	if f.complete {
+		typ = fuser.FusedType()
+	} else {
+		typ = fuser.SuperType()
+	}
+	return vector.NewTypeValue([]super.Type{typ})
 }
 
 func (f *fuse) ConsumeAsPartial(partial vector.Any) {

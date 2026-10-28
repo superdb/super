@@ -8,11 +8,11 @@ import (
 )
 
 func TestFuserSamePrimitiveTypeTwice(t *testing.T) {
-	s := super.NewFuser(super.NewContext(), false)
+	s := super.NewFuser(super.NewContext())
 	typ := super.TypeInt64
 	s.Fuse(typ)
 	s.Fuse(typ)
-	if sType := s.Type(); sType != typ {
+	if sType := s.SuperType(); sType != typ {
 		t.Fatalf("expected %s, got %s", sup.FormatType(typ), sup.FormatType(sType))
 	}
 }

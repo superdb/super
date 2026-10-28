@@ -9,6 +9,8 @@ import (
 	"github.com/superdb/super/vector/vio"
 )
 
+// complete should be called invertible?
+
 type Fuse struct {
 	sctx     *super.Context
 	parent   vio.Puller
@@ -37,7 +39,7 @@ func (f *Fuse) Pull(done bool) (vector.Any, error) {
 		return f.parent.Pull(done)
 	}
 	if f.fuser == nil {
-		f.fuser = super.NewFuser(f.sctx, f.complete)
+		f.fuser = super.NewFuser(f.sctx)
 		for {
 			vec, err := f.parent.Pull(false)
 			if err != nil {
@@ -70,7 +72,12 @@ func (f *Fuse) fuse(vecs ...vector.Any) vector.Any {
 }
 
 func (f *Fuse) upcast(vecs ...vector.Any) vector.Any {
-	typ := f.fuser.Type()
+	var typ super.Type
+	if f.complete {
+		typ = f.fuser.FusedType()
+	} else {
+		typ = f.fuser.SuperType()
+	}
 	out, ok := f.upcaster.Cast(vecs[0], typ)
 	if !ok {
 		return vector.NewWrappedError(f.sctx, "cannot upcast to "+sup.FormatType(typ), vecs[0])

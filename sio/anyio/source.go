@@ -116,11 +116,11 @@ func (s *Source) Type(ctx context.Context, sctx *super.Context, opts ReaderOpts,
 	if !static {
 		return nil, nil
 	}
-	fuser := super.NewFuser(sctx, true)
+	fuser := super.NewFuser(sctx)
 	for {
 		vec, err := f.Pull(false)
 		if vec == nil || err != nil {
-			return fuser.Type(), err
+			return fuser.FusedType(), err
 		}
 		vector.Apply(vector.ApplyNone, func(vecs ...vector.Any) vector.Any {
 			fuser.Fuse(vecs[0].Type())

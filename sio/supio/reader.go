@@ -44,11 +44,11 @@ func (r *Reader) Read() (*super.Value, error) {
 
 func (r *Reader) Type() (super.Type, error) {
 	r.parser = sup.NewParser(r.reader)
-	fuser := super.NewFuser(r.sctx, true)
+	fuser := super.NewFuser(r.sctx)
 	for {
 		ast, err := r.parser.ParseValue()
 		if ast == nil || err != nil {
-			return fuser.Type(), err
+			return fuser.FusedType(), err
 		}
 		val, err := r.analyzer.ConvertValue(ast)
 		if err != nil {

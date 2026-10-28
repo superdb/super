@@ -9,9 +9,9 @@ input: |
   {r:{y:4::int32,z:5::int32},s:"world",r2:{x:6::int32},key:"c"}
 
 output: |
-  {key:"a",supertype:<fusion({a:fusion(string|missing),r:{x:fusion(int32|missing),y:int32,z:fusion(int32|missing)},key:string,s:fusion(string|missing),r2:fusion(missing|{x:int32})})>}
-  {key:"b",supertype:<fusion({a:fusion(string|missing),r:{x:fusion(int32|missing),y:int32,z:fusion(int32|missing)},key:string,s:fusion(string|missing),r2:fusion(missing|{x:int32})})>}
-  {key:"c",supertype:<fusion({a:fusion(string|missing),r:{x:fusion(int32|missing),y:int32,z:fusion(int32|missing)},key:string,s:fusion(string|missing),r2:fusion(missing|{x:int32})})>}
+  {key:"a",supertype:<{a:fusion(string|missing),r:{x:fusion(int32|missing),y:int32,z:fusion(int32|missing)},s:fusion(string|missing),r2:fusion(missing|{x:int32}),key:string}>}
+  {key:"b",supertype:<{a:fusion(string|missing),r:{x:fusion(int32|missing),y:int32,z:fusion(int32|missing)},s:fusion(string|missing),r2:fusion(missing|{x:int32}),key:string}>}
+  {key:"c",supertype:<{a:fusion(string|missing),r:{x:fusion(int32|missing),y:int32,z:fusion(int32|missing)},s:fusion(string|missing),r2:fusion(missing|{x:int32}),key:string}>}
 
 ---
 
