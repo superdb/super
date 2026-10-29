@@ -104,7 +104,7 @@ func New(typ super.Type) Builder {
 	case *super.TypeNamed:
 		return newNamedBuilder(typ)
 	case *super.TypeFusion:
-		if super.IsTypeAny(typ) {
+		if super.IsFusionAll(typ) {
 			return newAnyBuilder(typ)
 		}
 		return newFusionBuilder(typ)

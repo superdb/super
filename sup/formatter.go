@@ -213,7 +213,7 @@ func (f *formatter) formatValue(indent int, typ super.Type, bytes scode.Bytes, p
 		f.build(")")
 	case *super.TypeFusion:
 		it := bytes.Iter()
-		if super.IsTypeAny(t) {
+		if super.IsFusionAll(t) {
 			bytes := it.Next()
 			typ, err := f.sctx().LookupByValue(it.Next())
 			if err != nil {
@@ -656,13 +656,9 @@ func (f *formatterT) formatType(indent int, typ super.Type, parens bool) {
 		f.formatType(indent, typ.Type, false)
 		f.build(")")
 	case *super.TypeFusion:
-		if super.IsTypeAny(typ) {
-			f.build("any")
-		} else {
-			f.build("fusion(")
-			f.formatType(indent, typ.Type, false)
-			f.build(")")
-		}
+		f.build("fusion(")
+		f.formatType(indent, typ.Type, false)
+		f.build(")")
 	case *super.TypeOption:
 		f.build("option(")
 		f.formatType(indent, typ.Type, false)

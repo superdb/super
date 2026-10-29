@@ -88,12 +88,6 @@ func (p *Parser) matchTypeName() (ast.Type, error) {
 	if name == "enum" {
 		return p.matchTypeEnumBody()
 	}
-	if name == "any" {
-		return &ast.TypeFusion{
-			Kind: "TypeFusion",
-			Type: &ast.TypePrimitive{Kind: "TypePrimitive", Name: "all"},
-		}, nil
-	}
 	switch name {
 	case "decimal":
 		return p.matchTypeDecimalBody()

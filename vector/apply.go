@@ -30,7 +30,7 @@ func Apply(opt ApplyOpt, eval func(...Any) Any, vecs ...Any) Any {
 	if opt&ApplyRipFusions != 0 {
 		for k, vec := range vecs {
 			if _, ok := vec.(*NoRip); !ok {
-				if IsTypeAny(vec) {
+				if IsFusionAll(vec) {
 					vecs[k] = DefuseAny(vec.(*Fusion))
 				} else {
 					vecs[k] = Super(vec)

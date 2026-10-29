@@ -22,7 +22,7 @@ type checker struct {
 func newChecker(t *translator) *checker {
 	return &checker{
 		t:       t,
-		unknown: t.sctx.TypeAny(),
+		unknown: super.TypeAny,
 		checked: make(map[super.Type]super.Type),
 	}
 }
@@ -554,16 +554,18 @@ func (c *checker) optionize(typ super.Type) super.Type {
 }
 
 // under returns the underlying type of typ with any named types and a
-// fusion type removed (except for the any type, which stays fusion(all)),
-// as the checker treats a fusion type as its supertype.
+// fusion type removed (see defuse), as the checker treats a fusion type as
+// its supertype.
 func under(typ super.Type) super.Type {
 	return super.TypeUnder(defuse(super.TypeUnder(typ)))
 }
 
+// defuse returns the supertype of a fusion type, where the supertype of
+// fusion(all), the data model's type for a value of any type, is any.
 func defuse(typ super.Type) super.Type {
 	if typ, ok := typ.(*super.TypeFusion); ok {
 		if typ.Type == super.TypeAll {
-			return typ
+			return super.TypeAny
 		}
 		return typ.Type
 	}
@@ -1313,10 +1315,10 @@ func hasString(typ super.Type) bool {
 }
 
 // isUnknown reports whether typ is the checker's unknown type, which is
-// the any type, i.e., fusion(all).
+// any (or fusion(all), the data model's type for a value of any type, whose
+// supertype is any).
 func isUnknown(typ super.Type) bool {
-	fusion, ok := typ.(*super.TypeFusion)
-	return ok && fusion.Type == super.TypeAll
+	return typ == super.TypeAny || super.IsFusionAll(typ)
 }
 
 func hasUnknown(typ super.Type) bool {
@@ -1557,7 +1559,7 @@ func (f *fuser) fuse(typ super.Type) {
 }
 
 func (f *fuser) Type() super.Type {
-	typ := f.fuser.FusedType() //XXX might want to use SuperType here
+	typ := f.fuser.SuperType()
 	if typ == nil {
 		return f.unknown
 	}

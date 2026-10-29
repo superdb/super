@@ -50,7 +50,7 @@ func NewEncoder(bctx *Context, vec vector.Any) Encoder {
 	case *vector.Named:
 		return NewNamedEncoder(bctx, vec)
 	case *vector.Fusion:
-		if super.IsTypeAny(vec.Type()) {
+		if super.IsFusionAll(vec.Type()) {
 			return NewAnyEncoder(bctx, vec)
 		}
 		return NewFusionEncoder(bctx, vec)

@@ -401,6 +401,16 @@ func IsUnimplemented(typ Type) bool {
 	return ok
 }
 
+type TypeOfAny struct{}
+
+func (t *TypeOfAny) ID() int {
+	return IDAny
+}
+
+func (t *TypeOfAny) Kind() Kind {
+	return PrimitiveKind
+}
+
 type TypeOfAll struct{}
 
 func (t *TypeOfAll) ID() int {

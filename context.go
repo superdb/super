@@ -275,6 +275,9 @@ func (c *Context) LookupByName(name string) *TypeNamed {
 // name to that named type.  LookupTypeNamed returns an error if name is not a
 // valid UTF-8 string or is a primitive type name.
 func (c *Context) LookupTypeNamed(name string, inner Type) (*TypeNamed, error) {
+	// Named types are types of the data model (values carry them) so any
+	// in the body of a named type is fusion(all).
+	inner = c.AnyToFusion(inner)
 	if !utf8.ValidString(name) {
 		return nil, fmt.Errorf("bad type name %q: invalid UTF-8", name)
 	}
@@ -380,6 +383,9 @@ func (c *Context) declareBlock(compIDs []compID) []patch {
 }
 
 func (c *Context) BindTypeNamed(patch int, named *TypeNamed, inner Type) error {
+	// See LookupTypeNamed.  This is done before locking c as AnyToFusion
+	// looks up types in c.
+	inner = c.AnyToFusion(inner)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	named.mu.Lock()
@@ -433,8 +439,85 @@ func (c *Context) MustLookupTypeFusion(inner Type) *TypeFusion {
 	return typ
 }
 
-func (c *Context) TypeAny() *TypeFusion {
+// FusionAll returns fusion(all), the data model's type for a value of any
+// type, which carries the value's own type.
+func (c *Context) FusionAll() *TypeFusion {
 	return c.MustLookupTypeFusion(TypeAll)
+}
+
+// AnyToFusion returns typ with each occurrence of any, which exists only in
+// the type system, replaced by fusion(all) so that the result is a type of
+// the data model.  A union with any as a member is replaced by fusion(all)
+// as a value of fusion(all) carries its own type, which may be any member of
+// the union.  The body of a named type never contains any (see
+// LookupTypeNamed).
+func (c *Context) AnyToFusion(typ Type) Type {
+	if !HasAny(typ) {
+		return typ
+	}
+	switch typ := typ.(type) {
+	case *TypeOfAny:
+		return c.FusionAll()
+	case *TypeRecord:
+		fields := make([]Field, len(typ.Fields))
+		for k, f := range typ.Fields {
+			fields[k] = NewField(f.Name, c.AnyToFusion(f.Type))
+		}
+		return c.MustLookupTypeRecord(fields)
+	case *TypeArray:
+		return c.LookupTypeArray(c.AnyToFusion(typ.Type))
+	case *TypeSet:
+		return c.LookupTypeSet(c.AnyToFusion(typ.Type))
+	case *TypeMap:
+		return c.LookupTypeMap(c.AnyToFusion(typ.KeyType), c.AnyToFusion(typ.ValType))
+	case *TypeUnion:
+		types := make([]Type, len(typ.Types))
+		for k, t := range typ.Types {
+			if _, ok := t.(*TypeOfAny); ok {
+				return c.FusionAll()
+			}
+			types[k] = c.AnyToFusion(t)
+		}
+		return c.MustLookupTypeUnion(types)
+	case *TypeError:
+		return c.LookupTypeError(c.AnyToFusion(typ.Type))
+	case *TypeOption:
+		return c.LookupTypeOption(c.AnyToFusion(typ.Type))
+	case *TypeFusion:
+		inner := c.AnyToFusion(typ.Type)
+		if IsFusionAll(inner) {
+			return inner
+		}
+		return c.MustLookupTypeFusion(inner)
+	}
+	return typ
+}
+
+// HasAny returns true if typ contains any outside the body of a named type.
+func HasAny(typ Type) bool {
+	switch typ := typ.(type) {
+	case *TypeOfAny:
+		return true
+	case *TypeRecord:
+		return slices.ContainsFunc(typ.Fields, func(f Field) bool {
+			return HasAny(f.Type)
+		})
+	case *TypeArray:
+		return HasAny(typ.Type)
+	case *TypeSet:
+		return HasAny(typ.Type)
+	case *TypeMap:
+		return HasAny(typ.KeyType) || HasAny(typ.ValType)
+	case *TypeUnion:
+		return slices.ContainsFunc(typ.Types, HasAny)
+	case *TypeError:
+		return HasAny(typ.Type)
+	case *TypeOption:
+		return HasAny(typ.Type)
+	case *TypeFusion:
+		return HasAny(typ.Type)
+	}
+	return false
 }
 
 func (c *Context) LookupTypeOption(inner Type) *TypeOption {

@@ -51,7 +51,7 @@ func (d *Defuse) eval(in vector.Any) vector.Any {
 			return vector.NewMissing(0)
 		}
 		fusion := vector.PushView(in).(*vector.Fusion)
-		if super.IsTypeAny(fusion.Type()) {
+		if super.IsFusionAll(fusion.Type()) {
 			return vector.DefuseAny(fusion)
 		}
 		return d.downcast.to(fusion.Values, fusion.Subtypes.Types())

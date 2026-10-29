@@ -66,6 +66,8 @@ func (u *Upcast) Call(args ...vector.Any) vector.Any {
 }
 
 func (u *Upcast) upcastOrError(vec vector.Any, typ super.Type) vector.Any {
+	// Upcasting to any yields fusion(all) values.
+	typ = u.sctx.AnyToFusion(typ)
 	out := u.upcast(vec, typ)
 	if out == nil {
 		out = vector.NewWrappedError(u.sctx, "upcast: value not a subtype of "+sup.FormatType(typ), vec)
@@ -74,7 +76,7 @@ func (u *Upcast) upcastOrError(vec vector.Any, typ super.Type) vector.Any {
 }
 
 func (u *Upcast) Cast(vec vector.Any, to super.Type) (vector.Any, bool) {
-	out := u.upcast(vec, to)
+	out := u.upcast(vec, u.sctx.AnyToFusion(to))
 	return out, out != nil
 }
 
