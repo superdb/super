@@ -113,10 +113,10 @@ func (c *complexCaster) castOne(vec vector.Any, to super.Type) vector.Any {
 	return To(c.sctx, vec, to)
 }
 
-// constOf returns a vector of n copies of the single value in vec.  Unions,
-// options, named types, errors, and the unit types are returned as
-// themselves over a const (and fusion(all) values are copied) rather than
-// as a const of themselves.
+// constOf returns a vector of n copies of the single value in vec.  Since
+// only primitive values may be consts, unions, options, named types, errors,
+// and the unit types are returned as themselves over a const, fusion(all)
+// values are copied, and other complex values are repeated with a view.
 func constOf(vec vector.Any, n uint32) vector.Any {
 	switch v := vec.(type) {
 	case *vector.Dynamic:
@@ -160,7 +160,12 @@ func constOf(vec vector.Any, n uint32) vector.Any {
 	case *vector.Missing:
 		return vector.NewMissing(n)
 	}
-	return vector.NewConst(vec, n)
+	if vec.Type().ID() < super.IDTypeComplex {
+		return vector.NewConst(vec, n)
+	}
+	// Only primitive values may be consts so a complex value is repeated
+	// with a view.
+	return vector.Pick(vec, make([]uint32, n))
 }
 
 // wrap applies fn to the values of vec of type typ, leaving the others (e.g.,

@@ -85,6 +85,7 @@ func TestCastVectorShapes(t *testing.T) {
 		}
 		check := func(what string, out vector.Any, slot func(uint32) uint32) {
 			require.EqualValues(t, n, out.Len(), s)
+			checkConsts(t, out)
 			for i := range n {
 				actual := sup.FormatValue(vector.ValueAt(nil, out, i))
 				if e := expected[slot(i)]; e != actual {
@@ -96,8 +97,13 @@ func TestCastVectorShapes(t *testing.T) {
 		check("dynamic", castVec(sctx, vec, typ), identity)
 		check("view", castVec(sctx, view, typ), func(i uint32) uint32 { return n - 1 - i })
 		for i, val := range vals {
+			if val.Type().ID() >= super.IDTypeComplex {
+				// Only primitive values may be consts.
+				continue
+			}
 			c := vector.NewConst(singleton(sctx, val), 3)
 			out := castVec(sctx, c, typ)
+			checkConsts(t, out)
 			for k := range uint32(3) {
 				actual := sup.FormatValue(vector.ValueAt(nil, out, k))
 				if e := expected[i]; e != actual {
@@ -130,6 +136,47 @@ func TestCastVectorShapes(t *testing.T) {
 				t.Errorf("cast({x:%s}, <{x:%s}>):\n  single: %s\n  got:    %s", values[i], s, e, a)
 			}
 		}
+	}
+}
+
+// checkConsts checks that every const in vec has a primitive type.
+func checkConsts(t *testing.T, vec vector.Any) {
+	t.Helper()
+	switch vec := vec.(type) {
+	case *vector.Const:
+		if vec.Type().ID() >= super.IDTypeComplex {
+			t.Errorf("const of complex type %s", sup.FormatType(vec.Type()))
+		}
+		checkConsts(t, vec.Any)
+	case *vector.View:
+		checkConsts(t, vec.Any)
+	case *vector.Dynamic:
+		for _, v := range vec.Values {
+			checkConsts(t, v)
+		}
+	case *vector.Union:
+		for _, v := range vec.Values() {
+			checkConsts(t, v)
+		}
+	case *vector.Record:
+		for _, v := range vec.Fields {
+			checkConsts(t, v)
+		}
+	case *vector.Array:
+		checkConsts(t, vec.Values)
+	case *vector.Set:
+		checkConsts(t, vec.Values)
+	case *vector.Map:
+		checkConsts(t, vec.Keys)
+		checkConsts(t, vec.Values)
+	case *vector.Named:
+		checkConsts(t, vec.Any)
+	case *vector.Error:
+		checkConsts(t, vec.Vals)
+	case *vector.Option:
+		checkConsts(t, vec.Any)
+	case *vector.Fusion:
+		checkConsts(t, vec.Values)
 	}
 }
 
