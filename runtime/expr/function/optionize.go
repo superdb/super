@@ -2,6 +2,7 @@ package function
 
 import (
 	"github.com/superdb/super"
+	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/vector"
 )
 
@@ -13,8 +14,7 @@ type Optionize struct {
 
 func (o *Optionize) Call(args ...vector.Any) vector.Any {
 	vec := args[0]
-	switch vec.Kind() {
-	case vector.KindError, vector.KindNull:
+	if vec, ok := expr.Catch(o.sctx, expr.CatchAll, vec, "optionize"); ok {
 		return vec
 	}
 	if vec.Type() != super.TypeType {

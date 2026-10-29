@@ -44,4 +44,4 @@ output: |
   <[foo]>
   error({message:"optionize: argument is not a type",on:1})
   null
-  error("bad")
+  error({message:"optionize: error value encountered",on:error("bad")})
