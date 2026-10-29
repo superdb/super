@@ -4,7 +4,6 @@ import (
 	"github.com/superdb/super"
 	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/runtime/expr/cast"
-	"github.com/superdb/super/scode"
 	"github.com/superdb/super/vector"
 )
 
@@ -27,55 +26,46 @@ func (c *caster) Call(vecs ...vector.Any) vector.Any {
 	}
 	switch to.Type().ID() {
 	case super.IDType:
-		return byTarget(from, to, func(from vector.Any, b scode.Bytes) vector.Any {
-			typ, err := c.sctx.LookupByValue(b)
-			if err != nil {
-				panic(err)
-			}
+		return byTarget(from, to, vector.TypeValueValue, func(from vector.Any, typ super.Type) vector.Any {
 			// Casting to any yields fusion(all) values.
 			return cast.Cast(c.sctx, from, c.sctx.AnyToFusion(typ))
 		})
 	case super.IDString:
-		return byTarget(from, to, func(from vector.Any, b scode.Bytes) vector.Any {
-			return expr.CastToNamed(c.sctx, from, super.DecodeString(b))
+		return byTarget(from, to, vector.StringValue, func(from vector.Any, name string) vector.Any {
+			return expr.CastToNamed(c.sctx, from, name)
 		})
 	}
 	return vector.NewWrappedError(c.sctx, "cast target must be a type or type name", to)
 }
 
-// byTarget groups the slots of from by the value of to at each slot and
-// calls fn to cast each group to the group's target, which is passed to fn
-// as the target's encoding.
-func byTarget(from, to vector.Any, fn func(vector.Any, scode.Bytes) vector.Any) vector.Any {
-	var b scode.Builder
-	if k, ok := to.(*vector.Const); ok {
-		k.Serialize(&b, 0)
-		return fn(from, b.Bytes().Body())
+// byTarget groups the slots of from by the target in to at each slot and
+// calls fn to cast each group to its target.
+func byTarget[T comparable](from, to vector.Any, at func(vector.Any, uint32) T, fn func(vector.Any, T) vector.Any) vector.Any {
+	if _, ok := to.(*vector.Const); ok {
+		return fn(from, at(to, 0))
 	}
-	groups := map[string]uint32{}
-	var targets []string
+	tagOf := map[T]uint32{}
+	var targets []T
 	var index [][]uint32
 	tags := make([]uint32, to.Len())
 	for i := range to.Len() {
-		b.Truncate()
-		to.Serialize(&b, i)
-		key := string(b.Bytes().Body())
-		tag, ok := groups[key]
+		target := at(to, i)
+		tag, ok := tagOf[target]
 		if !ok {
 			tag = uint32(len(targets))
-			groups[key] = tag
-			targets = append(targets, key)
+			tagOf[target] = tag
+			targets = append(targets, target)
 			index = append(index, nil)
 		}
 		tags[i] = tag
 		index[tag] = append(index[tag], i)
 	}
 	if len(targets) == 1 {
-		return fn(from, scode.Bytes(targets[0]))
+		return fn(from, targets[0])
 	}
 	outs := make([]vector.Any, len(targets))
 	for tag, target := range targets {
-		outs[tag] = fn(vector.Pick(from, index[tag]), scode.Bytes(target))
+		outs[tag] = fn(vector.Pick(from, index[tag]), target)
 	}
 	return vector.Stitch(vector.NewDynamic(tags, outs))
 }
