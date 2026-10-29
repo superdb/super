@@ -69,9 +69,8 @@ func To(sctx *super.Context, vec vector.Any, typ super.Type) vector.Any {
 
 type caster func(vector.Any, []uint32) (vector.Any, []uint32, string, bool)
 
-// assemble applies fn to vec, whose underlying vector is vec, and returns
-// the results with errors for values that failed, which wrap the values
-// of orig.
+// assemble applies fn to vec and returns the results with errors for values
+// that failed.
 func assemble(sctx *super.Context, vec vector.Any, typ super.Type, fn caster) vector.Any {
 	var out vector.Any
 	var errs []uint32

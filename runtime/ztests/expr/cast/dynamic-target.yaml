@@ -19,5 +19,5 @@ output: |
   3::myint
   "4"
   error({message:"cast target must be a type or type name",on:7})
-  error("e")
+  error({message:"cast: error value encountered",on:error("e")})
   ["1","x"]

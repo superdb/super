@@ -20,10 +20,10 @@ func newCaster(sctx *super.Context) expr.Function {
 // arguments have been defused and Call is applied to each combination of
 // argument types.
 func (c *caster) Call(vecs ...vector.Any) vector.Any {
-	from, to := vecs[0], vecs[1]
-	if from.Kind() == vector.KindError {
-		return from
+	if vec, ok := expr.CatchFirst(c.sctx, expr.CatchAll&^expr.CatchNull, vecs, "cast"); ok {
+		return vec
 	}
+	from, to := vecs[0], vecs[1]
 	switch to.Type().ID() {
 	case super.IDType:
 		return byTarget(from, to, vector.TypeValueValue, func(from vector.Any, typ super.Type) vector.Any {
