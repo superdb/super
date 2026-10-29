@@ -1,0 +1,25 @@
+# Edge cases for sum_type: a single entry, members with the same underlying
+# type, an empty map, a redefined name, and arguments of the wrong type.
+spq: values sum_type(this)
+
+input: |
+  map{"A":<int64>}
+  map{"A":<int64>,"B":<int64>}
+  map{}
+  map{"A":<string>}
+  map{"x":1}
+  "foo"
+  null
+  error("bad")
+
+output: |
+  type A=int64
+  <A>
+  type B=int64
+  <A|B>
+  error({message:"sum_type: argument is not a map of strings to types",on:map{}})
+  error({message:"sum_type: type \"A\" redefined",on:map{"A":<string>}})
+  error({message:"sum_type: argument is not a map of strings to types",on:map{"x":1}})
+  error({message:"sum_type: argument is not a map of strings to types",on:"foo"})
+  null
+  error({message:"sum_type: error value encountered",on:error("bad")})
