@@ -105,7 +105,7 @@ func FusedType(sctx *super.Context, objects []*Object) (super.Type, error) {
 	if len(objects) == 0 {
 		return nil, nil
 	}
-	fuser := super.NewFuser(sctx, true)
+	fuser := super.NewFuser(sctx)
 	// Avoid the type translation across objects.  Probably not a big deal
 	// but will help a bit for large object scans.
 	seen := make(map[super.Type]struct{})
@@ -123,7 +123,7 @@ func FusedType(sctx *super.Context, objects []*Object) (super.Type, error) {
 		}
 		fuser.Fuse(typ)
 	}
-	return fuser.Type(), nil
+	return fuser.FusedType(), nil
 }
 
 func NewObject() Object {

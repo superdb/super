@@ -99,7 +99,7 @@ func (c *ColumnWriter) WriteSuperFrame(vec vector.Any) (uint64, error) {
 // written.  The type is in the writer's own type context.  Call it after
 // WriteSuperFrame or the final Push to get the type of the whole object.
 func (c *ColumnWriter) FusedType() super.Type {
-	return c.fuser.fuser.Type()
+	return c.fuser.fuser.FusedType()
 }
 
 func (c *ColumnWriter) Push(vec vector.Any) error {
@@ -181,7 +181,7 @@ func (c *ColumnWriter) pushFrame() error {
 }
 
 func fuse(sctx *super.Context, dynamic *vector.Dynamic) super.Type {
-	fuser := super.NewFuser(sctx, true)
+	fuser := super.NewFuser(sctx)
 	for _, vec := range dynamic.Values {
 		typ, err := sctx.TranslateType(vec.Type())
 		if err != nil {
@@ -189,7 +189,7 @@ func fuse(sctx *super.Context, dynamic *vector.Dynamic) super.Type {
 		}
 		fuser.Fuse(typ)
 	}
-	return fuser.Type()
+	return fuser.FusedType()
 }
 
 func writeFooter(w io.Writer, size uint64, fusedTypeBytes, statsBytes []byte) (uint64, error) {
@@ -350,7 +350,7 @@ type fuser struct {
 func newFuser(sctx *super.Context) fuser {
 	return fuser{
 		sctx:  sctx,
-		fuser: super.NewFuser(sctx, true),
+		fuser: super.NewFuser(sctx),
 	}
 }
 
@@ -376,7 +376,7 @@ func (f fuser) fuseVec(vec vector.Any) {
 }
 
 func (f fuser) typeBytes() []byte {
-	typ := f.fuser.Type()
+	typ := f.fuser.FusedType()
 	if typ == nil {
 		return nil
 	}
@@ -384,5 +384,5 @@ func (f fuser) typeBytes() []byte {
 }
 
 func (f *fuser) reset() {
-	f.fuser = super.NewFuser(f.sctx, true)
+	f.fuser = super.NewFuser(f.sctx)
 }

@@ -51,7 +51,7 @@ func (s *Seekable) FusedType(sctx *super.Context) (super.Type, error) {
 	if err != nil {
 		return nil, err
 	}
-	fuser := super.NewFuser(sctx, true)
+	fuser := super.NewFuser(sctx)
 	for off > 0 {
 		footer, err := s.readFooterBackward(off)
 		if err != nil {
@@ -81,7 +81,7 @@ func (s *Seekable) FusedType(sctx *super.Context) (super.Type, error) {
 			return nil, fmt.Errorf("super footer back pointer overflow")
 		}
 	}
-	return fuser.Type(), nil
+	return fuser.FusedType(), nil
 }
 
 func (s *Seekable) readFooterBackward(off int64) (*SuperFooter, error) {
