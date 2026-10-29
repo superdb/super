@@ -22,22 +22,20 @@ func (s *SumType) Call(args ...vector.Any) vector.Any {
 	if !ok || super.TypeUnder(typ.KeyType) != super.TypeString || super.TypeUnder(typ.ValType) != super.TypeType {
 		return vector.NewWrappedError(s.sctx, "sum_type: argument is not a map of strings to types", vec)
 	}
+	var sb scode.Builder
 	if c, ok := vec.(*vector.Const); ok {
-		return vector.NewConst(s.call(c.Any, 0), c.Len())
+		return vector.NewConstFromValue(s.sctx, s.call(&sb, c, 0), c.Len())
 	}
 	b := vector.NewDynamicValueBuilder()
 	for i := range vec.Len() {
-		out := s.call(vec, i)
-		b.Write(vector.ValueAt(nil, out, 0))
+		b.Write(s.call(&sb, vec, i))
 	}
 	return b.Build(s.sctx)
 }
 
-// call returns a vector of length one with the sum type for the map at slot
-// of vec or an error.
-func (s *SumType) call(vec vector.Any, slot uint32) vector.Any {
-	var b scode.Builder
-	val := vector.ValueAt(&b, vec, slot)
+// call returns the sum type for the map at slot of vec or an error.
+func (s *SumType) call(sb *scode.Builder, vec vector.Any, slot uint32) super.Value {
+	val := vector.ValueAt(sb, vec, slot)
 	var types []super.Type
 	for it := val.ContainerIter(); !it.Done(); {
 		name := super.DecodeString(it.Next())
@@ -47,19 +45,16 @@ func (s *SumType) call(vec vector.Any, slot uint32) vector.Any {
 		}
 		named, err := s.sctx.LookupTypeNamed(name, typ)
 		if err != nil {
-			return vector.NewWrappedError(s.sctx, "sum_type: "+err.Error(), vector.Pick(vec, []uint32{slot}))
+			return s.sctx.WrapError("sum_type: "+err.Error(), val)
 		}
 		types = append(types, named)
 	}
-	var out super.Type
 	switch len(types) {
 	case 0:
-		return vector.NewWrappedError(s.sctx, "sum_type: empty map", vector.Pick(vec, []uint32{slot}))
+		return s.sctx.WrapError("sum_type: empty map", val)
 	case 1:
 		// A union of one type is just that type.
-		out = types[0]
-	default:
-		out = s.sctx.MustLookupTypeUnion(types)
+		return s.sctx.LookupTypeValue(types[0])
 	}
-	return vector.NewTypeValue([]super.Type{out})
+	return s.sctx.LookupTypeValue(s.sctx.MustLookupTypeUnion(types))
 }
