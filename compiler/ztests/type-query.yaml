@@ -9,7 +9,6 @@ inputs:
       type U = (values <[T]>)
       type V = (int64|string)
       values <T>, <U>, <V>, [{x:3,y:"bar"}]::U
-
   - name: a.sup
     data: |
       {x:1}
