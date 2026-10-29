@@ -129,6 +129,8 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 		f = newNullIf(sctx)
 	case "ok":
 		f = newOk(sctx)
+	case "optionize":
+		f = &Optionize{sctx}
 	case "parse_sup":
 		f = newParseSUP(sctx)
 	case "parse_uri":

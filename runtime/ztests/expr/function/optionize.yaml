@@ -1,0 +1,47 @@
+spq: values optionize(this)
+
+input: |
+  <int64>
+  <int64|string>
+  <int64|missing>
+  <missing|int64|string>
+  <missing|none|option(int64)|string>
+  <missing|option(int64|string)|ip>
+  <missing|none>
+  <{a:int64|missing,b:string}>
+  <[{a:missing|string}]>
+  <set[missing|int64]>
+  <map{string:missing|ip}>
+  <error({a:missing|int64})>
+  <option({a:missing|int64})>
+  <{a:int64|missing}|string>
+  <missing|{a:int64|missing}>
+  type foo={a:int64|missing}
+  <foo>
+  <[foo]>
+  1
+  null
+  error("bad")
+
+output: |
+  <int64>
+  <int64|string>
+  <option(int64)>
+  <option(int64|string)>
+  <option(int64|string)>
+  <option(int64|string|ip)>
+  <missing|none>
+  <{a?:int64,b:string}>
+  <[{a?:string}]>
+  <set[option(int64)]>
+  <map{string:option(ip)}>
+  <error({a?:int64})>
+  <option({a?:int64})>
+  <string|{a?:int64}>
+  <option({a?:int64})>
+  type foo={a:int64|missing}
+  <foo>
+  <[foo]>
+  error({message:"optionize: argument is not a type",on:1})
+  null
+  error({message:"optionize: error value encountered",on:error("bad")})

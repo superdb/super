@@ -160,6 +160,7 @@
             - [is](super-sql/functions/types/is.md)
             - [kind](super-sql/functions/types/kind.md)
             - [nameof](super-sql/functions/types/nameof.md)
+            - [optionize](super-sql/functions/types/optionize.md)
             - [typename](super-sql/functions/types/typename.md)
             - [typeof](super-sql/functions/types/typeof.md)
             - [unblend](super-sql/functions/types/unblend.md)

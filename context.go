@@ -1846,3 +1846,102 @@ func NewTypeDefsFromBytes(bytes []byte) (*TypeDefs, bool) {
 	defs := NewTypeDefs()
 	return defs, defs.AppendBytes(bytes)
 }
+
+// OptionizeMissing returns typ with every union type with a missing member, i.e.,
+// (missing|T) or (missing|T1|T2|...), replaced by the option type option(T)
+// or option(T1|T2|...).  Since an option already represents an absent value,
+// none members and option members of such a union are absorbed into the
+// result, e.g., (missing|none|option(T1)|T2) becomes option(T1|T2).
+// OptionizeMissing descends into all complex types except named types,
+// which are left as is (since a named type's name is bound to its type and
+// named types may be recursive).
+func (c *Context) OptionizeMissing(typ Type) Type {
+	switch typ := typ.(type) {
+	case *TypeRecord:
+		var fields []Field
+		for k, f := range typ.Fields {
+			if t := c.OptionizeMissing(f.Type); t != f.Type {
+				if fields == nil {
+					fields = slices.Clone(typ.Fields)
+				}
+				fields[k].Type = t
+			}
+		}
+		if fields == nil {
+			return typ
+		}
+		return c.MustLookupTypeRecord(fields)
+	case *TypeArray:
+		if t := c.OptionizeMissing(typ.Type); t != typ.Type {
+			return c.LookupTypeArray(t)
+		}
+	case *TypeSet:
+		if t := c.OptionizeMissing(typ.Type); t != typ.Type {
+			return c.LookupTypeSet(t)
+		}
+	case *TypeMap:
+		key, val := c.OptionizeMissing(typ.KeyType), c.OptionizeMissing(typ.ValType)
+		if key != typ.KeyType || val != typ.ValType {
+			return c.LookupTypeMap(key, val)
+		}
+	case *TypeError:
+		if t := c.OptionizeMissing(typ.Type); t != typ.Type {
+			return c.LookupTypeError(t)
+		}
+	case *TypeOption:
+		if t := c.OptionizeMissing(typ.Type); t != typ.Type {
+			if _, ok := t.(*TypeOption); ok {
+				return t
+			}
+			return c.LookupTypeOption(t)
+		}
+	case *TypeFusion:
+		if t := c.OptionizeMissing(typ.Type); t != typ.Type {
+			return c.MustLookupTypeFusion(t)
+		}
+	case *TypeUnion:
+		return c.optionizeUnion(typ)
+	}
+	return typ
+}
+
+func (c *Context) optionizeUnion(union *TypeUnion) Type {
+	var types []Type
+	changed := false
+	for _, t := range union.Types {
+		u := c.OptionizeMissing(t)
+		changed = changed || u != t
+		types = append(types, u)
+	}
+	if !slices.Contains(types, Type(TypeMissing)) {
+		if !changed {
+			return union
+		}
+		return c.MustLookupTypeUnion(types)
+	}
+	var inner []Type
+	for _, t := range types {
+		switch t := t.(type) {
+		case *TypeOption:
+			if u, ok := t.Type.(*TypeUnion); ok {
+				inner = append(inner, u.Types...)
+			} else {
+				inner = append(inner, t.Type)
+			}
+		default:
+			if t != TypeMissing && t != TypeNone {
+				inner = append(inner, t)
+			}
+		}
+	}
+	inner = UniqueTypes(inner)
+	switch len(inner) {
+	case 0:
+		// The union has only missing and none, so the best we can do is
+		// leave it as is.
+		return union
+	case 1:
+		return c.LookupTypeOption(inner[0])
+	}
+	return c.LookupTypeOption(c.MustLookupTypeUnion(inner))
+}
