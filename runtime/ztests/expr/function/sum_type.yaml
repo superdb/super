@@ -22,4 +22,4 @@ output: |
   error({message:"sum_type: argument is not a map of strings to types",on:map{"x":1}})
   error({message:"sum_type: argument is not a map of strings to types",on:"foo"})
   null
-  error("bad")
+  error({message:"sum_type: error value encountered",on:error("bad")})
