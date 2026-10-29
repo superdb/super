@@ -1,0 +1,19 @@
+# Casting missing to an option type yields none, as does casting a record
+# without a field to a record whose field has an option type.
+spq: values cast(this, <{a:option(int64)}>), cast(missing, <option(int64)>), cast(missing, <int64>)
+
+input: |
+  {a:1::(int64|missing)}
+  {a:missing::(int64|missing)}
+  {b:2}
+
+output: |
+  {a?:1}
+  none::int64
+  error("cannot cast missing (consider ??)")
+  {a?:none::int64}
+  none::int64
+  error("cannot cast missing (consider ??)")
+  {a?:none::int64}
+  none::int64
+  error("cannot cast missing (consider ??)")

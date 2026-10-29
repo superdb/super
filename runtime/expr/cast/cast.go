@@ -10,7 +10,6 @@ func To(sctx *super.Context, vec vector.Any, typ super.Type) vector.Any {
 	if named, ok := typ.(*super.TypeNamed); ok {
 		return castNamed(sctx, vec, named)
 	}
-	vec = vector.Under(vec)
 	switch vec.Kind() {
 	case vector.KindNull:
 		return vector.NewUnionOfOne(sctx.Nullable(typ), vector.NewNull(vec.Len()))
@@ -70,16 +69,19 @@ func To(sctx *super.Context, vec vector.Any, typ super.Type) vector.Any {
 
 type caster func(vector.Any, []uint32) (vector.Any, []uint32, string, bool)
 
+// assemble applies fn to vec and returns the results with errors for values
+// that failed.
 func assemble(sctx *super.Context, vec vector.Any, typ super.Type, fn caster) vector.Any {
 	var out vector.Any
 	var errs []uint32
 	var errMsg string
 	var ok bool
-	switch vec := vec.(type) {
+	orig := vec
+	switch vec := vector.Under(vec).(type) {
 	case *vector.Const:
 		out, errs, errMsg, ok = fn(vec.Any, nil)
 		if !ok || len(errs) > 0 {
-			return errCastFailed(sctx, vec, typ, errMsg)
+			return errCastFailed(sctx, orig, typ, errMsg)
 		}
 		return vector.NewConst(out, vec.Len())
 	case *vector.View:
@@ -99,10 +101,10 @@ func assemble(sctx *super.Context, vec vector.Any, typ super.Type, fn caster) ve
 		out, errs, errMsg, ok = fn(vec, nil)
 	}
 	if !ok {
-		return errCastFailed(sctx, vec, typ, errMsg)
+		return errCastFailed(sctx, orig, typ, errMsg)
 	}
 	if len(errs) > 0 {
-		return vector.Combine(out, errs, errCastFailed(sctx, vector.Pick(vec, errs), typ, errMsg))
+		return vector.Combine(out, errs, errCastFailed(sctx, vector.Pick(orig, errs), typ, errMsg))
 	}
 	return out
 }

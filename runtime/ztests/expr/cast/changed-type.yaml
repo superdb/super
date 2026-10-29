@@ -1,0 +1,15 @@
+# Casts whose result type differs from the target type.
+spq: |
+  values
+    null::option(int64),
+    {a:null}::option({a:int64}),
+    {b:1}::option({a:int64}),
+    {a:null}::({a:int64}|missing),
+    {type:"x",ref:"r"}::({type:string,ref:string}|{type:string,num:int64})
+
+output: |
+  some(null::(int64|null))
+  some({a:null::(int64|null)})
+  {a:error("no such field a")}
+  {a:null::(int64|null)}
+  {type:"x",ref:"r"}::({type:string,num:int64}|{type:string,ref:string})

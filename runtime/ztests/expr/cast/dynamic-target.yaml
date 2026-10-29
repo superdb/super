@@ -1,0 +1,23 @@
+# The cast target may vary from value to value.
+spq: values cast(v, t)
+
+input: |
+  {v:1,t:<string>}
+  {v:"2",t:<int64>}
+  {v:{a:1},t:<{a:string}>}
+  {v:3,t:"myint"}
+  {v:4,t:<string>}
+  {v:5,t:7}
+  {v:error("e"),t:<int64>}
+  {v:[1,"x"],t:<[string]>}
+
+output: |
+  "1"
+  2
+  {a:"1"}
+  type myint=int64
+  3::myint
+  "4"
+  error({message:"cast target must be a type or type name",on:7})
+  error({message:"cast: error value encountered",on:error("e")})
+  ["1","x"]

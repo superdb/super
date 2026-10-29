@@ -20,7 +20,7 @@ func NewLiteralCast(sctx *super.Context, expr Evaluator, literal *Literal) (Eval
 		// Casting to any yields fusion(all) values.
 		typ = sctx.AnyToFusion(typ)
 		if typ.ID() >= super.IDTypeComplex {
-			return nil, fmt.Errorf("cast: casting to type %s not currently supported in vector runtime", sup.FormatType(typ))
+			return &casterComplex{sctx, NewDefuse(sctx), expr, typ}, nil
 		}
 		return &casterPrimitive{sctx, NewDefuse(sctx), expr, typ}, nil
 	case super.IDString:
@@ -47,6 +47,22 @@ func (c *casterPrimitive) Eval(this vector.Any) vector.Any {
 	}, c.defuse.Eval(c.expr.Eval(this)))
 }
 
+type casterComplex struct {
+	sctx   *super.Context
+	defuse *Defuse
+	expr   Evaluator
+	typ    super.Type
+}
+
+func (c *casterComplex) Eval(this vector.Any) vector.Any {
+	return vector.Apply(vector.ApplyRipUnions, func(vecs ...vector.Any) vector.Any {
+		if vecs[0].Kind() == vector.KindError {
+			return vecs[0]
+		}
+		return cast.Cast(c.sctx, vecs[0], c.typ)
+	}, c.defuse.Eval(c.expr.Eval(this)))
+}
+
 type casterNamedType struct {
 	sctx   *super.Context
 	defuse *Defuse
@@ -59,14 +75,19 @@ func (c *casterNamedType) Eval(this vector.Any) vector.Any {
 }
 
 func (c *casterNamedType) eval(vecs ...vector.Any) vector.Any {
-	vec := vecs[0]
+	return CastToNamed(c.sctx, vecs[0], c.name)
+}
+
+// CastToNamed casts vec, whose values are of a single type, to the named
+// type name with vec's underlying type.
+func CastToNamed(sctx *super.Context, vec vector.Any, name string) vector.Any {
 	if vec.Kind() == vector.KindError {
 		return vec
 	}
 	vec = vector.Under(vec)
-	named, err := c.sctx.LookupTypeNamed(c.name, vec.Type())
+	named, err := sctx.LookupTypeNamed(name, vec.Type())
 	if err != nil {
-		return vector.NewStringError(c.sctx, err.Error(), vec.Len())
+		return vector.NewStringError(sctx, err.Error(), vec.Len())
 	}
 	return vector.NewNamed(named, vec)
 }
