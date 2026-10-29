@@ -125,3 +125,26 @@ input: |
 output: |
   error({message:"value cannot be indexed",on:2})
   3
+
+---
+
+# Test map index with option keys and option index values
+spq: val[idx]
+
+input: |
+  {val:map{some(1):"foo",none::int64:"bar"},idx:some(1)}
+  {val:map{some(1):"foo",none::int64:"bar"},idx:none::int64}
+  {val:map{some(1):"foo",none::int64:"bar"},idx:none}
+  {val:map{some(1):"foo"},idx:none::int64}
+  {val:map{1:"foo"},idx:some(1)}
+  {val:map{some(1::(int64|string)):"foo"},idx:some(1)}
+  {val:map{some(1):"foo","x":"bar"},idx:some(1)}
+
+output: |
+  "foo"
+  "bar"
+  none
+  none
+  none
+  "foo"
+  "foo"
