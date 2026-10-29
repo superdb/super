@@ -21,6 +21,9 @@ type evaluator struct {
 	errs       errlist
 	constThis  bool
 	bad        bool
+	// readData allows the expression to read data (as with the query of
+	// a type declaration).
+	readData bool
 }
 
 type errloc struct {
@@ -56,7 +59,13 @@ func (e *evaluator) maybeEval(sctx *super.Context, expr sem.Expr) (super.Value, 
 		return super.Value{}, false
 	}
 	main := newDagen(e.translator.reporter).assembleExpr(expr, e.translator.getTypes(), e.translator.resolver.funcs)
-	val, err := rungen.EvalAtCompileTime(sctx, main)
+	var val super.Value
+	var err error
+	if e.readData {
+		val, err = rungen.EvalAtCompileTimeWithEnv(e.translator.ctx, sctx, e.translator.env, main)
+	} else {
+		val, err = rungen.EvalAtCompileTime(sctx, main)
+	}
 	if err != nil {
 		e.errs.error(expr, err)
 		return val, false
@@ -87,7 +96,9 @@ func (e *evaluator) op(op sem.Op) bool {
 		*sem.TableMetaScan,
 		*sem.CommitMetaScan,
 		*sem.DeleteScan:
-		e.errs.error(op, errors.New("cannot read data in constant expression"))
+		if !e.readData {
+			e.errs.error(op, errors.New("cannot read data in constant expression"))
+		}
 		return false
 	case *sem.NullScan:
 		return true

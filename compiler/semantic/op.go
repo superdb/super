@@ -1321,6 +1321,7 @@ func (t *translator) singletonKey(agg ast.Assignment, seq sem.Seq, inType super.
 // them together so that mutually recursive types all know about each other.
 func (t *translator) decls(decls []ast.Decl) {
 	var typeDecls []*ast.TypeDecl
+	var typeQueryDecls []*ast.TypeQueryDecl
 	for _, d := range decls {
 		switch d := d.(type) {
 		case *ast.ConstDecl:
@@ -1335,12 +1336,19 @@ func (t *translator) decls(decls []ast.Decl) {
 			t.queryDecl(d)
 		case *ast.TypeDecl:
 			typeDecls = append(typeDecls, d)
+		case *ast.TypeQueryDecl:
+			typeQueryDecls = append(typeQueryDecls, d)
 		default:
 			panic(d)
 		}
 	}
 	if len(typeDecls) != 0 {
 		t.typeDecls(typeDecls)
+	}
+	// Type queries are run after the other type declarations are bound so
+	// the queries may refer to them.
+	for _, d := range typeQueryDecls {
+		t.typeQueryDecl(d)
 	}
 }
 
@@ -1449,6 +1457,52 @@ func (t *translator) typeDecls(in []*ast.TypeDecl) {
 		if err := t.scope.BindSymbol(d.Name.Name, typeRef); err != nil {
 			t.error(d.Name, err)
 		}
+	}
+}
+
+// typeQueryDecl runs the query of d, which must yield a single type value,
+// and binds d's name to that type.
+func (t *translator) typeQueryDecl(d *ast.TypeQueryDecl) {
+	if t.env == nil {
+		t.error(d, errors.New("type query requires access to data"))
+		return
+	}
+	e, _ := t.expr(&ast.SubqueryExpr{Kind: "SubqueryExpr", Body: d.Body, Loc: d.Loc}, super.TypeNull)
+	eval := newEvaluator(t, t.resolver.funcs)
+	eval.readData = true
+	val, ok := eval.mustEval(t.sctx, e)
+	if !ok {
+		return
+	}
+	val = val.Under()
+	if val.IsError() {
+		t.error(d, fmt.Errorf("type query for %q: %s", d.Name.Name, sup.FormatValue(val)))
+		return
+	}
+	if val.Type() != super.TypeType || val.IsNull() {
+		t.error(d, fmt.Errorf("type query for %q must yield a single type value: %s", d.Name.Name, sup.FormatValue(val)))
+		return
+	}
+	typ, err := t.sctx.LookupByValue(val.Bytes())
+	if err != nil {
+		t.error(d, err)
+		return
+	}
+	// Bind the name in the query's type context (defs) as type
+	// declarations do.
+	local, err := t.defs.TranslateType(typ)
+	if err != nil {
+		t.error(d, err)
+		return
+	}
+	named, err := t.defs.LookupTypeNamed(d.Name.Name, local)
+	if err != nil {
+		t.error(d.Name, err)
+		return
+	}
+	typeRef := &sem.TypeExpr{Node: d, ID: super.TypeID(named)}
+	if err := t.scope.BindSymbol(d.Name.Name, typeRef); err != nil {
+		t.error(d.Name, err)
 	}
 }
 
