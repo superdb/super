@@ -2,6 +2,7 @@ package function
 
 import (
 	"github.com/superdb/super"
+	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/scode"
 	"github.com/superdb/super/vector"
 )
@@ -14,8 +15,7 @@ type SumType struct {
 
 func (s *SumType) Call(args ...vector.Any) vector.Any {
 	vec := args[0]
-	switch vec.Kind() {
-	case vector.KindError, vector.KindNull:
+	if vec, ok := expr.Catch(s.sctx, expr.CatchAll, vec, "sum_type"); ok {
 		return vec
 	}
 	typ, ok := super.TypeUnder(vec.Type()).(*super.TypeMap)
