@@ -88,6 +88,7 @@ var unpacker = unpack.New(
 	TypeArray{},
 	TypeDecimal{},
 	TypeDecl{},
+	TypeQueryDecl{},
 	TypeEnum{},
 	TypeError{},
 	TypeMap{},

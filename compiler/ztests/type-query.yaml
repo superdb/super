@@ -1,0 +1,27 @@
+# A type declaration may bind a name to the type computed by a query,
+# which may read data and refer to other declared types.
+script: super -s -I src.spq
+
+inputs:
+  - name: src.spq
+    data: |
+      type T = (from a.sup | blend(this))
+      type U = (values <[T]>)
+      type V = (int64|string)
+      values <T>, <U>, <V>, [{x:3,y:"bar"}]::U
+
+  - name: a.sup
+    data: |
+      {x:1}
+      {x:2,y:"foo"}
+
+outputs:
+  - name: stdout
+    data: |
+      type T={x:int64,y:string|missing}
+      <T>
+      type U=[T]
+      <U>
+      type V=int64|string
+      <V>
+      [{x:3,y:"bar"}]::U

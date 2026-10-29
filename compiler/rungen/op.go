@@ -170,7 +170,14 @@ func compileExpr(in dag.Expr) (samexpr.Evaluator, error) {
 func EvalAtCompileTime(sctx *super.Context, main *dag.MainExpr) (val super.Value, err error) {
 	// We pass in a nil adaptor, which causes a panic for anything adaptor
 	// related, which is not currently allowed in an expression sub-query.
-	b := NewBuilder(runtime.NewContext(context.Background(), sctx), nil)
+	return EvalAtCompileTimeWithEnv(context.Background(), sctx, nil, main)
+}
+
+// EvalAtCompileTimeWithEnv is like EvalAtCompileTime but env provides access
+// to data so the expression may contain subqueries that read data, as with
+// the query of a type declaration.
+func EvalAtCompileTimeWithEnv(ctx context.Context, sctx *super.Context, env *exec.Environment, main *dag.MainExpr) (val super.Value, err error) {
+	b := NewBuilder(runtime.NewContext(ctx, sctx), env)
 	for _, f := range main.Funcs {
 		b.funcs[f.Tag] = f
 	}

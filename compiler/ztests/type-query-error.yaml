@@ -1,0 +1,19 @@
+script: |
+  ! super -s -c 'type T = (values 1) values <T>'
+  ! super -s -c 'type T = (values <int64>, <string>) values <T>'
+
+outputs:
+  - name: stderr
+    data: |
+      type query for "T" must yield a single type value: 1 at line 1, column 1:
+      type T = (values 1) values <T>
+      ~~~~~~~~~~~~~~~~~~~
+      no such type name: "T" at line 1, column 29:
+      type T = (values 1) values <T>
+                                  ~
+      type query for "T": error("query expression produced multiple values (consider [subquery])") at line 1, column 1:
+      type T = (values <int64>, <string>) values <T>
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      no such type name: "T" at line 1, column 45:
+      type T = (values <int64>, <string>) values <T>
+                                                  ~

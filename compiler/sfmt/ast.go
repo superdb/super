@@ -448,6 +448,18 @@ func (c *canon) decl(d ast.Decl) {
 	case *ast.TypeDecl:
 		c.write("type %s = ", sup.QuotedName(d.Name.Name))
 		c.typ(d.Type)
+	case *ast.TypeQueryDecl:
+		c.write("type %s ", sup.QuotedName(d.Name.Name))
+		c.open("= (")
+		c.ret()
+		c.flush()
+		c.head = true
+		c.seq(d.Body)
+		c.close()
+		c.ret()
+		c.flush()
+		c.write(")")
+		c.head, c.first = true, true
 	default:
 		c.open("unknown decl: %T", d)
 		c.close()

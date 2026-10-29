@@ -127,6 +127,14 @@ TypeDecl
         Loc: loc(c),
       }, nil
     }
+  / TYPE _ name:Identifier __ "=" __ "(" __ body:Query __ ")" {
+      return &ast.TypeQueryDecl{
+        Kind: "TypeQueryDecl",
+        Name: name.(*ast.ID),
+        Body: sliceOf[ast.Op](body),
+        Loc: loc(c),
+      }, nil
+    }
 
 // An PipeOp is any pipeline operator, or a parenthesized pipe scope, or
 // one of four shortcuts: a shortcut assignment for "put", a shortcut "aggregate",

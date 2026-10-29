@@ -48,9 +48,19 @@ type TypeDecl struct {
 	Loc  `json:"loc"`
 }
 
-func (*ConstDecl) declNode()  {}
-func (*FuncDecl) declNode()   {}
-func (*OpDecl) declNode()     {}
-func (*PragmaDecl) declNode() {}
-func (*QueryDecl) declNode()  {}
-func (*TypeDecl) declNode()   {}
+// TypeQueryDecl binds a type name to the type value computed by a query,
+// e.g., type T = (from file | aggregate fuse(this)).
+type TypeQueryDecl struct {
+	Kind string `json:"kind" unpack:""`
+	Name *ID    `json:"name"`
+	Body Seq    `json:"body"`
+	Loc  `json:"loc"`
+}
+
+func (*ConstDecl) declNode()     {}
+func (*FuncDecl) declNode()      {}
+func (*OpDecl) declNode()        {}
+func (*PragmaDecl) declNode()    {}
+func (*QueryDecl) declNode()     {}
+func (*TypeDecl) declNode()      {}
+func (*TypeQueryDecl) declNode() {}
