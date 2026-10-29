@@ -499,11 +499,9 @@ func HasAny(typ Type) bool {
 	case *TypeOfAny:
 		return true
 	case *TypeRecord:
-		for _, f := range typ.Fields {
-			if HasAny(f.Type) {
-				return true
-			}
-		}
+		return slices.ContainsFunc(typ.Fields, func(f Field) bool {
+			return HasAny(f.Type)
+		})
 	case *TypeArray:
 		return HasAny(typ.Type)
 	case *TypeSet:
@@ -511,11 +509,7 @@ func HasAny(typ Type) bool {
 	case *TypeMap:
 		return HasAny(typ.KeyType) || HasAny(typ.ValType)
 	case *TypeUnion:
-		for _, t := range typ.Types {
-			if HasAny(t) {
-				return true
-			}
-		}
+		return slices.ContainsFunc(typ.Types, HasAny)
 	case *TypeError:
 		return HasAny(typ.Type)
 	case *TypeOption:

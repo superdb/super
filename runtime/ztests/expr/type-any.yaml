@@ -1,5 +1,6 @@
-# any exists only in the type system: a value cast to any (or upcast to
-# a type containing any) has type fusion(all), which carries the value's
+# any exists only in the type system and is never the type of a
+# concrete value: a value cast to any (or upcast to  a type
+# containing any) has type fusion(all), which carries the value's
 # own type, while type values may contain any.
 script: |
   super -s -fusion -c "values 1::any, cast('x', <any>), {a:1}::{a:any}, [1,'a']::[any], upcast({a:1}, <{a:any}>)"

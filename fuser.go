@@ -9,7 +9,7 @@ import (
 // Fuser constructs a fused supertype for all the types passed to Fuse.
 //
 // The supertype is a type of the type system: it has no fusion types and
-// any absorbs every type except missing (so the fusion of any with a type
+// any absorbs every type except missing (so the fusion of type any with a type
 // that may be missing is any|missing).  A fused type passed to Fuse is
 // normalized to its supertype, with fusion(all) normalized to any.  The
 // fused type (see FusedType) is a type of the data model, in which any
