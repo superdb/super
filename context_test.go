@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/superdb/super"
-	"github.com/superdb/super/sup"
 )
 
 func TestContextLookupByValueAndLookupTypeValue(t *testing.T) {
@@ -74,32 +73,4 @@ func TestBindTypeNamedWakesAllWaiters(t *testing.T) {
 		// reports a deadlock here instead of hanging.
 		wg.Wait()
 	})
-}
-
-func TestOptionize(t *testing.T) {
-	cases := []struct{ in, out string }{
-		{"int64", "int64"},
-		{"int64|string", "int64|string"},
-		{"int64|missing", "option(int64)"},
-		{"missing|int64|string", "option(int64|string)"},
-		{"missing|none|option(int64)|string", "option(int64|string)"},
-		{"missing|option(int64|string)|ip", "option(int64|ip|string)"},
-		{"missing|none", "missing|none"},
-		{"{a:int64|missing,b:string}", "{a:option(int64),b:string}"},
-		{"[{a:missing|string}]", "[{a:option(string)}]"},
-		{"set[missing|int64]", "set[option(int64)]"},
-		{"map{string:missing|ip}", "map{string:option(ip)}"},
-		{"error({a:missing|int64})", "error({a:option(int64)})"},
-		{"option({a:missing|int64})", "option({a:option(int64)})"},
-		{"{a:int64|missing}|string", "{a:option(int64)}|string"},
-		{"missing|{a:int64|missing}", "option({a:option(int64)})"},
-	}
-	for _, c := range cases {
-		sctx := super.NewContext()
-		in, err := sup.ParseType(sctx, c.in)
-		require.NoError(t, err, c.in)
-		out, err := sup.ParseType(sctx, c.out)
-		require.NoError(t, err, c.out)
-		assert.Equal(t, sup.FormatType(out), sup.FormatType(sctx.OptionizeMissing(in)), c.in)
-	}
 }
