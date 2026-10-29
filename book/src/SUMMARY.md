@@ -161,6 +161,7 @@
             - [kind](super-sql/functions/types/kind.md)
             - [nameof](super-sql/functions/types/nameof.md)
             - [optionize](super-sql/functions/types/optionize.md)
+            - [sum_type](super-sql/functions/types/sum_type.md)
             - [typename](super-sql/functions/types/typename.md)
             - [typeof](super-sql/functions/types/typeof.md)
             - [unblend](super-sql/functions/types/unblend.md)

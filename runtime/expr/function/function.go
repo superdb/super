@@ -163,6 +163,8 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 	case "strftime":
 		argmin, argmax = 2, 2
 		f = &Strftime{sctx: sctx}
+	case "sum_type":
+		f = &SumType{sctx}
 	case "trim":
 		f = &Trim{sctx}
 	case "typename":
