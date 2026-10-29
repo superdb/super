@@ -68,10 +68,6 @@ type (
 		Alias string `json:"alias"`
 		Expr  Expr   `json:"expr"`
 	}
-	CutOp struct {
-		Kind string       `json:"kind" unpack:""`
-		Args []Assignment `json:"args"`
-	}
 	DebugOp struct {
 		Kind   string `json:"kind" unpack:""`
 		Expr   Expr   `json:"expr"`
@@ -209,7 +205,6 @@ type (
 func (*AggregateOp) opNode() {}
 func (*CombineOp) opNode()   {}
 func (*CountOp) opNode()     {}
-func (*CutOp) opNode()       {}
 func (*DebugOp) opNode()     {}
 func (*DistinctOp) opNode()  {}
 func (*DropOp) opNode()      {}

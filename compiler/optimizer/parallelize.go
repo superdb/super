@@ -217,7 +217,7 @@ func (o *Optimizer) liftIntoParPaths(seq dag.Seq) {
 		for k := range paths {
 			paths[k].Append(dag.CopyOp(op))
 		}
-	case *dag.CutOp, *dag.DropOp, *dag.FilterOp, *dag.PutOp, *dag.RenameOp, *dag.ValuesOp:
+	case *dag.DropOp, *dag.FilterOp, *dag.PutOp, *dag.RenameOp, *dag.ValuesOp:
 		if merge != nil {
 			// See if this op would disrupt the merge-on key
 			mergeKey, err := o.propagateSortKeyOp(merge, []order.SortKeys{nil})

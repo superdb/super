@@ -2,6 +2,8 @@ package dag
 
 import (
 	"encoding/json"
+	"fmt"
+	"slices"
 
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/field"
@@ -239,4 +241,35 @@ func CopyExpr(e Expr) Expr {
 		panic(err)
 	}
 	return copy
+}
+
+// NewRecordExprFromAssignments returns a record expression whose fields are
+// the static LHS paths of assignments, nested as needed, and whose values are
+// the corresponding RHS expressions.
+func NewRecordExprFromAssignments(assignments []Assignment) (*RecordExpr, error) {
+	rec := &RecordExpr{Kind: "RecordExpr"}
+	for _, a := range assignments {
+		lhs, ok := a.LHS.(*ThisExpr)
+		if !ok {
+			return nil, fmt.Errorf("dynamic field name not supported: %#v", a.LHS)
+		}
+		addChainToRecordExpr(rec, lhs.Chain, a.RHS)
+	}
+	return rec, nil
+}
+
+func addChainToRecordExpr(rec *RecordExpr, chain field.Chain, expr Expr) {
+	if len(chain) == 1 {
+		rec.Elems = append(rec.Elems, &Field{Kind: "Field", Name: chain[0].ID, Value: expr})
+		return
+	}
+	i := slices.IndexFunc(rec.Elems, func(elem RecordElem) bool {
+		f, ok := elem.(*Field)
+		return ok && f.Name == chain[0].ID
+	})
+	if i == -1 {
+		i = len(rec.Elems)
+		rec.Elems = append(rec.Elems, &Field{Kind: "Field", Name: chain[0].ID, Value: &RecordExpr{Kind: "RecordExpr"}})
+	}
+	addChainToRecordExpr(rec.Elems[i].(*Field).Value.(*RecordExpr), chain[1:], expr)
 }

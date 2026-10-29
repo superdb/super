@@ -19,6 +19,6 @@ outputs:
         (
           put a:=b*c
         )
-      | cut count:=count,x:=x
+      | values {count:count,x:x}
       | sort x desc nulls last
       | output main

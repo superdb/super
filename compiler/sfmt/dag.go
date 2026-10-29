@@ -427,10 +427,6 @@ func (c *canonDAG) op(o dag.Op) {
 			c.write(",")
 		}
 		c.write("%s}", o.Alias)
-	case *dag.CutOp:
-		c.next()
-		c.write("cut ")
-		c.assignments(o.Args)
 	case *dag.DebugOp:
 		c.next()
 		c.write("debug ")

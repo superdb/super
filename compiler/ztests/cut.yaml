@@ -2,6 +2,7 @@ script: |
   super compile -C -dag 'values {x:1} | cut x'
   ! super compile -C -dag 'cut x'
   ! super compile -C -dag 'values {x:1} | cut x,y'
+  ! super compile -C -dag 'values {x:1} | cut this[x]:=1'
 
 
 outputs:
@@ -9,7 +10,7 @@ outputs:
     data: |
       null
       | values {x:1}
-      | cut x:=x
+      | values {x:x}
       | output main
   - name: stderr
     data: |
@@ -19,3 +20,6 @@ outputs:
       no such field "y" at line 1, column 22:
       values {x:1} | cut x,y
                            ~
+      cut requires static field names at line 1, column 20:
+      values {x:1} | cut this[x]:=1
+                         ~~~~~~~~~~

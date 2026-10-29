@@ -15,11 +15,11 @@ outputs:
       | scatter
         (
           seqscan ...
-          | cut x:=ts,ts:=1
+          | values {x:ts,ts:1}
         )
         (
           seqscan ...
-          | cut x:=ts,ts:=1
+          | values {x:ts,ts:1}
         )
       | merge x asc nulls last
       | output main
@@ -29,11 +29,11 @@ outputs:
       | scatter
         (
           seqscan ...
-          | cut x:=ts,ts:=1
+          | values {x:ts,ts:1}
         )
         (
           seqscan ...
-          | cut x:=ts,ts:=1
+          | values {x:ts,ts:1}
         )
       | merge x desc nulls first
       | output main
