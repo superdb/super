@@ -367,7 +367,7 @@ func ParsePaths(paths super.Value) ([][]super.Value, error) {
 func parsePathString(s string) []super.Value {
 	var elems []super.Value
 	for elem := range strings.SplitSeq(s, ".") {
-		if isDecimal(elem) {
+		if isInteger(elem) {
 			if k, err := strconv.ParseInt(elem, 10, 64); err == nil {
 				elems = append(elems, super.NewInt64(k))
 				continue
@@ -378,7 +378,7 @@ func parsePathString(s string) []super.Value {
 	return elems
 }
 
-func isDecimal(s string) bool {
+func isInteger(s string) bool {
 	if s == "" {
 		return false
 	}
