@@ -1,0 +1,120 @@
+# A value the query produces that may be missing (e.g., a field absent from
+# some input records) is an error at runtime, so it must use ok().
+
+spq: values y
+
+input: |
+  {x:1}
+  {x:2,y:3}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 8:
+  values y
+         ~
+
+---
+
+spq: values {x,y}, [y], map{'foo':y}, set[y]
+
+input: |
+  {x:1}
+  {x:2,y:3}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 11:
+  values {x,y}, [y], map{'foo':y}, set[y]
+            ~
+  field may be missing (consider ok()) at line 1, column 16:
+  values {x,y}, [y], map{'foo':y}, set[y]
+                 ~
+  field may be missing (consider ok()) at line 1, column 30:
+  values {x,y}, [y], map{'foo':y}, set[y]
+                               ~
+  field may be missing (consider ok()) at line 1, column 38:
+  values {x,y}, [y], map{'foo':y}, set[y]
+                                       ~
+
+---
+
+# A map key that may be missing must use ok() too.
+spq: values map{y:1}
+
+input: |
+  {x:1}
+  {x:2,y:3}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 12:
+  values map{y:1}
+             ~
+---
+
+# An expression used as an operator is a values operator unless it's Boolean,
+# in which case it's a filter.
+spq: r.y
+
+input: |
+  {r:{y:1}}
+  {r:{x:1}}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 1:
+  r.y
+  ~~~
+
+---
+
+spq: r.y.ok()
+
+input: |
+  {r:{y:1}}
+  {r:{x:1}}
+
+output: |
+  1
+  none
+
+---
+
+spq: r.y==1
+
+input: |
+  {r:{y:1}}
+  {r:{x:1}}
+
+output: |
+  {r:{y:1}}
+
+---
+
+spq: put z:=y | cut y
+
+input: |
+  {x:1}
+  {x:2,y:3}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 8:
+  put z:=y | cut y
+         ~
+  field may be missing (consider ok()) at line 1, column 16:
+  put z:=y | cut y
+                 ~
+
+---
+
+spq: values y.ok(), {x,y:y.ok()}, [y.ok()], y.ok() ?? 0
+
+input: |
+  {x:1}
+  {x:2,y:3}
+
+output: |
+  none
+  {x:1}
+  []
+  0
+  3
+  {x:2,y:3}
+  [3]
+  3

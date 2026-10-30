@@ -200,7 +200,7 @@ output: |
 
 spq: superfuse | values x
 
-flags: -fusion
+flags: -fusion -dynamic
 
 input: |
   {x:{y:1}}

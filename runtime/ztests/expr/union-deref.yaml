@@ -1,5 +1,7 @@
 spq: cut a:=r[0].a,b:=r[1].b
 
+flags: -dynamic
+
 input: |
   {r:[{a:1},{b:1.5}]}
 

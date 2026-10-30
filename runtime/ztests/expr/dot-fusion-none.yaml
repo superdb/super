@@ -1,5 +1,7 @@
 spq: superfuse | values x
 
+flags: -dynamic
+
 input: |
   {x:"foo"}
   {x:1}

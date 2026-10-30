@@ -105,7 +105,7 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 	case *ast.CallExpr:
 		return t.semCall(e, inType)
 	case *ast.CastExpr:
-		expr, _ := t.expr(e.Expr, inType)
+		expr, exprType := t.expr(e.Expr, inType)
 		if _, ok := e.Type.(*ast.DateTypeHack); ok {
 			// cast to time then bucket by 1d as a workaround for not currently
 			// supporting a "date" type.
@@ -113,10 +113,8 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 			return sem.NewCall(e, "bucket", []sem.Expr{cast, &sem.PrimitiveExpr{Node: e, Value: "1d"}}), super.TypeTimestamp
 		}
 		typeVal, _ := t.semType(e.Type)
-		// In a future PR, we will add support to see if the expr type is
-		// cast-able and return the appropriate cast type.  For now, we just
-		// return unknown and we don't do futher type checking on this.
-		return sem.NewCall(e, "cast", []sem.Expr{expr, typeVal}), t.checker.unknown
+		// XXX We don't yet check that the expr type is cast-able to the type.
+		return sem.NewCall(e, "cast", []sem.Expr{expr, typeVal}), t.checker.castType(exprType, typeVal)
 	case *ast.ExtractExpr:
 		return t.semExtractExpr(e, e.Part, e.Expr, inType)
 	case *ast.DoubleQuoteExpr:
@@ -178,7 +176,9 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 		var valTypes []super.Type
 		for _, entry := range e.Entries {
 			key, keyType := t.expr(entry.Key, inType)
+			t.checker.result(entry.Key, keyType)
 			val, valType := t.expr(entry.Value, inType)
+			t.checker.result(entry.Value, valType)
 			entries = append(entries, sem.Entry{Key: key, Value: val})
 			keyTypes = append(keyTypes, keyType)
 			valTypes = append(valTypes, valType)
@@ -213,6 +213,7 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 				}
 				fields[name] = struct{}{}
 				e, typ := t.expr(elem.Value, inType)
+				t.checker.result(elem.Value, typ)
 				if elem.Opt {
 					e = &sem.CallExpr{Node: elem.Value, Tag: "some", Args: []sem.Expr{e}}
 					typ = t.checker.optionize(typ)
@@ -232,6 +233,7 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 				types = append(types, typ)
 			case *ast.ExprElem:
 				e, typ := t.expr(elem.Expr, inType)
+				t.checker.result(elem.Expr, typ)
 				if elem.Opt {
 					e = &sem.CallExpr{Node: elem.Expr, Tag: "some", Args: []sem.Expr{e}}
 				}
@@ -605,7 +607,7 @@ func (t *translator) binaryExpr(e *ast.BinaryExpr, inType super.Type) (sem.Expr,
 			Node: e,
 			Tag:  "cast",
 			Args: []sem.Expr{lhs, rhs},
-		}, t.checker.unknown //XXX need cast logic in checker
+		}, t.checker.castType(lhsType, rhs)
 	}
 	return &sem.BinaryExpr{
 		Node: e,
@@ -853,6 +855,9 @@ func (t *translator) semCallByName(call *ast.CallExpr, name string, args []sem.E
 			t.error(call, err)
 			return badExpr, t.checker.unknown
 		}
+	}
+	if nameLower == "cast" && nargs == 2 {
+		return sem.NewCall(call, nameLower, args), t.checker.castType(argTypes[0], args[1])
 	}
 	return sem.NewCall(call, nameLower, args), t.checker.unknown
 }
@@ -1260,6 +1265,7 @@ func (t *translator) arrayElems(elems []ast.ArrayElem, inType super.Type) ([]sem
 			types = append(types, spreadType)
 		case *ast.ExprElem:
 			elemExpr, elemType := t.expr(elem.Expr, inType)
+			t.checker.result(elem.Expr, elemType)
 			out = append(out, &sem.ExprElem{Node: elem, Expr: elemExpr})
 			// A none element is dropped from the array at runtime so it
 			// doesn't contribute to the element type.

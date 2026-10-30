@@ -1,5 +1,7 @@
 spq: cut a, b
 
+flags: -dynamic
+
 input: |
   {}
   {a:{}}

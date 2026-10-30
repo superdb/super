@@ -530,9 +530,14 @@ func (c *checker) coalesce(lhs, rhs super.Type) super.Type {
 		return c.fuse([]super.Type{lhs, rhs})
 	}
 	var types []super.Type
+	var noneish bool
 	unwrap := func(t super.Type) {
-		t = deoption(t)
-		if typ, ok := c.withoutTypes(t, isNoneishType); ok {
+		u := deoption(t)
+		typ, ok := c.withoutTypes(u, isNoneishType)
+		if !ok || typ != t {
+			noneish = true
+		}
+		if ok {
 			types = append(types, typ)
 		}
 	}
@@ -542,6 +547,10 @@ func (c *checker) coalesce(lhs, rhs super.Type) super.Type {
 		}
 	} else {
 		unwrap(lhs)
+	}
+	if !noneish {
+		// lhs is never none or null so lhs ?? rhs is always lhs.
+		return lhs
 	}
 	return c.fuse(append(types, rhs))
 }
@@ -809,9 +818,52 @@ func (c *checker) array(typ super.Type) super.Type {
 }
 
 func (c *checker) callBuiltin(call *sem.CallExpr, args []super.Type) super.Type {
+	if call.Tag == "cast" && len(call.Args) == 2 {
+		return c.castType(args[0], call.Args[1])
+	}
 	// XXX This will be handled in a subsequent PR where we add type signatures
 	// to the package containing the built-in function implementatons.
 	return c.unknown
+}
+
+// castType returns the type of a cast of a value of type in to the type value
+// e, which is known when e is a type expression (e.g., <int64> or a named
+// type) and is otherwise unknown.  A cast passes a null through so the type
+// admits null if in does, and a cast produces missing only from missing so
+// the type admits missing only if in does.
+func (c *checker) castType(in super.Type, e sem.Expr) super.Type {
+	typeExpr, ok := e.(*sem.TypeExpr)
+	if !ok {
+		return c.unknown
+	}
+	typ, err := c.t.defs.LookupType(typeExpr.ID)
+	if err != nil {
+		return c.unknown
+	}
+	typ, err = c.t.sctx.TranslateType(typ)
+	if err != nil {
+		return c.unknown
+	}
+	if hasMissing(typ) && !hasUnknown(in) && !hasMissing(in) {
+		rest, ok := c.withoutTypes(typ, isMissingType)
+		if !ok {
+			return c.unknown
+		}
+		typ = rest
+	}
+	if hasNullType(in) && !hasNullType(typ) {
+		return c.fuse([]super.Type{typ, super.TypeNull})
+	}
+	return typ
+}
+
+// hasNullType reports whether typ is null or a union with null as one of its
+// types.
+func hasNullType(typ super.Type) bool {
+	if u, ok := under(typ).(*super.TypeUnion); ok {
+		return slices.ContainsFunc(u.Types, hasNullType)
+	}
+	return under(typ) == super.TypeNull
 }
 
 func (c *checker) callFunc(call *sem.CallExpr, args []super.Type) super.Type {
@@ -1589,6 +1641,18 @@ func (c *checker) aggFunc(name string, arg ast.Node, argType super.Type, filter 
 // the values where the field is absent form the none group.
 func (c *checker) groupKey(loc ast.Node, typ super.Type) {
 	c.notMissing(loc, typ)
+}
+
+// result reports an error at loc if typ, the type of a value the query
+// produces (e.g., an output value, record field, array element, or assigned
+// field), may be missing, as for a field that's absent from some records.
+// Such a missing value is an error at runtime, so it must be converted to
+// none with ok(), e.g., values y.ok().
+func (c *checker) result(loc ast.Node, typ super.Type) {
+	typ = defuse(typ)
+	if typ != nil && !hasUnknown(typ) && mayBeMissing(typ) {
+		c.error(loc, errMissing)
+	}
 }
 
 // notMissing reports an error at loc if typ may be missing.

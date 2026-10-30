@@ -1,6 +1,6 @@
 script: |
   super -o d.bsup d.json
-  super -o out.bsup -c 'values commit.collection' d.bsup
+  super -o out.bsup -dynamic -c 'values commit.collection' d.bsup
   super -s out.bsup
 
 inputs:

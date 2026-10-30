@@ -8,11 +8,13 @@ script: |
   echo === object types
   super db -s -c "from t@main:objects | sort min | values type"
   echo === fused across objects
-  super db -s -c "from t | values {x,y} | sort x"
+  super db -s -c "from t | values {x,y:y.ok()} | sort x"
   super db -s -c "select x, y from t order by x"
   echo === unknown field >&2
   ! super db -c "from t | values z"
   ! super db -c "select z from t"
+  echo === field may be missing >&2
+  ! super db -c "from t | values {x,y}"
   echo === glob >&2
   ! super db -c "from t* | values z"
   echo === empty table is unknown
@@ -33,7 +35,7 @@ outputs:
       <{x:int64}>
       <{x:int64,y:string}>
       === fused across objects
-      {x:1,y:error("no such field y")}
+      {x:1}
       {x:2,y:"foo"}
       {x:1,y:null}
       {x:2,y:"foo"}
@@ -47,6 +49,10 @@ outputs:
       "z" is not a column or table at line 1, column 8:
       select z from t
              ~
+      === field may be missing
+      field may be missing (consider ok()) at line 1, column 20:
+      from t | values {x,y}
+                         ~
       === glob
       no such field "z" at line 1, column 18:
       from t* | values z
