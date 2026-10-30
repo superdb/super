@@ -648,7 +648,11 @@ func (c *canon) op(o ast.Op) {
 		c.assignments(o.Args)
 	case *ast.FuseOp:
 		c.next()
-		c.write("fuse")
+		if o.Complete {
+			c.write("superfuse")
+		} else {
+			c.write("fuse")
+		}
 	case *ast.JoinOp:
 		c.next()
 		if o.Style != "" {

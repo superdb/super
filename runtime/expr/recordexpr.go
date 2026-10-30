@@ -28,7 +28,7 @@ func NewRecordExpr(sctx *super.Context, elems []RecordElem) Evaluator {
 		sctx:         sctx,
 		elems:        elems,
 		fieldIndexes: map[string]int{},
-		defuse:       NewDefuse(sctx),
+		defuse:       NewSuperDefuse(sctx),
 	}
 }
 
@@ -41,7 +41,7 @@ type recordExpr struct {
 	fieldIndexes map[string]int
 	fieldVecs    []vector.Any
 	// defuse is for defusing spread values.
-	defuse *Defuse
+	defuse *SuperDefuse
 }
 
 func (r *recordExpr) Eval(this vector.Any) vector.Any {

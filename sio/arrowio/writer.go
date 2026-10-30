@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	ErrMultipleTypes   = errors.New("arrowio: encountered multiple types (consider 'blend')")
+	ErrMultipleTypes   = errors.New("arrowio: encountered multiple types (consider 'fuse')")
 	ErrNotRecord       = errors.New("arrowio: not a record")
 	ErrUnsupportedType = errors.New("arrowio: unsupported type")
 )

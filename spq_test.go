@@ -168,7 +168,7 @@ func runOneBoomerang(t *testing.T, format, data string) {
 	var err error
 	if format == "parquet" {
 		// Fuse data for formats that require uniform values.
-		dataPuller, err = newQuery(t.Context(), sctx, "fuse", "auto", data)
+		dataPuller, err = newQuery(t.Context(), sctx, "superfuse", "auto", data)
 	} else {
 		dataPuller, err = anyio.NewReader(t.Context(), sctx, strings.NewReader(data), anyio.ReaderOpts{Format: "auto"})
 	}
@@ -238,7 +238,7 @@ func runOneFusionBoomerang(t *testing.T, data string) {
 
 func fuseDefuse(ctx context.Context, s string) (string, error) {
 	sctx := super.NewContext()
-	q, err := newQuery(ctx, sctx, "fuse | defuse(this)", "sup", s)
+	q, err := newQuery(ctx, sctx, "superfuse | superdefuse(this)", "sup", s)
 	if err != nil {
 		return "", err
 	}

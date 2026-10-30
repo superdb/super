@@ -2,7 +2,7 @@
 # vector/vbuild.DynamicBuilder bug in handling a vector.Dyanmic
 # containing same-type vectors.
 script: |
-  super -f bsup -c 'from in.sup | fuse' | super -i bsup -s -
+  super -f bsup -c 'from in.sup | superfuse' | super -i bsup -s -
 
 inputs:
   - name: in.sup

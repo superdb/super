@@ -15,14 +15,14 @@ type Entry struct {
 
 type MapExpr struct {
 	sctx    *super.Context
-	defuse  *Defuse
+	defuse  *SuperDefuse
 	entries []Entry
 }
 
 func NewMapExpr(sctx *super.Context, entries []Entry) *MapExpr {
 	return &MapExpr{
 		sctx:    sctx,
-		defuse:  NewDefuse(sctx),
+		defuse:  NewSuperDefuse(sctx),
 		entries: entries,
 	}
 }

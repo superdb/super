@@ -1,7 +1,7 @@
 script: |
   super -o test.bsup test.sup
   super -o test.json test.sup
-  super -o test.parquet -c blend test.sup
+  super -o test.parquet -c fuse test.sup
   gzip -c test.sup > test.sup.gz
   gzip -c test.bsup > test.bsup.gz
   for format in bsup bsup.gz json parquet sup sup.gz; do

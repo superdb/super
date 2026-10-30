@@ -1,4 +1,4 @@
-spq: fuse | defuse(this)
+spq: superfuse | superdefuse(this)
 
 input: &input |
   [{x:1},{y:1}]
@@ -7,7 +7,7 @@ output: *input
 
 ---
 
-spq: fuse | defuse(this)
+spq: superfuse | superdefuse(this)
 
 input: &input |
   "foo"::(int64|string)
@@ -20,7 +20,7 @@ output: *input
 
 ---
 
-spq: fuse(this)
+spq: superfuse(this)
 
 input: |
   []
@@ -31,7 +31,7 @@ output: |
 
 ---
 
-spq: fuse(this)
+spq: superfuse(this)
 
 input: |
   [{id:1,s:"foo"},{id:2,s:null}]
@@ -42,7 +42,7 @@ output: |
 
 ---
 
-spq: fuse | defuse(this)
+spq: superfuse | superdefuse(this)
 
 input: &input |
   [{id:1,s:"foo"},{id:2,s:null}]
@@ -52,7 +52,7 @@ output: *input
 
 ---
 
-spq: fuse | defuse(this)
+spq: superfuse | superdefuse(this)
 
 input: &input |
   []
@@ -62,7 +62,7 @@ output: *input
 
 ---
 
-spq: fuse | defuse(this)
+spq: superfuse | superdefuse(this)
 
 input: &input |
   {x:1,y:{z:"foo"}}
@@ -73,7 +73,7 @@ output: *input
 
 ---
 
-spq: fuse(this)
+spq: superfuse(this)
 
 input: |
   some(1)
@@ -84,7 +84,7 @@ output: |
 
 ---
 
-spq: fuse(this)
+spq: superfuse(this)
 
 input: |
   2
@@ -95,7 +95,7 @@ output: |
 
 ---
 
-spq: fuse
+spq: superfuse
 
 flags: -fusion
 
@@ -113,7 +113,7 @@ output: |
 
 ---
 
-spq: fuse | values x
+spq: superfuse | values x
 
 flags: -fusion
 
@@ -131,7 +131,7 @@ output: |
 
 ---
 
-spq: fuse
+spq: superfuse
 
 flags: -fusion
 

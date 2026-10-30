@@ -17,7 +17,7 @@ script: |
   echo '{k:10}{k:13}' | super db load -q -
   super db -s -c "from tmp"
   echo ===
-  super db -S -c "from tmp:partitions | unnest objects into ( collect({min:defuse(min),max:defuse(max)}) )"
+  super db -S -c "from tmp:partitions | unnest objects into ( collect({min:superdefuse(min),max:superdefuse(max)}) )"
 
 outputs:
   - name: stdout

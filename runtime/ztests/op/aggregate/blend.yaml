@@ -1,9 +1,0 @@
-spq: blend(this)
-
-input: |
-  {a:"hello",b:"world"}
-  {a:"goodnight",b:123::int32}
-  error("missing")
-
-output: |
-  <{a:string,b:int32|string}|error(string)>

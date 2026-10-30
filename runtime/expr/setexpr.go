@@ -8,12 +8,12 @@ import (
 
 type setExpr struct {
 	sctx   *super.Context
-	defuse *Defuse
+	defuse *SuperDefuse
 	elems  []ListElem
 }
 
 func NewSetExpr(sctx *super.Context, elems []ListElem) Evaluator {
-	return &setExpr{sctx, NewDefuse(sctx), elems}
+	return &setExpr{sctx, NewSuperDefuse(sctx), elems}
 }
 
 func (s *setExpr) Eval(this vector.Any) vector.Any {

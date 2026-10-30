@@ -14,7 +14,7 @@ script: |
     done
     super db manage -table $dir -log.path=$dir-1.json
     super db manage -table $dir -log.path=$dir-2.json
-    super db -s -c "from $dir@main:objects | sort defuse(min) | drop id,type,size"
+    super db -s -c "from $dir@main:objects | sort superdefuse(min) | drop id,type,size"
     super -s -c 'msg=="compaction completed" | values {runs_found,objects_compacted}' $dir-1.json $dir-2.json
     super db -f line -c "from $dir | values x" | uniq -c | awk '{print $2 ":" $1}' | paste -sd ' ' -
   done

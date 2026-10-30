@@ -19,7 +19,7 @@ type Fuse struct {
 	fuser    *super.Fuser
 	vecs     []vector.Any
 	upcaster *function.Upcast
-	defuser  *expr.Defuse
+	defuser  *expr.SuperDefuse
 }
 
 func NewFuse(sctx *super.Context, parent vio.Puller, complete bool) *Fuse {
@@ -28,7 +28,7 @@ func NewFuse(sctx *super.Context, parent vio.Puller, complete bool) *Fuse {
 		parent:   parent,
 		complete: complete,
 		upcaster: function.NewUpcast(sctx),
-		defuser:  expr.NewDefuse(sctx),
+		defuser:  expr.NewSuperDefuse(sctx),
 	}
 }
 

@@ -19,7 +19,7 @@ output: |
 
 ---
 
-spq: defuse(this::any)
+spq: superdefuse(this::any)
 
 input: &input |
   1

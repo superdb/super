@@ -40,12 +40,12 @@ type Rect={width:float64,height:float64}
 
 ---
 
-_Compute a sum type of events from their blended types_
+_Compute a sum type of events from their fused types_
 
 ```mdtest-spq
 # spq
-blend(this) by kind
-| collect_map(map{kind:blend})
+fuse(this) by kind
+| collect_map(map{kind:fuse})
 | values sum_type(this)
 # input
 {kind:"Push",ref:"main"}

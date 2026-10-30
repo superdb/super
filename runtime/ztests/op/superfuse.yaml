@@ -1,0 +1,223 @@
+spq: superfuse
+
+flags: -fusion
+
+input: |
+  {a:"hello",b:"world"}
+  {b:"goodnight",c:"gracie"}
+  {a:"goodnight",b:123::int32}
+  {a:null,b:null,c:null}
+
+output: |
+  {a:fusion("hello"::(string|null|missing),<string>),b:fusion("world"::(int32|string|null),<string>),c:fusion(missing::(string|null|missing),<missing>)}
+  {a:fusion(missing::(string|null|missing),<missing>),b:fusion("goodnight"::(int32|string|null),<string>),c:fusion("gracie"::(string|null|missing),<string>)}
+  {a:fusion("goodnight"::(string|null|missing),<string>),b:fusion(123::int32::(int32|string|null),<int32>),c:fusion(missing::(string|null|missing),<missing>)}
+  {a:fusion(null::(string|null|missing),<null>),b:fusion(null::(int32|string|null),<null>),c:fusion(null::(string|null|missing),<null>)}
+
+---
+
+# Test superfuse on an array of records.
+spq: superfuse
+
+flags: -fusion
+
+input: |
+  [{a:1}]
+  [{b:2}]
+  [{a:3},{b:3}]
+  [{a:3,b:3}]
+  [{a:null,b:null}]
+
+output: |
+  fusion([fusion({a:fusion(1::(int64|null|missing),<int64>),b:fusion(missing::(int64|null|missing),<missing>)},<{a:int64}>)],<[{a:int64}]>)
+  fusion([fusion({a:fusion(missing::(int64|null|missing),<missing>),b:fusion(2::(int64|null|missing),<int64>)},<{b:int64}>)],<[{b:int64}]>)
+  fusion([fusion({a:fusion(3::(int64|null|missing),<int64>),b:fusion(missing::(int64|null|missing),<missing>)},<{a:int64}>),fusion({a:fusion(missing::(int64|null|missing),<missing>),b:fusion(3::(int64|null|missing),<int64>)},<{b:int64}>)],<[{a:int64}|{b:int64}]>)
+  fusion([fusion({a:fusion(3::(int64|null|missing),<int64>),b:fusion(3::(int64|null|missing),<int64>)},<{a:int64,b:int64}>)],<[{a:int64,b:int64}]>)
+  fusion([fusion({a:fusion(null::(int64|null|missing),<null>),b:fusion(null::(int64|null|missing),<null>)},<{a:null,b:null}>)],<[{a:null,b:null}]>)
+
+---
+
+# Test superfuse on mix of complex and primitive values.
+spq: superfuse
+
+flags: -fusion
+
+input: |
+  {a:1}
+  {a:"s"}
+  1
+  "s"
+  [1]
+  ["s"]
+
+output: |
+  fusion({a:fusion(1::(int64|string),<int64>)}::(int64|string|{a:fusion(int64|string)}|[fusion(int64|string)]),<{a:int64}>)
+  fusion({a:fusion("s"::(int64|string),<string>)}::(int64|string|{a:fusion(int64|string)}|[fusion(int64|string)]),<{a:string}>)
+  fusion(1::(int64|string|{a:fusion(int64|string)}|[fusion(int64|string)]),<int64>)
+  fusion("s"::(int64|string|{a:fusion(int64|string)}|[fusion(int64|string)]),<string>)
+  fusion([fusion(1::(int64|string),<int64>)]::(int64|string|{a:fusion(int64|string)}|[fusion(int64|string)]),<[int64]>)
+  fusion([fusion("s"::(int64|string),<string>)]::(int64|string|{a:fusion(int64|string)}|[fusion(int64|string)]),<[string]>)
+
+---
+
+# Test superfuse on nested records.
+spq: superfuse
+
+flags: -fusion
+
+input: |
+  {a:"hello",r:{x:1::int32,y:2::int32}}
+  {r:{y:4::int32,z:5::int32},s:"world",r2:{x:6::int32}}
+  {a:null,r:{x:null,y:null,z:null},s:null,r2:null}
+
+output: |
+  {a:fusion("hello"::(string|null|missing),<string>),r:{x:fusion(1::int32::(int32|null|missing),<int32>),y:fusion(2::int32::(int32|null),<int32>),z:fusion(missing::(int32|null|missing),<missing>)},s:fusion(missing::(string|null|missing),<missing>),r2:fusion(missing::(null|missing|{x:int32}),<missing>)}
+  {a:fusion(missing::(string|null|missing),<missing>),r:{x:fusion(missing::(int32|null|missing),<missing>),y:fusion(4::int32::(int32|null),<int32>),z:fusion(5::int32::(int32|null|missing),<int32>)},s:fusion("world"::(string|null|missing),<string>),r2:fusion({x:6::int32}::(null|missing|{x:int32}),<{x:int32}>)}
+  {a:fusion(null::(string|null|missing),<null>),r:{x:fusion(null::(int32|null|missing),<null>),y:fusion(null::(int32|null),<null>),z:fusion(null::(int32|null|missing),<null>)},s:fusion(null::(string|null|missing),<null>),r2:fusion(null::(null|missing|{x:int32}),<null>)}
+
+---
+
+spq: superfuse
+
+flags: -fusion
+
+input: |
+  error(1)
+  error("s")
+
+output: |
+  fusion(error(fusion(1::(int64|string),<int64>)),<error(int64)>)
+  fusion(error(fusion("s"::(int64|string),<string>)),<error(string)>)
+
+---
+
+spq: superfuse
+
+flags: -fusion
+
+input: |
+  [1,2]
+  ["foo"]
+  [null]
+
+output: |
+  fusion([fusion(1::(int64|string|null),<int64>),fusion(2::(int64|string|null),<int64>)],<[int64]>)
+  fusion([fusion("foo"::(int64|string|null),<string>)],<[string]>)
+  fusion([fusion(null::(int64|string|null),<null>)],<[null]>)
+
+---
+
+spq: superfuse
+
+flags: -fusion
+
+input: |
+  {a:[1,2]}
+  {a:["foo"]}
+  {a:[null]}
+
+output: |
+  {a:fusion([fusion(1::(int64|string|null),<int64>),fusion(2::(int64|string|null),<int64>)],<[int64]>)}
+  {a:fusion([fusion("foo"::(int64|string|null),<string>)],<[string]>)}
+  {a:fusion([fusion(null::(int64|string|null),<null>)],<[null]>)}
+
+---
+
+spq: superfuse
+
+flags: -fusion
+
+input: |
+  type p1=int64
+  1::p1
+  type r1=int64
+  type r2={a:r1}
+  {a:1}::r2
+  type a1=int64
+  type a2=[a1]
+  [1]::"a2"
+  type s1=int64
+  type s2=set[s1]
+  set[1]::s2
+  type m1=int64
+  type m2=int64
+  type m3=map{m1:m2}
+  map{1:2}::m3
+  type u1=int64
+  type u3=string
+  type u2=u1|u3
+  1::u1::u2
+  type en1=enum(a,b)
+  "a"::en1
+  type er1=int64
+  type er2=error(er1)
+  error(1)::er2
+
+output: |
+  type a1=int64
+  type a2=[a1]
+  type en1=enum(a,b)
+  type er1=int64
+  type er2=error(er1)
+  type m1=int64
+  type m2=int64
+  type m3=map{m1:m2}
+  type p1=int64
+  type r1=int64
+  type r2={a:r1}
+  type s1=int64
+  type s2=set[s1]
+  type u1=int64
+  type u3=string
+  type u2=u1|u3
+  fusion(1::p1::(a2|en1|er2|m3|p1|r2|s2|u2),<p1>)
+  fusion({a:1}::r2::(a2|en1|er2|m3|p1|r2|s2|u2),<r2>)
+  fusion([1]::"a2"::(a2|en1|er2|m3|p1|r2|s2|u2),<a2>)
+  fusion(set[1]::s2::(a2|en1|er2|m3|p1|r2|s2|u2),<s2>)
+  fusion(map{1:2}::m3::(a2|en1|er2|m3|p1|r2|s2|u2),<m3>)
+  fusion(1::u1::u2::(a2|en1|er2|m3|p1|r2|s2|u2),<u2>)
+  fusion("a"::en1::(a2|en1|er2|m3|p1|r2|s2|u2),<en1>)
+  fusion(error(1)::er2::(a2|en1|er2|m3|p1|r2|s2|u2),<er2>)
+
+---
+
+# Test superfuse on fusion values
+spq: unnest this into ( superfuse )
+
+input: |
+  [fusion({x?:1,y?:none::int64},<{x:int64}>)]
+  [fusion({x?:1,y?:none::int64},<{x:int64}>),fusion({x?:none::int64,y?:2},<{y:int64}>)]
+  [1,fusion(2::(int64|null),<int64>)]
+
+output: |
+  {x:1}
+  {x:1}
+  {y:2}
+  1
+  2
+
+---
+
+spq: superfuse | values x
+
+flags: -fusion
+
+input: |
+  {x:{y:1}}
+  {}
+
+output: |
+  fusion({y:1}::(missing|{y:int64}),<{y:int64}>)
+  error("no such field x")
+
+---
+
+spq: superfuse | values x.ok() ?? 123
+
+input: |
+  {x:{y:1}}
+  {}
+
+output: |
+  {y:1}
+  123

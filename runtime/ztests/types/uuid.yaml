@@ -70,7 +70,7 @@ output: *input
 ---
 
 script: |
-  super -f bsup -o out.bsup -c 'values {id:01a11990-01e2-7cb4-a33f-d3f97191b61a},{id:null::(uuid|null)} | blend'
+  super -f bsup -o out.bsup -c 'values {id:01a11990-01e2-7cb4-a33f-d3f97191b61a},{id:null::(uuid|null)} | fuse'
   super -s out.bsup
   super -f parquet -o out.parquet out.bsup
   super -s out.parquet

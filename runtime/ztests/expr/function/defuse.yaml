@@ -1,298 +1,133 @@
-spq: fuse | defuse(this)
+# Test defuse on records.
+spq: defuse(this)
 
-input: &input |
-  [1,2]
-  ["foo"]
-  [null]
+input: |
+  {x:{y:2::(int64|bool)},z:"foo"::(missing|string)}
+  {x:{y:true::(int64|bool)},z:missing::(missing|string)}
+  {}
 
-output: *input
+output: |
+  {x:{y:2},z:"foo"}
+  {x:{y:true}}
+  {}
 
 ---
 
-spq: fuse | defuse(this)
+# Test defuse on root unions.
+spq: defuse(this)
 
-input: &input |
+input: |
+  1::(int64|bool|{x:int64})
+  true::(int64|bool|{x:int64})
+  {x:1}::(int64|bool|{x:int64})
+
+output: |
+  1
+  true
   {x:1}
-  {x:2,y?:3}
-
-output: *input
 
 ---
 
-spq: fuse | defuse(this)
-
-input: &input |
-  {a:{b:1}}
-  type n1={b:int64,c:int64}
-  type n2={a:n1}
-  {a:{b:1,c:2}}::n2
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  type p1=int64
-  1::p1
-  type r1=int64
-  type r2={b:r1}
-  type r3={a:r2}
-  {a:{b:1}}::r3
-  type a1=int64
-  type a2=[a1]
-  type a3=[a2]
-  [[1]]::"a3"
-  type s1=int64
-  type s2=set[s1]
-  type s3=set[s2]
-  set[set[1]]::s3
-  type m1=int64
-  type m2=int64
-  type m3=map{m1:m2}
-  map{1:2}::m3
-  type en1=enum(a,b)
-  "a"::en1
-  type u1=int64
-  type u3=string
-  type u2=u1|u3
-  1::u1::u2
-  type er1=int64
-  type er2=error(er1)
-  error(1)::er2
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  type p1=int64
-  1::p1
-  type r1=int64
-  type r2={b:r1}
-  type r3={a:r2}
-  {a:{b:1}}::r3
-  type a1=int64
-  type a2=[a1]
-  type a3=[a2]
-  [[1]]::"a3"
-  type s1=int64
-  type s2=set[s1]
-  type s3=set[s2]
-  set[set[1]]::s3
-  type m1=int64
-  type m2=int64
-  type m3=map{m1:m2}
-  map{1:2}::m3
-  type en1=enum(a,b)
-  "a"::en1
-  type er1=int64
-  type er2=error(er1)
-  error(1)::er2
-
-output: *input
-
----
-
+# Test defuse on arrays.
 spq: defuse(this)
 
 input: |
-  fusion({a?:1,b?:none::int64,c?:none::int64},<{a:int64}>)
-  fusion({a?:none::int64,b?:1,c?:2},<{b:int64,c:int64}>)
-  // None-valued record fields.
-  [{a:fusion(missing::(int64|missing),<missing>)},{a:fusion(missing::(string|missing),<missing>)}]
+  [1::(int64|bool|string),2::(int64|bool|string),"string"::(int64|bool|string)]
+  [1::(int64|bool|string),2::(int64|bool|string),true::(int64|bool|string)]
+  [1::(int64|bool|string),"foo"::(int64|bool|string),false::(int64|bool|string)]
+  ["foo"::(int64|bool|string),"bar"::(int64|bool|string),"baz"::(int64|bool|string)]
+  []::[(int64|bool|string)]
 
 output: |
-  {a:1}
-  {b:1,c:2}
-  [{},{}]
+  [1,2,"string"]
+  [1,2,true]
+  [1,"foo",false]
+  ["foo","bar","baz"]
+  []
 
 ---
 
-spq: fuse | defuse(this)
-
-input: &input |
-  [1::(int64|bool|string),"foo"::(int64|bool|string)]
-
-output: |
-  [1,"foo"]::[int64|bool|string]
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  {a:1::(int64|null)}
-  {a:2}::(null|{a:int64})
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  {a:[{x:1},{x:null}]}
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  {x:1}::(null|{x:int64})
-  {}
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  {x:1}::({x:int64}|{x:int64,y:string})
-  {}
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  {a:{b:null}}
-  {a:{b:1}}
-  {a:2::(int64|null)}
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  [1,[[2],[null]]]
-  set[1,set[set[2],set[null]]]
-  map{1:2,map{3:4}:map{5:map{6:7},null:map{null:null}}}
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  error(0)
-  error(1::(int64|string))
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  error(0)
-  error(1)::(null|error(int64))
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  error("a")
-  error(0)::(null|error(int64))
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  1::(int64|null)
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  1::(int64|[int64]|[string])
-  [2]::(int64|[int64]|[string])
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  [{a:1}]
-  [{a:3},{b:3}]
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  [1]
-  [[2],["a"]]
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  [1]
-  [map{2:3},map{4:"a"}]
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  [1]
-  [map{2:3},map{4:"a"}::map{int64|string:int64|string}]
-
-output: *input
-
----
-
-spq: fuse | defuse(this)
-
-input: &input |
-  null::(null|set[string])
-  set[null]::set[string|null]
-
-output: *input
-
----
-
-# Defuse on a fusion value inside an array/set.
+# Test defuse on elements in an array.
 spq: defuse(this)
 
 input: |
-  [fusion(1::(int64|null),<int64>),2]
-  [fusion(1::(int64|null),<int64>),2,"foo"]
-  set[fusion(1::(int64|null),<int64>),2]
-  set[fusion(1::(int64|null),<int64>),2,"foo"]
+  [{x:1::(bool|int64|string)},{x:true::(bool|int64|string)},{x:"foo"::(bool|int64|string)}]
+  [{x:2::(bool|int64|string)},{x:3::(bool|int64|string)},{x:"bar"::(bool|int64|string)}]
+  [{x:true::(bool|int64|string)},{x:false::(bool|int64|string)},{x:"bar"::(bool|int64|string)}]
 
 output: |
-  [1,2]
-  [1,2,"foo"]
-  set[1,2]
-  set[1,2,"foo"]
+  [{x:1},{x:true},{x:"foo"}]
+  [{x:2},{x:3},{x:"bar"}]
+  [{x:true},{x:false},{x:"bar"}]
+
+---
+
+# Test defuse on view of array.
+spq: defuse(this[0])
+
+input: |
+  [[0::(int64|string),1::(int64|string)],["foo"::(int64|string),2::(int64|string)]]
+
+output: |
+  [0,1]
+
+---
+
+# Test defuse on sets.
+spq: defuse(this)
+
+input: |
+  set[1::(int64|bool|string),2::(int64|bool|string),"string"::(int64|bool|string)]
+  set[1::(int64|bool|string),2::(int64|bool|string),true::(int64|bool|string)]
+  set[1::(int64|bool|string),"foo"::(int64|bool|string),false::(int64|bool|string)]
+  set["foo"::(int64|bool|string),"bar"::(int64|bool|string),"baz"::(int64|bool|string)]
+  set[]::set[(int64|bool|string)]
+
+output: |
+  set[1,2,"string"]
+  set[1,2,true]
+  set[1,false,"foo"]
+  set["bar","baz","foo"]
+  set[]
+
+---
+
+# Test defuse on view of set.
+spq: defuse(this[0])
+
+input: |
+  set[set[0::(int64|string),1::(int64|string)],set["foo"::(int64|string),2::(int64|string)]]
+
+output: |
+  set[0,1]
+
+---
+
+
+# Test defuse on maps.
+spq: defuse(this)
+
+input: |
+  map{"k1"::(int64|string):"v1"::(int64|string),"k2"::(int64|string):2::(int64|string)}
+  map{"k1"::(int64|string):1::(int64|string),"k2"::(int64|string):2::(int64|string)}
+  map{"k1"::(int64|string):"v1"::(int64|string),2::(int64|string):"v2"::(int64|string)}
+  map{"k1":"v1"::(int64|string),"k2":"v2"::(int64|string)}
+  map{}::map{(int64|string):(int64|string)}
+
+output: |
+  map{"k1":"v1","k2":2}
+  map{"k1":1,"k2":2}
+  map{2:"v2","k1":"v1"}
+  map{"k1":"v1","k2":"v2"}
+  map{}
+
+---
+
+# Test defuse on view of map.
+spq: defuse(this[0])
+
+input: |
+  map{0:map{"k1"::(int64|string):0},1:map{2::(int64|string):3}}
+
+output: |
+  map{"k1":0}

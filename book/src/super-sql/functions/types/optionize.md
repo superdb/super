@@ -18,7 +18,7 @@ Since an option type already represents an absent value, any `none` or
 option members of such a union are absorbed into the result.
 Record fields of option type are optional fields.
 
-`optionize` is useful for turning a [blended type](../../aggregates/blend.md),
+`optionize` is useful for turning a [fused type](../../aggregates/fuse.md),
 where a field absent from some values has type `missing|T`, into a type
 with optional fields, which can then be the target of a [cast](cast.md),
 where an absent field is cast to `none`.
@@ -48,11 +48,11 @@ values optionize(this)
 
 ---
 
-_Optionize a blended type_
+_Optionize a fused type_
 
 ```mdtest-spq
 # spq
-aggregate t:=blend(this)
+aggregate t:=fuse(this)
 | values optionize(t)
 # input
 {x:1}

@@ -19,7 +19,7 @@ func (*This) Eval(val vector.Any) vector.Any {
 
 type DotExpr struct {
 	sctx      *super.Context
-	defuse    *Defuse
+	defuse    *SuperDefuse
 	entity    Evaluator
 	key       string
 	noneish   bool
@@ -31,7 +31,7 @@ type DotExpr struct {
 func NewDotExpr(sctx *super.Context, record Evaluator, field string, noneish, nullish bool) *DotExpr {
 	return &DotExpr{
 		sctx:    sctx,
-		defuse:  NewDefuse(sctx),
+		defuse:  NewSuperDefuse(sctx),
 		entity:  record,
 		key:     field,
 		noneish: noneish,

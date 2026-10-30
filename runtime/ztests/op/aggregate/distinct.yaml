@@ -7,7 +7,7 @@ spq: |
     collect(distinct key),
     count(distinct n),
     dcount(distinct n),
-    -- fuse() is not yet supported by vector runtime.
+    -- superfuse() is not yet supported by vector runtime.
     max(distinct n),
     min(distinct n),
     or(distinct b),

@@ -38,10 +38,10 @@ output: *input
 ---
 
 # Test order is preserved in record with same column names but different order.
-# This test needs to defuse the output to preserve order.  We need to
+# This test needs to superdefuse the output to preserve order.  We need to
 # wire in autodefusers at the outputs but for now, we pass with
-# an explicit defuse here.
-spq: defuse(this)
+# an explicit superdefuse here.
+spq: superdefuse(this)
 
 flags: -i json -f json
 

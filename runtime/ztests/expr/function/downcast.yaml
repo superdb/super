@@ -91,9 +91,9 @@ output: |
 
 # This should seemingly fail because int64|bool|string is not subtype of 
 # int64|string, but this condition is difficult to detect in general and
-# allowing such values doesn't hurt fuse/defuse as fuse would never create
+# allowing such values doesn't hurt superfuse/superdefuse as superfuse would never create
 # such a value.  To see, why this is difficult consider the second case,
-# which is created by fuse.  Because fuse flattens unions but the data model
+# which is created by superfuse.  Because superfuse flattens unions but the data model
 # allows for unnested values, this can arise, e.g., fusing the values 
 # 1 with 2::(int64|(foo=(int64|string))).
 spq: downcast(this[0], this[1])

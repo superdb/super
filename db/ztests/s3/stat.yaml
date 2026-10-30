@@ -5,7 +5,7 @@ script: |
   super db attach -q s3://bucket/db
   super db create -q -orderby ts:desc logs
   super db load -q -use logs babble.sup
-  super db -S -c "from logs@main:objects | drop id | min:=defuse(min),max:=defuse(max)"
+  super db -S -c "from logs@main:objects | drop id | min:=superdefuse(min),max:=superdefuse(max)"
 
 inputs:
   - name: babble.sup

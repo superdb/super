@@ -13,7 +13,7 @@ import (
 
 type Compare struct {
 	sctx   *super.Context
-	defuse *Defuse
+	defuse *SuperDefuse
 	opCode int
 	lhs    Evaluator
 	rhs    Evaluator
@@ -21,7 +21,7 @@ type Compare struct {
 }
 
 func NewCompare(sctx *super.Context, op string, lhs, rhs Evaluator) *Compare {
-	return &Compare{sctx, NewDefuse(sctx), vector.CompareOpFromString(op), lhs, rhs, op}
+	return &Compare{sctx, NewSuperDefuse(sctx), vector.CompareOpFromString(op), lhs, rhs, op}
 }
 
 func (c *Compare) Compare(vec0, vec1 vector.Any) vector.Any {

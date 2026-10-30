@@ -28,7 +28,7 @@ func NewPattern(sctx *super.Context, op string, distinct, hasarg bool) (expr.Agg
 		pattern = func() expr.AggFunc {
 			return &arrayAgg{*newCollect(sctx)}
 		}
-	case "blend":
+	case "fuse":
 		pattern = func() expr.AggFunc {
 			return newFuse(false)
 		}
@@ -36,7 +36,7 @@ func NewPattern(sctx *super.Context, op string, distinct, hasarg bool) (expr.Agg
 		pattern = func() expr.AggFunc {
 			return newDCount()
 		}
-	case "fuse":
+	case "superfuse":
 		pattern = func() expr.AggFunc {
 			return newFuse(true)
 		}

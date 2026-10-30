@@ -11,7 +11,7 @@ import (
 type Aggregate struct {
 	parent vio.Puller
 	sctx   *super.Context
-	defuse *expr.Defuse
+	defuse *expr.SuperDefuse
 	// XX Abstract this runtime into a generic table computation.
 	// Then the generic interface can execute fast paths for simple scenarios.
 	aggs        []*expr.Aggregator
@@ -35,7 +35,7 @@ func New(parent vio.Puller, sctx *super.Context, aggNames []field.Path, aggExprs
 	return &Aggregate{
 		parent:      parent,
 		sctx:        sctx,
-		defuse:      expr.NewDefuse(sctx),
+		defuse:      expr.NewSuperDefuse(sctx),
 		aggs:        aggs,
 		aggExprs:    aggExprs,
 		keyExprs:    keyExprs,

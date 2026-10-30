@@ -520,7 +520,7 @@ emits the same result:
 {x:1,y:2}
 ```
 
-### Blend
+### Fuse
 
 Sometimes JSON data can get really messy with lots of variations in fields,
 with null values appearing sometimes and sometimes not, and with the same
@@ -540,7 +540,7 @@ This is where you might have to spend a little bit of time coding up
 the right query logic to disentangle a JSON mess. But once the data is cleaned up,
 you can leave it in a super-structured format and not worry again.
 
-To do so, the [blend](../super-sql/operators/blend.md) operator comes in handy.
+To do so, the [fuse](../super-sql/operators/fuse.md) operator comes in handy.
 Let's say you have this sequence of data:
 ```
 {a:1,b:null}
@@ -551,7 +551,7 @@ you can't tell by looking at either value what the types of both `a` and `b`
 should be.  But if you merge the values into a common type, things begin to make
 sense, e.g.,
 ```mdtest-command
-echo '{a:1,b:null}{a:null,b:[2,3,4]}' | super -s -c blend -
+echo '{a:1,b:null}{a:null,b:[2,3,4]}' | super -s -c fuse -
 ```
 produces this transformed and comprehensively-typed SUP output:
 ```mdtest-output
@@ -563,7 +563,7 @@ Now you can see all the detail.
 This turns out to be so useful, especially with large amounts of messy input data,
 you will often find yourself fusing data then sampling it, e.g.,
 ```mdtest-command
-echo '{a:1,b:null}{a:null,b:[2,3,4]}' | super -S -c 'blend | shapes' -
+echo '{a:1,b:null}{a:null,b:[2,3,4]}' | super -S -c 'fuse | shapes' -
 ```
 produces a comprehensively-typed shape:
 ```mdtest-output
@@ -574,7 +574,7 @@ produces a comprehensively-typed shape:
 ```
 As you explore data in this fashion, you will often type various searches
 to slice and dice the data as you get a feel for it all while sending
-your interactive search results to `blend | shapes`.
+your interactive search results to `fuse | shapes`.
 
 To appreciate all this, let's have a look next at some real-world data...
 
@@ -719,22 +719,22 @@ produces
 Try opening your editor on that JSON file to look for the empty objects.
 Who knows why they are there?  No fun. Real-world data is messy.
 
-How about we blend the 3 shapes together and have a look at the result:
+How about we fuse the 3 shapes together and have a look at the result:
 ```
-super -S -c 'unnest this | blend | shapes' prs.json
+super -S -c 'unnest this | fuse | shapes' prs.json
 ```
 We won't display the result here as it's still pretty big.  But you can
 give it a try.  It's 379 lines.
 
 But let's break down what's taking up all this space.
 
-We can take the output from `blend | shapes` and list the fields with
+We can take the output from `fuse | shapes` and list the fields with
 and their "kind".  Note that when we do an `unnest this` with records as
 input, we get a new record value for each field structured as a key/value pair:
 ```mdtest-command-skip dir=book/src/tutorials
 super -s -c '
   unnest this
-  | blend
+  | fuse
   | shapes
   | unnest flatten(this)
   | {field:key[1],kind:kind(value)}
@@ -792,7 +792,7 @@ While these fields have some useful information, we'll decide to drop them here
 and focus on other top-level fields.  To do this, we can use the
 [drop](../super-sql/operators/drop.md) operator to whittle down the data:
 ```
-super -S -c 'unnest this | blend | drop head,base,_link | shapes' prs.json
+super -S -c 'unnest this | fuse | drop head,base,_link | shapes' prs.json
 ```
 Ok, this looks more reasonable and is now only 120 lines of pretty-printed SUP.
 
@@ -831,10 +831,10 @@ Okay, now that we've explored the data, we have a sense of it and can
 then put it all together.
 
 First, let's get rid of the outer array and generate elements of an array
-as a sequence of records that have been blended and let's filter out
+as a sequence of records that have been fused and let's filter out
 the empty records:
 ```
-super -c 'unnest this | len(this) != 0 | blend' prs.json > prs1.bsup
+super -c 'unnest this | len(this) != 0 | fuse' prs.json > prs1.bsup
 ```
 We can check that worked with `count`:
 ```
@@ -847,7 +847,7 @@ produces
 {count:1}
 ```
 Okay, good.  There are 28 values (the 30 requested less the two empty records)
-and exactly one shape since the data was blended.
+and exactly one shape since the data was fused.
 
 Now, let's drop the fields we aren't interested in:
 ```
@@ -936,7 +936,7 @@ pipeline, where the full query text might look like this:
 ```
 unnest this                    -- traverse the array of objects
 | len(this) != 0               -- skip empty objects
-| blend                        -- blend objects into records of a combined type
+| fuse                        -- fuse objects into records of a combined type
 | drop head,base,_links        -- drop fields that we don't need
 | closed_at:=closed_at::timestamp,  -- transform string dates to type time
   merged_at:=merged_at::timestamp,

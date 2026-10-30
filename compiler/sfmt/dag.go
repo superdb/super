@@ -470,7 +470,11 @@ func (c *canonDAG) op(o dag.Op) {
 		c.flush()
 	case *dag.FuseOp:
 		c.next()
-		c.write("fuse")
+		if o.Complete {
+			c.write("superfuse")
+		} else {
+			c.write("fuse")
+		}
 	case *dag.HashJoinOp:
 		c.next()
 		c.write("%s hashjoin as {%s,%s} on ", o.Style, o.LeftAlias, o.RightAlias)

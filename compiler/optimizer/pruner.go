@@ -26,8 +26,8 @@ func maybeNewRangePruner(pred dag.Expr, sortKeys order.SortKeys) dag.Expr {
 // from a scan when we know the sort key range of the object could not satisfy
 // the filter predicate of any of the values in the object.
 func newRangePruner(pred dag.Expr, sortKey order.SortKey) dag.Expr {
-	min := dag.NewCall("defuse", []dag.Expr{dag.NewThis(field.NewChain("min"))})
-	max := dag.NewCall("defuse", []dag.Expr{dag.NewThis(field.NewChain("max"))})
+	min := dag.NewCall("superdefuse", []dag.Expr{dag.NewThis(field.NewChain("min"))})
+	max := dag.NewCall("superdefuse", []dag.Expr{dag.NewThis(field.NewChain("max"))})
 	if e := buildRangePruner(pred, sortKey.Path, min, max); e != nil {
 		return e
 	}
