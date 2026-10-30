@@ -11,12 +11,19 @@ field name of a record or a string key of a map.
 
 Dereferenceable values include [records](../types/record.md),
 [maps](../types/map.md) with keys of type string, and
-[type values](../types/type.md) that are of type record.
+[type values](../types/type.md).
 
 The result of a dot expression is
 * the value of the indicated field for a record type,
 * the value of the indicated entry for a map with string keys, or
-* the type value of the indicated field for a record type value.
+* the type value of the indicated field for a type value.
+
+When navigating a type value, the dot operator looks through named,
+optional, fusion, and error types and into the element type of
+an array or set and the value type of a map, e.g., `<[{a:int64}]>.a`
+is `<int64>`.  For a union type, the result is the union of the field's
+types in the union's types that have the field, e.g.,
+`<{a:int64}|{a:string}|int64>.a` is `<int64|string>`.
 
 When a field or key is referenced in a dereferenceable type but that
 field or key is not present, then `error("missing")` is the result.
@@ -61,6 +68,27 @@ map{"x":{y:1},"y":2}
 1
 1
 <int64>
+```
+
+---
+
+_Navigate into a type value_
+
+```mdtest-spq
+# spq
+values this.a.b
+# input
+<{a:{b:string}}>
+<{a:[{b:ip}]}>
+<{a:map{string:{b:int64}}}>
+<{a:{b:int64}|{b:string}|{c:bool}}>
+<{a:int64}>
+# expected output
+<string>
+<ip>
+<int64>
+<int64|string>
+error({message:"no such field 'b'",on:<int64>})
 ```
 
 ---
