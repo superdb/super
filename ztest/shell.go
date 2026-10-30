@@ -14,15 +14,8 @@ func RunShell(ctx context.Context, dir, bindir, script string, stdin io.Reader, 
 	// fails unexpectedly.
 	cmd := exec.CommandContext(ctx, "bash", "-e", "-o", "pipefail", "-c", script)
 	cmd.Dir = dir
-	cmd.Env = []string{
-		"AppData=" + dir,      // For os.UserConfigDir on Windows.
-		"HOME=" + dir,         // For os.User*Dir on Unix.
-		"LocalAppData=" + dir, // For os.UserCacheDir on Windows.
-		"PATH=" + bindir + string(os.PathListSeparator) + os.Getenv("PATH"),
-		"USERPROFILE=" + dir, // For os.UserHomeDir on Windows.
-	}
-	// Forward TMPDIR, TMP, and TEMP for os.TempDir.
-	for _, env := range append(useenvs, "TMPDIR", "TMP", "TEMP") {
+	cmd.Env = EnvForHomeDirAndPath(dir, bindir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	for _, env := range useenvs {
 		if v, ok := os.LookupEnv(env); ok {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", env, v))
 		}
@@ -34,4 +27,18 @@ func RunShell(ctx context.Context, dir, bindir, script string, stdin io.Reader, 
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	return stdout.String(), stderr.String(), err
+}
+
+func EnvForHomeDirAndPath(dir, path string) []string {
+	return []string{
+		"PATH=" + path,
+		// Unix
+		"HOME=" + dir,            // os.UserCacheDir, os.UserConfigDir, os.UserHomeDir
+		"TMPDIR=" + os.TempDir(), // os.TempDir
+		// Windows
+		"AppData=" + dir,      // os.UserConfigDir
+		"LocalAppData=" + dir, // os.UserCacheDir
+		"TMP=" + os.TempDir(), // os.TempDir
+		"USERPROFILE=" + dir,  // os.UserHomeDir
+	}
 }

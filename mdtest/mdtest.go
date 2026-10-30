@@ -126,27 +126,21 @@ func Load() ([]*File, error) {
 	return files, err
 }
 
-// Run runs the file's tests.  It runs relative-directory-style tests (Test.Dir
-// != "") in parallel, with the shell working directory set to Test.Dir, and it
-// runs temporary-directory-style tests (Test.Dir == "") sequentially, with the
-// shell working directory set to a shared temporary directory.
+// Run runs the file's tests.  It runs tests sequentially if Test.Command != ""
+// and in parallel otherwise.  It runs relative-directory-style tests (Test.Dir
+// != "") with the working directory set to Test.Dir, and it runs
+// temporary-directory-style tests (Test.Dir == ""), with the working directory
+// set to a shared temporary directory.
 func (f *File) Run(t *testing.T) {
-	tempdir := t.TempDir()
+	tempDir := t.TempDir()
 	for filename, content := range f.Inputs {
-		if err := os.WriteFile(filepath.Join(tempdir, filename), []byte(content), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(tempDir, filename), []byte(content), 0600); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for _, tt := range f.Tests {
-		// Copy struct so assignment to tt.Dir below won't modify f.Tests.
-		tt := *tt
 		t.Run(strconv.Itoa(tt.Line), func(t *testing.T) {
-			if tt.Dir == "" {
-				tt.Dir = tempdir
-			} else {
-				t.Parallel()
-			}
-			if err := tt.Run(); err != nil {
+			if err := tt.Run(tempDir); err != nil {
 				// Lead with newline so line-numbered errors are
 				// navigable in editors.
 				t.Fatalf("\n%s:%d: %s", f.Path, tt.Line, err)
