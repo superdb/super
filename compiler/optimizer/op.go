@@ -2,6 +2,7 @@ package optimizer
 
 import (
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/superdb/super/compiler/dag"
@@ -43,7 +44,20 @@ func (o *Optimizer) analyzeSortKeys(op dag.Op, in order.SortKeys) (order.SortKey
 	case *dag.FilterOp, *dag.HeadOp, *dag.InferOp, *dag.PassOp, *dag.UniqOp, *dag.TailOp, *dag.FuseOp, *dag.OutputOp:
 		return in, nil
 	case *dag.CutOp:
-		return analyzeCuts(op.Args, in), nil
+		return analyzeAssignments(op.Args, in), nil
+	case *dag.ValuesOp:
+		if len(op.Exprs) != 1 {
+			return nil, nil
+		}
+		rec, ok := op.Exprs[0].(*dag.RecordExpr)
+		if !ok {
+			return nil, nil
+		}
+		assignments, ok := recordAssignments(rec, nil, nil)
+		if !ok {
+			return nil, nil
+		}
+		return analyzeAssignments(assignments, in), nil
 	case *dag.DropOp:
 		for _, f := range op.Args {
 			if fieldOf(f).Equal(key.Path) {
@@ -133,7 +147,7 @@ func orderPreservingCall(e dag.Expr, key field.Path) bool {
 	return false
 }
 
-func analyzeCuts(assignments []dag.Assignment, sortKeys order.SortKeys) order.SortKeys {
+func analyzeAssignments(assignments []dag.Assignment, sortKeys order.SortKeys) order.SortKeys {
 	if sortKeys.IsNil() {
 		return nil
 	}
@@ -204,6 +218,30 @@ func analyzeCuts(assignments []dag.Assignment, sortKeys order.SortKeys) order.So
 		return order.SortKeys{order.NewSortKey(sortKeys[0].Order, f)}
 	}
 	panic("unreachable")
+}
+
+// recordAssignments converts a record into an equivalent list of assignments.
+// It returns false if rec contains a spread.
+func recordAssignments(rec *dag.RecordExpr, path field.Path, out []dag.Assignment) ([]dag.Assignment, bool) {
+	for _, elem := range rec.Elems {
+		f, ok := elem.(*dag.Field)
+		if !ok {
+			return nil, false
+		}
+		p := append(slices.Clone(path), f.Name)
+		if child, ok := f.Value.(*dag.RecordExpr); ok {
+			if out, ok = recordAssignments(child, p, out); !ok {
+				return nil, false
+			}
+			continue
+		}
+		out = append(out, dag.Assignment{
+			Kind: "Assignment",
+			LHS:  dag.NewThis(p.Chain()),
+			RHS:  f.Value,
+		})
+	}
+	return out, true
 }
 
 func fieldKey(f field.Path) string {

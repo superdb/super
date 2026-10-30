@@ -1,0 +1,104 @@
+# This test checks that a values operator with a single record expression
+# preserves a known sort order through the fields it passes through unchanged
+# so that it can be lifted into parallel paths ahead of the merge.
+script: |
+  super db init -q test
+  super db attach -q test
+  super db create -q -orderby ts test
+  super db compile -C -P 2 "from test | values {ts:ts,x:y}" | sed -e 's/table .*/.../'
+  echo // ===
+  super db compile -C -P 2 "from test | values {ts:ts,x:y} | sort ts" | sed -e 's/table .*/.../'
+  echo // ===
+  super db compile -C -P 2 "select ts, x from test" | sed -e 's/table .*/.../'
+  echo // ===
+  super db compile -C -P 2 "from test | values {y:ts} | sort y" | sed -e 's/table .*/.../'
+  echo // ===
+  super db compile -C -P 2 "from test | values {...this,x:1}" | sed -e 's/table .*/.../'
+  echo // ===
+  super db compile -C -P 2 "from test | values {ts:ts}, {ts:ts}" | sed -e 's/table .*/.../'
+
+outputs:
+  - name: stdout
+    data: |
+      lister ...
+      | slicer
+      | scatter
+        (
+          seqscan ...
+          | values {ts:ts,x:y}
+        )
+        (
+          seqscan ...
+          | values {ts:ts,x:y}
+        )
+      | merge ts asc nulls last
+      | output main
+      // ===
+      lister ...
+      | scatter
+        (
+          seqscan ...
+          | values {ts:ts,x:y}
+          | sort ts asc nulls last
+        )
+        (
+          seqscan ...
+          | values {ts:ts,x:y}
+          | sort ts asc nulls last
+        )
+      | merge ts asc nulls last
+      | output main
+      // ===
+      lister ...
+      | slicer
+      | scatter
+        (
+          seqscan ...
+          | values {ts:this!.ts,x:this!.x}
+        )
+        (
+          seqscan ...
+          | values {ts:this!.ts,x:this!.x}
+        )
+      | merge ts asc nulls last
+      | output main
+      // ===
+      lister ...
+      | slicer
+      | scatter
+        (
+          seqscan ...
+        )
+        (
+          seqscan ...
+        )
+      | merge ts asc nulls last
+      | values {y:ts}
+      | sort y asc nulls last
+      | output main
+      // ===
+      lister ...
+      | slicer
+      | scatter
+        (
+          seqscan ...
+        )
+        (
+          seqscan ...
+        )
+      | merge ts asc nulls last
+      | values {...this,x:1}
+      | output main
+      // ===
+      lister ...
+      | slicer
+      | scatter
+        (
+          seqscan ...
+        )
+        (
+          seqscan ...
+        )
+      | merge ts asc nulls last
+      | values {ts:ts}, {ts:ts}
+      | output main
