@@ -1,0 +1,84 @@
+# The type of a cast is its target type so the checker sees the type of a cast
+# value downstream.
+spq: values {x:null::(null|{y:int64})} | values x.y
+
+error: |
+  no such field "y": . applied to null in null|{y:int64} at line 1, column 46:
+  values {x:null::(null|{y:int64})} | values x.y
+                                               ~
+
+---
+
+spq: values {x:cast(null, <null|{y:int64}>)} | values x.z
+
+error: |
+  no such field "z": . applied to null|{y:int64} at line 1, column 52:
+  values {x:cast(null, <null|{y:int64}>)} | values x.z
+                                                     ~
+
+---
+
+spq: values {x:1::string} | values x+1
+
+error: |
+  type mismatch: string + int64 at line 1, column 31:
+  values {x:1::string} | values x+1
+                                ~~~
+
+---
+
+# A null cast to a type that doesn't admit null is still null.
+spq: values {x:null::int64} | values x.y
+
+error: |
+  no such field "y": . applied to int64|null at line 1, column 35:
+  values {x:null::int64} | values x.y
+                                    ~
+
+---
+
+# The cast type may be a named type.
+spq: |
+  type T={y:int64}
+  values {a:{y:1}::T, b:cast({y:2}, <T>)} | values a.y+b.y, a.z
+
+error: |
+  no such field "z" at line 2, column 61:
+  values {a:{y:1}::T, b:cast({y:2}, <T>)} | values a.y+b.y, a.z
+                                                              ~
+
+---
+
+# The cast type is unknown when the type isn't a constant.
+spq: values {x:cast({y:1}, typeof({y:1}))} | values x.y
+
+output: |
+  1
+
+---
+
+spq: values {x:null::(null|{y:int64})} | values ok(x.y) ?? 0
+
+output: |
+  0
+
+---
+
+# A cast to a type with missing is missing only if the value may be missing.
+spq: values {a:1}::({a:int64}|missing) | values a+1
+
+output: |
+  2
+
+---
+
+spq: values y::(int64|missing)
+
+input: |
+  {x:1}
+  {x:2,y:3}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 8:
+  values y::(int64|missing)
+         ~~~~~~~~~~~~~~~~~~

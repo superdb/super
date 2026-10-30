@@ -1650,6 +1650,8 @@ func (t *translator) exprOp(e ast.Expr, seq sem.Seq, inType super.Type) (sem.Seq
 	if t.isBool(out) {
 		return append(seq, &sem.FilterOp{Node: e, Expr: out}), inType
 	}
+	// As with the values operator, the value must not be missing.
+	t.checker.result(e, typ)
 	return append(seq, sem.NewValues(e, out)), typ
 }
 
