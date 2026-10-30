@@ -1,5 +1,7 @@
 spq: values a,123
 
+flags: -dynamic
+
 input: |
   {a:1}
   {b:1}

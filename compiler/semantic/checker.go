@@ -530,9 +530,14 @@ func (c *checker) coalesce(lhs, rhs super.Type) super.Type {
 		return c.fuse([]super.Type{lhs, rhs})
 	}
 	var types []super.Type
+	var noneish bool
 	unwrap := func(t super.Type) {
-		t = deoption(t)
-		if typ, ok := c.withoutTypes(t, isNoneishType); ok {
+		u := deoption(t)
+		typ, ok := c.withoutTypes(u, isNoneishType)
+		if !ok || typ != t {
+			noneish = true
+		}
+		if ok {
 			types = append(types, typ)
 		}
 	}
@@ -542,6 +547,10 @@ func (c *checker) coalesce(lhs, rhs super.Type) super.Type {
 		}
 	} else {
 		unwrap(lhs)
+	}
+	if !noneish {
+		// lhs is never none or null so lhs ?? rhs is always lhs.
+		return lhs
 	}
 	return c.fuse(append(types, rhs))
 }
@@ -1589,6 +1598,18 @@ func (c *checker) aggFunc(name string, arg ast.Node, argType super.Type, filter 
 // the values where the field is absent form the none group.
 func (c *checker) groupKey(loc ast.Node, typ super.Type) {
 	c.notMissing(loc, typ)
+}
+
+// result reports an error at loc if typ, the type of a value the query
+// produces (e.g., an output value, record field, array element, or assigned
+// field), may be missing, as for a field that's absent from some records.
+// Such a missing value is an error at runtime, so it must be converted to
+// none with ok(), e.g., values y.ok().
+func (c *checker) result(loc ast.Node, typ super.Type) {
+	typ = defuse(typ)
+	if typ != nil && !hasUnknown(typ) && mayBeMissing(typ) {
+		c.error(loc, errMissing)
+	}
 }
 
 // notMissing reports an error at loc if typ may be missing.

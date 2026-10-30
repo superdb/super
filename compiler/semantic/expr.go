@@ -213,6 +213,7 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 				}
 				fields[name] = struct{}{}
 				e, typ := t.expr(elem.Value, inType)
+				t.checker.result(elem.Value, typ)
 				if elem.Opt {
 					e = &sem.CallExpr{Node: elem.Value, Tag: "some", Args: []sem.Expr{e}}
 					typ = t.checker.optionize(typ)
@@ -232,6 +233,7 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 				types = append(types, typ)
 			case *ast.ExprElem:
 				e, typ := t.expr(elem.Expr, inType)
+				t.checker.result(elem.Expr, typ)
 				if elem.Opt {
 					e = &sem.CallExpr{Node: elem.Expr, Tag: "some", Args: []sem.Expr{e}}
 				}
@@ -1260,6 +1262,7 @@ func (t *translator) arrayElems(elems []ast.ArrayElem, inType super.Type) ([]sem
 			types = append(types, spreadType)
 		case *ast.ExprElem:
 			elemExpr, elemType := t.expr(elem.Expr, inType)
+			t.checker.result(elem.Expr, elemType)
 			out = append(out, &sem.ExprElem{Node: elem, Expr: elemExpr})
 			// A none element is dropped from the array at runtime so it
 			// doesn't contribute to the element type.

@@ -1,5 +1,7 @@
 spq: put v:={s:s,x:x}
 
+flags: -dynamic
+
 input: |
   {x:1::int32,s:"a"}
   {x:2::int32,s:"b"}

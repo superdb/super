@@ -1,0 +1,63 @@
+# A value the query produces that may be missing (e.g., a field absent from
+# some input records) is an error at runtime, so it must use ok().
+
+spq: values y
+
+input: |
+  {x:1}
+  {x:2,y:3}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 8:
+  values y
+         ~
+
+---
+
+spq: values {x,y}, [y]
+
+input: |
+  {x:1}
+  {x:2,y:3}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 11:
+  values {x,y}, [y]
+            ~
+  field may be missing (consider ok()) at line 1, column 16:
+  values {x,y}, [y]
+                 ~
+
+---
+
+spq: put z:=y | cut y
+
+input: |
+  {x:1}
+  {x:2,y:3}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 8:
+  put z:=y | cut y
+         ~
+  field may be missing (consider ok()) at line 1, column 16:
+  put z:=y | cut y
+                 ~
+
+---
+
+spq: values y.ok(), {x,y:y.ok()}, [y.ok()], y.ok() ?? 0
+
+input: |
+  {x:1}
+  {x:2,y:3}
+
+output: |
+  none
+  {x:1}
+  []
+  0
+  3
+  {x:2,y:3}
+  [3]
+  3

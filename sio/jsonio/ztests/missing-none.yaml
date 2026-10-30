@@ -9,7 +9,7 @@
 
 script: |
   super -o test.bsup -i json test.json
-  super -s -c "values a" test.bsup
+  super -s -dynamic -c "values a" test.bsup
 
 inputs:
   - name: test.json

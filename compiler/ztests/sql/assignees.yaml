@@ -5,7 +5,7 @@ inputs:
   - name: query.sql
     data: |
       FROM in.sup
-      | UNNEST [...assignees,assignee]
+      | UNNEST [...assignees,assignee.ok()]
       | WHERE this IS NOT NULL
       | AGGREGATE count() BY assignee:=login
       | ORDER BY count DESC, assignee DESC 

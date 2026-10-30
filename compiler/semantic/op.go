@@ -824,6 +824,7 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 			t.error(o.Args, err)
 			return append(seq, badOp), t.checker.unknown
 		}
+		t.checkResults(o.Args, paths)
 		return append(seq, &sem.CutOp{
 			Node: o,
 			Args: assignments,
@@ -965,6 +966,7 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 		}), inType
 	case *ast.PutOp:
 		assignments, paths := t.assignments(o.Args, inType)
+		t.checkResults(o.Args, paths)
 		// We can do collision checking on static paths, so check what we can.
 		var fields field.List
 		for _, a := range assignments {
@@ -1112,6 +1114,9 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 			})), outType
 	case *ast.ValuesOp:
 		exprs, types := t.exprs(o.Exprs, inType)
+		for k, typ := range types {
+			t.checker.result(o.Exprs[k], typ)
+		}
 		return append(seq, sem.NewValues(o, exprs...)), t.checker.fuse(types)
 	case *ast.LoadOp:
 		if !t.env.IsAttached() {
@@ -1582,6 +1587,7 @@ func (t *translator) assignmentOp(p *ast.AssignmentOp, inType super.Type) (sem.O
 			aggs = append(aggs, assign)
 		} else {
 			puts = append(puts, assign)
+			t.checker.result(astAssign.RHS, path.typ)
 		}
 		paths = append(paths, path)
 	}
@@ -1599,6 +1605,13 @@ func (t *translator) assignmentOp(p *ast.AssignmentOp, inType super.Type) (sem.O
 		Node: p,
 		Aggs: aggs,
 	}, t.checker.pathsToType(paths)
+}
+
+// checkResults checks that the assigned values of a put or cut aren't missing.
+func (t *translator) checkResults(asts []ast.Assignment, paths []pathType) {
+	for k, path := range paths {
+		t.checker.result(asts[k].RHS, path.typ)
+	}
 }
 
 func (t *translator) checkStaticAssignment(asts []ast.Assignment, assignments []sem.Assignment) bool {
