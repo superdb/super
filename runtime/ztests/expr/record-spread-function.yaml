@@ -1,7 +1,7 @@
 spq: values {...unflatten(this),c:2}
 
 input: |
-  [{key:["a","b"],value:0}]
+  [{path:["a","b"],value:0}]
 
 output: |
   {a:{b:0},c:2}

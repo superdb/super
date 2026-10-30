@@ -730,14 +730,14 @@ But let's break down what's taking up all this space.
 
 We can take the output from `fuse | shapes` and list the fields with
 and their "kind".  Note that when we do an `unnest this` with records as
-input, we get a new record value for each field structured as a key/value pair:
+input, we get a new record value for each field structured as a path/value pair:
 ```mdtest-command-skip dir=book/src/tutorials
 super -s -c '
   unnest this
   | fuse
   | shapes
   | unnest flatten(this)
-  | {field:key[1],kind:kind(value)}
+  | {field:path[1],kind:kind(value)}
 ' prs.json
 ```
 produces
@@ -860,7 +860,7 @@ to primitive types:
 super -s -c '
   unnest flatten(this)
   | kind(value)=="primitive"
-  | fields:=union(key[0]) by type:=typeof(value)
+  | fields:=union(path[0]) by type:=typeof(value)
 ' prs2.bsup
 ```
 which gives
@@ -872,8 +872,8 @@ which gives
 ```
 
 >[!NOTE]
-> This use of `unnest` with `flatten` traverses each record and generates a key-value pair
-> for each field in each record.
+> This use of `unnest` with `flatten` traverses each record and generates a path-value pair
+> for each leaf value in each record.
 
 Looking through the fields that are strings, the candidates for ISO dates appear
 to be

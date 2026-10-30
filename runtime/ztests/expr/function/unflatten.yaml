@@ -1,23 +1,87 @@
-spq: unflatten(this)
+spq: values unflatten(this)
 
 input: |
-  [{key:["a","a"],value:1},{key:["a","b"],value:2},{key:["a","x","z"],value:"foo"},{key:["b"],value:2},{key:["c"],value:3}]
-  [{key:["b","b1"],value:4},{key:["b","b2"],value:5},{key:["b","b3","c"],value:[6,7,8]},{key:["b","b4"],value:["one","two","three"]}]
-  [{key:"s",value:1}]
-  [{key:["a","b"],value:1},{key:["a","c"],value:2},{key:"a",value:3}]
-  [{key:"a",value:1},{key:"a",value:2}]
-  [{key:["a","b"],value:1},{key:["a","b","c"],value:2}]
-  [{key:["a"],value:1::(int64|null)},{key:["b"],value:null::(int64|null)}]
-  [{key:1,value:1}]
-  [{key:"a",value:1},{key:"b",value:2},{key:"a",value:2}]
+  [{path:["a","a"],value:1},{path:["a","b"],value:2},{path:["a","x","z"],value:"foo"},{path:["b"],value:2},{path:["c"],value:3}]
+  [{path:["a",0],value:1},{path:["a",1,"b"],value:"x"}]
+  [{path:["a"],value:1::(int64|null)},{path:["b"],value:null::(int64|null)}]
+  [{path:[10.0.0.1],value:"a"},{path:[10.0.0.2],value:{b:1}}]
+  [{path:[],value:1}]
+  []
+  "foo"
 
 output: |
   {a:{a:1,b:2,x:{z:"foo"}},b:2,c:3}
-  {b:{b1:4,b2:5,b3:{c:[6,7,8]},b4:["one","two","three"]}}
-  {s:1}
-  {a:3}
-  {a:2}
-  {a:{b:{c:2}}}
+  {a:[1,{b:"x"}]}
   {a:1::(int64|null),b:null::(int64|null)}
-  error({message:"invalid key type int64: expected either string or [string]",on:{key:1,value:1}})
-  error({message:"duplicate field: \"a\"",on:[{key:"a",value:1},{key:"b",value:2},{key:"a",value:2}]})
+  map{10.0.0.1:"a",10.0.0.2:{b:1}}
+  1
+  {}
+  "foo"
+
+---
+
+# A path may be abbreviated as a string of dot-separated elements where an
+# unsigned decimal element is an array index.
+spq: values unflatten(this)
+
+input: |
+  [{path:"s",value:1}]
+  [{path:"a.b",value:1},{path:"a.c.0",value:2},{path:"a.c.1",value:"x"}]
+  [{path:"0.a",value:1},{path:["1","a"],value:2}]
+
+output: |
+  {s:1}
+  {a:{b:1,c:[2,"x"]}}
+  error({message:"unflatten: path element \"1\" conflicts with array index of earlier path",on:[{path:"0.a",value:1},{path:["1","a"],value:2}]})
+
+---
+
+# A later path replaces the value at an earlier path.
+spq: values unflatten(this)
+
+input: |
+  [{path:["a","b"],value:1},{path:["a","c"],value:2},{path:"a",value:3}]
+  [{path:"a",value:1},{path:"b",value:2},{path:"a",value:3}]
+  [{path:["a","b"],value:1},{path:["a","b","c"],value:2}]
+
+output: |
+  {a:3}
+  {a:3,b:2}
+  {a:{b:{c:2}}}
+
+---
+
+# Missing array elements are none.
+spq: values unflatten(this)
+
+input: |
+  [{path:[2],value:1},{path:[0],value:2}]
+  [{path:[2],value:1},{path:[0],value:"x"}]
+  [{path:["a",1],value:1}]
+
+output: |
+  [some(2),none::int64,some(1)]
+  [some("x"::(int64|string)),none::option(int64|string),some(1::(int64|string))]
+  {a:[none::int64,some(1)]}
+
+---
+
+spq: values unflatten(this)
+
+input: |
+  [{path:1,value:1}]
+  [{path:["a"]}]
+  [1,2]
+  [{path:["a",0],value:1},{path:["a","b"],value:2}]
+  [{path:[1.5],value:1},{path:["x"],value:2}]
+  [{path:[-1],value:1}]
+  [{path:[1048576],value:1}]
+
+output: |
+  error({message:"unflatten: path must be an array or string: 1",on:[{path:1,value:1}]})
+  error({message:"unflatten: element is not a {path,value} record: {path:[string]}",on:[{path:["a"]}]})
+  error({message:"unflatten: element is not a {path,value} record: 1",on:[1,2]})
+  error({message:"unflatten: path element \"b\" conflicts with array index of earlier path",on:[{path:["a",0],value:1},{path:["a","b"],value:2}]})
+  error({message:"unflatten: path element \"x\" conflicts with map key of earlier path",on:[{path:[1.5],value:1},{path:["x"],value:2}]})
+  error({message:"unflatten: negative array index -1",on:[{path:[-1],value:1}]})
+  error({message:"unflatten: array index 1048576 exceeds limit of 1048575",on:[{path:[1048576],value:1}]})

@@ -57,14 +57,11 @@ sequence has the form:
 where the first field is copied to each derived value and the second field is
 the unnested elements of the array `elem0`, `elem1`, etc.
 
-To explode the fields of records or the key-value pairs of maps, use the
-[`flatten`](../functions/records/flatten.md) function, which produces an array that
-can be unnested.
+To explode the leaf values of records, arrays, sets, and maps along with their
+paths, use the [`flatten`](../functions/records/flatten.md) function, which
+produces an array that can be unnested.
 
 For example, if `this` is a record, it can be unnested with `unnest flatten(this)`.
-
->[!NOTE]
-> Support for map types in `flatten` is not yet implemented.
 
 ## Errors
 
@@ -191,7 +188,7 @@ unnest {s,a} into ( sum(a) by s )
 _Unnested the elements of a record by flattening it_
 ```mdtest-spq
 # spq
-unnest {s,f:flatten(r)} into ( values {s,key:f.key[0],val:f.value} )
+unnest {s,f:flatten(r)} into ( values {s,key:f.path[0],val:f.value} )
 # input
 {s:"foo",r:{a:1,b:2}}
 {s:"bar",r:{a:3,b:4}}

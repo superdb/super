@@ -1,6 +1,6 @@
 spq: |
   op keys r: (
-    fn k(e): (e.key)
+    fn k(e): (e.path)
     op flatten_array a: (unnest this | unnest this | collect(this))
     flatten(this)
     | map(this, &k)

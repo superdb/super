@@ -58,7 +58,7 @@ fn walk(node, visit):
   when "array" then
     [unnest node | walk(this, visit)]
   when "record" then
-    unflatten([unnest flatten(node) | {key,value:walk(value, visit)}])
+    unflatten([unnest flatten(node) | {path,value:walk(value, visit)}])
   when "union" then
     walk(under(node), visit)
   else visit(node)
