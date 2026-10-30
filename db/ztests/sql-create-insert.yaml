@@ -1,0 +1,65 @@
+# CREATE TABLE, INSERT INTO, and DROP TABLE statements in a script.
+script: |
+  super db init -q test
+  super db attach -q test
+  super db -s -c "
+  type port = uint16
+  create table conns (src ip not null, dport port, note varchar(20)) order by src desc;
+  insert into conns values (10.0.0.1, 80, 'web'), (10.0.0.2, 443);
+  insert into conns (note, src) values ('note', 10.0.0.3);
+  insert into conns select '10.0.0.4' as s, 22 as p;
+  select * from conns order by src;
+  create table if not exists conns (x int);
+  create table u (a int64|string, b int64|string not null);
+  insert into u values {a:1,b:'x'}, {a:'y',b:2}, {b:3};
+  from u | sort b;
+  create super table of_t {a:int64}|string;
+  insert into of_t values {a:1}, 'hi';
+  from of_t | sort this;
+  create table any_t;
+  insert into any_t values (1, 'a');
+  insert into any_t (x, y) values (2, 'b');
+  from any_t | sort this;
+  drop table any_t;
+  drop table if exists any_t
+  " | super -s -c "drop start,end,info.id,info.commit" -
+  echo ===
+  super db ls | awk '{$2=""; print}' | sort
+
+outputs:
+  - name: stdout
+    data: |
+      {kind:"create_table",stmt:"create table conns (src ip not null, dport port, note varchar(20)) order by src desc",info:{table:"conns",created:true},error:null}
+      {kind:"insert",stmt:"insert into conns values (10.0.0.1, 80, 'web'), (10.0.0.2, 443)",info:{table:"conns",values:2::uint64},error:null}
+      {kind:"insert",stmt:"insert into conns (note, src) values ('note', 10.0.0.3)",info:{table:"conns",values:1::uint64},error:null}
+      {kind:"insert",stmt:"insert into conns select '10.0.0.4' as s, 22 as p",info:{table:"conns",values:1::uint64},error:null}
+      type port=uint16
+      {src:10.0.0.1,dport:80::port,note:"web"}
+      {src:10.0.0.2,dport:443::port,note:null}
+      {src:10.0.0.3,dport:null,note:"note"}
+      {src:10.0.0.4,dport:22::port,note:null}
+      {kind:"query",stmt:"select * from conns order by src",info:{values:4::uint64},error:null}
+      {kind:"create_table",stmt:"create table if not exists conns (x int)",info:{table:"conns",created:false},error:null}
+      {kind:"create_table",stmt:"create table u (a int64|string, b int64|string not null)",info:{table:"u",created:true},error:null}
+      {kind:"insert",stmt:"insert into u values {a:1,b:'x'}, {a:'y',b:2}, {b:3}",info:{table:"u",values:3::uint64},error:null}
+      {a:"y"::(int64|string),b:2::(int64|string)}
+      {a:null,b:3::(int64|string)}
+      {a:1::(int64|string),b:"x"::(int64|string)}
+      {kind:"query",stmt:"from u | sort b",info:{values:3::uint64},error:null}
+      {kind:"create_table",stmt:"create super table of_t {a:int64}|string",info:{table:"of_t",created:true},error:null}
+      {kind:"insert",stmt:"insert into of_t values {a:1}, 'hi'",info:{table:"of_t",values:2::uint64},error:null}
+      "hi"::(string|{a:int64})
+      {a:1}::(string|{a:int64})
+      {kind:"query",stmt:"from of_t | sort this",info:{values:2::uint64},error:null}
+      {kind:"create_table",stmt:"create table any_t",info:{table:"any_t",created:true},error:null}
+      {kind:"insert",stmt:"insert into any_t values (1, 'a')",info:{table:"any_t",values:1::uint64},error:null}
+      {kind:"insert",stmt:"insert into any_t (x, y) values (2, 'b')",info:{table:"any_t",values:1::uint64},error:null}
+      {c0:1,c1:"a"}
+      {x:2,y:"b"}
+      {kind:"query",stmt:"from any_t | sort this",info:{values:2::uint64},error:null}
+      {kind:"drop_table",stmt:"drop table any_t",info:{table:"any_t",dropped:true},error:null}
+      {kind:"drop_table",stmt:"drop table if exists any_t",info:{table:"any_t",dropped:false},error:null}
+      ===
+      conns  key src order desc objectcap 1048576 framecap 20000 columns (src ip not null, dport port, note string)
+      of_t  unsorted objectcap 1048576 framecap 20000 type string|{a:int64}
+      u  unsorted objectcap 1048576 framecap 20000 columns (a int64|string, b int64|string not null)

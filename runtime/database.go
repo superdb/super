@@ -21,7 +21,7 @@ type Database interface {
 	Query(ctx context.Context, query []srcfiles.Input) (vio.ScanCloser, error)
 	TableID(ctx context.Context, tableName string) (uuid.UUID, error)
 	CommitObject(ctx context.Context, tableID uuid.UUID, branchName string) (uuid.UUID, error)
-	CreateTable(ctx context.Context, name string, sortKeys order.SortKeys, objectCap, frameCap uint64) (uuid.UUID, error)
+	CreateTable(ctx context.Context, name string, sortKeys order.SortKeys, objectCap, frameCap uint64, typ super.Type, sql bool) (uuid.UUID, error)
 	RemoveTable(ctx context.Context, tableID uuid.UUID) error
 	RenameTable(ctx context.Context, tableID uuid.UUID, name string) error
 	CreateBranch(ctx context.Context, tableID uuid.UUID, name string, parent uuid.UUID) error

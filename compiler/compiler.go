@@ -39,6 +39,9 @@ func NewCompilerWithEnv(env *exec.Environment) runtime.Compiler {
 }
 
 func (c *compiler) NewQuery(rctx *runtime.Context, ast *parser.AST, parallelism int) (runtime.Query, error) {
+	if ast.Script() != nil {
+		return exec.NewScript(rctx, c, c.env, ast), nil
+	}
 	if parallelism == 0 {
 		parallelism = Parallelism
 	}

@@ -327,7 +327,7 @@ func (r *Root) RenameTable(ctx context.Context, id uuid.UUID, newName string) er
 	return r.tables.Rename(ctx, id, newName)
 }
 
-func (r *Root) CreateTable(ctx context.Context, name string, sortKeys order.SortKeys, objectCap, frameCap uint64) (*Table, error) {
+func (r *Root) CreateTable(ctx context.Context, name string, sortKeys order.SortKeys, objectCap, frameCap uint64, typ super.Type, sql bool) (*Table, error) {
 	if name == "HEAD" {
 		return nil, fmt.Errorf("table cannot be named %q", name)
 	}
@@ -344,6 +344,10 @@ func (r *Root) CreateTable(ctx context.Context, name string, sortKeys order.Sort
 		frameCap = bsup.DefaultFrameCap
 	}
 	config := tables.NewConfig(name, sortKeys, objectCap, frameCap)
+	if typ != nil {
+		config.Type = super.EncodeTypeValue(typ)
+		config.SQL = sql
+	}
 	if err := CreateTable(ctx, r.engine, r.logger, r.path, config); err != nil {
 		return nil, err
 	}

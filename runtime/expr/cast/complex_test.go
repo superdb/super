@@ -236,3 +236,27 @@ func named(t *testing.T, sctx *super.Context, name string, typ super.Type) super
 	require.NoError(t, err)
 	return named
 }
+
+func TestCastWithOptions(t *testing.T) {
+	cases := []struct {
+		val, typ string
+		opts     cast.Options
+		out      string
+	}{
+		{`{x:1}`, `{x:int64,y:int64|null}`, cast.Options{}, `{x:1,y:error("no such field y")}`},
+		{`{x:1}`, `{x:int64,y:int64|null}`, cast.Options{MissingToNull: true}, `{x:1,y:null::(int64|null)}`},
+		{`{x:1}`, `{x:int64,y:int64}`, cast.Options{MissingToNull: true}, `{x:1,y:error("no such field y")}`},
+		{`{x:1}`, `{x:int64,y:null}`, cast.Options{MissingToNull: true}, `{x:1,y:null}`},
+		{`{x:1,z:2}`, `{x:int64}`, cast.Options{}, `{x:1}`},
+		{`{x:1,z:2}`, `{x:int64}`, cast.Options{Strict: true}, `error({message:"cannot cast to {x:int64}: no field z in type",on:{x:1,z:2}})`},
+		{`{a:{x:1,z:2}}`, `{a:{x:int64}}`, cast.Options{Strict: true}, `{a:error({message:"cannot cast to {x:int64}: no field z in type",on:{x:1,z:2}})}`},
+		{`"1"`, `int64|null`, cast.Options{}, `1::(int64|null)`},
+	}
+	for _, c := range cases {
+		sctx := super.NewContext()
+		val := parseValue(t, sctx, c.val)
+		typ := parseType(t, sctx, c.typ)
+		out := cast.CastWithOptions(sctx, singleton(sctx, val), typ, c.opts)
+		require.Equal(t, c.out, sup.FormatValue(vector.ValueAt(nil, out, 0)), "cast(%s, <%s>) %+v", c.val, c.typ, c.opts)
+	}
+}

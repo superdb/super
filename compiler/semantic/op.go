@@ -1113,6 +1113,9 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 	case *ast.ValuesOp:
 		exprs, types := t.exprs(o.Exprs, inType)
 		return append(seq, sem.NewValues(o, exprs...)), t.checker.fuse(types)
+	case *ast.Script:
+		t.error(o, errors.New("a script of multiple statements cannot be used here"))
+		return append(seq, badOp), badType
 	case *ast.LoadOp:
 		if !t.env.IsAttached() {
 			t.error(o, errors.New("load operator cannot be used without an attached database"))

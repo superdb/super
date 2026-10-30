@@ -23,6 +23,7 @@ import (
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/bsupio"
+	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector/vio"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -43,6 +44,9 @@ type Table struct {
 	commits  *commits.Store
 }
 
+// CreateTable creates the storage for a table.  If config.Type is not nil,
+// all values loaded into the table are cast to type, where the cast is SQL-ish
+// if config.SQL is true, and otherwise, SuperSQL-ish.
 func CreateTable(ctx context.Context, engine storage.Engine, logger *zap.Logger, root *storage.URI, config *tables.Config) error {
 	tablePath := config.Path(root)
 	// branchesPath is the path to the kvs journal of BranchConfigs
@@ -96,6 +100,27 @@ func OpenTable(ctx context.Context, engine storage.Engine, logger *zap.Logger, r
 		branches: branches,
 		commits:  commits,
 	}, nil
+}
+
+// TypeConstraint returns the table's type in sctx or nil if the table has
+// no type.
+func (t *Table) TypeConstraint(sctx *super.Context) (super.Type, error) {
+	if len(t.Config.Type) == 0 {
+		return nil, nil
+	}
+	typ, err := sctx.LookupByValue(t.Config.Type)
+	if err != nil {
+		// We have a footgun here since we can persist named types
+		// and they can conflict with new versions of named types in
+		// a query.  We detect this and report the error.  We plan to
+		// fix this with UUIDs in named types and type versioning.
+		var text string
+		if typ, err := super.NewContext().LookupByValue(t.Config.Type); err == nil {
+			text = sup.FormatType(typ) + " "
+		}
+		return nil, fmt.Errorf("table %q: type %sconflicts with a type of the same name: %w", t.Name, text, err)
+	}
+	return typ, nil
 }
 
 func RemoveTable(ctx context.Context, engine storage.Engine, root *storage.URI, config *tables.Config) error {

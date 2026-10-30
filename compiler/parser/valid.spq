@@ -40,3 +40,9 @@ fn head(): (1) fn tail(): (1) fn uniq(): (1) fn pass(): (1) head() | tail() | un
 from http://x/
 from s3://x/
 SELECT CASE (1) WHEN 1 THEN 'match' ELSE 'no match' END AS result;
+select 'a' as x; values 1 | head
+create table if not exists t (a int not null, b varchar(10) null, c {x:int64}) order by a desc
+type foo={a:int64} create super table t foo|string; insert into t (a) values (1), (2); drop table if exists t
+insert into "t" from 'x.json' | where a > 1;
+const x = 1; values x
+insert into baz (values 1,2|{x:this,y:this*2}); insert into baz (select 5, 6)

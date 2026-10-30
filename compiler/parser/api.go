@@ -21,6 +21,23 @@ func (a *AST) Copy() ast.Seq {
 	return ast.CopySeq(a.seq)
 }
 
+// Script returns the Script of a program that is a script and nil otherwise.
+func (a *AST) Script() *ast.Script {
+	if len(a.seq) == 1 {
+		if s, ok := a.seq[0].(*ast.Script); ok {
+			return s
+		}
+	}
+	return nil
+}
+
+// WithSeq returns an AST for seq that shares a's source files so that
+// errors in seq (e.g., a statement of a's script) are reported in terms of
+// a's source text.
+func (a *AST) WithSeq(seq ast.Seq) *AST {
+	return &AST{seq: seq, files: a.files}
+}
+
 func (a *AST) Files() *srcfiles.List {
 	return a.files
 }

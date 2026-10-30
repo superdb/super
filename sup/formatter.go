@@ -819,6 +819,10 @@ func FormatTypeValue(tv scode.Bytes) string {
 	return f.builder.String()
 }
 
+func FormatTypeValueWithTypes(typ super.Type) string {
+	return NewStreamFormatter(0, true).FormatValue(super.NewTypeValue(typ))
+}
+
 func quoteHexyString(s string) string {
 	if s == "" || len(s) > 4 {
 		return s

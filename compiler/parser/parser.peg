@@ -9,7 +9,109 @@
 }
 
 start
-  = __ q:Query EndQuery { return q, nil }
+  = __ decls:ScriptDecl* first:Stmt rest:StmtTail* EndQuery {
+      return newScript(decls, first, rest), nil
+    }
+
+// A declaration at the top of a script may be followed by a semicolon.
+ScriptDecl
+  = v:(ConstDecl / FuncDecl / OpDecl / PragmaDecl / QueryDecl / TypeDecl) (__ ";" __ / _) { return v, nil }
+
+StmtTail = __ ";" __ s:Stmt { return s, nil }
+
+// A Stmt is a statement of a script.  Commands come first since a command
+// like "drop table t" might otherwise parse as a query.
+Stmt
+  = CreateTableStmt
+  / DropTableStmt
+  / InsertStmt
+  / q:Query {
+      return &ast.QueryStmt{
+        Kind: "QueryStmt",
+        Body: sliceOf[ast.Op](q),
+        Loc: loc(c),
+      }, nil
+    }
+
+CreateTableStmt
+  = CREATE _ TABLE _ ine:IfNotExists? name:Text cols:TableColumns? orderBy:OptOrderByClause {
+      stmt := &ast.CreateTableStmt{
+        Kind: "CreateTableStmt",
+        Name: name.(*ast.Text),
+        IfNotExists: ine != nil,
+        Loc: loc(c),
+      }
+      if cols != nil {
+        stmt.Columns = cols.([]ast.ColumnDef)
+      }
+      if orderBy != nil {
+        stmt.OrderBy = orderBy.(*ast.SQLOrderBy)
+      }
+      return stmt, nil
+    }
+  / CREATE _ SUPER _ TABLE _ ine:IfNotExists? name:Text _ typ:Type orderBy:OptOrderByClause {
+      stmt := &ast.CreateTableStmt{
+        Kind: "CreateTableStmt",
+        Name: name.(*ast.Text),
+        IfNotExists: ine != nil,
+        Type: typ.(ast.Type),
+        Loc: loc(c),
+      }
+      if orderBy != nil {
+        stmt.OrderBy = orderBy.(*ast.SQLOrderBy)
+      }
+      return stmt, nil
+    }
+
+IfNotExists = IF _ NOT _ EXISTS _ { return true, nil }
+
+TableColumns
+  = __ "(" __ first:ColumnDef rest:(__ "," __ col:ColumnDef { return col, nil })* __ ")" {
+      return sliceOf[ast.ColumnDef](prepend(first, rest)), nil
+    }
+
+ColumnDef
+  = name:Identifier _ typ:Type OptTypeLength notNull:(_ NOT _ NULL { return true, nil } / _ NULL { return false, nil })? {
+      col := ast.ColumnDef{
+        Name: name.(*ast.ID),
+        Type: typ.(ast.Type),
+        Loc: loc(c),
+      }
+      if notNull != nil {
+        col.NotNull = notNull.(bool)
+      }
+      return col, nil
+    }
+
+// OptTypeLength allows and ignores a SQL length as in varchar(255).
+OptTypeLength = (__ "(" __ Digits __ ")")?
+
+// As in SQL, a parenthesized query comprising the entire body of an INSERT
+// is the query itself rather than a subquery expression.
+InsertBody
+  = "(" __ q:Query __ ")" &(__ (";" / EOF)) { return q, nil }
+  / Query
+
+DropTableStmt
+  = DROP _ TABLE _ ie:(IF _ EXISTS _ { return true, nil })? name:Text {
+      return &ast.DropTableStmt{
+        Kind: "DropTableStmt",
+        Name: name.(*ast.Text),
+        IfExists: ie != nil,
+        Loc: loc(c),
+      }, nil
+    }
+
+InsertStmt
+  = INSERT _ INTO _ table:Text cols:(__ "(" __ ids:Identifiers __ ")" { return ids, nil })? __ body:InsertBody {
+      return &ast.InsertStmt{
+        Kind: "InsertStmt",
+        Table: table.(*ast.Text),
+        Columns: sliceOf[*ast.ID](cols),
+        Body: sliceOf[ast.Op](body),
+        Loc: loc(c),
+      }, nil
+    }
 
 EndQuery = __ ";"? __ EOF
 
@@ -2541,6 +2643,7 @@ CASE       = "CASE"i            !IdentifierRest
 CAST       = "CAST"i            !IdentifierRest
 CONST      = "CONST"i           !IdentifierRest
 COUNT      = "COUNT"i           !IdentifierRest
+CREATE     = "CREATE"i          !IdentifierRest
 CROSS      = "CROSS"i           !IdentifierRest
 CUT        = "CUT"i             !IdentifierRest
 DATE       = "DATE"i            !IdentifierRest { return "date", nil }
@@ -2568,9 +2671,12 @@ FUSION     = "FUSION"i          !IdentifierRest
 GROUP      = "GROUP"i           !IdentifierRest
 HAVING     = "HAVING"i          !IdentifierRest
 HEAD       = "HEAD"i            !IdentifierRest
+IF         = "IF"i              !IdentifierRest
 IN         = "IN"i              !IdentifierRest
 INFER      = "INFER"i           !IdentifierRest
 INNER      = "INNER"i           !IdentifierRest
+INSERT     = "INSERT"i          !IdentifierRest
+INTO       = "INTO"i            !IdentifierRest
 IS         = "IS"i              !IdentifierRest
 JOIN       = "JOIN"i            !IdentifierRest
 LAMBDA     = "LAMBDA"i          !IdentifierRest
@@ -2588,6 +2694,7 @@ NONE       = "NONE"i            !IdentifierRest
 NOT        = "NOT"i             !IdentifierRest
 NULL       = "NULL"i            !IdentifierRest
 NULLS      = "NULLS"i           !IdentifierRest
+OF         = "OF"i              !IdentifierRest
 OFFSET     = "OFFSET"i          !IdentifierRest
 ON         = "ON"i              !IdentifierRest
 OP         = "OP"i              !IdentifierRest
@@ -2611,8 +2718,10 @@ SKIP       = "SKIP"i            !IdentifierRest
 SORT       = "SORT"i            !IdentifierRest
 SUBSTRING  = "SUBSTRING"i       !IdentifierRest
 SUMMARIZE  = "SUMMARIZE"i       !IdentifierRest
+SUPER      = "SUPER"i           !IdentifierRest
 SUPERFUSE  = "SUPERFUSE"i       !IdentifierRest
 SWITCH     = "SWITCH"i          !IdentifierRest
+TABLE      = "TABLE"i           !IdentifierRest
 TAIL       = "TAIL"i            !IdentifierRest
 THEN       = "THEN"i            !IdentifierRest
 TIMESTAMP  = "TIMESTAMP"i       !IdentifierRest { return "timestamp", nil }

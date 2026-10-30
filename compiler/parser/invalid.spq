@@ -1,4 +1,4 @@
-count() by _path; count() by addr
+count() by _path;; count() by addr
 sort -r -r,-r,-r
 sort -r a a, b, c
 every 1h count() by _path with -limit 10

@@ -69,11 +69,11 @@ func (l *local) Root() *db.Root {
 	return l.db
 }
 
-func (l *local) CreateTable(ctx context.Context, name string, sortKeys order.SortKeys, objectCap, frameCap uint64) (uuid.UUID, error) {
+func (l *local) CreateTable(ctx context.Context, name string, sortKeys order.SortKeys, objectCap, frameCap uint64, typ super.Type, sql bool) (uuid.UUID, error) {
 	if name == "" {
 		return uuid.Nil(), errors.New("no table name provided")
 	}
-	table, err := l.db.CreateTable(ctx, name, sortKeys, objectCap, frameCap)
+	table, err := l.db.CreateTable(ctx, name, sortKeys, objectCap, frameCap, typ, sql)
 	if err != nil {
 		return uuid.Nil(), err
 	}

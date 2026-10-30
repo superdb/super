@@ -63,7 +63,7 @@ func (c *testClient) TestTableList() []tables.Config {
 }
 
 func (c *testClient) TestTablePost(payload api.TablePostRequest) uuid.UUID {
-	id, err := c.Connection.CreateTable(c.Context(), payload.Name, payload.SortKeys, payload.ObjectCap, payload.FrameCap)
+	id, err := c.Connection.CreateTable(c.Context(), payload.Name, payload.SortKeys, payload.ObjectCap, payload.FrameCap, nil, false)
 	require.NoError(c, err)
 	return id
 }

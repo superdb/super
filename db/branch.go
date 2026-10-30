@@ -47,6 +47,15 @@ func OpenBranch(ctx context.Context, config *branches.Config, engine storage.Eng
 }
 
 func (b *Branch) Load(ctx context.Context, sctx *super.Context, r vio.Puller, author, message, meta string) (uuid.UUID, error) {
+	constraint, err := b.table.TypeConstraint(sctx)
+	if err != nil {
+		return uuid.Nil(), err
+	}
+	if constraint != nil {
+		// Nothing is committed unless every value can be cast to the
+		// table type.
+		r = newCastPuller(sctx, r, constraint, b.table.Config.SQL)
+	}
 	w, err := NewWriter(ctx, sctx, b.table)
 	if err != nil {
 		return uuid.Nil(), err

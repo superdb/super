@@ -74,7 +74,7 @@ func TestTablePostNameOnly(t *testing.T) {
 func TestTablePostDuplicateName(t *testing.T) {
 	_, conn := newCore(t)
 	conn.TestTablePost(api.TablePostRequest{Name: "test"})
-	_, err := conn.CreateTable(t.Context(), "test", nil, 0, 0)
+	_, err := conn.CreateTable(t.Context(), "test", nil, 0, 0, nil, false)
 	require.Equal(t, errors.Is(err, client.ErrTableExists), true)
 }
 
@@ -82,9 +82,9 @@ func TestTableInvalidName(t *testing.T) {
 	t.Skip("verify invalid characters for a table name")
 	_, conn := newCore(t)
 	t.Run("Post", func(t *testing.T) {
-		_, err := conn.CreateTable(t.Context(), "𝚭𝚴𝚪 is.good", nil, 0, 0)
+		_, err := conn.CreateTable(t.Context(), "𝚭𝚴𝚪 is.good", nil, 0, 0, nil, false)
 		require.NoError(t, err)
-		_, err = conn.CreateTable(t.Context(), "𝚭𝚴𝚪/bad", nil, 0, 0)
+		_, err = conn.CreateTable(t.Context(), "𝚭𝚴𝚪/bad", nil, 0, 0, nil, false)
 		require.EqualError(t, err, "status code 400: name may not contain '/' or non-printable characters")
 	})
 	t.Run("Put", func(t *testing.T) {

@@ -84,6 +84,9 @@ func (c *Command) Run(args []string) error {
 		return nil
 	}
 	if len(args) > 0 {
+		if ast.Script() != nil {
+			return errors.New("file arguments cannot be used with a script of multiple statements")
+		}
 		args = ast.PrependFileScan(args)
 	}
 	env := exec.NewEnvironment(storage.NewLocalEngine(), nil)

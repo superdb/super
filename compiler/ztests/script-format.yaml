@@ -1,0 +1,30 @@
+# Scripts of statements format and reparse.
+script: |
+  super compile -C "type port=uint16 create table if not exists t (a int not null, p port, s varchar(10)) order by a desc; insert into t (a, p) values (1, 80); select * from t; drop table if exists t"
+  echo ===
+  super compile -C "create super table u {a:int64}|string; insert into u from 'x.json' | where a > 1; values 1;"
+  echo ===
+  super compile -C "create super table v {a:int64,b:option(string)}"
+  echo ===
+  super compile -C "values 1;"
+
+outputs:
+  - name: stdout
+    data: |
+      type port = uint16
+      create table if not exists "t" (a int32 not null, p port, s string) order by a desc;
+      insert into "t" (a, p)
+      values (1, 80);
+      select *
+      from t;
+      drop table if exists "t"
+      ===
+      create super table "u" ({a:int64}|string);
+      insert into "u"
+      from "x.json"
+      | where a>1;
+      values 1
+      ===
+      create super table "v" {a:int64,b:option(string)}
+      ===
+      values 1
