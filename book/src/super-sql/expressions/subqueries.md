@@ -127,7 +127,7 @@ fn walk(node, visit):
   when "array" then
     [unnest node | walk(this, visit)]
   when "record" then
-    unflatten([unnest flatten(node) | {key,value:walk(value, visit)}])
+    unflatten([unnest flatten(node) | {path,value:walk(value, visit)}])
   when "union" then
     walk(under(node), visit)
   else visit(node)
@@ -135,13 +135,14 @@ fn walk(node, visit):
 ```
 
 >[!NOTE]
-> In this case, we are traversing only records and arrays.  Support for flattening
-> and unflattening maps and sets is forthcoming.
+> Since `flatten` traverses nested values all the way to their leaves,
+> the record case alone could handle all of the nesting.  The recursion here
+> illustrates re-entrant subqueries.
 
 Here, `walk` is invoking an [array subquery](#array-subqueries) on the unnested
 entities (records or arrays), calling the `walk` function recursively on each item,
 then assembling the results back into an array (i.e., the raw result of the array subquery)
-or a record (i.e., calling unflatten on the key/value pairs returned in the array).
+or a record (i.e., calling unflatten on the path/value pairs returned in the array).
 
 If we call `walk` with this function on an arbitrary nested value
 ```
@@ -261,7 +262,7 @@ fn walk(node, visit):
   when "array" then
     [unnest node | walk(this, visit)]
   when "record" then
-    unflatten([unnest flatten(node) | {key,value:walk(value, visit)}])
+    unflatten([unnest flatten(node) | {path,value:walk(value, visit)}])
   when "union" then
     walk(under(node), visit)
   else visit(node)

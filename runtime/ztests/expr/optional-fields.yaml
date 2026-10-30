@@ -23,9 +23,9 @@ input: |
   {a:1,b:1}
 
 output: |
-  [{key:["a"],value:1},{key:["b"],value?:"foo"}]
-  [{key:["a"],value:1}]
-  [{key:["a"],value:1},{key:["b"],value:1}]
+  [{path:["a"],value:1},{path:["b"],value?:"foo"}]
+  [{path:["a"],value:1}]
+  [{path:["a"],value:1},{path:["b"],value:1}]
 
 ---
 

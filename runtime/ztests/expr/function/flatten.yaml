@@ -5,17 +5,56 @@ input: |
   {a:1,b:null}
   {a:1,b:{c:"foo",d:[1,2,3]}}
   {a:1,b:{c:2,d:{e:4,f:5}}}
-  {foo:null}
   {foo:{bar:2::int32}}
-  {foo:{bar:null}}
   {a:1::(int64|null),b:null::(string|null)}
+  {a:1,b?:"foo",c?:none::string}
+  [1,[2,"x"]]
+  set[1,2]
+  map{"x":1,"y":{z:2}}
+  map{10.0.0.1:"a",10.0.0.2:"b"}
+  {a:[],b:{},c:map{}}
+  {}
 
 output: |
   127.0.0.1
-  [{key:["a"],value:1},{key:["b"],value:null}]
-  [{key:["a"],value:1},{key:["b","c"],value:"foo"},{key:["b","d"],value:[1,2,3]}]
-  [{key:["a"],value:1},{key:["b","c"],value:2},{key:["b","d","e"],value:4},{key:["b","d","f"],value:5}]
-  [{key:["foo"],value:null}]
-  [{key:["foo","bar"],value:2::int32}]
-  [{key:["foo","bar"],value:null}]
-  [{key:["a"],value:1::(int64|null)},{key:["b"],value:null::(string|null)}]
+  [{path:["a"],value:1},{path:["b"],value:null}]
+  [{path:["a"],value:1},{path:["b","c"],value:"foo"},{path:["b","d",0],value:1},{path:["b","d",1],value:2},{path:["b","d",2],value:3}]
+  [{path:["a"],value:1},{path:["b","c"],value:2},{path:["b","d","e"],value:4},{path:["b","d","f"],value:5}]
+  [{path:["foo","bar"],value:2::int32}]
+  [{path:["a"],value:1::(int64|null)},{path:["b"],value:null::(string|null)}]
+  [{path:["a"],value:1},{path:["b"],value?:"foo"}]
+  [{path:[0],value:1},{path:[1,0],value:2},{path:[1,1],value:"x"}]
+  [{path:[0],value:1},{path:[1],value:2}]
+  [{path:["x"],value:1},{path:["y","z"],value:2}]
+  [{path:[10.0.0.1],value:"a"},{path:[10.0.0.2],value:"b"}]
+  [{path:["a"],value:[]},{path:["b"],value:{}},{path:["c"],value:map{}}]
+  [{path:[]::[string],value:{}}]
+
+---
+
+# unflatten is the inverse of flatten except that a set becomes an array, a
+# map with string keys becomes a record, and a map with integer keys becomes
+# an array whose missing elements are none.
+spq: values unflatten(flatten(this))
+
+input: |
+  {a:1,b:{c:"foo",d:[1,[2,"x"]]}}
+  {a:1::(int64|null),b?:"foo",c?:none::string}
+  [{a:1},{b:[]}]
+  map{10.0.0.1:{a:1}}
+  {}
+  1
+  set[1,2]
+  map{"x":1}
+  map{1:"a",3:"b"}
+
+output: |
+  {a:1,b:{c:"foo",d:[1,[2,"x"]]}}
+  {a:1::(int64|null),b?:"foo"}
+  [{a:1},{b:[]}]
+  map{10.0.0.1:{a:1}}
+  {}
+  1
+  [1,2]
+  {x:1}
+  [none::string,some("a"),none::string,some("b")]
