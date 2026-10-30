@@ -66,8 +66,6 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 		f = newDowncast(sctx)
 	case "error":
 		f = &Error{sctx}
-	case "fields":
-		f = NewFields(sctx)
 	case "flatten":
 		f = newFlatten(sctx)
 	case "floor":
@@ -95,6 +93,8 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 	case "join":
 		argmax = 2
 		f = &Join{sctx: sctx}
+	case "keys":
+		f = newKeys(sctx)
 	case "kind":
 		f = &Kind{sctx: sctx}
 	case "uuid":
@@ -135,6 +135,8 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 		f = newParseSUP(sctx)
 	case "parse_uri":
 		f = newParseURI(sctx)
+	case "paths":
+		f = newPaths(sctx)
 	case "position":
 		argmin, argmax = 2, 2
 		f = &Position{sctx}
@@ -184,6 +186,8 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 		f = NewUpcast(sctx)
 	case "upper":
 		f = &ToUpper{sctx}
+	case "values":
+		f = newValues(sctx)
 	default:
 		return nil, function.ErrNoSuchFunction
 	}

@@ -1,0 +1,41 @@
+# The values of a record are in field order (with absent optional fields
+# dropped) and the order of map values is undefined.
+spq: values values(this)
+
+input: |
+  {a:1,b:"x",c:{d:2}}
+  {}
+  {a?:none::int64,b?:some(1),c:2}
+  {a:1::(int64|string),b:2.5}
+  map{"x":1,"y":2}
+  map{"x":1,"y":"s"}
+  map{}::map{string:int64}
+  <{a:int64}>
+  1
+  [1]
+  null
+  error("e")
+
+output: |
+  [1,"x",{d:2}]
+  []
+  [1,2]
+  [1,2.5]
+  [1,2]
+  [1,"s"]
+  []
+  error({message:"values: not a record or map",on:<{a:int64}>})
+  error({message:"values: not a record or map",on:1})
+  error({message:"values: not a record or map",on:[1]})
+  null
+  error({message:"values: error value encountered",on:error("e")})
+
+---
+
+spq: |
+  type foo={b:int64,a:string}
+  values values({b:1,a:"x"}::foo), values(keys({x:1}))
+
+output: |
+  [1,"x"]
+  error({message:"values: not a record or map",on:["x"]})

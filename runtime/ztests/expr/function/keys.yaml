@@ -1,0 +1,40 @@
+# The fields of a record are in order and the order of map keys is undefined.
+spq: keys(this)
+
+input: |
+  {a:1,b:{c:2}}
+  {}
+  map{"x":1,"y":2}
+  map{1:"a",2:"b"}
+  map{}::map{string:int64}
+  <{a:int64,b:{c:string}}>
+  <int64>
+  <map{string:int64}>
+  null
+  1
+  [1,2]
+  error("x")
+
+output: |
+  ["a","b"]
+  []
+  ["x","y"]
+  [1,2]
+  []
+  ["a","b"]
+  error({message:"keys: not a record type",on:<int64>})
+  error({message:"keys: not a record type",on:<map{string:int64}>})
+  null
+  error({message:"keys: not a record or map",on:1})
+  error({message:"keys: not a record or map",on:[1,2]})
+  error({message:"keys: error value encountered",on:error("x")})
+
+---
+
+spq: |
+  type foo={b:int64,a:int64}
+  values keys({b:1,a:2}::foo), keys(<foo>)
+
+output: |
+  ["b","a"]
+  ["b","a"]
