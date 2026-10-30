@@ -1,0 +1,52 @@
+spq: paths(this)
+
+input: |
+  {r:{a:1::int32},s:123::int32}::(string|{r:{a:int32},s:int32})
+  null
+  {r:{a:1::int8,b:2::int8},s:"a"}
+  {a:[1,{b:2}],c:map{"x":{y:3}},d:set[4]}
+  {a:{},b:[]}
+  1
+  error("x")
+
+output: |
+  [["r","a"],["s"]]
+  null
+  [["r","a"],["r","b"],["s"]]
+  [["a",0],["a",1,"b"],["c","x","y"],["d",0]]
+  [["a"],["b"]]
+  [[]::[string]]
+  error({message:"paths: error value encountered",on:error("x")})
+
+---
+
+# The paths of a record type value are the paths of its fields, descending
+# into the fields that are records.
+spq: paths(this)
+
+input: |
+  <{r:{a:int32},s:int32}>
+  <{r:{a:int8,b:int8},s:string}>::(int8|type)
+  <{a:[{b:int64}],c:{}}>
+  <int64>
+
+output: |
+  [["r","a"],["s"]]
+  [["r","a"],["r","b"],["s"]]
+  [["a"],["c"]]
+  error({message:"paths: not a record type",on:<int64>})
+
+---
+
+# paths(v) is the paths of the leaves of flatten(v).
+spq: values paths(this) == [unnest flatten(this) | values path]
+
+input: |
+  {a:1,b:{c:[2,{d:3}]}}
+  [1,[2,3]]
+  map{"x":{y:1}}
+
+output: |
+  true
+  true
+  true
