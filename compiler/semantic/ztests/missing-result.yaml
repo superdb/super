@@ -14,7 +14,7 @@ error: |
 
 ---
 
-spq: values {x,y}, [y]
+spq: values {x,y}, [y], map{'foo':y}, set[y]
 
 input: |
   {x:1}
@@ -22,12 +22,31 @@ input: |
 
 error: |
   field may be missing (consider ok()) at line 1, column 11:
-  values {x,y}, [y]
+  values {x,y}, [y], map{'foo':y}, set[y]
             ~
   field may be missing (consider ok()) at line 1, column 16:
-  values {x,y}, [y]
+  values {x,y}, [y], map{'foo':y}, set[y]
                  ~
+  field may be missing (consider ok()) at line 1, column 30:
+  values {x,y}, [y], map{'foo':y}, set[y]
+                               ~
+  field may be missing (consider ok()) at line 1, column 38:
+  values {x,y}, [y], map{'foo':y}, set[y]
+                                       ~
 
+---
+
+# A map key that may be missing must use ok() too.
+spq: values map{y:1}
+
+input: |
+  {x:1}
+  {x:2,y:3}
+
+error: |
+  field may be missing (consider ok()) at line 1, column 12:
+  values map{y:1}
+             ~
 ---
 
 spq: put z:=y | cut y

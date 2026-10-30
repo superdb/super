@@ -818,9 +818,52 @@ func (c *checker) array(typ super.Type) super.Type {
 }
 
 func (c *checker) callBuiltin(call *sem.CallExpr, args []super.Type) super.Type {
+	if call.Tag == "cast" && len(call.Args) == 2 {
+		return c.castType(args[0], call.Args[1])
+	}
 	// XXX This will be handled in a subsequent PR where we add type signatures
 	// to the package containing the built-in function implementatons.
 	return c.unknown
+}
+
+// castType returns the type of a cast of a value of type in to the type value
+// e, which is known when e is a type expression (e.g., <int64> or a named
+// type) and is otherwise unknown.  A cast passes a null through so the type
+// admits null if in does, and a cast produces missing only from missing so
+// the type admits missing only if in does.
+func (c *checker) castType(in super.Type, e sem.Expr) super.Type {
+	typeExpr, ok := e.(*sem.TypeExpr)
+	if !ok {
+		return c.unknown
+	}
+	typ, err := c.t.defs.LookupType(typeExpr.ID)
+	if err != nil {
+		return c.unknown
+	}
+	typ, err = c.t.sctx.TranslateType(typ)
+	if err != nil {
+		return c.unknown
+	}
+	if hasMissing(typ) && !hasUnknown(in) && !hasMissing(in) {
+		rest, ok := c.withoutTypes(typ, isMissingType)
+		if !ok {
+			return c.unknown
+		}
+		typ = rest
+	}
+	if hasNullType(in) && !hasNullType(typ) {
+		return c.fuse([]super.Type{typ, super.TypeNull})
+	}
+	return typ
+}
+
+// hasNullType reports whether typ is null or a union with null as one of its
+// types.
+func hasNullType(typ super.Type) bool {
+	if u, ok := under(typ).(*super.TypeUnion); ok {
+		return slices.ContainsFunc(u.Types, hasNullType)
+	}
+	return under(typ) == super.TypeNull
 }
 
 func (c *checker) callFunc(call *sem.CallExpr, args []super.Type) super.Type {
