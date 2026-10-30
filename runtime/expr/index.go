@@ -1,8 +1,13 @@
 package expr
 
 import (
+	"fmt"
+	"math"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/runtime/expr/cast"
+	"github.com/superdb/super/scode"
+	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector"
 )
 
@@ -34,6 +39,8 @@ func (i *Index) eval(args ...vector.Any) vector.Any {
 		return indexRecord(i.sctx, container, index, i.base1)
 	case vector.KindMap:
 		return indexMap(i.sctx, container, index)
+	case vector.KindType:
+		return indexTypeValue(i.sctx, container, index, i.base1)
 	case vector.KindOption:
 		return vector.NewWrappedError(i.sctx, "option value cannot be indexed (consider ??)", container)
 	default:
@@ -186,4 +193,91 @@ func indexMap(sctx *super.Context, vec, indexVec vector.Any) vector.Any {
 		return vector.Combine(vals, nones, vector.NewNone(uint32(len(nones))))
 	}
 	return vals
+}
+
+// indexTypeValue returns the type for each type value in vec indexed by the
+// corresponding value in indexVec.  A string index is a field name and is the
+// same as the dot operator (see derefType), so, e.g., <{x:int64}>["x"] is
+// <int64>.  An integer index is the position of a field of a record type or
+// selects the element type of an array or set type, so, e.g.,
+// <{x:int64,y:string}>[1] and <[string]>[0] are <string>.
+func indexTypeValue(sctx *super.Context, vec, indexVec vector.Any, base1 bool) vector.Any {
+	if _, ok := indexVec.(*vector.Error); ok {
+		return indexVec
+	}
+	id := indexVec.Type().ID()
+	if id != super.IDString && !super.IsInteger(id) {
+		return vector.NewWrappedError(sctx, "invalid value for type index", indexVec)
+	}
+	out := vector.NewDynamicValueBuilder()
+	var b, ib scode.Builder
+	for i := range vec.Len() {
+		val := vector.ValueAt(&b, vec, i)
+		if val.IsNull() {
+			out.Write(val)
+			continue
+		}
+		typ, err := sctx.LookupByValue(val.Bytes())
+		if err != nil {
+			panic(err)
+		}
+		idx := vector.ValueAt(&ib, indexVec, i)
+		var msg string
+		if id == super.IDString {
+			name := super.DecodeString(idx.Bytes())
+			if typ = derefType(sctx, typ, name); typ == nil {
+				msg = fmt.Sprintf("no such field '%s'", sup.QuotedName(name))
+			}
+		} else {
+			var k int64
+			if super.IsSigned(id) {
+				k = super.DecodeInt(idx.Bytes())
+			} else {
+				k = int64(min(super.DecodeUint(idx.Bytes()), math.MaxInt64))
+			}
+			if typ = indexType(sctx, typ, k, base1); typ == nil {
+				msg = "invalid type index"
+			}
+		}
+		if msg != "" {
+			out.Write(sctx.WrapError(msg, val))
+			continue
+		}
+		out.Write(sctx.LookupTypeValue(typ))
+	}
+	return out.Build(sctx)
+}
+
+// indexType returns the type at integer index k in typ or nil if there is no
+// such type.  See indexTypeValue.
+func indexType(sctx *super.Context, typ super.Type, k int64, base1 bool) super.Type {
+	switch typ := typ.(type) {
+	case *super.TypeNamed:
+		return indexType(sctx, typ.Type, k, base1)
+	case *super.TypeRecord:
+		n := int64(len(typ.Fields))
+		if k < 0 {
+			k += n
+		} else if base1 {
+			k--
+		}
+		if k >= 0 && k < n {
+			return typ.Fields[k].Type
+		}
+	case *super.TypeArray:
+		return typ.Type
+	case *super.TypeSet:
+		return typ.Type
+	case *super.TypeUnion:
+		return unionOfTypes(sctx, typ, func(typ super.Type) super.Type {
+			return indexType(sctx, typ, k, base1)
+		})
+	case *super.TypeFusion:
+		return indexType(sctx, typ.Type, k, base1)
+	case *super.TypeOption:
+		return indexType(sctx, typ.Type, k, base1)
+	case *super.TypeError:
+		return indexType(sctx, typ.Type, k, base1)
+	}
+	return nil
 }

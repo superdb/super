@@ -1502,6 +1502,19 @@ func (c *checker) indexOf(cloc, iloc ast.Node, container, index super.Type) (sup
 		return c.fuse(types), valid
 	case *super.TypeOption:
 		return c.indexOf(cloc, iloc, typ.Type, index)
+	case *super.TypeOfType:
+		// A type value indexed by a field name or position is a type value
+		// (or an error if the type has no such field, which we can't know
+		// statically).
+		ok := typeCheck(index, func(typ super.Type) bool {
+			id := under(typ).ID()
+			return id == super.IDString || super.IsInteger(id)
+		})
+		if !ok {
+			c.error(iloc, errors.New("string or integer type required to index type value"))
+			return c.unknown, false
+		}
+		return super.TypeType, true
 	default:
 		c.error(cloc, fmt.Errorf("indexed entity is not indexable"))
 		return c.unknown, false
