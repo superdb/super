@@ -64,6 +64,8 @@ func (k Kind) String() string {
 		return "enum"
 	case DecimalKind:
 		return "decimal"
+	case FusionKind:
+		return "fusion"
 	case OptionKind:
 		return "option"
 	case ErrorKind:

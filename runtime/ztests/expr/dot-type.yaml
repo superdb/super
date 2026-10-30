@@ -1,0 +1,92 @@
+# Dot navigation into type values.
+
+spq: values <{a:int64,b:{c:string}}>.b.c, <{a:int64}>.a == <int64>
+
+output: |
+  <string>
+  true
+
+---
+
+# The dot looks through named, option, fusion, and error types.
+spq: |
+  type foo={a:int64}
+  values <foo>.a, <option({a:string})>.a, <fusion({a:ip})>.a, <error({a:bool})>.a
+
+output: |
+  <int64>
+  <string>
+  <ip>
+  <bool>
+
+---
+
+# The dot navigates into array and set element types and map value types.
+spq: values <[{a:int64}]>.a, <set[{a:string}]>.a, <map{string:{a:ip}}>.a, <{a:[{b:{c:bool}}]}>.a.b.c
+
+output: |
+  <int64>
+  <string>
+  <ip>
+  <bool>
+
+---
+
+# For a union, the result is the union of the field's types in the union's
+# types that have the field.
+spq: |
+  values
+    <{a:int64}|{a:string}>.a,
+    <{a:int64}|{b:string}>.a,
+    <{a:int64}|{a:int64,b:string}>.a,
+    <{a:int64|string}|{a:bool}>.a,
+    <[{a:int64}]|{a:string}|int64>.a
+
+output: |
+  <int64|string>
+  <int64>
+  <int64>
+  <int64|bool|string>
+  <int64|string>
+
+---
+
+# A type without the field is an error, which ok() turns into none.
+spq: values <{a:int64}>.z, <int64|string>.a, <[int64]>.a, ok(<{a:int64}>.z)
+
+output: |
+  error({message:"no such field 'z'",on:<{a:int64}>})
+  error({message:"no such field 'a'",on:<int64|string>})
+  error({message:"no such field 'a'",on:<[int64]>})
+  none
+
+---
+
+# Type values from the input, some with and some without the field.
+spq: values t.a, ok(t.a) ?? <null>
+
+input: |
+  {t:<{a:int64}>}
+  {t:<[{a:string}]>}
+  {t:<int64>}
+
+output: |
+  <int64>
+  <int64>
+  <string>
+  <string>
+  error({message:"no such field 'a'",on:<int64>})
+  <null>
+
+---
+
+# Explore the types of the input values.
+spq: values typeof(this).b.c
+
+input: |
+  {a:1,b:{c:"x"}}
+  {a:2,b:[{c:10.0.0.1}]}
+
+output: |
+  <string>
+  <ip>

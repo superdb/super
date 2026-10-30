@@ -1120,6 +1120,10 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 			return c.unknown
 		}
 		return typ
+	case *super.TypeOfType:
+		// A field of a type value is a type value (or an error if the
+		// type has no such field, which we can't know statically).
+		return super.TypeType
 	case *super.TypeOfMissing:
 		// A field of a missing value is missing too, so leave the missing
 		// in the type for whatever uses it to catch.
