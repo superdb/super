@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pmezard/go-difflib/difflib"
+	"github.com/superdb/super/ztest"
 )
 
 // Test represents a single test in a Markdown file.
@@ -27,8 +28,10 @@ type Test struct {
 	Fusion bool // If true do not defuse output
 }
 
-// Run runs the test, returning nil on success.
-func (t *Test) Run() error {
+// Run runs t, returning nil on success.  If t.GoExample is empty, Run runs the
+// test with dir as both current and home directory (unless t.Dir is non-empty,
+// in which case it is the current directory).
+func (t *Test) Run(dir string) error {
 	if t.GoExample != "" {
 		return t.vetGoExample()
 	}
@@ -44,9 +47,13 @@ func (t *Test) Run() error {
 		}
 	} else {
 		c = exec.Command("bash", "-e", "-o", "pipefail")
-		c.Dir = t.Dir
 		c.Stdin = strings.NewReader(t.Command)
 	}
+	c.Dir = t.Dir
+	if c.Dir == "" {
+		c.Dir = dir
+	}
+	c.Env = ztest.EnvForHomeDirAndPath(dir, os.Getenv("PATH"))
 	outBytes, err := c.CombinedOutput()
 	out := string(outBytes)
 	if t.Fails {
