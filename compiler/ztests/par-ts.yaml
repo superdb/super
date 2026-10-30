@@ -32,13 +32,13 @@ outputs:
       | scatter
         (
           seqscan ...
-          | cut ts:=ts,y:=y,z:=z
+          | values {ts:ts,y:y,z:z}
           | put x:=y
           | rename y:=z
         )
         (
           seqscan ...
-          | cut ts:=ts,y:=y,z:=z
+          | values {ts:ts,y:y,z:z}
           | put x:=y
           | rename y:=z
         )
@@ -50,11 +50,11 @@ outputs:
       | scatter
         (
           seqscan ...
-          | cut ts:=ts,foo:=x
+          | values {ts:ts,foo:x}
         )
         (
           seqscan ...
-          | cut ts:=ts,foo:=x
+          | values {ts:ts,foo:x}
         )
       | merge ts asc nulls last
       | uniq

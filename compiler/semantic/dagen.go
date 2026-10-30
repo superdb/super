@@ -155,9 +155,13 @@ func (d *dagen) op(op sem.Op) dag.Op {
 			Expr:  e,
 		}
 	case *sem.CutOp:
-		return &dag.CutOp{
-			Kind: "CutOp",
-			Args: d.assignments(op.Args),
+		rec, err := dag.NewRecordExprFromAssignments(d.assignments(op.Args))
+		if err != nil {
+			panic(err)
+		}
+		return &dag.ValuesOp{
+			Kind:  "ValuesOp",
+			Exprs: []dag.Expr{rec},
 		}
 	case *sem.DebugOp:
 		return &dag.DebugOp{

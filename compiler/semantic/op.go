@@ -805,10 +805,20 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 		assignments, paths := t.assignments(o.Args, inType)
 		// Collect static paths so we can check on what is available.
 		var fields field.List
+		var bad bool
 		for _, a := range assignments {
-			if this, ok := a.LHS.(*sem.ThisExpr); ok {
-				fields = append(fields, this.Chain.Path())
+			switch lhs := a.LHS.(type) {
+			case *sem.ThisExpr:
+				fields = append(fields, lhs.Chain.Path())
+			case *sem.BadExpr:
+				bad = true
+			default:
+				t.error(a.Node, errors.New("cut requires static field names"))
+				bad = true
 			}
+		}
+		if bad {
+			return append(seq, badOp), t.checker.unknown
 		}
 		if _, err := super.NewRecordBuilder(t.sctx, fields); err != nil {
 			t.error(o.Args, err)

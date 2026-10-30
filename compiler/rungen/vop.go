@@ -3,7 +3,6 @@ package rungen
 import (
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"sync"
 
@@ -208,16 +207,6 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 			}
 		}
 		return op.NewCount(b.rctx.Sctx, parent, o.Alias, e), nil
-	case *dag.CutOp:
-		rec, err := newRecordExprFromAssignments(o.Args)
-		if err != nil {
-			return nil, err
-		}
-		e, err := b.compileVamRecordExpr(rec)
-		if err != nil {
-			return nil, err
-		}
-		return op.NewValues(b.sctx(), parent, []expr.Evaluator{e}), nil
 	case *dag.DBMetaScan:
 		return op.NewDBMetaScanner(b.rctx.Context, b.sctx(), b.env.DB(), o.Meta)
 	case *dag.DebugOp:
@@ -332,7 +321,7 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 	case *dag.PassOp:
 		return parent, nil
 	case *dag.PutOp:
-		rec, err := newRecordExprFromAssignments(o.Args)
+		rec, err := dag.NewRecordExprFromAssignments(o.Args)
 		if err != nil {
 			return nil, err
 		}
@@ -447,34 +436,6 @@ func invertForDeleteWhere(where dag.Expr) dag.Expr {
 		dag.NewBinaryExpr("or",
 			&dag.IsNullExpr{Kind: "IsNullExpr", Expr: where},
 			dag.NewCall("is_error", []dag.Expr{where})))
-}
-
-func newRecordExprFromAssignments(assignments []dag.Assignment) (*dag.RecordExpr, error) {
-	rec := &dag.RecordExpr{Kind: "RecordExpr"}
-	for _, a := range assignments {
-		lhs, ok := a.LHS.(*dag.ThisExpr)
-		if !ok {
-			return nil, fmt.Errorf("internal error: dynamic field name not supported: %#v", a.LHS)
-		}
-		addChainToRecordExpr(rec, lhs.Chain, a.RHS)
-	}
-	return rec, nil
-}
-
-func addChainToRecordExpr(rec *dag.RecordExpr, chain field.Chain, expr dag.Expr) {
-	if len(chain) == 1 {
-		rec.Elems = append(rec.Elems, &dag.Field{Kind: "Field", Name: chain[0].ID, Value: expr})
-		return
-	}
-	i := slices.IndexFunc(rec.Elems, func(elem dag.RecordElem) bool {
-		f, ok := elem.(*dag.Field)
-		return ok && f.Name == chain[0].ID
-	})
-	if i == -1 {
-		i = len(rec.Elems)
-		rec.Elems = append(rec.Elems, &dag.Field{Kind: "Field", Name: chain[0].ID, Value: &dag.RecordExpr{Kind: "RecordExpr"}})
-	}
-	addChainToRecordExpr(rec.Elems[i].(*dag.Field).Value.(*dag.RecordExpr), chain[1:], expr)
 }
 
 func mergeRecordExprWithChain(rec *dag.RecordExpr, chain field.Chain) {
