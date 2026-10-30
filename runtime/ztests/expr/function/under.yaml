@@ -32,3 +32,31 @@ output: |
   <{s:string}>
   1
   none
+
+---
+
+# A type value is unwrapped one level.
+spq: under(this)
+
+input: |
+  type arr=[int8]
+  <arr>
+  <[int64]>
+  <set[ip]>
+  <int64|string>
+  <map{string:[int64]}>
+  <{a:int64}>
+  <int64>
+  <option(int64)>
+  <error({msg:string})>
+
+output: |
+  <[int8]>
+  <int64>
+  <ip>
+  [<int64>,<string>]
+  {key:<string>,value:<[int64]>}
+  <{a:int64}>
+  <int64>
+  <int64>
+  <{msg:string}>
