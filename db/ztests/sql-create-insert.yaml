@@ -24,7 +24,7 @@ script: |
   drop table if exists any_t
   " | super -s -c "drop start,end,info.id,info.commit" -
   echo ===
-  super db ls | awk '{$2=""; print}'
+  super db ls | awk '{$2=""; print}' | sort
 
 outputs:
   - name: stdout
@@ -61,5 +61,5 @@ outputs:
       {kind:"drop_table",stmt:"drop table if exists any_t",info:{table:"any_t",dropped:false},error:null}
       ===
       conns  key src order desc objectcap 1048576 framecap 20000 columns (src ip not null, dport port, note string)
-      u  unsorted objectcap 1048576 framecap 20000 columns (a int64|string, b int64|string not null)
       of_t  unsorted objectcap 1048576 framecap 20000 type string|{a:int64}
+      u  unsorted objectcap 1048576 framecap 20000 columns (a int64|string, b int64|string not null)
