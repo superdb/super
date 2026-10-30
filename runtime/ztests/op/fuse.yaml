@@ -166,7 +166,7 @@ output: |
 ---
 
 # Test fuse on fusion values
-spq: unnest this into ( fuse )
+spq: unnest this into ( superfuse )
 
 input: |
   [fusion({x?:1,y?:none::int64},<{x:int64}>)]
@@ -182,7 +182,7 @@ output: |
 
 ---
 
-spq: fuse | values x
+spq: superfuse | values x
 
 flags: -fusion -dynamic
 
