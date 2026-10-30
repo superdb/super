@@ -129,7 +129,40 @@ func formatTableConfig(b *bytes.Buffer, p *tables.Config) {
 	b.WriteString(strconv.FormatUint(p.ObjectCap, 10))
 	b.WriteString(" framecap ")
 	b.WriteString(strconv.FormatUint(p.FrameCap, 10))
+	if len(p.Type) > 0 {
+		if typ, err := super.NewContext().LookupByValue(p.Type); err == nil {
+			if rec, ok := super.TypeUnder(typ).(*super.TypeRecord); ok && p.SQL {
+				b.WriteString(" columns ")
+				b.WriteString(formatColumns(rec))
+			} else {
+				b.WriteString(" type ")
+				b.WriteString(sup.FormatType(typ))
+			}
+		}
+	}
 	b.WriteByte('\n')
+}
+
+// formatColumns formats the type of a SQL table as its column definitions,
+// e.g., (a int64 not null, b string).
+func formatColumns(rec *super.TypeRecord) string {
+	var cols []string
+	for _, f := range rec.Fields {
+		col := sup.QuotedName(f.Name) + " "
+		if union, ok := f.Type.(*super.TypeUnion); ok && union.TagOf(super.TypeNull) >= 0 {
+			var types []string
+			for _, typ := range union.Types {
+				if typ != super.TypeNull {
+					types = append(types, sup.FormatType(typ))
+				}
+			}
+			col += strings.Join(types, "|")
+		} else {
+			col += sup.FormatType(f.Type) + " not null"
+		}
+		cols = append(cols, col)
+	}
+	return "(" + strings.Join(cols, ", ") + ")"
 }
 
 func formatBranchMeta(b *bytes.Buffer, p *db.BranchMeta, headID uuid.UUID, headName string, colors *color.Stack) {

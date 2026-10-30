@@ -45,7 +45,8 @@ type Table struct {
 }
 
 // CreateTable creates the storage for a table.  If config.Type is not nil,
-// all values loaded into the table must conform to it (see super.Conformer).
+// all values loaded into the table are cast to type, where the cast is SQL-ish
+// if config.SQL is true, and otherwise, SuperSQL-ish.
 func CreateTable(ctx context.Context, engine storage.Engine, logger *zap.Logger, root *storage.URI, config *tables.Config) error {
 	tablePath := config.Path(root)
 	// branchesPath is the path to the kvs journal of BranchConfigs

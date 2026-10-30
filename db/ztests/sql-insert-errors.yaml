@@ -12,6 +12,8 @@ script: |
     "insert into t (a, a) values (1, 2)" \
     "insert into t values {a:1::int32}" \
     "insert into t values {a:2::int32,c:1}" \
+    "insert into t values {a:null,b:'x'}" \
+    "insert into t values {b:'x'}" \
     "insert into t values 1" \
     "insert into t values (1, 'ok'), (null, 'bad')" \
     "insert into nosuch values (1)"; do
@@ -47,6 +49,10 @@ outputs:
       // insert into t values {a:1::int32}
       // insert into t values {a:2::int32,c:1}
       value {a:2::int32,c:1} cannot be cast to table type {a:int32,b:string|null}: no field c in type
+      // insert into t values {a:null,b:'x'}
+      value {a:null,b:"x"} cannot be cast to table type {a:int32,b:string|null}: null not allowed
+      // insert into t values {b:'x'}
+      value {a:error("no such field a"),b:"x"::(string|null)} cannot be cast to table type {a:int32,b:string|null}
       // insert into t values 1
       value 1 cannot be cast to table type {a:int32,b:string|null}
       // insert into t values (1, 'ok'), (null, 'bad')
