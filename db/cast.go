@@ -28,7 +28,7 @@ type castPuller struct {
 	// typHasError is true if typ has an error type so values of typ
 	// may themselves contain errors.
 	typHasError bool
-	defuse      *expr.Defuse
+	defuse      *expr.SuperDefuse
 }
 
 func newCastPuller(sctx *super.Context, parent vio.Puller, typ super.Type, sql bool) *castPuller {
@@ -38,7 +38,7 @@ func newCastPuller(sctx *super.Context, parent vio.Puller, typ super.Type, sql b
 		typ:         typ,
 		opts:        cast.Options{MissingToNull: sql, Strict: true},
 		typHasError: cast.HasError(typ),
-		defuse:      expr.NewDefuse(sctx),
+		defuse:      expr.NewSuperDefuse(sctx),
 	}
 }
 
@@ -95,7 +95,7 @@ func (c *castPuller) cast(vec vector.Any) (vector.Any, error) {
 		// The values of a SQL table's nullable columns are stored as
 		// their values (i.e., a value or null) rather than as unions.
 		out = vector.Apply(vector.ApplyNone, func(vecs ...vector.Any) vector.Any {
-			return expr.Unblend(c.sctx, vecs[0])
+			return expr.Defuse(c.sctx, vecs[0])
 		}, out)
 	}
 	return out, nil

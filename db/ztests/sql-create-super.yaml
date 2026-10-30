@@ -9,8 +9,8 @@ script: |
   super db -s -c "
   type Event = (
     from raw
-    | blend(this) by type
-    | collect_map(map{type:optionize(blend)})
+    | fuse(this) by type
+    | collect_map(map{type:optionize(fuse)})
     | sum_type(this)
   )
   create super table events Event;
