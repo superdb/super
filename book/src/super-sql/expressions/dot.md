@@ -20,8 +20,8 @@ The result of a dot expression is
 
 When navigating a type value, the dot operator looks through named,
 optional, fusion, and error types and into the element type of
-an array or set and the value type of a map, e.g., `<[{a:int64}]>.a`
-is `<int64>`.  For a union type, the result is the union of the field's
+an array or set, e.g., `<[{a:int64}]>.a` is `<int64>`.  A map type has no
+fields since its keys aren't known.  For a union type, the result is the union of the field's
 types in the union's types that have the field, e.g.,
 `<{a:int64}|{a:string}|int64>.a` is `<int64|string>`.
 
@@ -80,13 +80,11 @@ values this.a.b
 # input
 <{a:{b:string}}>
 <{a:[{b:ip}]}>
-<{a:map{string:{b:int64}}}>
 <{a:{b:int64}|{b:string}|{c:bool}}>
 <{a:int64}>
 # expected output
 <string>
 <ip>
-<int64>
 <int64|string>
 error({message:"no such field 'b'",on:<int64>})
 ```

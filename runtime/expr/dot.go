@@ -163,7 +163,7 @@ func (d *DotExpr) derefTypeValue(vec *vector.TypeValue) vector.Any {
 	var errs []uint32
 	typvals := vector.NewTypeValueEmpty()
 	for i := range vec.Len() {
-		if typ := d.derefType(vec.Value(i)); typ != nil {
+		if typ := derefType(d.sctx, vec.Value(i), d.key); typ != nil {
 			typvals.Append(typ)
 			continue
 		}
@@ -179,55 +179,62 @@ func (d *DotExpr) derefTypeValue(vec *vector.TypeValue) vector.Any {
 	return typvals
 }
 
-// derefType returns the type of field d.key in typ or nil if there is no
+// derefType returns the type of field key in typ or nil if there is no
 // such field.  The dot navigates through named, option, fusion, and error
-// types and into the element types of arrays and sets and the value type of
-// maps, so, e.g., <[{a:{b:string}}]>.a.b is <string>.  For a union, the
+// types and into the element types of arrays and sets, so, e.g.,
+// <[{a:{b:string}}]>.a.b is <string>.  A map type has no fields since its
+// keys aren't known.  For a union, the
 // result is the union of the field's types in the union's types that have
 // the field.
-func (d *DotExpr) derefType(typ super.Type) super.Type {
+func derefType(sctx *super.Context, typ super.Type, key string) super.Type {
 	switch typ := typ.(type) {
 	case *super.TypeNamed:
-		return d.derefType(typ.Type)
+		return derefType(sctx, typ.Type, key)
 	case *super.TypeRecord:
-		if t, ok := typ.TypeOfField(d.key); ok {
+		if t, ok := typ.TypeOfField(key); ok {
 			return t
 		}
 	case *super.TypeArray:
-		return d.derefType(typ.Type)
+		return derefType(sctx, typ.Type, key)
 	case *super.TypeSet:
-		return d.derefType(typ.Type)
-	case *super.TypeMap:
-		return d.derefType(typ.ValType)
+		return derefType(sctx, typ.Type, key)
 	case *super.TypeUnion:
-		var types []super.Type
-		for _, t := range typ.Types {
-			out := d.derefType(t)
-			if out == nil {
-				continue
-			}
-			if u, ok := out.(*super.TypeUnion); ok {
-				types = append(types, u.Types...)
-			} else {
-				types = append(types, out)
-			}
-		}
-		types = super.UniqueTypes(types)
-		switch len(types) {
-		case 0:
-			return nil
-		case 1:
-			return types[0]
-		}
-		return d.sctx.MustLookupTypeUnion(types)
+		return unionOfTypes(sctx, typ, func(typ super.Type) super.Type {
+			return derefType(sctx, typ, key)
+		})
 	case *super.TypeFusion:
-		return d.derefType(typ.Type)
+		return derefType(sctx, typ.Type, key)
 	case *super.TypeOption:
-		return d.derefType(typ.Type)
+		return derefType(sctx, typ.Type, key)
 	case *super.TypeError:
-		return d.derefType(typ.Type)
+		return derefType(sctx, typ.Type, key)
 	}
 	return nil
+}
+
+// unionOfTypes returns the union of the types that f returns for the types of
+// union, ignoring nil results, or nil if all of the results are nil.
+func unionOfTypes(sctx *super.Context, union *super.TypeUnion, f func(super.Type) super.Type) super.Type {
+	var types []super.Type
+	for _, t := range union.Types {
+		out := f(t)
+		if out == nil {
+			continue
+		}
+		if u, ok := out.(*super.TypeUnion); ok {
+			types = append(types, u.Types...)
+		} else {
+			types = append(types, out)
+		}
+	}
+	types = super.UniqueTypes(types)
+	switch len(types) {
+	case 0:
+		return nil
+	case 1:
+		return types[0]
+	}
+	return sctx.MustLookupTypeUnion(types)
 }
 
 func (d *DotExpr) noneErr(vec vector.Any) *vector.Error {

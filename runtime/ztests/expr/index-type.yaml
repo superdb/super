@@ -1,0 +1,81 @@
+# Indexing into type values.
+
+# A string index is the same as the dot operator.
+spq: |
+  type foo={a:int64}
+  values
+    <{x:int64,y:int64}>['x'],
+    <{x:{y:ip}}>['x']['y'],
+    <[{a:int64}]>['a'],
+    <{a:int64}|{a:string}>['a'],
+    <foo>['a'],
+    <{x:int64}>['x'] == <{x:int64}>.x
+
+output: |
+  <int64>
+  <ip>
+  <int64>
+  <int64|string>
+  <int64>
+  true
+
+---
+
+# An integer index is the position of a record field or selects the element
+# type of an array or set.
+spq: values <{x:int64,y:string}>[1], <{x:int64,y:string}>[-1], <[string]>[0], <set[ip]>[5]
+
+output: |
+  <string>
+  <string>
+  <string>
+  <ip>
+
+---
+
+spq: values <{x:int64}>['z'], <{x:int64}>[3], <int64>[0], <map{string:int64}>['a'], ok(<{x:int64}>['z'])
+
+output: |
+  error({message:"no such field 'z'",on:<{x:int64}>})
+  error({message:"invalid type index",on:<{x:int64}>})
+  error({message:"invalid type index",on:<int64>})
+  error({message:"no such field 'a'",on:<map{string:int64}>})
+  none
+
+---
+
+spq: values <{a:int64}>[1.5]
+
+error: |
+  string or integer type required to index type value at line 1, column 20:
+  values <{a:int64}>[1.5]
+                     ~~~
+
+---
+
+# Type values and indexes from the input.
+spq: values t[k]
+
+input: |
+  {t:<{a:int64,b:string}>,k:"b"}
+  {t:<{a:int64,b:string}>,k:0}
+  {t:<{a:int64,b:string}>,k:"z"}
+  {t:<[int64]>,k:"a"}
+
+output: |
+  <string>
+  <int64>
+  error({message:"no such field 'z'",on:<{a:int64,b:string}>})
+  error({message:"no such field 'a'",on:<[int64]>})
+
+---
+
+spq: values typeof(this)['b']
+
+input: |
+  {a:1,b:"x"}
+  {a:2,b:[10.0.0.1]}
+
+output: |
+  <string>
+  <[ip]>

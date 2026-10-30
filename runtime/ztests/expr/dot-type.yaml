@@ -21,13 +21,12 @@ output: |
 
 ---
 
-# The dot navigates into array and set element types and map value types.
-spq: values <[{a:int64}]>.a, <set[{a:string}]>.a, <map{string:{a:ip}}>.a, <{a:[{b:{c:bool}}]}>.a.b.c
+# The dot navigates into array and set element types.
+spq: values <[{a:int64}]>.a, <set[{a:string}]>.a, <{a:[{b:{c:bool}}]}>.a.b.c
 
 output: |
   <int64>
   <string>
-  <ip>
   <bool>
 
 ---
@@ -52,12 +51,13 @@ output: |
 ---
 
 # A type without the field is an error, which ok() turns into none.
-spq: values <{a:int64}>.z, <int64|string>.a, <[int64]>.a, ok(<{a:int64}>.z)
+spq: values <{a:int64}>.z, <int64|string>.a, <[int64]>.a, <map{string:int64}>.a, ok(<{a:int64}>.z)
 
 output: |
   error({message:"no such field 'z'",on:<{a:int64}>})
   error({message:"no such field 'a'",on:<int64|string>})
   error({message:"no such field 'a'",on:<[int64]>})
+  error({message:"no such field 'a'",on:<map{string:int64}>})
   none
 
 ---

@@ -14,6 +14,7 @@ Indexable entities include
 [arrays](../types/array.md),
 [sets](../types/set.md),
 [maps](../types/map.md),
+[type values](../types/type.md),
 [strings](../types/string.md), and
 [bytes](../types/bytes.md).
 
@@ -33,6 +34,13 @@ If `<entity>` is a map, then the `<index>` operand
 is presumed to be a key and the corresponding value for that key is
 the result of the operation.  If no such key exists in the map, then
 the result is `none`.
+
+If `<entity>` is a type value, then a string `<index>` is a field name and
+the result is the same as the [dot operator](dot.md) with that field name,
+while an integer `<index>` is the position of a field of a record type or
+selects the element type of an array or set type.  For example,
+`<{x:int64,y:string}>["y"]`, `<{x:int64,y:string}>[1]`, and `<[string]>[0]`
+are all `<string>`.
 
 If `<entity>` is a string, then the `<index>` operand
 must be coercible to an integer and the result is an integer representing
@@ -116,4 +124,18 @@ values a[-1]
 4
 error({message:"value cannot be indexed",on:"1234"})
 error({message:"value cannot be indexed",on:0x01020304})
+```
+
+---
+
+_Index a type value_
+
+```mdtest-spq
+# spq
+values this["y"], this[0]
+# input
+<{x:int64,y:string}>
+# expected output
+<string>
+<int64>
 ```
