@@ -16,7 +16,7 @@ type Infer struct {
 	limit  int
 
 	converter *converter
-	defuse    *expr.Defuse
+	defuse    *expr.SuperDefuse
 	needEOS   bool
 }
 
@@ -25,7 +25,7 @@ func NewInfer(rctx *runtime.Context, parent vio.Puller, limit int) *Infer {
 		rctx:   rctx,
 		parent: parent,
 		limit:  limit,
-		defuse: expr.NewDefuse(rctx.Sctx),
+		defuse: expr.NewSuperDefuse(rctx.Sctx),
 	}
 }
 

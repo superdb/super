@@ -150,10 +150,10 @@ is stored in a list, and the list has an arbitrary order.
   an incompatible record. `query()` guards against this by default: it runs a
   pre-flight check and raises `MixedTypesError` (with a `type_count` attribute)
   if more than one distinct type is detected. If encountered, one possible
-  way to work around this is append the [blend](../../super-sql/operators/blend.md)
+  way to work around this is append the [fuse](../../super-sql/operators/fuse.md)
   operator to your query to merge all types into a single type:
   ```
-  from mytable | ... | blend
+  from mytable | ... | fuse
   ```
   If you know your data is homogeneous and want to avoid the extra round trip,
   pass `safe=False` — but results will be silently truncated if mixed types are

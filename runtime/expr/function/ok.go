@@ -7,11 +7,11 @@ import (
 )
 
 type Ok struct {
-	defuse *expr.Defuse
+	defuse *expr.SuperDefuse
 }
 
 func newOk(sctx *super.Context) *Ok {
-	return &Ok{expr.NewDefuse(sctx)}
+	return &Ok{expr.NewSuperDefuse(sctx)}
 }
 
 func (o *Ok) Call(args ...vector.Any) vector.Any {

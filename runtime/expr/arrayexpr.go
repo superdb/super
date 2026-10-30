@@ -15,14 +15,14 @@ type ListElem struct {
 
 type ArrayExpr struct {
 	elems  []ListElem
-	defuse *Defuse
+	defuse *SuperDefuse
 	sctx   *super.Context
 }
 
 func NewArrayExpr(sctx *super.Context, elems []ListElem) *ArrayExpr {
 	return &ArrayExpr{
 		elems:  elems,
-		defuse: NewDefuse(sctx),
+		defuse: NewSuperDefuse(sctx),
 		sctx:   sctx,
 	}
 }

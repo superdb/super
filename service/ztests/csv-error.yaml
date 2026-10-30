@@ -18,4 +18,4 @@ outputs:
       hello
   - name: stderr
     data: |
-      CSV output requires uniform records but multiple types encountered (consider 'blend')
+      CSV output requires uniform records but multiple types encountered (consider 'fuse')

@@ -8,13 +8,13 @@ import (
 type putter struct {
 	sctx   *super.Context
 	e      Evaluator
-	defuse *Defuse
+	defuse *SuperDefuse
 }
 
 // NewPutter wraps e to implement the behavior of the put operator, which emits
 // an error when an input value is not a record.
 func NewPutter(sctx *super.Context, e Evaluator) Evaluator {
-	return &putter{sctx, e, NewDefuse(sctx)}
+	return &putter{sctx, e, NewSuperDefuse(sctx)}
 }
 
 func (p *putter) Eval(vec vector.Any) vector.Any {

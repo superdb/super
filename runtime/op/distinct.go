@@ -16,12 +16,12 @@ type Distinct struct {
 	expr   expr.Evaluator
 
 	blocked map[string]struct{}
-	defuse  *expr.Defuse
+	defuse  *expr.SuperDefuse
 	key     []byte
 }
 
 func NewDistinct(sctx *super.Context, parent vio.Puller, e expr.Evaluator) *Distinct {
-	return &Distinct{sctx, parent, e, map[string]struct{}{}, expr.NewDefuse(sctx), nil}
+	return &Distinct{sctx, parent, e, map[string]struct{}{}, expr.NewSuperDefuse(sctx), nil}
 }
 
 func (d *Distinct) Pull(done bool) (vector.Any, error) {

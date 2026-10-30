@@ -204,12 +204,12 @@ type In struct {
 	sctx   *super.Context
 	lhs    Evaluator
 	rhs    Evaluator
-	defuse *Defuse
+	defuse *SuperDefuse
 	pw     *PredicateWalk
 }
 
 func NewIn(sctx *super.Context, lhs, rhs Evaluator) *In {
-	return &In{sctx, lhs, rhs, NewDefuse(sctx), NewPredicateWalk(sctx, NewCompare(sctx, "==", nil, nil).eval)}
+	return &In{sctx, lhs, rhs, NewSuperDefuse(sctx), NewPredicateWalk(sctx, NewCompare(sctx, "==", nil, nil).eval)}
 }
 
 func (i *In) Eval(this vector.Any) vector.Any {

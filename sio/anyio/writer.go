@@ -69,7 +69,7 @@ type defuser struct {
 }
 
 func newDefuser(w vio.PushCloser) vio.PushCloser {
-	return &defuser{PushCloser: w, defuse: expr.NewDefuse(super.NewContext())}
+	return &defuser{PushCloser: w, defuse: expr.NewSuperDefuse(super.NewContext())}
 }
 
 func (d *defuser) Push(vec vector.Any) error {

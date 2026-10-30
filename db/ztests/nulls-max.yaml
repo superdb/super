@@ -9,7 +9,7 @@ script: |
     super db create -q -use -orderby ts:$o $o
     echo '{ts:150} {ts:null}' | super db load -q -
     echo '{ts:1}' | super db load -q -
-    super db -s -c "from $o:objects | drop id, size | min:=defuse(min),max:=defuse(max)"
+    super db -s -c "from $o:objects | drop id, size | min:=superdefuse(min),max:=superdefuse(max)"
     echo "// ==="
     super db -s -c "from $o | head 1"
   done

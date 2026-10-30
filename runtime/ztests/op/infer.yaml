@@ -70,7 +70,7 @@ output: |
 
 ---
 
-spq: blend | infer | sort this
+spq: fuse | infer | sort this
 
 input: |
   {x:"1"}

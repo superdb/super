@@ -20,15 +20,15 @@ func NewLiteralCast(sctx *super.Context, expr Evaluator, literal *Literal) (Eval
 		// Casting to any yields fusion(all) values.
 		typ = sctx.AnyToFusion(typ)
 		if typ.ID() >= super.IDTypeComplex {
-			return &casterComplex{sctx, NewDefuse(sctx), expr, typ}, nil
+			return &casterComplex{sctx, NewSuperDefuse(sctx), expr, typ}, nil
 		}
-		return &casterPrimitive{sctx, NewDefuse(sctx), expr, typ}, nil
+		return &casterPrimitive{sctx, NewSuperDefuse(sctx), expr, typ}, nil
 	case super.IDString:
 		name := super.DecodeString(typeVal.Bytes())
 		if _, err := super.NewContext().LookupTypeNamed(name, super.TypeNull); err != nil {
 			return nil, err
 		}
-		return &casterNamedType{sctx, NewDefuse(sctx), expr, name}, nil
+		return &casterNamedType{sctx, NewSuperDefuse(sctx), expr, name}, nil
 	default:
 		return nil, fmt.Errorf("cast type argument is not a type: %s", sup.FormatValue(typeVal))
 	}
@@ -36,7 +36,7 @@ func NewLiteralCast(sctx *super.Context, expr Evaluator, literal *Literal) (Eval
 
 type casterPrimitive struct {
 	sctx   *super.Context
-	defuse *Defuse
+	defuse *SuperDefuse
 	expr   Evaluator
 	typ    super.Type
 }
@@ -49,7 +49,7 @@ func (c *casterPrimitive) Eval(this vector.Any) vector.Any {
 
 type casterComplex struct {
 	sctx   *super.Context
-	defuse *Defuse
+	defuse *SuperDefuse
 	expr   Evaluator
 	typ    super.Type
 }
@@ -65,7 +65,7 @@ func (c *casterComplex) Eval(this vector.Any) vector.Any {
 
 type casterNamedType struct {
 	sctx   *super.Context
-	defuse *Defuse
+	defuse *SuperDefuse
 	expr   Evaluator
 	name   string
 }

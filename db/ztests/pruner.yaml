@@ -9,17 +9,17 @@ script: |
   seq 8 12 | super -c '{k:this}' - | super db load -q -
   seq 20 25 | super -c '{k:this}' - | super db load -q -
   seq 14 16 | super -c '{k:this}' - | super db load -q -
-  super db -c "from tmp:objects (tap true) | k > 18" | super -s -c "drop id | min:=defuse(min),max:=defuse(max)" -
+  super db -c "from tmp:objects (tap true) | k > 18" | super -s -c "drop id | min:=superdefuse(min),max:=superdefuse(max)" -
   echo ===
-  super db -c "from tmp:objects (tap true) | k <= 10" | super -s -c "drop id | min:=defuse(min),max:=defuse(max)" -
+  super db -c "from tmp:objects (tap true) | k <= 10" | super -s -c "drop id | min:=superdefuse(min),max:=superdefuse(max)" -
   echo ===
-  super db -c "from tmp:objects (tap true) | k >= 15 and k < 20" | super -s -c "drop id | min:=defuse(min),max:=defuse(max)" -
+  super db -c "from tmp:objects (tap true) | k >= 15 and k < 20" | super -s -c "drop id | min:=superdefuse(min),max:=superdefuse(max)" -
   echo ===
-  super db -c "from tmp:objects (tap true) | k <= 9 or k > 24" | super -s -c "drop id | min:=defuse(min),max:=defuse(max)" -
+  super db -c "from tmp:objects (tap true) | k <= 9 or k > 24" | super -s -c "drop id | min:=superdefuse(min),max:=superdefuse(max)" -
   echo ===
-  super db -c 'from tmp:objects (tap true) | a[k] == "foo" or k >= 20' | super -s -c "drop id | min:=defuse(min),max:=defuse(max)" -
+  super db -c 'from tmp:objects (tap true) | a[k] == "foo" or k >= 20' | super -s -c "drop id | min:=superdefuse(min),max:=superdefuse(max)" -
   echo ===
-  super db -c 'from tmp:objects (tap true) | a[k] == "foo" and k >= 20' | super -s -c "drop id | min:=defuse(min),max:=defuse(max)" -
+  super db -c 'from tmp:objects (tap true) | a[k] == "foo" and k >= 20' | super -s -c "drop id | min:=superdefuse(min),max:=superdefuse(max)" -
 
 outputs:
   - name: stdout

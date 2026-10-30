@@ -1,4 +1,4 @@
-spq: fuse | values x
+spq: superfuse | values x
 
 input: |
   {x:"foo"}

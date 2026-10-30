@@ -8,11 +8,11 @@ import (
 
 type Unwrap struct {
 	sctx   *super.Context
-	defuse *expr.Defuse
+	defuse *expr.SuperDefuse
 }
 
 func newUnwrap(sctx *super.Context) *Unwrap {
-	return &Unwrap{sctx, expr.NewDefuse(sctx)}
+	return &Unwrap{sctx, expr.NewSuperDefuse(sctx)}
 }
 
 func (u *Unwrap) Call(args ...vector.Any) vector.Any {

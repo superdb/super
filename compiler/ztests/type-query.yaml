@@ -5,7 +5,7 @@ script: super -s -I src.spq
 inputs:
   - name: src.spq
     data: |
-      type T = (from a.sup | blend(this))
+      type T = (from a.sup | fuse(this))
       type U = (values <[T]>)
       type V = (int64|string)
       values <T>, <U>, <V>, [{x:3,y:"bar"}]::U

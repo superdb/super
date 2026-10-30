@@ -3,7 +3,7 @@ script: |
   super db attach -q test
   super db create -q -orderby ts:desc logs
   super db load -q -use logs babble.sup
-  super db -c "from logs@main:objects" | super -s -c "{min:defuse(min),max:defuse(max)}" -
+  super db -c "from logs@main:objects" | super -s -c "{min:superdefuse(min),max:superdefuse(max)}" -
   super db drop -q -f logs
   ! super db -c "from logs@main:objects"
 

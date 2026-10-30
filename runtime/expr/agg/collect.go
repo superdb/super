@@ -12,11 +12,11 @@ import (
 type collect struct {
 	sctx    *super.Context
 	builder *vbuild.DynamicBuilder
-	defuse  *expr.Defuse
+	defuse  *expr.SuperDefuse
 }
 
 func newCollect(sctx *super.Context) *collect {
-	return &collect{sctx: sctx, defuse: expr.NewDefuse(sctx)}
+	return &collect{sctx: sctx, defuse: expr.NewSuperDefuse(sctx)}
 }
 
 func (c *collect) NoRip() bool { return true }

@@ -1,4 +1,4 @@
-spq: defuse(this)
+spq: superdefuse(this)
 
 flags: -i json -f json
 
@@ -10,7 +10,7 @@ output: *input
 
 ---
 
-spq: defuse(this)
+spq: superdefuse(this)
 
 flags: -i json -f json
 
@@ -22,7 +22,7 @@ output: *input
 
 ---
 
-spq: defuse(this)
+spq: superdefuse(this)
 
 flags: -i json -f json
 

@@ -8,11 +8,11 @@ import (
 
 type Some struct {
 	sctx   *super.Context
-	defuse *expr.Defuse
+	defuse *expr.SuperDefuse
 }
 
 func newSome(sctx *super.Context) *Some {
-	return &Some{sctx, expr.NewDefuse(sctx)}
+	return &Some{sctx, expr.NewSuperDefuse(sctx)}
 }
 
 func (s *Some) Call(args ...vector.Any) vector.Any {

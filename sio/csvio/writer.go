@@ -15,7 +15,7 @@ import (
 	"github.com/superdb/super/vector"
 )
 
-var ErrNotDataFrame = errors.New("CSV output requires uniform records but multiple types encountered (consider 'blend')")
+var ErrNotDataFrame = errors.New("CSV output requires uniform records but multiple types encountered (consider 'fuse')")
 
 type Writer struct {
 	writer    io.WriteCloser

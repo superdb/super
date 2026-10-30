@@ -59,7 +59,7 @@ func TestFusedTypeRoundTrip(t *testing.T) {
 			require.NotContains(t, sup.FormatType(fuser.SuperType()), "fusion", "supertype has fusion")
 			fused := fuser.FusedType()
 			upcast := function.NewUpcast(sctx)
-			defuse := expr.NewDefuse(sctx)
+			defuse := expr.NewSuperDefuse(sctx)
 			for _, val := range vals {
 				up, ok := upcast.Cast(val, fused)
 				require.True(t, ok, "upcast %s to %s", sup.FormatValue(val), sup.FormatType(fused))

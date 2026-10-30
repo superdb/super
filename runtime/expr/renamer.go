@@ -10,12 +10,12 @@ import (
 // it relies, for more detail.
 type Renamer struct {
 	sctx    *super.Context
-	defuse  *Defuse
+	defuse  *SuperDefuse
 	renamer *expr.Renamer
 }
 
 func NewRenamer(sctx *super.Context, srcs, dsts []*expr.Lval) *Renamer {
-	return &Renamer{sctx, NewDefuse(sctx), expr.NewRenamer(sctx, srcs, dsts)}
+	return &Renamer{sctx, NewSuperDefuse(sctx), expr.NewRenamer(sctx, srcs, dsts)}
 }
 
 func (r *Renamer) Eval(vec vector.Any) vector.Any {

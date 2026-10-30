@@ -12,7 +12,7 @@ import (
 // modify non-records.
 type Dropper struct {
 	sctx   *super.Context
-	defuse *Defuse
+	defuse *SuperDefuse
 	fm     fieldsMap
 }
 
@@ -21,7 +21,7 @@ func NewDropper(sctx *super.Context, fields field.List) *Dropper {
 	for _, f := range fields {
 		fm.Add(f)
 	}
-	return &Dropper{sctx, NewDefuse(sctx), fm}
+	return &Dropper{sctx, NewSuperDefuse(sctx), fm}
 }
 
 func (d *Dropper) Eval(vec vector.Any) vector.Any {

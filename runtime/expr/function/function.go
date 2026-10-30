@@ -58,8 +58,8 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 		argmin = 2
 		argmax = 2
 		f = &DatePart{sctx}
-	case "defuse":
-		f = defuse{}
+	case "superdefuse":
+		f = superDefuse{}
 	case "downcast":
 		argmin = 2
 		argmax = 2
@@ -171,8 +171,8 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 		f = &TypeName{sctx: sctx}
 	case "typeof":
 		f = &TypeOf{sctx}
-	case "unblend":
-		f = &Unblend{sctx}
+	case "defuse":
+		f = &Defuse{sctx}
 	case "under":
 		f = &Under{sctx}
 	case "unwrap":

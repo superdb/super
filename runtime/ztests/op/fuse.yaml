@@ -1,7 +1,5 @@
 spq: fuse
 
-flags: -fusion
-
 input: |
   {a:"hello",b:"world"}
   {b:"goodnight",c:"gracie"}
@@ -9,17 +7,15 @@ input: |
   {a:null,b:null,c:null}
 
 output: |
-  {a:fusion("hello"::(string|null|missing),<string>),b:fusion("world"::(int32|string|null),<string>),c:fusion(missing::(string|null|missing),<missing>)}
-  {a:fusion(missing::(string|null|missing),<missing>),b:fusion("goodnight"::(int32|string|null),<string>),c:fusion("gracie"::(string|null|missing),<string>)}
-  {a:fusion("goodnight"::(string|null|missing),<string>),b:fusion(123::int32::(int32|string|null),<int32>),c:fusion(missing::(string|null|missing),<missing>)}
-  {a:fusion(null::(string|null|missing),<null>),b:fusion(null::(int32|string|null),<null>),c:fusion(null::(string|null|missing),<null>)}
+  {a:"hello"::(string|null|missing),b:"world"::(int32|string|null),c:missing::(string|null|missing)}
+  {a:missing::(string|null|missing),b:"goodnight"::(int32|string|null),c:"gracie"::(string|null|missing)}
+  {a:"goodnight"::(string|null|missing),b:123::int32::(int32|string|null),c:missing::(string|null|missing)}
+  {a:null::(string|null|missing),b:null::(int32|string|null),c:null::(string|null|missing)}
 
 ---
 
 # Test fuse on an array of records.
 spq: fuse
-
-flags: -fusion
 
 input: |
   [{a:1}]
@@ -29,18 +25,16 @@ input: |
   [{a:null,b:null}]
 
 output: |
-  fusion([fusion({a:fusion(1::(int64|null|missing),<int64>),b:fusion(missing::(int64|null|missing),<missing>)},<{a:int64}>)],<[{a:int64}]>)
-  fusion([fusion({a:fusion(missing::(int64|null|missing),<missing>),b:fusion(2::(int64|null|missing),<int64>)},<{b:int64}>)],<[{b:int64}]>)
-  fusion([fusion({a:fusion(3::(int64|null|missing),<int64>),b:fusion(missing::(int64|null|missing),<missing>)},<{a:int64}>),fusion({a:fusion(missing::(int64|null|missing),<missing>),b:fusion(3::(int64|null|missing),<int64>)},<{b:int64}>)],<[{a:int64}|{b:int64}]>)
-  fusion([fusion({a:fusion(3::(int64|null|missing),<int64>),b:fusion(3::(int64|null|missing),<int64>)},<{a:int64,b:int64}>)],<[{a:int64,b:int64}]>)
-  fusion([fusion({a:fusion(null::(int64|null|missing),<null>),b:fusion(null::(int64|null|missing),<null>)},<{a:null,b:null}>)],<[{a:null,b:null}]>)
+  [{a:1::(int64|null|missing),b:missing::(int64|null|missing)}]
+  [{a:missing::(int64|null|missing),b:2::(int64|null|missing)}]
+  [{a:3::(int64|null|missing),b:missing::(int64|null|missing)},{a:missing::(int64|null|missing),b:3::(int64|null|missing)}]
+  [{a:3::(int64|null|missing),b:3::(int64|null|missing)}]
+  [{a:null::(int64|null|missing),b:null::(int64|null|missing)}]
 
 ---
 
 # Test fuse on mix of complex and primitive values.
 spq: fuse
-
-flags: -fusion
 
 input: |
   {a:1}
@@ -51,19 +45,17 @@ input: |
   ["s"]
 
 output: |
-  fusion({a:fusion(1::(int64|string),<int64>)}::(int64|string|{a:fusion(int64|string)}|[fusion(int64|string)]),<{a:int64}>)
-  fusion({a:fusion("s"::(int64|string),<string>)}::(int64|string|{a:fusion(int64|string)}|[fusion(int64|string)]),<{a:string}>)
-  fusion(1::(int64|string|{a:fusion(int64|string)}|[fusion(int64|string)]),<int64>)
-  fusion("s"::(int64|string|{a:fusion(int64|string)}|[fusion(int64|string)]),<string>)
-  fusion([fusion(1::(int64|string),<int64>)]::(int64|string|{a:fusion(int64|string)}|[fusion(int64|string)]),<[int64]>)
-  fusion([fusion("s"::(int64|string),<string>)]::(int64|string|{a:fusion(int64|string)}|[fusion(int64|string)]),<[string]>)
+  {a:1::(int64|string)}::(int64|string|{a:int64|string}|[int64|string])
+  {a:"s"::(int64|string)}::(int64|string|{a:int64|string}|[int64|string])
+  1::(int64|string|{a:int64|string}|[int64|string])
+  "s"::(int64|string|{a:int64|string}|[int64|string])
+  [1]::[int64|string]::(int64|string|{a:int64|string}|[int64|string])
+  ["s"]::[int64|string]::(int64|string|{a:int64|string}|[int64|string])
 
 ---
 
 # Test fuse on nested records.
 spq: fuse
-
-flags: -fusion
 
 input: |
   {a:"hello",r:{x:1::int32,y:2::int32}}
@@ -71,29 +63,25 @@ input: |
   {a:null,r:{x:null,y:null,z:null},s:null,r2:null}
 
 output: |
-  {a:fusion("hello"::(string|null|missing),<string>),r:{x:fusion(1::int32::(int32|null|missing),<int32>),y:fusion(2::int32::(int32|null),<int32>),z:fusion(missing::(int32|null|missing),<missing>)},s:fusion(missing::(string|null|missing),<missing>),r2:fusion(missing::(null|missing|{x:int32}),<missing>)}
-  {a:fusion(missing::(string|null|missing),<missing>),r:{x:fusion(missing::(int32|null|missing),<missing>),y:fusion(4::int32::(int32|null),<int32>),z:fusion(5::int32::(int32|null|missing),<int32>)},s:fusion("world"::(string|null|missing),<string>),r2:fusion({x:6::int32}::(null|missing|{x:int32}),<{x:int32}>)}
-  {a:fusion(null::(string|null|missing),<null>),r:{x:fusion(null::(int32|null|missing),<null>),y:fusion(null::(int32|null),<null>),z:fusion(null::(int32|null|missing),<null>)},s:fusion(null::(string|null|missing),<null>),r2:fusion(null::(null|missing|{x:int32}),<null>)}
+  {a:"hello"::(string|null|missing),r:{x:1::int32::(int32|null|missing),y:2::int32::(int32|null),z:missing::(int32|null|missing)},s:missing::(string|null|missing),r2:missing::(null|missing|{x:int32})}
+  {a:missing::(string|null|missing),r:{x:missing::(int32|null|missing),y:4::int32::(int32|null),z:5::int32::(int32|null|missing)},s:"world"::(string|null|missing),r2:{x:6::int32}::(null|missing|{x:int32})}
+  {a:null::(string|null|missing),r:{x:null::(int32|null|missing),y:null::(int32|null),z:null::(int32|null|missing)},s:null::(string|null|missing),r2:null::(null|missing|{x:int32})}
 
 ---
 
 spq: fuse
-
-flags: -fusion
 
 input: |
   error(1)
   error("s")
 
 output: |
-  fusion(error(fusion(1::(int64|string),<int64>)),<error(int64)>)
-  fusion(error(fusion("s"::(int64|string),<string>)),<error(string)>)
+  error(1::(int64|string))
+  error("s"::(int64|string))
 
 ---
 
 spq: fuse
-
-flags: -fusion
 
 input: |
   [1,2]
@@ -101,15 +89,13 @@ input: |
   [null]
 
 output: |
-  fusion([fusion(1::(int64|string|null),<int64>),fusion(2::(int64|string|null),<int64>)],<[int64]>)
-  fusion([fusion("foo"::(int64|string|null),<string>)],<[string]>)
-  fusion([fusion(null::(int64|string|null),<null>)],<[null]>)
+  [1,2]::[int64|string|null]
+  ["foo"]::[int64|string|null]
+  [null]::[int64|string|null]
 
 ---
 
 spq: fuse
-
-flags: -fusion
 
 input: |
   {a:[1,2]}
@@ -117,15 +103,13 @@ input: |
   {a:[null]}
 
 output: |
-  {a:fusion([fusion(1::(int64|string|null),<int64>),fusion(2::(int64|string|null),<int64>)],<[int64]>)}
-  {a:fusion([fusion("foo"::(int64|string|null),<string>)],<[string]>)}
-  {a:fusion([fusion(null::(int64|string|null),<null>)],<[null]>)}
+  {a:[1,2]::[int64|string|null]}
+  {a:["foo"]::[int64|string|null]}
+  {a:[null]::[int64|string|null]}
 
 ---
 
 spq: fuse
-
-flags: -fusion
 
 input: |
   type p1=int64
@@ -170,54 +154,11 @@ output: |
   type u1=int64
   type u3=string
   type u2=u1|u3
-  fusion(1::p1::(a2|en1|er2|m3|p1|r2|s2|u2),<p1>)
-  fusion({a:1}::r2::(a2|en1|er2|m3|p1|r2|s2|u2),<r2>)
-  fusion([1]::"a2"::(a2|en1|er2|m3|p1|r2|s2|u2),<a2>)
-  fusion(set[1]::s2::(a2|en1|er2|m3|p1|r2|s2|u2),<s2>)
-  fusion(map{1:2}::m3::(a2|en1|er2|m3|p1|r2|s2|u2),<m3>)
-  fusion(1::u1::u2::(a2|en1|er2|m3|p1|r2|s2|u2),<u2>)
-  fusion("a"::en1::(a2|en1|er2|m3|p1|r2|s2|u2),<en1>)
-  fusion(error(1)::er2::(a2|en1|er2|m3|p1|r2|s2|u2),<er2>)
-
----
-
-# Test fuse on fusion values
-spq: unnest this into ( fuse )
-
-input: |
-  [fusion({x?:1,y?:none::int64},<{x:int64}>)]
-  [fusion({x?:1,y?:none::int64},<{x:int64}>),fusion({x?:none::int64,y?:2},<{y:int64}>)]
-  [1,fusion(2::(int64|null),<int64>)]
-
-output: |
-  {x:1}
-  {x:1}
-  {y:2}
-  1
-  2
-
----
-
-spq: fuse | values x
-
-flags: -fusion
-
-input: |
-  {x:{y:1}}
-  {}
-
-output: |
-  fusion({y:1}::(missing|{y:int64}),<{y:int64}>)
-  error("no such field x")
-
----
-
-spq: fuse | values x.ok() ?? 123
-
-input: |
-  {x:{y:1}}
-  {}
-
-output: |
-  {y:1}
-  123
+  1::p1::(a2|en1|er2|m3|p1|r2|s2|u2)
+  {a:1}::r2::(a2|en1|er2|m3|p1|r2|s2|u2)
+  [1]::"a2"::(a2|en1|er2|m3|p1|r2|s2|u2)
+  set[1]::s2::(a2|en1|er2|m3|p1|r2|s2|u2)
+  map{1:2}::m3::(a2|en1|er2|m3|p1|r2|s2|u2)
+  1::u1::u2::(a2|en1|er2|m3|p1|r2|s2|u2)
+  "a"::en1::(a2|en1|er2|m3|p1|r2|s2|u2)
+  error(1)::er2::(a2|en1|er2|m3|p1|r2|s2|u2)

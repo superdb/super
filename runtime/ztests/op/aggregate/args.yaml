@@ -1,6 +1,6 @@
 script: |
   super -s -c 'count()' in.sup
-  for agg in and any collect dcount fuse min max or sum union; do
+  for agg in and any collect dcount superfuse min max or sum union; do
     ! super -s -c "$agg()" in.sup
   done
 
@@ -18,7 +18,7 @@ outputs:
       any: argument required
       collect: argument required
       dcount: argument required
-      fuse: argument required
+      superfuse: argument required
       min: argument required
       max: argument required
       or: argument required

@@ -9,7 +9,7 @@ script: |
 outputs:
   - name: stderr
     data: |
-        parquetio: encountered multiple types (consider 'blend'): {a:int64} and {b:int64}
+        parquetio: encountered multiple types (consider 'fuse'): {a:int64} and {b:int64}
         parquetio: not a record: 1
         parquetio: unsupported type: empty record
         parquetio: unsupported type: T

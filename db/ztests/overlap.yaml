@@ -4,7 +4,7 @@ script: |
   super db create -use -q -orderby ts:desc logs
   super db load -q babble-split1.sup
   super db load -q babble-split2.sup
-  super db -S -c "from logs@main:objects | sort -r size | drop id | min:=defuse(min),max:=defuse(max)"
+  super db -S -c "from logs@main:objects | sort -r size | drop id | min:=superdefuse(min),max:=superdefuse(max)"
 
 inputs:
   - name: babble.sup

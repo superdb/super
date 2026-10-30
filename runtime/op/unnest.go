@@ -11,7 +11,7 @@ import (
 
 type Unnest struct {
 	sctx   *super.Context
-	defuse *expr.Defuse
+	defuse *expr.SuperDefuse
 	parent vio.Puller
 	expr   expr.Evaluator
 }
@@ -19,7 +19,7 @@ type Unnest struct {
 func NewUnnest(sctx *super.Context, parent vio.Puller, e expr.Evaluator) *Unnest {
 	return &Unnest{
 		sctx:   sctx,
-		defuse: expr.NewDefuse(sctx),
+		defuse: expr.NewSuperDefuse(sctx),
 		parent: parent,
 		expr:   e,
 	}

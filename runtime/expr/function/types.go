@@ -227,10 +227,10 @@ func (k *Kind) Call(args ...vector.Any) vector.Any {
 
 func (*Kind) ApplyOpt() vector.ApplyOpt { return vector.ApplyNone }
 
-type Unblend struct {
+type Defuse struct {
 	sctx *super.Context
 }
 
-func (u *Unblend) Call(args ...vector.Any) vector.Any {
-	return expr.Unblend(u.sctx, args[0])
+func (u *Defuse) Call(args ...vector.Any) vector.Any {
+	return expr.Defuse(u.sctx, args[0])
 }

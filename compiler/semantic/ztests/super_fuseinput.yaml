@@ -17,18 +17,18 @@ outputs:
     data: |
       === dag.FileScan
       file /dev/null
-      | fuse
+      | superfuse
       | output main
       === dag.HttpScan
       get http://host format auto
-      | fuse
+      | superfuse
       | output main
       === dag.RobotScan
       null
       | robot cast(this, <string>)
-      | fuse
+      | superfuse
       | output main
       === dag.TableScan
       table xxx
-      | fuse
+      | superfuse
       | output main

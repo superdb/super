@@ -8,7 +8,7 @@ import (
 
 type conditional struct {
 	sctx      *super.Context
-	defuse    *Defuse
+	defuse    *SuperDefuse
 	predicate Evaluator
 	thenExpr  Evaluator
 	elseExpr  Evaluator
@@ -17,7 +17,7 @@ type conditional struct {
 func NewConditional(sctx *super.Context, predicate, thenExpr, elseExpr Evaluator) Evaluator {
 	return &conditional{
 		sctx:      sctx,
-		defuse:    NewDefuse(sctx),
+		defuse:    NewSuperDefuse(sctx),
 		predicate: predicate,
 		thenExpr:  thenExpr,
 		elseExpr:  elseExpr,

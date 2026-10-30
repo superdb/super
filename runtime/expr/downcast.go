@@ -13,11 +13,11 @@ import (
 
 type Downcast struct {
 	sctx    *super.Context
-	defuser *Defuse
+	defuser *SuperDefuse
 }
 
 func NewDowncast(sctx *super.Context) *Downcast {
-	return NewDefuse(sctx).downcast
+	return NewSuperDefuse(sctx).downcast
 }
 
 func (d *Downcast) To(from, to vector.Any) vector.Any {

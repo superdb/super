@@ -470,7 +470,7 @@ The `fuse` operator reads all of its input, computes a fused type using
 the techniques above, and outputs the result, e.g.,
 ```mdtest-spq
 # spq
-blend
+fuse
 # input
 {x:1}
 {y:"foo"}
@@ -484,7 +484,7 @@ blend
 Whereas a type union for field `x` is produced in the following:
 ```mdtest-spq-skip {data-layout="stacked"}
 # spq
-blend
+fuse
 # input
 {x:1}
 {x:"foo",y:"foo"}
@@ -505,7 +505,7 @@ For example, in the example sequence above, we can use the `fuse` aggregate func
 the fused type rather than transforming the values, e.g.,
 ```mdtest-spq
 # spq
-blend(this)
+fuse(this)
 # input
 {x:1}
 {x:"foo",y:"foo"}

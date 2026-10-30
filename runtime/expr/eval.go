@@ -94,7 +94,7 @@ func wrapErr(sctx *super.Context, prefix, msg string, vec vector.Any) *vector.Er
 
 type Call struct {
 	fn       Function
-	defuse   *Defuse
+	defuse   *SuperDefuse
 	exprs    []Evaluator
 	applyOpt vector.ApplyOpt
 	args     []vector.Any
@@ -105,7 +105,7 @@ func NewCall(sctx *super.Context, fn Function, exprs []Evaluator) *Call {
 	if fn, ok := fn.(interface{ ApplyOpt() vector.ApplyOpt }); ok {
 		opt = fn.ApplyOpt()
 	}
-	defuse := NewDefuse(sctx)
+	defuse := NewSuperDefuse(sctx)
 	if fn, ok := fn.(interface{ NoDefuse() bool }); ok {
 		if fn.NoDefuse() {
 			defuse = nil

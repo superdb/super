@@ -6,9 +6,9 @@ script: |
   super db create -use -q test
   seq 20 | super -c 'values {ts: this}' - | super db load -q -
   seq 21 40 | super -c 'values {ts: this}' - | super db load -q -
-  super db -s -c 'from test:objects | {min:defuse(min),max:defuse(max)} | max > 20'
+  super db -s -c 'from test:objects | {min:superdefuse(min),max:superdefuse(max)} | max > 20'
   echo ===
-  super db -s -c 'from test:partitions |  {min:defuse(min),max:defuse(max)}  | max > 20'
+  super db -s -c 'from test:partitions |  {min:superdefuse(min),max:superdefuse(max)}  | max > 20'
 
 outputs:
   - name: stdout
