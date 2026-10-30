@@ -3,6 +3,7 @@ package function
 import (
 	"github.com/superdb/super"
 	"github.com/superdb/super/runtime/expr"
+	"github.com/superdb/super/scode"
 	"github.com/superdb/super/vector"
 )
 
@@ -36,11 +37,11 @@ func (u *Under) Call(args ...vector.Any) vector.Any {
 	case *vector.Union:
 		return vec.Dynamic()
 	case *vector.TypeValue:
-		typs := vector.NewTypeValueEmpty()
+		b := vector.NewDynamicValueBuilder()
 		for i := range vec.Len() {
-			typs.Append(super.TypeUnder(vec.Value(i)))
+			b.Write(u.underType(vec.Value(i)))
 		}
-		out = typs
+		out = b.Build(u.sctx)
 	default:
 		return args[0]
 	}
@@ -48,4 +49,39 @@ func (u *Under) Call(args ...vector.Any) vector.Any {
 		return vector.Pick(out, index)
 	}
 	return out
+}
+
+// underType returns the type underlying typ as a value: for a named type,
+// the named type's underlying type; for an array or set type, the element
+// type; for an option or error type, the type it wraps; for a union type, an array of the union's types; for a map type, a
+// record {key:<K>,value:<V>} of the key and value types; and otherwise, typ.
+func (u *Under) underType(typ super.Type) super.Value {
+	switch t := typ.(type) {
+	case *super.TypeNamed:
+		return u.sctx.LookupTypeValue(super.TypeUnder(t))
+	case *super.TypeArray:
+		return u.sctx.LookupTypeValue(t.Type)
+	case *super.TypeSet:
+		return u.sctx.LookupTypeValue(t.Type)
+	case *super.TypeOption:
+		return u.sctx.LookupTypeValue(t.Type)
+	case *super.TypeError:
+		return u.sctx.LookupTypeValue(t.Type)
+	case *super.TypeUnion:
+		var b scode.Builder
+		for _, typ := range t.Types {
+			b.Append(u.sctx.LookupTypeValue(typ).Bytes())
+		}
+		return super.NewValue(u.sctx.LookupTypeArray(super.TypeType), b.Bytes())
+	case *super.TypeMap:
+		rec := u.sctx.MustLookupTypeRecord([]super.Field{
+			super.NewField("key", super.TypeType),
+			super.NewField("value", super.TypeType),
+		})
+		var b scode.Builder
+		b.Append(u.sctx.LookupTypeValue(t.KeyType).Bytes())
+		b.Append(u.sctx.LookupTypeValue(t.ValType).Bytes())
+		return super.NewValue(rec, b.Bytes())
+	}
+	return u.sctx.LookupTypeValue(typ)
 }
