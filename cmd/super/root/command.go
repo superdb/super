@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/cli"
@@ -83,11 +84,18 @@ func (c *Command) Run(args []string) error {
 		fmt.Println(sfmt.AST(ast.Parsed()))
 		return nil
 	}
-	if len(args) > 0 {
+	paths, constArgs, err := splitArgs(args)
+	if err != nil {
+		return err
+	}
+	if len(paths) > 0 {
 		if ast.Script() != nil {
 			return errors.New("file arguments cannot be used with a script of multiple statements")
 		}
-		args = ast.PrependFileScan(args)
+		ast.PrependFileScan(paths)
+	}
+	if constArgs != nil {
+		ast.BindArgs(constArgs)
 	}
 	env := exec.NewEnvironment(storage.NewLocalEngine(), nil)
 	env.Dynamic = c.inputFlags.Dynamic
@@ -114,4 +122,33 @@ func (c *Command) Run(args []string) error {
 	}
 	c.queryFlags.PrintStats(query.Progress())
 	return err
+}
+
+// splitArgs splits the command-line arguments into the input paths and the
+// strings of the args constant, which follow "--".  If the only argument
+// after "--" is "-", the strings of args are the lines of stdin, in which case
+// stdin can't also be an input.  If there's no "--", args is nil.
+func splitArgs(cmdArgs []string) ([]string, []string, error) {
+	k := slices.Index(cmdArgs, "--")
+	if k < 0 {
+		return cmdArgs, nil, nil
+	}
+	paths, args := cmdArgs[:k], cmdArgs[k+1:]
+	if !slices.Contains(args, "-") {
+		if args == nil {
+			args = []string{}
+		}
+		return paths, args, nil
+	}
+	if len(args) != 1 {
+		return nil, nil, errors.New("args from stdin (- after --) cannot be used with other args")
+	}
+	if slices.Contains(paths, "-") || slices.Contains(paths, "stdio:stdin") {
+		return nil, nil, errors.New("stdin cannot be both an input and the source of args (- after --)")
+	}
+	args, err := queryflags.ReadArgs(os.Stdin)
+	if err != nil {
+		return nil, nil, err
+	}
+	return paths, args, nil
 }

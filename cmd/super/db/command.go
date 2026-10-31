@@ -62,8 +62,16 @@ func (c *Command) Run(args []string) error {
 	if len(args) == 0 && len(c.queryFlags.Query) == 0 {
 		return charm.NeedHelp
 	}
-	if len(args) > 0 {
-		return errors.New("super db command takes no arguments")
+	// A single argument "-" means the strings of the args constant are the
+	// lines of stdin.
+	var constArgs []string
+	if len(args) == 1 && args[0] == "-" {
+		constArgs, err = queryflags.ReadArgs(os.Stdin)
+		if err != nil {
+			return err
+		}
+	} else if len(args) > 0 {
+		return errors.New("super db command takes no arguments except - for args from stdin")
 	}
 	db, err := c.DBFlags.Open(ctx)
 	if err != nil {
@@ -73,7 +81,7 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	query, err := db.Query(ctx, c.queryFlags.Query)
+	query, err := db.QueryWithArgs(ctx, c.queryFlags.Query, constArgs)
 	if err != nil {
 		w.Close()
 		return err

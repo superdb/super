@@ -44,6 +44,14 @@ called `args` as a
 [constant](../super-sql/declarations/constants.md)
 appearing in the main scope of the query.
 
+If the only argument after `--` is `-`, then the elements of `args` are
+instead the lines of standard input, e.g.,
+```
+printf 'a\nb\n' | super -s -c 'values args' -- -
+```
+produces `["a","b"]`.  In this case, standard input cannot also be an input
+path (i.e., `-` cannot appear before `--`).
+
 For built-in command help and a listing of all available options,
 simply run `super` without any arguments.
 

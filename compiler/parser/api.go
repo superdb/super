@@ -67,21 +67,30 @@ func (a *AST) PrependFileScan(paths []string) []string {
 		})
 	}
 	if args != nil {
-		a.seq = []ast.Op{
-			&ast.ScopeOp{
-				Kind: "ScopeOp",
-				Decls: []ast.Decl{
-					&ast.ConstDecl{
-						Kind: "ConstDecl",
-						Name: &ast.ID{Name: "args"},
-						Expr: stringArray(args),
-					},
-				},
-				Body: a.seq,
-			},
-		}
+		a.BindArgs(args)
 	}
 	return paths
+}
+
+// BindArgs declares the constant args as the array of strings in args for
+// the query or, if the query is a script, for the script's statements.
+func (a *AST) BindArgs(args []string) {
+	decl := &ast.ConstDecl{
+		Kind: "ConstDecl",
+		Name: &ast.ID{Name: "args"},
+		Expr: stringArray(args),
+	}
+	if s := a.Script(); s != nil {
+		s.Decls = append([]ast.Decl{decl}, s.Decls...)
+		return
+	}
+	a.seq = []ast.Op{
+		&ast.ScopeOp{
+			Kind:  "ScopeOp",
+			Decls: []ast.Decl{decl},
+			Body:  a.seq,
+		},
+	}
 }
 
 func stringArray(in []string) ast.Expr {
