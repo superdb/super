@@ -3,10 +3,12 @@ package queryflags
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/srcfiles"
+	"github.com/superdb/super/sio/lineio"
 	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector/vio"
 )
@@ -71,4 +73,18 @@ func (f *FileInput) Set(value string) error {
 
 func (FileInput) String() string {
 	return ""
+}
+
+// ReadArgs returns the lines of r (as for the line input format) as the
+// strings of the args constant.
+func ReadArgs(r io.Reader) ([]string, error) {
+	lr := lineio.NewReader(r)
+	args := []string{}
+	for {
+		val, err := lr.Read()
+		if val == nil || err != nil {
+			return args, err
+		}
+		args = append(args, val.AsString())
+	}
 }

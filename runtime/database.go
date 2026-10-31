@@ -19,6 +19,9 @@ import (
 // performs operations on the database as a whole.
 type Database interface {
 	Query(ctx context.Context, query []srcfiles.Input) (vio.ScanCloser, error)
+	// QueryWithArgs is Query where, if args is not nil, the constant args is
+	// declared as the array of strings in args.
+	QueryWithArgs(ctx context.Context, query []srcfiles.Input, args []string) (vio.ScanCloser, error)
 	TableID(ctx context.Context, tableName string) (uuid.UUID, error)
 	CommitObject(ctx context.Context, tableID uuid.UUID, branchName string) (uuid.UUID, error)
 	CreateTable(ctx context.Context, name string, sortKeys order.SortKeys, objectCap, frameCap uint64, typ super.Type, sql bool) (uuid.UUID, error)
