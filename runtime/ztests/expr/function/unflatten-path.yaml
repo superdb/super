@@ -1,0 +1,46 @@
+# The forms of the path of a path-value record.
+
+# A path abbreviation is a string of elements separated by periods where an
+# unsigned decimal element (with any leading zeros) is an array index and any
+# other element (including a negative number) is a field name.
+spq: values unflatten(this)
+
+input: |
+  [{path:"x",value:1}]
+  [{path:"0",value:1}]
+  [{path:"a.-1.01",value:1}]
+  [{path:"x.1.y",value:1},{path:["x",0],value:2}]
+
+output: |
+  {x:1}
+  [1]
+  {a:{"-1":[none::int64,some(1)]}}
+  {x:[2,{y:1}]}
+
+---
+
+# A path may also be an array or set whose elements are field names, array
+# indexes, or map keys, and an empty path is the root.
+spq: values unflatten(this)
+
+input: |
+  [{path:["x",1,"y"],value:1}]
+  [{path:[10.0.0.1,"a"],value:1}]
+  [{path:set["a"],value:1}]
+  [{path:[]::[string],value:1}]
+
+output: |
+  {x:[none::{y:int64},some({y:1})]}
+  map{10.0.0.1:{a:1}}
+  {a:1}
+  1
+
+---
+
+spq: values unflatten(this)
+
+input: |
+  [{path:1,value:1}]
+
+output: |
+  error({message:"unflatten: path must be an array or string: 1",on:[{path:1,value:1}]})
