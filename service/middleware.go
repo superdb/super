@@ -8,7 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	"github.com/superdb/super/api"
+	"github.com/superdb/super/service/api"
 	"github.com/superdb/super/service/srverr"
 	"go.uber.org/zap"
 )

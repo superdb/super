@@ -14,15 +14,16 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/superdb/super"
-	"github.com/superdb/super/api"
 	"github.com/superdb/super/compiler/srcfiles"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/db/branches"
 	"github.com/superdb/super/db/commits"
 	"github.com/superdb/super/db/journal"
 	"github.com/superdb/super/db/tables"
+	"github.com/superdb/super/dbconn"
 	"github.com/superdb/super/dbid"
 	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/service/api"
 	"github.com/superdb/super/service/srverr"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/anyio"
@@ -105,9 +106,9 @@ func (r *Request) CommitID(w *ResponseWriter) (uuid.UUID, bool) {
 	return r.TagFromPath(w, "commit")
 }
 
-func (r *Request) decodeCommitMessage(w *ResponseWriter) (api.CommitMessage, bool) {
+func (r *Request) decodeCommitMessage(w *ResponseWriter) (dbconn.CommitMessage, bool) {
 	commitJSON := r.Header.Get("SuperDB-Commit")
-	var message api.CommitMessage
+	var message dbconn.CommitMessage
 	if commitJSON != "" {
 		if err := json.Unmarshal([]byte(commitJSON), &message); err != nil {
 			w.Error(srverr.ErrInvalid("load endpoint encountered invalid JSON in SuperDB-Commit header: %w", err))

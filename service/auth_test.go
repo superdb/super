@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/superdb/super/api"
-	"github.com/superdb/super/api/client"
 	"github.com/superdb/super/compiler/srcfiles"
+	"github.com/superdb/super/dbconn/remote"
 	"github.com/superdb/super/service"
+	"github.com/superdb/super/service/api"
 	"github.com/superdb/super/service/auth"
 )
 
@@ -41,11 +41,11 @@ func TestAuthIdentity(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, 1.0, promCounterValue(core.Registry(), "request_errors_unauthorized_total"))
 
-	var tableErr *client.ErrorResponse
+	var tableErr *remote.ErrorResponse
 	require.True(t, errors.As(err, &tableErr))
 	require.Equal(t, http.StatusUnauthorized, tableErr.StatusCode)
 
-	var identErr *client.ErrorResponse
+	var identErr *remote.ErrorResponse
 	_, err = conn.AuthIdentity(t.Context())
 	require.Error(t, err)
 	require.True(t, errors.As(err, &identErr))

@@ -1,4 +1,4 @@
-package api
+package dbconn
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 	"github.com/superdb/super/db/commits"
 	"github.com/superdb/super/db/tables"
 	"github.com/superdb/super/dbid"
-	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/vector"
@@ -23,7 +22,7 @@ func IsRemote(u string) bool {
 	return strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://")
 }
 
-func LookupTableByName(ctx context.Context, db runtime.Database, name string) (*tables.Config, error) {
+func LookupTableByName(ctx context.Context, db Conn, name string) (*tables.Config, error) {
 	b := newBuffer(tables.Config{})
 	query := fmt.Sprintf("from :tables | name == '%s'", name)
 	q, err := db.Query(ctx, srcfiles.Plain(query))
@@ -49,7 +48,7 @@ func LookupTableByName(ctx context.Context, db runtime.Database, name string) (*
 	}
 }
 
-func GetTables(ctx context.Context, db runtime.Database) ([]*tables.Config, error) {
+func GetTables(ctx context.Context, db Conn) ([]*tables.Config, error) {
 	b := newBuffer(tables.Config{})
 	q, err := db.Query(ctx, srcfiles.Plain("from :tables"))
 	if err != nil {
@@ -67,7 +66,7 @@ func GetTables(ctx context.Context, db runtime.Database) ([]*tables.Config, erro
 	return pls, nil
 }
 
-func LookupTableByID(ctx context.Context, db runtime.Database, id uuid.UUID) (*tables.Config, error) {
+func LookupTableByID(ctx context.Context, db Conn, id uuid.UUID) (*tables.Config, error) {
 	b := newBuffer(tables.Config{})
 	query := fmt.Sprintf("from :tables | id == %s", id)
 	q, err := db.Query(ctx, srcfiles.Plain(query))
@@ -93,33 +92,7 @@ func LookupTableByID(ctx context.Context, db runtime.Database, id uuid.UUID) (*t
 	}
 }
 
-func LookupBranchByName(ctx context.Context, api runtime.Database, tableName, branchName string) (*db.BranchMeta, error) {
-	b := newBuffer(db.BranchMeta{})
-	query := fmt.Sprintf("from :branches | table.name == '%s' branch.name == '%s'", tableName, branchName)
-	q, err := api.Query(ctx, srcfiles.Plain(query))
-	if err != nil {
-		return nil, err
-	}
-	defer q.Close()
-	defer q.Pull(true)
-	if err := vio.Copy(b, q); err != nil {
-		return nil, err
-	}
-	switch len(b.results) {
-	case 0:
-		return nil, fmt.Errorf("%q: branch not found", tableName+"/"+branchName)
-	case 1:
-		branch, ok := b.results[0].(*db.BranchMeta)
-		if !ok {
-			return nil, fmt.Errorf("internal error: branch record has wrong type: %T", b.results[0])
-		}
-		return branch, nil
-	default:
-		return nil, fmt.Errorf("internal error: multiple branches found with same name: %s", tableName+"/"+branchName)
-	}
-}
-
-func LookupBranchByID(ctx context.Context, api runtime.Database, id uuid.UUID) (*db.BranchMeta, error) {
+func LookupBranchByID(ctx context.Context, api Conn, id uuid.UUID) (*db.BranchMeta, error) {
 	b := newBuffer(db.BranchMeta{})
 	query := fmt.Sprintf("from :branches | branch.id == %s", id)
 	q, err := api.Query(ctx, srcfiles.Plain(query))
@@ -145,7 +118,7 @@ func LookupBranchByID(ctx context.Context, api runtime.Database, id uuid.UUID) (
 	}
 }
 
-func GetCommit(ctx context.Context, db runtime.Database, tableName, revision string) (*commits.Commit, error) {
+func GetCommit(ctx context.Context, db Conn, tableName, revision string) (*commits.Commit, error) {
 	tableID, err := db.TableID(ctx, tableName)
 	if err != nil {
 		return nil, err

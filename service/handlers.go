@@ -10,20 +10,20 @@ import (
 	"uuid"
 
 	"github.com/superdb/super"
-	"github.com/superdb/super/api"
-	"github.com/superdb/super/api/queryio"
 	"github.com/superdb/super/compiler"
 	"github.com/superdb/super/compiler/describe"
 	"github.com/superdb/super/compiler/parser"
 	"github.com/superdb/super/db"
-	dbapi "github.com/superdb/super/db/api"
 	"github.com/superdb/super/db/commits"
 	"github.com/superdb/super/db/journal"
+	"github.com/superdb/super/dbconn/local"
 	"github.com/superdb/super/dbid"
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
+	"github.com/superdb/super/service/api"
+	"github.com/superdb/super/service/api/queryio"
 	"github.com/superdb/super/service/auth"
 	"github.com/superdb/super/service/srverr"
 	"github.com/superdb/super/sio"
@@ -640,7 +640,7 @@ func handleVacate(c *Core, w *ResponseWriter, r *Request) {
 		w.Error(srverr.ErrInvalid("invalid timestamp value %q: %w", s, err))
 		return
 	}
-	db := dbapi.FromRoot(c.root)
+	db := local.FromRoot(c.root)
 	cids, err := db.Vacate(r.Context(), table, ts, dryrun)
 	if err != nil {
 		w.Error(err)
@@ -662,7 +662,7 @@ func handleVacuum(c *Core, w *ResponseWriter, r *Request) {
 	if !ok {
 		return
 	}
-	db := dbapi.FromRoot(c.root)
+	db := local.FromRoot(c.root)
 	oids, err := db.Vacuum(r.Context(), table, revision, dryrun)
 	if err != nil {
 		w.Error(err)

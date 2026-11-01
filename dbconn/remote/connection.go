@@ -1,4 +1,6 @@
-package client
+// Package remote implements dbconn.Conn for a database served by the
+// SuperDB service (see the service package).
+package remote
 
 import (
 	"context"
@@ -14,19 +16,18 @@ import (
 	"uuid"
 
 	"github.com/superdb/super"
-	"github.com/superdb/super/api"
-	"github.com/superdb/super/api/client/auth0"
-	"github.com/superdb/super/api/queryio"
 	"github.com/superdb/super/compiler/srcfiles"
 	"github.com/superdb/super/db"
-	dbapi "github.com/superdb/super/db/api"
 	"github.com/superdb/super/db/branches"
+	"github.com/superdb/super/dbconn"
+	"github.com/superdb/super/dbconn/remote/auth0"
 	"github.com/superdb/super/dbid"
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/nano"
-	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/runtime/exec"
 	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/service/api"
+	"github.com/superdb/super/service/api/queryio"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/sup"
@@ -50,23 +51,23 @@ var (
 	ErrBranchExists = errors.New("branch exists")
 )
 
-type Connection struct {
+type Conn struct {
 	auth          *auth0.Store
 	client        *http.Client
 	defaultHeader http.Header
 	hostURL       string
 }
 
-var _ runtime.Database = (*Connection)(nil)
+var _ dbconn.Conn = (*Conn)(nil)
 
-// NewConnectionTo creates a new connection with the given useragent string
+// NewConn creates a new connection with the given useragent string
 // and a base URL derived from the hostURL argument.
-func NewConnectionTo(hostURL string) *Connection {
+func NewConn(hostURL string) *Conn {
 	defaultHeader := http.Header{
 		"Accept":       []string{api.MediaTypeBSUP},
 		"Content-Type": []string{api.MediaTypeBSUP},
 	}
-	return &Connection{
+	return &Conn{
 		client:        &http.Client{},
 		defaultHeader: defaultHeader,
 		hostURL:       strings.TrimRight(hostURL, "/"),
@@ -74,15 +75,15 @@ func NewConnectionTo(hostURL string) *Connection {
 }
 
 // ClientHostURL allows us to print the host in log messages and internal error messages
-func (c *Connection) ClientHostURL() string {
+func (c *Conn) ClientHostURL() string {
 	return c.hostURL
 }
 
-func (c *Connection) SetAuthToken(token string) {
+func (c *Conn) SetAuthToken(token string) {
 	c.defaultHeader.Set("Authorization", "Bearer "+token)
 }
 
-func (c *Connection) SetAuthStore(store *auth0.Store) error {
+func (c *Conn) SetAuthStore(store *auth0.Store) error {
 	tokens, err := store.Tokens(c.hostURL)
 	if err != nil || tokens == nil {
 		return err
@@ -92,7 +93,7 @@ func (c *Connection) SetAuthStore(store *auth0.Store) error {
 	return nil
 }
 
-func (c *Connection) SetUserAgent(useragent string) {
+func (c *Conn) SetUserAgent(useragent string) {
 	c.defaultHeader.Set("User-Agent", useragent)
 }
 
@@ -106,7 +107,7 @@ type Response struct {
 //
 // As for net/http.Client.Do, if the returned error is nil, the user is expected
 // to call Response.Body.Close.
-func (c *Connection) Do(req *Request) (*Response, error) {
+func (c *Conn) Do(req *Request) (*Response, error) {
 	for i := 0; ; i++ {
 		httpreq, err := req.HTTPRequest()
 		if err != nil {
@@ -136,7 +137,7 @@ func (c *Connection) Do(req *Request) (*Response, error) {
 	}
 }
 
-func (c *Connection) doAndUnmarshal(req *Request, v any, templates ...any) error {
+func (c *Conn) doAndUnmarshal(req *Request, v any, templates ...any) error {
 	res, err := c.Do(req)
 	if err != nil {
 		return err
@@ -181,7 +182,7 @@ func errIsStatus(err error, code int) bool {
 	return errors.As(err, &errRes) && errRes.StatusCode == code
 }
 
-func (c *Connection) NewRequest(ctx context.Context, method, path string, body any) *Request {
+func (c *Conn) NewRequest(ctx context.Context, method, path string, body any) *Request {
 	req := newRequest(ctx, c.hostURL, c.defaultHeader.Clone())
 	req.Method = method
 	req.Path = path
@@ -191,7 +192,7 @@ func (c *Connection) NewRequest(ctx context.Context, method, path string, body a
 
 // Ping checks to see if the server and measure the time it takes to
 // get back the response.
-func (c *Connection) Ping(ctx context.Context) (time.Duration, error) {
+func (c *Conn) Ping(ctx context.Context) (time.Duration, error) {
 	req := c.NewRequest(ctx, http.MethodGet, "/status", nil)
 	res, err := c.Do(req)
 	if err != nil {
@@ -202,7 +203,7 @@ func (c *Connection) Ping(ctx context.Context) (time.Duration, error) {
 }
 
 // Version retrieves the version string from the service.
-func (c *Connection) Version(ctx context.Context) (string, error) {
+func (c *Conn) Version(ctx context.Context) (string, error) {
 	req := c.NewRequest(ctx, http.MethodGet, "/version", nil)
 	var res api.VersionResponse
 	if err := c.doAndUnmarshal(req, &res); err != nil {
@@ -211,7 +212,7 @@ func (c *Connection) Version(ctx context.Context) (string, error) {
 	return res.Version, nil
 }
 
-func (c *Connection) TableStats(ctx context.Context, id uuid.UUID) (exec.TableStats, error) {
+func (c *Conn) TableStats(ctx context.Context, id uuid.UUID) (exec.TableStats, error) {
 	req := c.NewRequest(ctx, http.MethodGet, path.Join("/table", id.String(), "stats"), nil)
 	var stats exec.TableStats
 	err := c.doAndUnmarshal(req, &stats)
@@ -221,20 +222,20 @@ func (c *Connection) TableStats(ctx context.Context, id uuid.UUID) (exec.TableSt
 	return stats, err
 }
 
-func (c *Connection) TableID(ctx context.Context, tableName string) (uuid.UUID, error) {
+func (c *Conn) TableID(ctx context.Context, tableName string) (uuid.UUID, error) {
 	if id, err := dbid.ParseID(tableName); err == nil {
-		if _, err := dbapi.LookupTableByID(ctx, c, id); err == nil {
+		if _, err := dbconn.LookupTableByID(ctx, c, id); err == nil {
 			return id, nil
 		}
 	}
-	config, err := dbapi.LookupTableByName(ctx, c, tableName)
+	config, err := dbconn.LookupTableByName(ctx, c, tableName)
 	if err != nil {
 		return uuid.Nil(), err
 	}
 	return config.ID, nil
 }
 
-func (c *Connection) CommitObject(ctx context.Context, tableID uuid.UUID, branchName string) (uuid.UUID, error) {
+func (c *Conn) CommitObject(ctx context.Context, tableID uuid.UUID, branchName string) (uuid.UUID, error) {
 	path := urlPath("table", tableID.String(), "branch", branchName)
 	req := c.NewRequest(ctx, http.MethodGet, path, nil)
 	var commit api.CommitResponse
@@ -245,7 +246,7 @@ func (c *Connection) CommitObject(ctx context.Context, tableID uuid.UUID, branch
 	return commit.Commit, err
 }
 
-func (c *Connection) CreateTable(ctx context.Context, name string, sortKeys order.SortKeys, objectCap, frameCap uint64, typ super.Type, sql bool) (uuid.UUID, error) {
+func (c *Conn) CreateTable(ctx context.Context, name string, sortKeys order.SortKeys, objectCap, frameCap uint64, typ super.Type, sql bool) (uuid.UUID, error) {
 	message := api.TablePostRequest{
 		Name:      name,
 		SortKeys:  sortKeys,
@@ -265,7 +266,7 @@ func (c *Connection) CreateTable(ctx context.Context, name string, sortKeys orde
 	return meta.Table.ID, err
 }
 
-func (c *Connection) RenameTable(ctx context.Context, tableID uuid.UUID, name string) error {
+func (c *Conn) RenameTable(ctx context.Context, tableID uuid.UUID, name string) error {
 	if name == "" {
 		return errors.New("no table name provided")
 	}
@@ -279,7 +280,7 @@ func (c *Connection) RenameTable(ctx context.Context, tableID uuid.UUID, name st
 	return nil
 }
 
-func (c *Connection) RemoveTable(ctx context.Context, id uuid.UUID) error {
+func (c *Conn) RemoveTable(ctx context.Context, id uuid.UUID) error {
 	req := c.NewRequest(ctx, http.MethodDelete, path.Join("/table", id.String()), nil)
 	res, err := c.Do(req)
 	if err != nil {
@@ -292,7 +293,7 @@ func (c *Connection) RemoveTable(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (c *Connection) CreateBranch(ctx context.Context, tableID uuid.UUID, name string, at uuid.UUID) error {
+func (c *Conn) CreateBranch(ctx context.Context, tableID uuid.UUID, name string, at uuid.UUID) error {
 	message := api.BranchPostRequest{
 		Name:   name,
 		Commit: at.String(),
@@ -306,7 +307,7 @@ func (c *Connection) CreateBranch(ctx context.Context, tableID uuid.UUID, name s
 	return err
 }
 
-func (c *Connection) MergeBranch(ctx context.Context, tableID uuid.UUID, childBranch, parentBranch string, message api.CommitMessage) (uuid.UUID, error) {
+func (c *Conn) MergeBranch(ctx context.Context, tableID uuid.UUID, childBranch, parentBranch string, message dbconn.CommitMessage) (uuid.UUID, error) {
 	path := urlPath("table", tableID.String(), "branch", parentBranch, "merge", childBranch)
 	req := c.NewRequest(ctx, http.MethodPost, path, nil)
 	if err := encodeCommitMessage(req, message); err != nil {
@@ -317,11 +318,11 @@ func (c *Connection) MergeBranch(ctx context.Context, tableID uuid.UUID, childBr
 	return commit.Commit, err
 }
 
-func (c *Connection) RemoveBranch(ctx context.Context, tableID uuid.UUID, branchName string) error {
+func (c *Conn) RemoveBranch(ctx context.Context, tableID uuid.UUID, branchName string) error {
 	return errors.New("TBD remote.RemoveBranch")
 }
 
-func (c *Connection) Revert(ctx context.Context, tableID uuid.UUID, branchName string, commitID uuid.UUID, message api.CommitMessage) (uuid.UUID, error) {
+func (c *Conn) Revert(ctx context.Context, tableID uuid.UUID, branchName string, commitID uuid.UUID, message dbconn.CommitMessage) (uuid.UUID, error) {
 	path := urlPath("table", tableID.String(), "branch", branchName, "revert", commitID.String())
 	req := c.NewRequest(ctx, http.MethodPost, path, nil)
 	if err := encodeCommitMessage(req, message); err != nil {
@@ -334,9 +335,9 @@ func (c *Connection) Revert(ctx context.Context, tableID uuid.UUID, branchName s
 
 // Query assembles a query from src and filenames and runs it.
 //
-// As for Connection.Do, if the returned error is nil, the user is expected to
+// As for Conn.Do, if the returned error is nil, the user is expected to
 // call Close on the returned vio.ScanCloser.
-func (c *Connection) Query(ctx context.Context, inputs []srcfiles.Input) (vio.ScanCloser, error) {
+func (c *Conn) Query(ctx context.Context, inputs []srcfiles.Input) (vio.ScanCloser, error) {
 	files, err := srcfiles.Concat(inputs)
 	if err != nil {
 		return nil, err
@@ -364,7 +365,7 @@ func (c *Connection) Query(ctx context.Context, inputs []srcfiles.Input) (vio.Sc
 	}, nil
 }
 
-func (c *Connection) Compact(ctx context.Context, tableID uuid.UUID, branchName string, objects []uuid.UUID, message api.CommitMessage) (uuid.UUID, error) {
+func (c *Conn) Compact(ctx context.Context, tableID uuid.UUID, branchName string, objects []uuid.UUID, message dbconn.CommitMessage) (uuid.UUID, error) {
 	path := urlPath("table", tableID.String(), "branch", branchName, "compact")
 	req := c.NewRequest(ctx, http.MethodPost, path, api.CompactRequest{ObjectIDs: objects})
 	if err := encodeCommitMessage(req, message); err != nil {
@@ -377,7 +378,7 @@ func (c *Connection) Compact(ctx context.Context, tableID uuid.UUID, branchName 
 
 // Load loads data from r.  contentType is a media type for r or the empty
 // string, in which case the server will attempt to detect r's format.
-func (c *Connection) Load(ctx context.Context, _ *super.Context, tableID uuid.UUID, branchName string, reader vio.Puller, message api.CommitMessage) (uuid.UUID, error) {
+func (c *Conn) Load(ctx context.Context, _ *super.Context, tableID uuid.UUID, branchName string, reader vio.Puller, message dbconn.CommitMessage) (uuid.UUID, error) {
 	pr, pw := io.Pipe()
 	go func() {
 		w := bsupio.NewColumnWriter(sio.NopCloser(pw))
@@ -404,7 +405,7 @@ func (c *Connection) Load(ctx context.Context, _ *super.Context, tableID uuid.UU
 	return commit.Commit, err
 }
 
-func encodeCommitMessage(req *Request, message api.CommitMessage) error {
+func encodeCommitMessage(req *Request, message dbconn.CommitMessage) error {
 	encoded, err := json.Marshal(message)
 	if err != nil {
 		return err
@@ -413,15 +414,15 @@ func encodeCommitMessage(req *Request, message api.CommitMessage) error {
 	return nil
 }
 
-func (c *Connection) Delete(ctx context.Context, tableID uuid.UUID, branchName string, ids []uuid.UUID, message api.CommitMessage) (uuid.UUID, error) {
+func (c *Conn) Delete(ctx context.Context, tableID uuid.UUID, branchName string, ids []uuid.UUID, message dbconn.CommitMessage) (uuid.UUID, error) {
 	return c.delete(ctx, tableID, branchName, ids, "", message)
 }
 
-func (c *Connection) DeleteWhere(ctx context.Context, tableID uuid.UUID, branchName, src string, message api.CommitMessage) (uuid.UUID, error) {
+func (c *Conn) DeleteWhere(ctx context.Context, tableID uuid.UUID, branchName, src string, message dbconn.CommitMessage) (uuid.UUID, error) {
 	return c.delete(ctx, tableID, branchName, nil, src, message)
 }
 
-func (c *Connection) delete(ctx context.Context, tableID uuid.UUID, branchName string, ids []uuid.UUID, where string, message api.CommitMessage) (uuid.UUID, error) {
+func (c *Conn) delete(ctx context.Context, tableID uuid.UUID, branchName string, ids []uuid.UUID, where string, message dbconn.CommitMessage) (uuid.UUID, error) {
 	path := urlPath("table", tableID.String(), "branch", branchName, "delete")
 	tags := make([]string, len(ids))
 	for i, id := range ids {
@@ -439,7 +440,7 @@ func (c *Connection) delete(ctx context.Context, tableID uuid.UUID, branchName s
 	return commit.Commit, err
 }
 
-func (c *Connection) Vacate(ctx context.Context, tableName string, ts nano.Ts, dryrun bool) ([]uuid.UUID, error) {
+func (c *Conn) Vacate(ctx context.Context, tableName string, ts nano.Ts, dryrun bool) ([]uuid.UUID, error) {
 	path := urlPath("table", tableName, "vacate")
 	vals := make(url.Values)
 	vals.Add("ts", ts.Time().Format(time.RFC3339Nano))
@@ -453,7 +454,7 @@ func (c *Connection) Vacate(ctx context.Context, tableName string, ts nano.Ts, d
 	return res.CommitIDs, err
 }
 
-func (c *Connection) Vacuum(ctx context.Context, tableName, revision string, dryrun bool) ([]uuid.UUID, error) {
+func (c *Conn) Vacuum(ctx context.Context, tableName, revision string, dryrun bool) ([]uuid.UUID, error) {
 	path := urlPath("table", tableName, "revision", revision, "vacuum")
 	if dryrun {
 		path += "?dryrun=true"
@@ -464,7 +465,7 @@ func (c *Connection) Vacuum(ctx context.Context, tableName, revision string, dry
 	return res.ObjectIDs, err
 }
 
-func (c *Connection) SubscribeEvents(ctx context.Context) (*EventsClient, error) {
+func (c *Conn) SubscribeEvents(ctx context.Context) (*EventsClient, error) {
 	req := c.NewRequest(ctx, http.MethodGet, "/events", nil)
 	req.Header.Set("Accept", api.MediaTypeSUP)
 	resp, err := c.Do(req)
@@ -474,21 +475,21 @@ func (c *Connection) SubscribeEvents(ctx context.Context) (*EventsClient, error)
 	return newEventsClient(resp), nil
 }
 
-func (c *Connection) AuthMethod(ctx context.Context) (api.AuthMethodResponse, error) {
+func (c *Conn) AuthMethod(ctx context.Context) (api.AuthMethodResponse, error) {
 	req := c.NewRequest(ctx, http.MethodGet, "/auth/method", nil)
 	var method api.AuthMethodResponse
 	err := c.doAndUnmarshal(req, &method)
 	return method, err
 }
 
-func (c *Connection) AuthIdentity(ctx context.Context) (api.AuthIdentityResponse, error) {
+func (c *Conn) AuthIdentity(ctx context.Context) (api.AuthIdentityResponse, error) {
 	req := c.NewRequest(ctx, http.MethodGet, "/auth/identity", nil)
 	var ident api.AuthIdentityResponse
 	err := c.doAndUnmarshal(req, &ident)
 	return ident, err
 }
 
-func (c *Connection) refreshAuthToken(ctx context.Context) (string, error) {
+func (c *Conn) refreshAuthToken(ctx context.Context) (string, error) {
 	method, err := c.AuthMethod(ctx)
 	if err != nil {
 		return "", err

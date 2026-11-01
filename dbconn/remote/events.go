@@ -1,11 +1,11 @@
-package client
+package remote
 
 import (
 	"fmt"
 	"io"
 
 	"github.com/superdb/super"
-	"github.com/superdb/super/api"
+	"github.com/superdb/super/service/api"
 	"github.com/superdb/super/sup"
 )
 

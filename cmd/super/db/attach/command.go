@@ -9,15 +9,16 @@ import (
 	"strings"
 
 	"github.com/pkg/browser"
-	"github.com/superdb/super/api"
-	"github.com/superdb/super/api/client"
-	"github.com/superdb/super/api/client/auth0"
 	"github.com/superdb/super/cli/tableflags"
 	"github.com/superdb/super/cmd/super/db"
 	superdb "github.com/superdb/super/db"
-	dbapi "github.com/superdb/super/db/api"
+	"github.com/superdb/super/dbconn"
+	"github.com/superdb/super/dbconn/local"
+	"github.com/superdb/super/dbconn/remote"
+	"github.com/superdb/super/dbconn/remote/auth0"
 	"github.com/superdb/super/pkg/charm"
 	"github.com/superdb/super/pkg/storage"
+	"github.com/superdb/super/service/api"
 	"go.uber.org/zap"
 )
 
@@ -69,11 +70,11 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	if dbapi.IsRemote(u.String()) {
+	if dbconn.IsRemote(u.String()) {
 		if err := c.attachService(ctx, u.String()); err != nil {
 			return err
 		}
-	} else if _, err := dbapi.OpenLocalDB(ctx, zap.NewNop(), u.String()); err != nil {
+	} else if _, err := local.Open(ctx, zap.NewNop(), u.String()); err != nil {
 		if errors.Is(err, superdb.ErrNotExist) {
 			return fmt.Errorf("%w\n(hint: run 'super db init %s' first)", err, u)
 		}
@@ -92,7 +93,7 @@ func (c *Command) Run(args []string) error {
 }
 
 func (c *Command) attachService(ctx context.Context, url string) error {
-	conn := client.NewConnectionTo(url)
+	conn := remote.NewConn(url)
 	if _, err := conn.Ping(ctx); err != nil {
 		return fmt.Errorf("cannot reach %s: %w", url, err)
 	}
@@ -131,7 +132,7 @@ func (c *Command) attachService(ctx context.Context, url string) error {
 	}
 }
 
-func (c *Command) loginAuth0(ctx context.Context, m api.AuthMethodAuth0Details, secrets *auth0.Store, conn *client.Connection) error {
+func (c *Command) loginAuth0(ctx context.Context, m api.AuthMethodAuth0Details, secrets *auth0.Store, conn *remote.Conn) error {
 	fmt.Println("method", m.ClientID)
 	fmt.Println("domain", m.Domain)
 	fmt.Println("audience", m.Audience)
@@ -165,7 +166,7 @@ func (c *Command) status(ctx context.Context) error {
 		return err
 	}
 	fmt.Printf("Attached to %s\n", u)
-	if !dbapi.IsRemote(u.String()) {
+	if !dbconn.IsRemote(u.String()) {
 		return nil
 	}
 	conn, err := c.DBFlags.Connection()

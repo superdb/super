@@ -9,12 +9,11 @@ import (
 
 	"github.com/superdb/super/cli/tableflags"
 	"github.com/superdb/super/cmd/super/db"
-	"github.com/superdb/super/db/api"
+	"github.com/superdb/super/dbconn"
 	"github.com/superdb/super/dbid"
 	"github.com/superdb/super/pkg/charm"
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/plural"
-	"github.com/superdb/super/runtime"
 )
 
 var spec = &charm.Spec{
@@ -86,8 +85,8 @@ func (c *Command) Run(args []string) error {
 	return nil
 }
 
-func (c *Command) getTsFromCommittish(ctx context.Context, db runtime.Database, at *dbid.Committish) (nano.Ts, error) {
-	commit, err := api.GetCommit(ctx, db, at.Table, at.Branch)
+func (c *Command) getTsFromCommittish(ctx context.Context, db dbconn.Conn, at *dbid.Committish) (nano.Ts, error) {
+	commit, err := dbconn.GetCommit(ctx, db, at.Table, at.Branch)
 	if err != nil {
 		return 0, err
 	}

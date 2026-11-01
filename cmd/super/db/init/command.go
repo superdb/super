@@ -7,7 +7,8 @@ import (
 	"strings"
 
 	"github.com/superdb/super/cmd/super/db"
-	"github.com/superdb/super/db/api"
+	"github.com/superdb/super/dbconn"
+	"github.com/superdb/super/dbconn/local"
 	"github.com/superdb/super/pkg/charm"
 	"github.com/superdb/super/pkg/storage"
 	"go.uber.org/zap"
@@ -50,10 +51,10 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	if api.IsRemote(u.String()) {
+	if dbconn.IsRemote(u.String()) {
 		return fmt.Errorf("init command not valid on remote database")
 	}
-	if _, err := api.CreateLocalDB(ctx, zap.Must(zap.NewProduction()), u.String()); err != nil {
+	if _, err := local.Create(ctx, zap.Must(zap.NewProduction()), u.String()); err != nil {
 		return err
 	}
 	if !c.DBFlags.Quiet {

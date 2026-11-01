@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/superdb/super/api"
+	"github.com/superdb/super/dbconn"
 )
 
 func username() string {
@@ -43,8 +43,8 @@ func (c *Flags) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&c.Meta, "meta", "", "application metadata")
 }
 
-func (c *Flags) CommitMessage() api.CommitMessage {
-	return api.CommitMessage{
+func (c *Flags) CommitMessage() dbconn.CommitMessage {
+	return dbconn.CommitMessage{
 		Author: c.User,
 		Body:   c.Message,
 		Meta:   c.Meta,

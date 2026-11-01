@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/superdb/super/api/client"
-	"github.com/superdb/super/api/client/auth0"
 	"github.com/superdb/super/cli/tableflags"
 	"github.com/superdb/super/db"
-	"github.com/superdb/super/db/api"
+	"github.com/superdb/super/dbconn"
+	"github.com/superdb/super/dbconn/local"
+	"github.com/superdb/super/dbconn/remote"
+	"github.com/superdb/super/dbconn/remote/auth0"
 	"github.com/superdb/super/pkg/storage"
-	"github.com/superdb/super/runtime"
 	"go.uber.org/zap"
 )
 
@@ -48,30 +48,30 @@ func (l *Flags) SetFlags(fs *flag.FlagSet) {
 		})
 }
 
-func (l *Flags) Connection() (*client.Connection, error) {
+func (l *Flags) Connection() (*remote.Conn, error) {
 	uri, err := l.URI()
 	if err != nil {
 		return nil, err
 	}
-	if !api.IsRemote(uri.String()) {
+	if !dbconn.IsRemote(uri.String()) {
 		return nil, ErrLocalDB
 	}
-	conn := client.NewConnectionTo(uri.String())
+	conn := remote.NewConn(uri.String())
 	if err := conn.SetAuthStore(l.AuthStore()); err != nil {
 		return nil, err
 	}
 	return conn, nil
 }
 
-func (l *Flags) Open(ctx context.Context) (runtime.Database, error) {
+func (l *Flags) Open(ctx context.Context) (dbconn.Conn, error) {
 	uri, err := l.URI()
 	if err != nil {
 		return nil, err
 	}
-	if api.IsRemote(uri.String()) {
+	if dbconn.IsRemote(uri.String()) {
 		return l.Connection()
 	}
-	DB, err := api.OpenLocalDB(ctx, zap.Must(zap.NewProduction()), uri.String())
+	DB, err := local.Open(ctx, zap.Must(zap.NewProduction()), uri.String())
 	if errors.Is(err, db.ErrNotExist) {
 		return nil, fmt.Errorf("%w\n(hint: run 'super db init %s' to initialize a database at this location)", err, uri)
 	}
@@ -83,10 +83,10 @@ func (l *Flags) OpenDirect(ctx context.Context) (*db.Root, error) {
 	if err != nil {
 		return nil, err
 	}
-	if api.IsRemote(uri.String()) {
+	if dbconn.IsRemote(uri.String()) {
 		return nil, errors.New("cannot run on a remote database")
 	}
-	root, err := api.OpenDirect(ctx, zap.Must(zap.NewProduction()), uri.String())
+	root, err := local.OpenDirect(ctx, zap.Must(zap.NewProduction()), uri.String())
 	if errors.Is(err, db.ErrNotExist) {
 		return nil, fmt.Errorf("%w\n(hint: run 'super db init %s' to initialize a database at this location)", err, uri)
 	}

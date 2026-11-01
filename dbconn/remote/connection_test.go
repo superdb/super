@@ -1,4 +1,4 @@
-package client
+package remote
 
 import (
 	"encoding/json"
@@ -12,10 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/superdb/super"
-	"github.com/superdb/super/api"
-	"github.com/superdb/super/api/client/auth0"
 	"github.com/superdb/super/bsupbytes"
+	"github.com/superdb/super/dbconn"
+	"github.com/superdb/super/dbconn/remote/auth0"
 	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/service/api"
 	"github.com/superdb/super/sio/bsupio"
 	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector"
@@ -60,14 +61,14 @@ func TestClientRedirectReplay(t *testing.T) {
 		assert.Equal(t, uint32(1), vec.Len())
 		result = vector.ValueAt(nil, vec, 0)
 	})
-	conn := NewConnectionTo(ts.URL)
+	conn := NewConn(ts.URL)
 	store := auth0.NewStore(filepath.Join(t.TempDir(), "credentials.json"))
 	store.SetTokens(ts.URL, auth0.Tokens{
 		Access:  "012345",
 		Refresh: "98765",
 	})
 	conn.SetAuthStore(store)
-	_, err = conn.Load(t.Context(), nil, uuid.NewV7(), "main", sbuf.ValToPuller(sctx, expected), api.CommitMessage{})
+	_, err = conn.Load(t.Context(), nil, uuid.NewV7(), "main", sbuf.ValToPuller(sctx, expected), dbconn.CommitMessage{})
 	require.NoError(t, err)
 	assert.Equal(t, expected, result)
 }

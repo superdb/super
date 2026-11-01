@@ -10,13 +10,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/superdb/super/api"
-	"github.com/superdb/super/api/client"
+	"github.com/superdb/super/dbconn/remote"
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/nano"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime/exec"
 	"github.com/superdb/super/service"
+	"github.com/superdb/super/service/api"
 )
 
 func TestQuery(t *testing.T) {
@@ -75,7 +75,7 @@ func TestTablePostDuplicateName(t *testing.T) {
 	_, conn := newCore(t)
 	conn.TestTablePost(api.TablePostRequest{Name: "test"})
 	_, err := conn.CreateTable(t.Context(), "test", nil, 0, 0, nil, false)
-	require.Equal(t, errors.Is(err, client.ErrTableExists), true)
+	require.Equal(t, errors.Is(err, remote.ErrTableExists), true)
 }
 
 func TestTableInvalidName(t *testing.T) {
@@ -124,7 +124,7 @@ func TestNoEndSlashSupport(t *testing.T) {
 	_, conn := newCore(t)
 	_, err := conn.Do(conn.NewRequest(t.Context(), "GET", "/table/", nil))
 	require.Error(t, err)
-	require.Equal(t, 404, err.(*client.ErrorResponse).StatusCode)
+	require.Equal(t, 404, err.(*remote.ErrorResponse).StatusCode)
 }
 
 func TestRequestID(t *testing.T) {
@@ -196,8 +196,8 @@ func newCoreWithConfig(t *testing.T, conf service.Config) (*service.Core, *testC
 	srv := httptest.NewServer(core)
 	t.Cleanup(srv.Close)
 	return core, &testClient{
-		Connection: client.NewConnectionTo(srv.URL),
-		T:          t,
+		Conn: remote.NewConn(srv.URL),
+		T:    t,
 	}
 }
 

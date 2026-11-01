@@ -5,10 +5,10 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/superdb/super/api/client"
 	"github.com/superdb/super/cli/tableflags"
 	"github.com/superdb/super/cmd/super/db"
-	dbapi "github.com/superdb/super/db/api"
+	"github.com/superdb/super/dbconn"
+	"github.com/superdb/super/dbconn/remote"
 	"github.com/superdb/super/pkg/charm"
 )
 
@@ -50,8 +50,8 @@ func (c *Command) Run(args []string) error {
 	if loc == "" {
 		return errors.New("no database attached")
 	}
-	if dbapi.IsRemote(loc) {
-		key := client.NewConnectionTo(loc).ClientHostURL()
+	if dbconn.IsRemote(loc) {
+		key := remote.NewConn(loc).ClientHostURL()
 		if err := c.DBFlags.AuthStore().RemoveTokens(key); err != nil {
 			return fmt.Errorf("failed to remove credentials: %w", err)
 		}

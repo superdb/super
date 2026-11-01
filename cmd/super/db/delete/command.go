@@ -11,9 +11,9 @@ import (
 	"github.com/superdb/super/cli/dbflags"
 	"github.com/superdb/super/cli/tableflags"
 	"github.com/superdb/super/cmd/super/db"
+	"github.com/superdb/super/dbconn"
 	"github.com/superdb/super/dbid"
 	"github.com/superdb/super/pkg/charm"
-	"github.com/superdb/super/runtime"
 )
 
 var spec = &charm.Spec{
@@ -85,7 +85,7 @@ func (c *Command) Run(args []string) error {
 	return nil
 }
 
-func (c *Command) deleteByIDs(ctx context.Context, db runtime.Database, tableID uuid.UUID, branchName string, args []string) (uuid.UUID, error) {
+func (c *Command) deleteByIDs(ctx context.Context, db dbconn.Conn, tableID uuid.UUID, branchName string, args []string) (uuid.UUID, error) {
 	ids, err := dbid.ParseIDs(args)
 	if err != nil {
 		return uuid.Nil(), err
@@ -96,6 +96,6 @@ func (c *Command) deleteByIDs(ctx context.Context, db runtime.Database, tableID 
 	return db.Delete(ctx, tableID, branchName, ids, c.commitFlags.CommitMessage())
 }
 
-func (c *Command) deleteWhere(ctx context.Context, db runtime.Database, tableID uuid.UUID, branchName string) (uuid.UUID, error) {
+func (c *Command) deleteWhere(ctx context.Context, db dbconn.Conn, tableID uuid.UUID, branchName string) (uuid.UUID, error) {
 	return db.DeleteWhere(ctx, tableID, branchName, c.where, c.commitFlags.CommitMessage())
 }

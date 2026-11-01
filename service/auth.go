@@ -7,7 +7,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/superdb/super/api"
+	"github.com/superdb/super/service/api"
 	"github.com/superdb/super/service/auth"
 	"go.uber.org/zap"
 )

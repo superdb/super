@@ -16,7 +16,9 @@ Some of the key packages are:
 * [sio](https://pkg.go.dev/github.com/superdb/super/sio) - I/O interfaces for Super data following the Reader/Writer patterns
 * [sio/bsupio](https://pkg.go.dev/github.com/superdb/super/sio/bsupio) - BSUP reader/writer
 * [sio/supio](https://pkg.go.dev/github.com/superdb/super/sio/supio) - SUP reader/writer
-* [db/api](https://pkg.go.dev/github.com/superdb/super/db/api) - interact with a SuperDB database
+* [dbconn](https://pkg.go.dev/github.com/superdb/super/dbconn) - interact with a SuperDB database
+  either locally ([dbconn/local](https://pkg.go.dev/github.com/superdb/super/dbconn/local)) or
+  remotely via a SuperDB service ([dbconn/remote](https://pkg.go.dev/github.com/superdb/super/dbconn/remote))
 
 To install in your local Go project, simply run:
 ```
@@ -106,8 +108,8 @@ import (
 	"os"
 
 	"github.com/superdb/super"
-	"github.com/superdb/super/api/client"
 	"github.com/superdb/super/compiler/srcfiles"
+	"github.com/superdb/super/dbconn/remote"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/sup"
 	"github.com/superdb/super/sbuf"
@@ -122,7 +124,7 @@ func main() {
 		log.Fatalln(err)
 	}
 	ctx := context.TODO()
-	db := client.NewConnectionTo(uri.String())
+	db := remote.NewConn(uri.String())
 	q, err := db.Query(ctx, srcfiles.Plain("from Demo"))
 	if err != nil {
 		log.Fatalln(err)

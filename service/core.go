@@ -17,11 +17,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/superdb/super"
-	"github.com/superdb/super/api"
 	"github.com/superdb/super/compiler"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
+	"github.com/superdb/super/service/api"
 	"go.uber.org/zap"
 )
 

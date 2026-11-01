@@ -8,16 +8,15 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/superdb/super/db/api"
 	"github.com/superdb/super/db/tables"
+	"github.com/superdb/super/dbconn"
 	"github.com/superdb/super/dbid"
-	"github.com/superdb/super/runtime"
 	"go.uber.org/zap"
 )
 
 // Update runs one maintenance pass over the configured tables.  A failure on
 // one table doesn't stop the others; all failures are returned together.
-func Update(ctx context.Context, db runtime.Database, conf Config, logger *zap.Logger) error {
+func Update(ctx context.Context, db dbconn.Conn, conf Config, logger *zap.Logger) error {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -36,7 +35,7 @@ func Update(ctx context.Context, db runtime.Database, conf Config, logger *zap.L
 	return errors.Join(errs...)
 }
 
-func Monitor(ctx context.Context, db runtime.Database, conf Config, logger *zap.Logger) error {
+func Monitor(ctx context.Context, db dbconn.Conn, conf Config, logger *zap.Logger) error {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -56,7 +55,7 @@ func Monitor(ctx context.Context, db runtime.Database, conf Config, logger *zap.
 	}
 }
 
-func monitor(ctx context.Context, db runtime.Database, conf Config, logger *zap.Logger) error {
+func monitor(ctx context.Context, db dbconn.Conn, conf Config, logger *zap.Logger) error {
 	for {
 		select {
 		case <-time.After(conf.interval()):
@@ -74,7 +73,7 @@ func monitor(ctx context.Context, db runtime.Database, conf Config, logger *zap.
 	}
 }
 
-func getBranches(ctx context.Context, conf Config, db runtime.Database, logger *zap.Logger) ([]*branch, error) {
+func getBranches(ctx context.Context, conf Config, db dbconn.Conn, logger *zap.Logger) ([]*branch, error) {
 	tables, err := getTables(ctx, conf, db)
 	if err != nil {
 		return nil, err
@@ -88,8 +87,8 @@ func getBranches(ctx context.Context, conf Config, db runtime.Database, logger *
 	return branches, nil
 }
 
-func getTables(ctx context.Context, conf Config, db runtime.Database) ([]*tables.Config, error) {
-	tabs, err := api.GetTables(ctx, db)
+func getTables(ctx context.Context, conf Config, db dbconn.Conn) ([]*tables.Config, error) {
+	tabs, err := dbconn.GetTables(ctx, db)
 	if err != nil {
 		return nil, err
 	}

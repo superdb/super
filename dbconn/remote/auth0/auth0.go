@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/superdb/super/api"
+	"github.com/superdb/super/service/api"
 )
 
 type Tokens struct {

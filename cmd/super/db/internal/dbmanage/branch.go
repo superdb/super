@@ -4,22 +4,21 @@ import (
 	"context"
 	"uuid"
 
-	"github.com/superdb/super/api"
 	"github.com/superdb/super/db/tables"
+	"github.com/superdb/super/dbconn"
 	"github.com/superdb/super/dbid"
-	"github.com/superdb/super/runtime"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
 type branch struct {
 	config TableConfig
-	db     runtime.Database
+	db     dbconn.Conn
 	logger *zap.Logger
 	table  *tables.Config
 }
 
-func newBranch(c Config, table *tables.Config, db runtime.Database, logger *zap.Logger) *branch {
+func newBranch(c Config, table *tables.Config, db dbconn.Conn, logger *zap.Logger) *branch {
 	config := c.tableConfig(table)
 	logger = logger.Named("table").With(
 		zap.String("name", table.Name),
@@ -53,7 +52,7 @@ func (b *branch) run(ctx context.Context) error {
 	var compacted int
 	group.Go(func() error {
 		for run := range runCh {
-			commit, err := b.db.Compact(ctx, b.table.ID, b.config.Branch, run, api.CommitMessage{})
+			commit, err := b.db.Compact(ctx, b.table.ID, b.config.Branch, run, dbconn.CommitMessage{})
 			if err != nil {
 				return err
 			}

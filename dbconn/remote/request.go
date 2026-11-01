@@ -1,4 +1,4 @@
-package client
+package remote
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/superdb/super"
-	"github.com/superdb/super/api"
+	"github.com/superdb/super/service/api"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/bsupio"
 )

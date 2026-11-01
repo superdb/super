@@ -12,12 +12,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/superdb/super/api/client"
 	"github.com/superdb/super/cli"
 	"github.com/superdb/super/cli/logflags"
 	"github.com/superdb/super/cmd/super/db"
 	"github.com/superdb/super/cmd/super/db/internal/dbmanage"
-	"github.com/superdb/super/db/api"
+	"github.com/superdb/super/dbconn"
+	"github.com/superdb/super/dbconn/remote"
 	"github.com/superdb/super/pkg/charm"
 	"github.com/superdb/super/pkg/fs"
 	"github.com/superdb/super/pkg/httpd"
@@ -90,7 +90,7 @@ func (c *Command) Run(args []string) error {
 		return err
 	}
 	c.conf.Root = root
-	if api.IsRemote(c.conf.Root.String()) {
+	if dbconn.IsRemote(c.conf.Root.String()) {
 		return errors.New("serve command available for local databases only")
 	}
 	if c.rootContentFile != "" {
@@ -123,7 +123,7 @@ func (c *Command) Run(args []string) error {
 	}
 	group, ctx := errgroup.WithContext(ctx)
 	if c.manage > 0 {
-		conn := client.NewConnectionTo("http://" + srv.Addr())
+		conn := remote.NewConn("http://" + srv.Addr())
 		group.Go(func() error {
 			return dbmanage.Monitor(ctx, conn, dbmanage.Config{Interval: &c.manage}, logger.Named("manage"))
 		})
