@@ -164,6 +164,20 @@ func (t *TypeOf) Call(args ...vector.Any) vector.Any {
 	return vector.NewConstType(t.sctx, args[0].Type(), args[0].Len())
 }
 
+// SuperTypeOf is typeof without superdefusing its argument, so the type of
+// a value with fusion types (e.g., from superfuse) includes the fusion types.
+type SuperTypeOf struct {
+	sctx *super.Context
+}
+
+func (*SuperTypeOf) ApplyOpt() vector.ApplyOpt { return vector.ApplyNone }
+
+func (*SuperTypeOf) NoDefuse() bool { return true }
+
+func (s *SuperTypeOf) Call(args ...vector.Any) vector.Any {
+	return vector.NewConstType(s.sctx, args[0].Type(), args[0].Len())
+}
+
 type TypeName struct {
 	sctx *super.Context
 }
