@@ -314,15 +314,19 @@ type (
 	Pushdown struct {
 		HasProjection bool         `json:"has_projection"`
 		Projection    []field.Path `json:"projection"`
-		DataFilter    *ScanFilter  `json:"data_filter"`
-		MetaFilter    *ScanFilter  `json:"meta_filter"`
-		SearchFilter  *ScanFilter  `json:"search_filter"`
-		Unordered     bool         `json:"unordered"`
+		// TypeProjection is the paths whose types are needed but not
+		// their data (except for the paths in Projection).
+		TypeProjection []field.Path `json:"type_projection"`
+		DataFilter     *ScanFilter  `json:"data_filter"`
+		MetaFilter     *ScanFilter  `json:"meta_filter"`
+		SearchFilter   *ScanFilter  `json:"search_filter"`
+		Unordered      bool         `json:"unordered"`
 	}
 	ScanFilter struct {
-		HasProjection bool         `json:"has_projection"`
-		Projection    []field.Path `json:"projection"`
-		Expr          Expr         `json:"expr"`
+		HasProjection  bool         `json:"has_projection"`
+		Projection     []field.Path `json:"projection"`
+		TypeProjection []field.Path `json:"type_projection"`
+		Expr           Expr         `json:"expr"`
 	}
 )
 

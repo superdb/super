@@ -132,6 +132,8 @@ func TypeValueValue(val Any, slot uint32) super.Type {
 	case *View:
 		slot = val.Index[slot]
 		return TypeValueValue(val.Any, slot)
+	case *Dynamic:
+		return TypeValueValue(val.Values[val.Tags[slot]], val.ForwardTagMap()[slot])
 	}
 	panic(val)
 }

@@ -42,10 +42,17 @@ func (f *fusion) unmarshal(bctx *bsup.Context, projection field.Projection) {
 }
 
 func (f *fusion) project(loader *FrameLoader, projection field.Projection) vector.Any {
-	vec := f.values.project(loader, projection)
-	if len(projection) != 0 {
-		return vec
+	if len(projection) != 0 && !projection.TypesOnly() {
+		if !projection.HasTypes() {
+			return f.values.project(loader, projection)
+		}
+		// The type of the fusion value is needed along with some of
+		// its data so load all of it.
+		projection = nil
 	}
+	// If only the type is needed, the values are projected for their
+	// types and the subtypes are loaded lazily.
+	vec := f.values.project(loader, projection)
 	typ := loader.sctx.MustLookupTypeFusion(vec.Type())
 	return vector.NewFusionWithLoader(loader.sctx, typ, f.subtypes.newLoader(loader), vec)
 }

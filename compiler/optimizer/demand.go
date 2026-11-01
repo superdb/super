@@ -24,7 +24,7 @@ func demandForOp(op dag.Op, downstreams []demand.Demand) []demand.Demand {
 		}
 		return out
 	case *dag.HashJoinOp:
-		downstream := downstreams[0]
+		downstream := materialized(downstreams[0])
 		left := demand.GetKey(downstream, op.LeftAlias)
 		left = demand.Union(left, demandForExpr(op.LeftKey))
 		right := demand.GetKey(downstream, op.RightAlias)
@@ -81,12 +81,14 @@ func demandForSimpleOp(op dag.Op, downstream demand.Demand) demand.Demand {
 		return demand.Union(downstream, demandForExpr(op.Expr))
 	case *dag.FuseOp:
 		return demand.All()
-	case *dag.HeadOp, *dag.InferOp:
+	case *dag.HeadOp:
 		return downstream
+	case *dag.InferOp:
+		return materialized(downstream)
 	case *dag.LoadOp:
 		return demand.All()
 	case *dag.MergeOp:
-		return demandForSortExprs(op.Exprs, downstream)
+		return demandForSortExprs(op.Exprs, materialized(downstream))
 	case *dag.OutputOp:
 		return demand.All()
 	case *dag.PassOp:
@@ -98,13 +100,13 @@ func demandForSimpleOp(op dag.Op, downstream demand.Demand) demand.Demand {
 	case *dag.SkipOp:
 		return downstream
 	case *dag.SortOp:
-		return demandForSortExprs(op.Exprs, downstream)
+		return demandForSortExprs(op.Exprs, materialized(downstream))
 	case *dag.TailOp:
 		return downstream
 	case *dag.TopOp:
-		return demandForSortExprs(op.Exprs, downstream)
+		return demandForSortExprs(op.Exprs, materialized(downstream))
 	case *dag.UniqOp:
-		return downstream
+		return materialized(downstream)
 	case *dag.UnnestOp:
 		return demandForExpr(op.Expr)
 	case *dag.ValuesOp:
@@ -119,7 +121,7 @@ func demandForSimpleOp(op dag.Op, downstream demand.Demand) demand.Demand {
 	case *dag.FileScan:
 		if mf := op.Pushdown.MetaFilter; mf != nil {
 			mf.HasProjection = true
-			mf.Projection = demand.Fields(demandForExpr(mf.Expr))
+			mf.Projection = demand.Fields(demand.WithoutTypes(demandForExpr(mf.Expr)))
 		}
 		if df := op.Pushdown.DataFilter; df != nil {
 			exprDemand := demandForExpr(df.Expr)
@@ -132,10 +134,12 @@ func demandForSimpleOp(op dag.Op, downstream demand.Demand) demand.Demand {
 			} else {
 				df.HasProjection = true
 				df.Projection = demand.Fields(exprDemand)
+				df.TypeProjection = demand.TypeFields(exprDemand)
 			}
 		}
 		op.Pushdown.HasProjection = !demand.IsAll(downstream)
 		op.Pushdown.Projection = demand.Fields(downstream)
+		op.Pushdown.TypeProjection = demand.TypeFields(downstream)
 		return demand.None()
 	case *dag.HTTPScan, *dag.ListerScan, *dag.NullScan, *dag.TableMetaScan, *dag.TableScan:
 		return demand.None()
@@ -144,12 +148,19 @@ func demandForSimpleOp(op dag.Op, downstream demand.Demand) demand.Demand {
 	case *dag.SeqScan:
 		d := demand.Union(downstream, demandForExpr(op.Filter))
 		d = demand.Union(d, demandForExpr(op.KeyPruner))
-		op.Fields = demand.Fields(d)
+		op.Fields = demand.Fields(demand.WithoutTypes(d))
 		return demand.None()
 	case *dag.SlicerOp:
 		return demand.None()
 	}
 	panic(op)
+}
+
+// materialized returns the demand for the input of an operator that
+// materializes the values it passes through.  Their data must be loaded
+// even if only their types are needed downstream.
+func materialized(downstream demand.Demand) demand.Demand {
+	return demand.WithoutTypes(downstream)
 }
 
 func demandForExpr(expr dag.Expr) demand.Demand {
@@ -163,6 +174,16 @@ func demandForExpr(expr dag.Expr) demand.Demand {
 	case *dag.BinaryExpr:
 		return demand.Union(demandForExpr(expr.LHS), demandForExpr(expr.RHS))
 	case *dag.CallExpr:
+		if isTypeFunc(expr) {
+			if this, ok := expr.Args[0].(*dag.ThisExpr); ok {
+				// Only the type of the path is needed.
+				d := demand.TypesOnly()
+				for _, elem := range slices.Backward(this.Chain) {
+					d = demand.Key(elem.ID, d)
+				}
+				return d
+			}
+		}
 		d := demand.None()
 		for _, a := range expr.Args {
 			d = demand.Union(d, demandForExpr(a))
@@ -224,6 +245,19 @@ func demandForExpr(expr dag.Expr) demand.Demand {
 		return demandForExpr(expr.Operand)
 	}
 	panic(expr)
+}
+
+// isTypeFunc returns true if call is a call to a built-in function whose
+// result depends only on the type of its argument.
+func isTypeFunc(call *dag.CallExpr) bool {
+	if len(call.Args) != 1 {
+		return false
+	}
+	switch call.Tag {
+	case "kind", "typeof":
+		return true
+	}
+	return false
 }
 
 func demandForArrayOrSetExpr(elems []dag.VectorElem) demand.Demand {

@@ -4,6 +4,7 @@ import (
 	"net/netip"
 	"sync"
 
+	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/vector"
@@ -26,6 +27,9 @@ func (n *net) length() uint32 {
 func (*net) unmarshal(*bsup.Context, field.Projection) {}
 
 func (n *net) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		return vector.NewTypeOnly(super.TypeNet, n.length())
+	}
 	return vector.NewNet(n.load(loader))
 }
 

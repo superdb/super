@@ -96,7 +96,7 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 	case "keys":
 		f = newKeys(sctx)
 	case "kind":
-		f = &Kind{sctx: sctx}
+		f = NewKind(sctx)
 	case "uuid":
 		argmin = 0
 		argmax = 0
@@ -172,7 +172,7 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 	case "typename":
 		f = &TypeName{sctx: sctx}
 	case "typeof":
-		f = &TypeOf{sctx}
+		f = &TypeOf{sctx, expr.NewSuperDefuse(sctx)}
 	case "defuse":
 		f = &Defuse{sctx}
 	case "under":

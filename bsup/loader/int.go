@@ -28,6 +28,9 @@ func (i *int_) length() uint32 {
 func (*int_) unmarshal(*bsup.Context, field.Projection) {}
 
 func (i *int_) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		return vector.NewTypeOnly(i.meta.Typ, i.len)
+	}
 	return vector.NewInt(i.meta.Typ, i.load(loader))
 }
 

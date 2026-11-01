@@ -1,0 +1,25 @@
+# Paths referenced only as the argument to typeof() or kind() are projected
+# for their types only (shown as typeof(path) in the projection).
+# Operators that materialize the values they pass through (e.g., sort and
+# uniq) need all of the data.
+script: |
+  super compile -C -O -dynamic 'from /dev/null | values typeof(this) | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | values typeof(a), kind(b.c) | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | count() by typeof(this) | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | values {t:typeof(a),b:a.b} | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | values {t:typeof(a.b),a} | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | values typeof(a+1) | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | sort x | values typeof(a) | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | uniq | values typeof(this) | output main' | head -1
+
+outputs:
+  - name: stdout
+    data: |
+      file /dev/null project [typeof(this)]
+      file /dev/null project [typeof(a),typeof(b.c)]
+      file /dev/null unordered project [typeof(this)]
+      file /dev/null project [a.b,typeof(a)]
+      file /dev/null project [a]
+      file /dev/null project [a]
+      file /dev/null unordered project [a,x]
+      file /dev/null

@@ -262,17 +262,17 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		}
 		var metaFilter *dagFilter
 		if mf := o.Pushdown.MetaFilter; mf != nil {
-			metaFilter = &dagFilter{field.NewProjectionMaybe(mf.HasProjection, mf.Projection), mf.Expr}
+			metaFilter = &dagFilter{field.NewProjectionMaybe(mf.HasProjection, mf.Projection, mf.TypeProjection), mf.Expr}
 		}
 		var dataFilter *dagFilter
 		if df := o.Pushdown.DataFilter; df != nil {
-			dataFilter = &dagFilter{field.NewProjectionMaybe(df.HasProjection, df.Projection), df.Expr}
+			dataFilter = &dagFilter{field.NewProjectionMaybe(df.HasProjection, df.Projection, df.TypeProjection), df.Expr}
 		}
 		var searchFilter *dagFilter
 		if sf := o.Pushdown.SearchFilter; sf != nil {
 			searchFilter = &dagFilter{nil, sf.Expr}
 		}
-		projection := field.NewProjectionMaybe(o.Pushdown.HasProjection, o.Pushdown.Projection)
+		projection := field.NewProjectionMaybe(o.Pushdown.HasProjection, o.Pushdown.Projection, o.Pushdown.TypeProjection)
 		pushdown := b.newPushdown(projection, metaFilter, searchFilter, dataFilter, o.Pushdown.Unordered)
 		return op.NewFileScan(b.rctx, b.env, parent, o.Paths, o.Formats, pushdown, b.progress), nil
 	case *dag.FilterOp:
