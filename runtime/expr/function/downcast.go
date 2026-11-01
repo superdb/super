@@ -8,14 +8,20 @@ import (
 
 type downcast struct {
 	downcast *expr.Downcast
+	defuse   *expr.SuperDefuse
 }
 
 func (d *downcast) ApplyOpt() vector.ApplyOpt { return vector.ApplyNone }
 
+// NoDefuse is true since downcast operates on fusion values (e.g., to downcast
+// a value to one of its fusion's subtypes).
+func (*downcast) NoDefuse() bool { return true }
+
 func newDowncast(sctx *super.Context) *downcast {
-	return &downcast{downcast: expr.NewDowncast(sctx)}
+	return &downcast{downcast: expr.NewDowncast(sctx), defuse: expr.NewSuperDefuse(sctx)}
 }
 
 func (d *downcast) Call(vecs ...vector.Any) vector.Any {
-	return d.downcast.To(vecs[0], vecs[1])
+	// Only the value is left fused (see NoDefuse) so the type is defused.
+	return d.downcast.To(vecs[0], d.defuse.Eval(vecs[1]))
 }
