@@ -68,6 +68,9 @@ func Merge(tags []uint32, vecs []vector.Any) vector.Any {
 			panic("merge on vectors not of same type")
 		}
 	}
+	if vec, ok := mergeTypeOnly(tags, vecs); ok {
+		return vec
+	}
 	// Concat vectors together then use a view to maintain original order.
 	b := New(typ)
 	reverse := make([][]uint32, len(vecs))
@@ -87,4 +90,48 @@ func Merge(tags []uint32, vecs []vector.Any) vector.Any {
 		counts[tag]++
 	}
 	return vector.Pick(out, index)
+}
+
+// mergeTypeOnly merges vecs if they are or contain type-only vectors (see
+// vector.TypeOnly), which have no data to write to a builder, e.g., the
+// members of a union that a type projection makes the same.  Records are
+// merged field by field.
+func mergeTypeOnly(tags []uint32, vecs []vector.Any) (vector.Any, bool) {
+	if !hasTypeOnly(vecs[0]) {
+		return nil, false
+	}
+	n := uint32(len(tags))
+	switch vec := vecs[0].(type) {
+	case *vector.TypeOnly:
+		return vector.NewTypeOnly(vec.Type(), n), true
+	case *vector.Record:
+		recs := make([]*vector.Record, 0, len(vecs))
+		for _, vec := range vecs {
+			rec, ok := vec.(*vector.Record)
+			if !ok {
+				return nil, false
+			}
+			recs = append(recs, rec)
+		}
+		fields := make([]vector.Any, len(vec.Fields))
+		for k := range fields {
+			group := make([]vector.Any, 0, len(recs))
+			for _, rec := range recs {
+				group = append(group, rec.Fields[k])
+			}
+			fields[k] = Merge(tags, group)
+		}
+		return vector.NewRecord(vec.Typ, fields, n), true
+	}
+	return nil, false
+}
+
+func hasTypeOnly(vec vector.Any) bool {
+	switch vec := vec.(type) {
+	case *vector.TypeOnly:
+		return true
+	case *vector.Record:
+		return slices.ContainsFunc(vec.Fields, hasTypeOnly)
+	}
+	return false
 }

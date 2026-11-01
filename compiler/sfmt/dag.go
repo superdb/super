@@ -378,7 +378,7 @@ func (c *canonDAG) op(o dag.Op) {
 			c.write(" unordered")
 		}
 		if o.Pushdown.HasProjection {
-			c.project(o.Pushdown.Projection)
+			c.project(o.Pushdown.Projection, o.Pushdown.TypeProjection)
 		}
 		c.scanFilter("meta-filter", o.Pushdown.MetaFilter)
 		c.scanFilter("search-filter", o.Pushdown.SearchFilter)
@@ -443,7 +443,7 @@ func (c *canonDAG) op(o dag.Op) {
 			c.write(")")
 		}
 		if len(o.Fields) > 0 {
-			c.project(o.Fields)
+			c.project(o.Fields, nil)
 		}
 		if o.Filter != nil {
 			c.write(" filter (")
@@ -679,7 +679,7 @@ func (c *canonDAG) scanFilter(which string, sf *dag.ScanFilter) {
 		c.ret()
 		c.open()
 		c.open(which)
-		c.project(sf.Projection)
+		c.project(sf.Projection, sf.TypeProjection)
 		c.write(" (")
 		c.ret()
 		c.expr(sf.Expr, "")
@@ -691,10 +691,13 @@ func (c *canonDAG) scanFilter(which string, sf *dag.ScanFilter) {
 	}
 }
 
-func (c *canonDAG) project(fields []field.Path) {
+func (c *canonDAG) project(fields, typeFields []field.Path) {
 	var ss []string
 	for _, f := range fields {
 		ss = append(ss, f.String())
+	}
+	for _, f := range typeFields {
+		ss = append(ss, "typeof("+f.String()+")")
 	}
 	slices.Sort(ss)
 	c.write(" project [%s]", strings.Join(ss, ","))

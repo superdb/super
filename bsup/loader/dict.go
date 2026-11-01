@@ -22,6 +22,10 @@ type Dict struct {
 }
 
 func (d *Dict) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		// The type of a dict vector is the type of its values.
+		return vector.NewTypeOnly(d.Values.project(loader, projection).Type(), d.Length)
+	}
 	index, counts := d.load(loader)
 	return vector.NewDict(d.Values.project(loader, projection), index, counts)
 }

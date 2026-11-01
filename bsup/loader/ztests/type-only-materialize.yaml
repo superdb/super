@@ -1,0 +1,58 @@
+# Values with type-only fields (see type-only.yaml) mustn't reach an operator
+# that materializes them, whether the fields are type-only for a data filter,
+# for an operator upstream, or for another path.  And the members of a union
+# that a type projection makes the same are merged.
+script: |
+  super -o in.bsup in.sup
+  super -s -c 'where typeof(b)==<string> and a > 1 | sort a | values a' in.bsup
+  echo ===
+  super -s -c 'put t:=typeof(b) | sort a | values a, t' in.bsup
+  echo ===
+  super -s -c 'fork (sort a | values a) (values typeof(b)) | sort this' in.bsup
+  echo ===
+  super -o sum.bsup sum.sup
+  super -s -c 'values {k,t:typeof(this),u:typeof(under(under(this)).v)}' sum.bsup
+  echo ===
+  super -s -c 'count() by typeof(k)' sum.bsup
+
+inputs:
+  - name: in.sup
+    data: |
+      {a:1,b:"x",c:[1,2]}
+      {a:2,b:"y",c:[3]}
+      {a:3,b:"z",c:[]::[int64]}
+  - name: sum.sup
+    data: |
+      type A={k:string,v:int64}
+      type B={k:string,v:string}
+      type E=A|B
+      {k:"a",v:1}::A::E
+      {k:"b",v:"x"}::B::E
+
+outputs:
+  - name: stdout
+    data: |
+      2
+      3
+      ===
+      1
+      <string>
+      2
+      <string>
+      3
+      <string>
+      ===
+      1
+      2
+      3
+      <string>
+      <string>
+      <string>
+      ===
+      type A={k:string,v:int64}
+      type B={k:string,v:string}
+      type E=A|B
+      {k:"a",t:<E>,u:<int64>}
+      {k:"b",t:<E>,u:<string>}
+      ===
+      {typeof:<string>,count:2}

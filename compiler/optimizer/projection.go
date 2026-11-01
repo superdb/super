@@ -13,7 +13,7 @@ func setProjections(table demandTable) {
 		case *dag.FileScan:
 			if mf := op.Pushdown.MetaFilter; mf != nil {
 				mf.HasProjection = true
-				mf.Projection = demand.Fields(demandForExpr(mf.Expr))
+				mf.Projection = demand.Fields(demand.WithoutTypes(demandForExpr(mf.Expr)))
 			}
 			if df := op.Pushdown.DataFilter; df != nil {
 				exprDemand := demandForExpr(df.Expr)
@@ -26,14 +26,16 @@ func setProjections(table demandTable) {
 				} else {
 					df.HasProjection = true
 					df.Projection = demand.Fields(exprDemand)
+					df.TypeProjection = demand.TypeFields(exprDemand)
 				}
 			}
 			op.Pushdown.HasProjection = !demand.IsAll(downstream)
 			op.Pushdown.Projection = demand.Fields(downstream)
+			op.Pushdown.TypeProjection = demand.TypeFields(downstream)
 		case *dag.SeqScan:
 			d := demand.Union(downstream, demandForExpr(op.Filter))
 			d = demand.Union(d, demandForExpr(op.KeyPruner))
-			op.Fields = demand.Fields(d)
+			op.Fields = demand.Fields(demand.WithoutTypes(d))
 		}
 	}
 }
