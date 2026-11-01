@@ -254,7 +254,7 @@ func isTypeFunc(call *dag.CallExpr) bool {
 		return false
 	}
 	switch call.Tag {
-	case "kind", "typeof":
+	case "kind", "typeof", "supertypeof":
 		return true
 	}
 	return false
