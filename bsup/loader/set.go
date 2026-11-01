@@ -34,6 +34,14 @@ func (s *set) unmarshal(bctx *bsup.Context, projection field.Projection) {
 }
 
 func (s *set) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		// See array.project.
+		vec := s.values.project(loader, projection)
+		if !hasFusion(vec.Type()) {
+			typ := loader.sctx.LookupTypeSet(vec.Type())
+			return vector.NewTypeOnly(typ, listLen(s.load(loader)))
+		}
+	}
 	vec := s.values.project(loader, nil)
 	typ := loader.sctx.LookupTypeSet(vec.Type())
 	offs := s.load(loader)

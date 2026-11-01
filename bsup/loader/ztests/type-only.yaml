@@ -1,0 +1,86 @@
+# typeof() and kind() of values read from BSUP use type-only projections
+# (see compiler/ztests/pushdown-types.yaml) so the data for these paths isn't
+# read except for type values and for arrays, sets, and maps containing fusion
+# values.  The results must be the same as when all the data is read.
+script: |
+  super -o in.bsup in.sup
+  super -c superfuse -o fused.bsup in.sup
+  super -o nested.bsup nested.sup
+  for f in in.bsup fused.bsup; do
+    echo "=== $f"
+    super -dynamic -s -c "from $f | values typeof(this)"
+    super -dynamic -s -c "from $f | count() by kind(this) | sort this"
+    super -dynamic -s -c "from $f | values {t:typeof(b),c:b.c,k:kind(m),kt:kind(t)}"
+    super -dynamic -s -c "from $f | sort -r a | values typeof(u)"
+    super -dynamic -s -c "from $f | uniq | values kind(this)"
+  done
+  echo === nested.bsup
+  super -s -c "from nested.bsup | values typeof(this), typeof(arr)"
+
+inputs:
+  - name: in.sup
+    data: |
+      {a:1,b:{c:"x",d:2},e:[1,2],m:map{"k":1},u:1::(int64|string),t:<{s:string}>}
+      {a:"two",b:{c:"y",d:"3"},e:["x"],m:map{"k":"v"},u:"s"::(int64|string),t:<int64>}
+      {a:{x:1},b:null,e:[]::[int64]}
+      {w:{x?:1,y?:none::string}}
+      1
+  - name: nested.sup
+    data: |
+      {a:fusion(1::(int64|string),<int64>),arr:[fusion(1::(int64|string),<int64>),fusion("x"::(int64|string),<string>)]}
+      {a:fusion("y"::(int64|string),<string>),arr:[fusion(1::(int64|string),<int64>)]}
+
+outputs:
+  - name: stdout
+    data: |
+      === in.bsup
+      <{a:int64,b:{c:string,d:int64},e:[int64],m:map{string:int64},u:int64|string,t:type}>
+      <{a:string,b:{c:string,d:string},e:[string],m:map{string:string},u:int64|string,t:type}>
+      <{a:{x:int64},b:null,e:[int64]}>
+      <{w:{x?:int64,y?:string}}>
+      <int64>
+      {kind:"record",count:4}
+      {kind:"primitive",count:1}
+      {t:<{c:string,d:int64}>,c:"x",k:"map",kt:"record"}
+      {t:<{c:string,d:string}>,c:"y",k:"map",kt:"primitive"}
+      {t:<null>,c:error("cannot access field 'c' of null"),k:"error",kt:"error"}
+      {t:<error(string)>,c:error("no such field b"),k:"error",kt:"error"}
+      {t:<error(string)>,c:error("cannot access field 'b' of int64"),k:"error",kt:"error"}
+      <error(string)>
+      <error(string)>
+      <error(string)>
+      <int64|string>
+      <int64|string>
+      "record"
+      "record"
+      "record"
+      "record"
+      "primitive"
+      === fused.bsup
+      <{a:int64,b:{c:string,d:int64},e:[int64],m:map{string:int64},u:int64|string,t:type}>
+      <{a:string,b:{c:string,d:string},e:[string],m:map{string:string},u:int64|string,t:type}>
+      <{a:{x:int64},b:null,e:[int64]}>
+      <{w:{x?:int64,y?:string}}>
+      <int64>
+      {kind:"record",count:4}
+      {kind:"primitive",count:1}
+      {t:<{c:string,d:int64}>,c:"x",k:"map",kt:"record"}
+      {t:<{c:string,d:string}>,c:"y",k:"map",kt:"primitive"}
+      {t:<null>,c:error("cannot access field 'c' of null"),k:"error",kt:"error"}
+      {t:<error(string)>,c:error("no such field b"),k:"error",kt:"error"}
+      {t:<error(string)>,c:error("cannot access field 'b' of int64"),k:"error",kt:"error"}
+      <error(string)>
+      <error(string)>
+      <error(string)>
+      <int64|string>
+      <int64|string>
+      "record"
+      "record"
+      "record"
+      "record"
+      "primitive"
+      === nested.bsup
+      <{a:int64,arr:[int64|string]}>
+      <[int64|string]>
+      <{a:string,arr:[int64]}>
+      <[int64]>

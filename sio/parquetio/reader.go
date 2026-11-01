@@ -70,8 +70,11 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p vio.Push
 	var metadataFilters []expr.Evaluator
 	var fields []field.Path
 	if p != nil {
-		emptyProjection = p.Projection().IsEmpty()
-		fields = p.Projection().Paths()
+		// Type-only projections aren't supported so the data for
+		// those paths is read.
+		proj := p.Projection().NoTypes()
+		emptyProjection = proj.IsEmpty()
+		fields = proj.Paths()
 		filter, err := p.MetaFilter()
 		if err != nil {
 			return nil, err

@@ -37,6 +37,15 @@ func (m *map_) unmarshal(bctx *bsup.Context, projection field.Projection) {
 }
 
 func (m *map_) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		// See array.project.
+		keys := m.keys.project(loader, projection)
+		vals := m.values.project(loader, projection)
+		if !hasFusion(keys.Type()) && !hasFusion(vals.Type()) {
+			typ := loader.sctx.LookupTypeMap(keys.Type(), vals.Type())
+			return vector.NewTypeOnly(typ, listLen(m.load(loader)))
+		}
+	}
 	keys := m.keys.project(loader, nil)
 	vals := m.values.project(loader, nil)
 	typ := loader.sctx.LookupTypeMap(keys.Type(), vals.Type())

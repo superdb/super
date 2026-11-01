@@ -28,6 +28,9 @@ func (b *bytes) length() uint32 {
 func (*bytes) unmarshal(*bsup.Context, field.Projection) {}
 
 func (b *bytes) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		return vector.NewTypeOnly(b.meta.Typ, b.len)
+	}
 	var vec vector.Any
 	table := b.load(loader)
 	switch b.meta.Typ.ID() {

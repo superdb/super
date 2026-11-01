@@ -27,7 +27,10 @@ func (e *enum) unmarshal(bctx *bsup.Context, projection field.Projection) {
 }
 
 func (e *enum) project(loader *FrameLoader, projection field.Projection) vector.Any {
-	vec := e.values.project(loader, projection).(*vector.Uint)
 	enum := loader.sctx.LookupTypeEnum(e.meta.Symbols)
+	if projection.TypesOnly() {
+		return vector.NewTypeOnly(enum, e.length())
+	}
+	vec := e.values.project(loader, projection).(*vector.Uint)
 	return &vector.Enum{Uint: vec, Typ: enum}
 }

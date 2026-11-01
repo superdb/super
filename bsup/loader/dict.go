@@ -35,6 +35,10 @@ func (d *dict) unmarshal(bctx *bsup.Context, projection field.Projection) {
 }
 
 func (d *dict) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		// The type of a dict vector is the type of its values.
+		return vector.NewTypeOnly(d.values.project(loader, projection).Type(), d.len)
+	}
 	index, counts := d.load(loader)
 	return vector.NewDict(d.values.project(loader, projection), index, counts)
 }

@@ -2,7 +2,9 @@ package loader
 
 import (
 	"fmt"
+	"slices"
 
+	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/vector"
@@ -40,6 +42,31 @@ type shadow interface {
 	unmarshal(*bsup.Context, field.Projection)
 	project(*FrameLoader, field.Projection) vector.Any
 	strings(*collector)
+}
+
+// typesOnly is the projection for a value whose type is needed but not its data.
+var typesOnly = field.Projection{{Types: true}}
+
+// hasFusion returns true if typ has a fusion type that superdefuse would
+// defuse (see the FusionChecker in runtime/sam/expr/function).
+func hasFusion(typ super.Type) bool {
+	switch typ := typ.(type) {
+	case *super.TypeRecord:
+		return slices.ContainsFunc(typ.Fields, func(f super.Field) bool { return hasFusion(f.Type) })
+	case *super.TypeArray:
+		return hasFusion(typ.Type)
+	case *super.TypeSet:
+		return hasFusion(typ.Type)
+	case *super.TypeUnion:
+		return slices.ContainsFunc(typ.Types, hasFusion)
+	case *super.TypeMap:
+		return hasFusion(typ.KeyType) || hasFusion(typ.ValType)
+	case *super.TypeError:
+		return hasFusion(typ.Type)
+	case *super.TypeFusion:
+		return true
+	}
+	return false
 }
 
 // newShadow decodes the BSUP metadata structure to the appropriate shadow object.

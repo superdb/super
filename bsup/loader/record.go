@@ -45,6 +45,21 @@ func (r *record) unmarshal(bctx *bsup.Context, projection field.Projection) {
 		}
 		return
 	}
+	if projection.HasTypes() {
+		// The types of all the fields are needed along with the data
+		// for any fields in the projection.
+		for k, f := range r.meta.Fields {
+			proj, ok := projection.Lookup(f.Name)
+			if !ok {
+				proj = typesOnly
+			}
+			if r.fields[k] == nil {
+				r.fields[k] = newShadow(bctx, f.Values)
+			}
+			r.fields[k].unmarshal(bctx, proj)
+		}
+		return
+	}
 	for _, node := range projection {
 		if k := indexOfField(node.Name, r.meta); k >= 0 {
 			if r.fields[k] == nil {
@@ -65,6 +80,20 @@ func (r *record) project(loader *FrameLoader, projection field.Projection) vecto
 			val := r.fields[k].project(loader, nil)
 			valFields = append(valFields, val)
 			types = append(types, super.NewField(r.meta.Fields[k].Name, val.Type()))
+		}
+		return vector.NewRecord(loader.sctx.MustLookupTypeRecord(types), valFields, r.length())
+	}
+	if projection.HasTypes() {
+		// Build the whole record with any field not in the projection
+		// projected for its type only.
+		for k, f := range r.meta.Fields {
+			proj, ok := projection.Lookup(f.Name)
+			if !ok {
+				proj = typesOnly
+			}
+			val := r.fields[k].project(loader, proj)
+			valFields = append(valFields, val)
+			types = append(types, super.NewField(f.Name, val.Type()))
 		}
 		return vector.NewRecord(loader.sctx.MustLookupTypeRecord(types), valFields, r.length())
 	}

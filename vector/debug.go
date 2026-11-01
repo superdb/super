@@ -92,7 +92,7 @@ func write(w io.Writer, vec Any, indent, prefix string) {
 	case *Null:
 	case *Missing:
 	case *None:
-	case *Empty:
+	case *Empty, *TypeOnly:
 
 	case *Record:
 		for k, f := range vec.Fields {

@@ -3,6 +3,7 @@ package loader
 import (
 	"sync"
 
+	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/pkg/byteconv"
 	"github.com/superdb/super/pkg/field"
@@ -27,6 +28,9 @@ func (b *bool_) length() uint32 {
 func (*bool_) unmarshal(*bsup.Context, field.Projection) {}
 
 func (b *bool_) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		return vector.NewTypeOnly(super.TypeBool, b.length())
+	}
 	return vector.NewBool(b.load(loader))
 }
 
