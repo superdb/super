@@ -40,6 +40,12 @@
 //	  count
 //	  2
 //
+// When SUPER_FUSEINPUT is set, the input of an SPQ-style test is superfused
+// before the query runs.  A test whose input must not be fused (e.g., a test
+// of superdefusion) can disable this with
+//
+//	superfuse: false
+//
 // Alternatively, tests can be configured to run as shell scripts.
 // In this style of test, arbitrary bash scripts can run chaining together
 // any of the tools in cmd/ in addition to super.  Scripts are executed by "bash -e
@@ -273,6 +279,10 @@ type ZTest struct {
 	Input  *string `yaml:"input,omitempty"`
 	Output string  `yaml:"output,omitempty"`
 	Error  string  `yaml:"error,omitempty"`
+	// Superfuse, if false, disables superfusing the input when the test is
+	// run with SUPER_FUSEINPUT set (as TestSPQ does), e.g., for a test of
+	// superdefusion whose input must not be fused.
+	Superfuse *bool `yaml:"superfuse,omitempty"`
 
 	// For script-style tests.
 	Script  string   `yaml:"script,omitempty"`
@@ -477,6 +487,9 @@ func (z *ZTest) runInternal(ctx context.Context) (string, error) {
 		eng.AddBytes("stdio:stdin", []byte(*i))
 	}
 	env := exec.NewEnvironment(eng, nil)
+	if z.Superfuse != nil && !*z.Superfuse {
+		env.FuseInput = false
+	}
 	env.Dynamic = inflags.Dynamic
 	env.ReaderOpts = inflags.ReaderOpts
 	// Do static type checking for all tests except those with -dynamic.
