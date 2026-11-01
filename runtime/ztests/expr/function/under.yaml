@@ -60,3 +60,16 @@ output: |
   <int64>
   <int64>
   <{msg:string}>
+
+---
+
+# A fusion type value (e.g., from supertypeof) is unwrapped to its supertype.
+spq: superfuse | values under(supertypeof(a))
+
+input: |
+  {a:1}
+  {a:"x"}
+
+output: |
+  <int64|string>
+  <int64|string>

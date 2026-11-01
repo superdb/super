@@ -167,6 +167,8 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 		f = &Strftime{sctx: sctx}
 	case "sum_type":
 		f = &SumType{sctx}
+	case "supertypeof":
+		f = &SuperTypeOf{sctx}
 	case "trim":
 		f = &Trim{sctx}
 	case "typename":
