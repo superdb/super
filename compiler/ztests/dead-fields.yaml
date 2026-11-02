@@ -1,0 +1,67 @@
+# This test checks that fields of record expressions in values operators
+# that are not needed downstream are removed so that their inputs are not
+# demanded upstream (e.g., by projection pushdown into the scan).
+
+script: |
+  super compile -C -O -dynamic 'from f | values {a:{x:b,y:c},d:e} | sort d | values a.x'
+  echo // ===
+  super compile -C -O -dynamic 'from f | values {a:b,c:d}, {a:e,f:g} | sort a | values a'
+  echo // ===
+  super compile -C -O -dynamic 'from f | values {a:b,...c,d:e} | sort a | values a'
+  echo // ===
+  super compile -C -O -dynamic 'from f | values {a:b,c:d} | uniq | values a'
+  echo // ===
+  # Multi-round: removing y frees c only after demand is recomputed.
+  super compile -C -O -dynamic 'from f | values {a:b,c:d} | sort a | values {x:a,y:c} | sort x | values x'
+  echo // ===
+  super compile -C -O -dynamic 'select a from f order by b'
+  echo // ===
+  super compile -C -O -dynamic 'select a from f order by a'
+
+outputs:
+  - name: stdout
+    data: |
+      file f unordered project [b,e]
+      | values {a:{x:b},d:e}
+      | sort d asc nulls last
+      | values a.x
+      | output main
+      // ===
+      file f unordered project [b,e]
+      | values {a:b}, {a:e}
+      | sort a asc nulls last
+      | values a
+      | output main
+      // ===
+      file f unordered project [b,c]
+      | values {a:b,...c}
+      | sort a asc nulls last
+      | values a
+      | output main
+      // ===
+      file f project [b,d]
+      | values {a:b,c:d}
+      | uniq
+      | values a
+      | output main
+      // ===
+      file f unordered project [b]
+      | values {a:b}
+      | sort a asc nulls last
+      | values {x:a}
+      | sort x asc nulls last
+      | values x
+      | output main
+      // ===
+      file f unordered
+      | values {in:this,out:{a:this!.a}}
+      | sort this!.in!.b asc nulls last
+      | values out
+      | output main
+      // ===
+      file f unordered project [a]
+      | values {out:{a:this!.a}}
+      | sort this!.out!.a asc nulls last
+      | values out
+      | output main
+

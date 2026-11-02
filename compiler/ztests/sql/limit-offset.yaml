@@ -15,7 +15,7 @@ outputs:
   - name: stdout
     data: |
       file /dev/null
-      | values {in:this,out:{that:this}}
+      | values {out:{that:this}}
       | head 1
       | values out
       | output main
@@ -25,20 +25,20 @@ outputs:
       | output main
       // ===
       file /dev/null
-      | values {in:this,out:{that:this}}
+      | values {out:{that:this}}
       | skip 1
       | values out
       | output main
       // ===
       file /dev/null
-      | values {in:this,out:{that:this}}
+      | values {out:{that:this}}
       | skip 1
       | head 1
       | values out
       | output main
       // ===
       file /dev/null
-      | values {in:this,out:{that:this}}
+      | values {out:{that:this}}
       | skip 1
       | head 1
       | values out
