@@ -49,3 +49,47 @@ outputs:
     data: |
       []
       []
+
+---
+
+# With - after --, the strings of args are the lines of stdin.
+script: |
+  printf 'a b\nc\n\nd\n' | super -s -c "values args" -- -
+  echo ===
+  printf '' | super -s -c "values args" -- -
+  echo ===
+  printf 'x\ny\n' | super -s -c "values {v:this,args}" in.sup -- -
+  echo ===
+  printf 'x\n' | super -s -c "values 1; values args" -- - | super -s -c "drop start,end" -
+
+inputs:
+  - name: in.sup
+    data: |
+      1
+
+outputs:
+  - name: stdout
+    data: |
+      ["a b","c","","d"]
+      ===
+      []
+      ===
+      {v:1,args:["x","y"]}
+      ===
+      1
+      {kind:"query",stmt:"values 1",info:{values:1::uint64},error:null}
+      ["x"]
+      {kind:"query",stmt:"values args",info:{values:1::uint64},error:null}
+
+---
+
+# - after -- can't be used with other args or with - as an input.
+script: |
+  ! echo a | super -c "values args" -- a -
+  ! echo a | super -c "values args" - -- -
+
+outputs:
+  - name: stderr
+    data: |
+      args from stdin (- after --) cannot be used with other args
+      stdin cannot be both an input and the source of args (- after --)

@@ -94,6 +94,9 @@ type EventBranch struct {
 
 type QueryRequest struct {
 	Query string `json:"query"`
+	// Args, if not nil, are the strings of the query's args constant.
+	// It's not omitempty since an empty Args declares args as [].
+	Args []string `json:"args"`
 }
 
 type QueryChannelSet struct {

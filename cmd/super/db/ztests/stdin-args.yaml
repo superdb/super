@@ -1,0 +1,26 @@
+# super db with a single argument - binds the args constant to the lines of
+# stdin.
+script: |
+  super db init -q test
+  super db attach -q test
+  printf 'a\nb\n' | super db -s -c "values args" -
+  echo ===
+  printf '' | super db -s -c "values args" -
+  echo ===
+  printf 'x\n' | super db -c "create table t; insert into t values {n:args[0]}" - > /dev/null
+  super db -s -c "from t"
+  echo ===
+  ! super db -c "values 1" a
+
+outputs:
+  - name: stdout
+    data: |
+      ["a","b"]
+      ===
+      []
+      ===
+      {n:"x"}
+      ===
+  - name: stderr
+    data: |
+      super db command takes no arguments except - for args from stdin

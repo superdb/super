@@ -1,0 +1,16 @@
+# super db - binds the args constant for a remote database too.
+script: |
+  source service.sh
+  printf 'a\nb\n' | super db -s -c "values args" -
+  echo ===
+  printf '' | super db -s -c "values args" -
+
+inputs:
+  - name: service.sh
+
+outputs:
+  - name: stdout
+    data: |
+      ["a","b"]
+      ===
+      []

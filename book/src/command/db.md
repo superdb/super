@@ -10,7 +10,7 @@
 
 The `super db` command is invoked either by itself to run a query:
 ```
-super db -c <query> | -I <query-file> [ options ]
+super db -c <query> | -I <query-file> [ options ] [ - ]
 ```
 or with a [sub-command](#sub-commands):
 ```
@@ -138,6 +138,15 @@ If a table is provided to `from` without a branch name, then branch
 "main" is assumed.
 
 Output is sent to a [file or stdout](output.md).
+
+If the single argument `-` follows the query, then the lines of standard input
+are assembled into a string array called `args` as a
+[constant](../super-sql/declarations/constants.md)
+appearing in the main scope of the query, e.g.,
+```
+printf 'a\nb\n' | super db -s -c 'values args' -
+```
+produces `["a","b"]`.
 
 This example reads every record from the full key range of the `logs` table
 and sends the results to stdout.
