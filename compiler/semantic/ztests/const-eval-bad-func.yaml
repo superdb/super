@@ -1,0 +1,14 @@
+# An error in a function body is reported (not a panic) when a later
+# expression is evaluated at compile time to check for a constant (here,
+# the index this[k]).
+spq: |
+  fn bad(x): nosuch(x)
+  values bad(this), this[k]
+
+input: |
+  {a:1,k:"a"}
+
+error: |
+  no such function at line 1, column 12:
+  fn bad(x): nosuch(x)
+             ~~~~~~~~~
