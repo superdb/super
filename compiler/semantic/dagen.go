@@ -396,6 +396,13 @@ func (d *dagen) expr(e sem.Expr) dag.Expr {
 	case *sem.AggFunc:
 		d.error(e, errors.New("call to aggregate function in non-aggregate context"))
 		return &dag.BadExpr{Kind: "BadExpr"}
+	case *sem.BadExpr:
+		// The translator reports an error for each bad expression so
+		// a DAG with bad expressions is never run.  But bad expressions
+		// can appear in the functions assembled to evaluate a constant
+		// expression at compile time (see evaluator.maybeEval).  Since
+		// functions are compiled only when called, these are harmless.
+		return &dag.BadExpr{Kind: "BadExpr"}
 	case *sem.ArrayExpr:
 		return &dag.ArrayExpr{
 			Kind:  "ArrayExpr",
