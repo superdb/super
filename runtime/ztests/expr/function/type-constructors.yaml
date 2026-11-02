@@ -1,0 +1,138 @@
+# Type constructors with a single type argument.
+spq: values array_type(this), set_type(this), error_type(this), fusion_type(this), option_type(this)
+
+input: |
+  <int64>
+  <{x:string}>
+
+output: |
+  <[int64]>
+  <set[int64]>
+  <error(int64)>
+  <fusion(int64)>
+  <option(int64)>
+  <[{x:string}]>
+  <set[{x:string}]>
+  <error({x:string})>
+  <fusion({x:string})>
+  <option({x:string})>
+
+---
+
+# record_type.
+spq: values record_type(this)
+
+input: |
+  {x:<int64>,y:<[string]>}
+  {x:<int64>,y:<string>}
+  {}
+
+output: |
+  <{x:int64,y:[string]}>
+  <{x:int64,y:string}>
+  <{}>
+
+---
+
+# record_type of a computed record with an optional field via option_type.
+spq: values record_type({a:typeof(a),b:option_type(typeof(b))})
+
+input: |
+  {a:1,b:"x"}
+  {a:"y",b:2}
+
+output: |
+  <{a:int64,b?:string}>
+  <{a:string,b?:int64}>
+
+---
+
+# map_type.
+spq: values map_type(this)
+
+input: |
+  {key:<string>,value:<int64>}
+  {value:<int64>,key:<string>}
+  {key:<string>}
+
+output: |
+  <map{string:int64}>
+  error({message:"map_type: argument must be a record of the form {key:<type>,value:<type>}",on:{value:<int64>,key:<string>}})
+  error({message:"map_type: argument must be a record of the form {key:<type>,value:<type>}",on:{key:<string>}})
+
+---
+
+# union_type dedupes and flattens members and returns a single member as is.
+spq: values union_type(this)
+
+input: |
+  [<int64>,<string>,<int64>]
+  [<int64|string>,<bool>]
+  [<int64>]
+  []
+  [1]
+
+output: |
+  <int64|string>
+  <int64|bool|string>
+  <int64>
+  error({message:"union_type: empty array",on:[]})
+  error({message:"union_type: argument must be an array of type values",on:[1]})
+
+---
+
+# enum_type.
+spq: values enum_type(this)
+
+input: |
+  ["red","green"]
+  ["a","a"]
+  []::[string]
+  [1]
+
+output: |
+  <enum(red,green)>
+  error({message:"enum_type: duplicate symbol a",on:["a","a"]})
+  error({message:"enum_type: empty array",on:[]::[string]})
+  error({message:"enum_type: argument must be an array of strings",on:[1]})
+
+---
+
+# named_type.
+spq: values named_type(this[0], this[1])
+
+input: |
+  ["Point",<{x:float64,y:float64}>]
+  ["Point",<{x:float64,y:float64}>]
+  ["Point",<string>]
+
+output: |
+  type Point={x:float64,y:float64}
+  <Point>
+  <Point>
+  error({message:"named_type: type \"Point\" redefined",on:<string>})
+
+---
+
+# Errors and nulls.
+spq: values record_type(this), array_type(this), option_type(this)
+
+input: |
+  "foo"
+  null
+  error("bad")
+  <missing>
+
+output: |
+  error({message:"record_type: argument must be a record of type values",on:"foo"})
+  error({message:"array_type: argument must be a type value",on:"foo"})
+  error({message:"option_type: argument must be a type value",on:"foo"})
+  null
+  null
+  null
+  error({message:"record_type: error value encountered",on:error("bad")})
+  error({message:"array_type: error value encountered",on:error("bad")})
+  error({message:"option_type: error value encountered",on:error("bad")})
+  error({message:"record_type: argument must be a record of type values",on:<missing>})
+  <[missing]>
+  error({message:"option_type: invalid option type",on:<missing>})
