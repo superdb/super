@@ -9,7 +9,6 @@ import (
 	"uuid"
 
 	"github.com/superdb/super/compiler/dag"
-	"github.com/superdb/super/compiler/optimizer/demand"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/field"
@@ -139,7 +138,11 @@ func (o *Optimizer) Optimize(main *dag.Main) error {
 		return err
 	}
 	seq = removePassOps(seq)
-	DemandForSeq(seq, demand.All())
+	table := analyzeDemand(seq)
+	for removeDeadFields(table) {
+		table = analyzeDemand(seq)
+	}
+	setProjections(table)
 	setPushdownUnordered(seq, false)
 	main.Body = seq
 	return nil
