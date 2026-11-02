@@ -188,8 +188,15 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 		f = &ToUpper{sctx}
 	case "values":
 		f = newValues(sctx)
+	case "named_type":
+		argmin, argmax = 2, 2
+		f = &namedType{sctx}
 	default:
-		return nil, function.ErrNoSuchFunction
+		t := newTypeCons(sctx, name)
+		if t == nil {
+			return nil, function.ErrNoSuchFunction
+		}
+		f = t
 	}
 	if err := CheckArgCount(narg, argmin, argmax); err != nil {
 		return nil, err
