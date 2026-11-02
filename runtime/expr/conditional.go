@@ -62,15 +62,15 @@ func (c *conditional) eval(vecs ...vector.Any) vector.Any {
 			}
 		}
 	}
-	if len(elseIndex) == 0 {
+	if n := len(elseIndex); n == 0 {
 		return c.thenExpr.Eval(thisVec)
+	} else if n == int(thisVec.Len()) {
+		return c.elseExpr.Eval(thisVec)
 	}
-	elseVec := c.elseExpr.Eval(thisVec)
-	if len(elseIndex) == int(elseVec.Len()) {
-		return elseVec
-	}
-	thenVec := c.thenExpr.Eval(thisVec)
-	return combine(thenVec, elseVec, elseIndex)
+	// Evaluate each expression on just the necessary slots.
+	thenVec := c.thenExpr.Eval(vector.ReversePick(thisVec, elseIndex))
+	elseVec := c.elseExpr.Eval(vector.Pick(thisVec, elseIndex))
+	return vector.Combine(thenVec, elseIndex, elseVec)
 }
 
 func BoolMask(mask vector.Any) (*roaring.Bitmap, *roaring.Bitmap) {
