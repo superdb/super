@@ -1,0 +1,19 @@
+script: |
+  super compile -C -P 2 -dynamic 'from test.bsup | distinct a | count()'
+  echo ===
+  super compile -C -P 2 -dynamic 'from test.bsup | distinct a | sort a'
+
+outputs:
+  - name: stdout
+    data: |
+      file test.bsup format bsup unordered project [a]
+      | distinct a
+      | aggregate
+          count:=count()
+      | values count
+      | output main
+      ===
+      file test.bsup format bsup unordered
+      | distinct a
+      | sort a asc nulls last
+      | output main
