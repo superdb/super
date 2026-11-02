@@ -30,7 +30,7 @@ func NewPattern(sctx *super.Context, op string, distinct, hasarg bool) (expr.Agg
 		}
 	case "fuse":
 		pattern = func() expr.AggFunc {
-			return newFuse(false)
+			return newFuse(sctx, false)
 		}
 	case "dcount":
 		pattern = func() expr.AggFunc {
@@ -38,7 +38,7 @@ func NewPattern(sctx *super.Context, op string, distinct, hasarg bool) (expr.Agg
 		}
 	case "superfuse":
 		pattern = func() expr.AggFunc {
-			return newFuse(true)
+			return newFuse(sctx, true)
 		}
 	case "sum":
 		pattern = func() expr.AggFunc {
