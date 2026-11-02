@@ -1,0 +1,22 @@
+# An empty array has type [none] even when other arrays at the same
+# path have elements.
+script: |
+  super -s -c 'values typeof(this)' in.json
+
+inputs:
+  - name: in.json
+    data: |
+      []
+      [1]
+      {"a":[]}
+      {"a":[1]}
+      {"a":[[],[1]]}
+
+outputs:
+  - name: stdout
+    data: |
+      <[none]>
+      <[int64]>
+      <{a:[none]}>
+      <{a:[int64]}>
+      <{a:[[int64]|[none]]}>

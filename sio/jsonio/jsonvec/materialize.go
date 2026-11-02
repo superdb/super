@@ -122,7 +122,8 @@ func (m *materializer) array(a *Array) (vector.Any, []uint32) {
 
 func (m *materializer) arrayID(ids []uint32) uint32 {
 	if len(ids) == 0 {
-		return m.defs.BindTypeWrapped(super.TypeDefArray, super.IDMissing)
+		// An empty array has type [none].
+		return m.defs.BindTypeWrapped(super.TypeDefArray, super.IDNone)
 	}
 	id := ids[0]
 	for _, other := range ids[1:] {

@@ -1,0 +1,16 @@
+# The fuse and superfuse aggregate functions fuse the subtypes of fusion
+# values (i.e., the types of the superdefused values) in each group.
+spq: |
+  superfuse
+  | aggregate f:=fuse(this), s:=superfuse(this) by k
+  | sort k
+
+input: |
+  {k:1,a:1}
+  {k:2,b:"x"}
+  {k:1,a:"y"}
+  {k:2,b:"z",c:true}
+
+output: |
+  {k:1,f:<{k:int64,a:int64|string}>,s:<{k:int64,a:fusion(int64|string)}>}
+  {k:2,f:<{k:int64,b:string,c:bool|missing}>,s:<{k:int64,b:string,c:fusion(bool|missing)}>}
