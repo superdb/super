@@ -165,15 +165,15 @@ output: |
 
 ---
 
-spq: values a?.b
+spq: values {v:a?.b}
 
 input: |
   {a?:{b:1}}
   {a?:none::{b:int64}}
 
 output: |
-  1
-  none::int64
+  {v:1}
+  {}
 
 ---
 
@@ -217,8 +217,8 @@ output: |
 
 ---
 
-# A none from ?. keeps the type of the field so a record built from it
-# has an optional field rather than dropping the field.
+# A none from ?. is a plain none so it disappears from a record built
+# from it.
 spq: values {y:x?.z}, typeof(x?.z)
 
 input: |
@@ -230,8 +230,8 @@ input: |
 output: |
   {y:1}
   <int64>
-  {y?:none::int64}
-  <option(int64)>
+  {}
+  <none>
   {y?:2}
   <option(int64)>
   {y?:none::int64}

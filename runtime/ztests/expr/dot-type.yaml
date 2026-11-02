@@ -50,15 +50,16 @@ output: |
 
 ---
 
-# A type without the field is an error, which ok() turns into none.
-spq: values <{a:int64}>.z, <int64|string>.a, <[int64]>.a, <map{string:int64}>.a, ok(<{a:int64}>.z)
+# A type without the field is an error, which ok() turns into none, which
+# disappears from a record.
+spq: values <{a:int64}>.z, <int64|string>.a, <[int64]>.a, <map{string:int64}>.a, {v:ok(<{a:int64}>.z)}
 
 output: |
   error({message:"no such field 'z'",on:<{a:int64}>})
   error({message:"no such field 'a'",on:<int64|string>})
   error({message:"no such field 'a'",on:<[int64]>})
   error({message:"no such field 'a'",on:<map{string:int64}>})
-  none
+  {}
 
 ---
 

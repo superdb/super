@@ -2,7 +2,6 @@
 # and casting none to a non-option type T is shorthand for option(T).
 spq: |
   values
-    none,
     cast(none,<option(int64)>),
     [1,none],
     [1,none]::[option(int64)],
@@ -11,7 +10,6 @@ spq: |
     none::int64,
     none::option(int64),
     none::(int64|string),
-    none::(int64|none),
     typeof([]),
     typeof(set[]),
     typeof(map{}),
@@ -19,7 +17,6 @@ spq: |
 
 
 output: |
-  none
   none::int64
   [1]
   [some(1)]
@@ -27,7 +24,6 @@ output: |
   none::int64
   none::int64
   none::option(int64|string)
-  none::(int64|none)
   <[none]>
   <set[none]>
   <map{none:none}>

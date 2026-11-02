@@ -24,7 +24,7 @@ input: |
   missing
 
 output: |
-  none
+  error("none not handled (consider ??)")
   [1,none]
   [some(1),none::int64]
   set[none::int64,some(1)]

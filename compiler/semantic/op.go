@@ -1116,6 +1116,7 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 		exprs, types := t.exprs(o.Exprs, inType)
 		for k, typ := range types {
 			t.checker.result(o.Exprs[k], typ)
+			t.output(o.Exprs[k], typ)
 		}
 		return append(seq, sem.NewValues(o, exprs...)), t.checker.fuse(types)
 	case *ast.Script:
@@ -1653,8 +1654,9 @@ func (t *translator) exprOp(e ast.Expr, seq sem.Seq, inType super.Type) (sem.Seq
 	if t.isBool(out) {
 		return append(seq, &sem.FilterOp{Node: e, Expr: out}), inType
 	}
-	// As with the values operator, the value must not be missing.
+	// As with the values operator, the value must not be missing or none.
 	t.checker.result(e, typ)
+	t.output(e, typ)
 	return append(seq, sem.NewValues(e, out)), typ
 }
 
@@ -1957,4 +1959,17 @@ func (t *translator) mustEval(e sem.Expr) (super.Value, bool) {
 // indicating if the eval was successful
 func (t *translator) maybeEval(e sem.Expr) (super.Value, bool) {
 	return newEvaluator(t, t.resolver.funcs).maybeEval(t.sctx, e)
+}
+
+// output reports an error at loc if typ, the type of a value output by the
+// values operator, may be a plain none (e.g., from ok() or ?.).  A plain none
+// disappears from a record, array, or map but the query must handle it with
+// ?? if it would otherwise be output, which is an error at runtime.  The
+// result of an expression subquery may be none since it's an expression
+// value.
+func (t *translator) output(loc ast.Node, typ super.Type) {
+	if t.subqueries > 0 {
+		return
+	}
+	t.checker.output(loc, typ)
 }

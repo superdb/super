@@ -1319,7 +1319,9 @@ func (t *translator) arraySubquery(elems []sem.ArrayElem) *sem.SubqueryExpr {
 func (t *translator) subqueryExpr(astExpr ast.Expr, array bool, body ast.Seq, inType super.Type) (*sem.SubqueryExpr, super.Type) {
 	// We pass inType in whether or not it's correlated since an uncorrelated
 	// subquery will just ignore it.
+	t.subqueries++
 	seq, outType := t.seq(body, inType)
+	t.subqueries--
 	correlated := isCorrelated(seq)
 	e := &sem.SubqueryExpr{
 		Node:       astExpr,

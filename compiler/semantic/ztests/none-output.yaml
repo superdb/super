@@ -1,0 +1,110 @@
+# ?. on an option none is a plain none, which disappears from a record,
+# array, or map, or is handled with ??.  (The option none is a value.)
+spq: values typeof(org?.id), {v:org?.id}, [org?.id], map{"v":org?.id}, org?.id ?? 0, org
+
+input: |
+  {org?:none::{id:int64}}
+  {org?:{id:1}}
+
+output: |
+  <none>
+  {}
+  []
+  map{}
+  0
+  none::{id:int64}
+  <int64>
+  {v:1}
+  [1]
+  map{"v":1}
+  1
+  some({id:1})
+
+---
+
+# Statically, a value that may be a plain none (e.g., from ?. or ok()) can't
+# be output and must be handled with ??.
+script: |
+  super -o in.bsup in.sup
+  ! super -s -c 'from in.bsup | values org?.id'
+  ! super -s -c 'from in.bsup | values y.ok()'
+  super -s -c 'from in.bsup | values org?.id ?? 0, {y:y.ok()}'
+
+inputs:
+  - name: in.sup
+    data: |
+      {org?:none::{id:int64}}
+      {org?:{id:1},y:2}
+
+outputs:
+  - name: stdout
+    data: |
+      0
+      {}
+      1
+      {y:2}
+  - name: stderr
+    data: |
+      value may be none (consider ??) at line 1, column 23:
+      from in.bsup | values org?.id
+                            ~~~~~~~
+      value may be none (consider ??) at line 1, column 23:
+      from in.bsup | values y.ok()
+                            ~~~~~~
+
+---
+
+# At runtime, a plain none output is an error.
+spq: values org?.id
+
+flags: -dynamic
+
+input: |
+  {org?:none::{id:int64}}
+  {org?:{id:1}}
+
+output: |
+  error("none not handled (consider ??)")
+  1
+
+---
+
+# A none literal can't be output.
+spq: values none
+
+error: |
+  value may be none (consider ??) at line 1, column 8:
+  values none
+         ~~~~
+
+---
+
+# A map entry whose value is a plain none disappears but an option none
+# is kept.
+spq: values map{"a":none,"b":1}, map{"a":none::int64}, map{"a":none}
+
+output: |
+  map{"b":1}
+  map{"a":none::int64}
+  map{}
+
+---
+
+# The result of an expression subquery may be none.
+spq: values {v:(values y.ok())}, [(values y.ok())]
+
+input: |
+  {x:1}
+
+output: |
+  {}
+  []
+
+---
+
+# A none of a named type is a value.
+spq: type foo=none values none::foo
+
+output: |
+  type foo=none
+  none::foo

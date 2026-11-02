@@ -59,7 +59,7 @@ output: |
   1
   2
   1
-  none
+  error("none not handled (consider ??)")
   127.0.0.1
 
 ---
@@ -107,7 +107,7 @@ output: |
   5
   error("cannot access field 'x' of set")
   "foo"
-  none
+  error("none not handled (consider ??)")
   error({message:"invalid record index",on:1})
   123
 
@@ -143,8 +143,8 @@ input: |
 output: |
   "foo"
   "bar"
-  none
-  none
-  none
+  error("none not handled (consider ??)")
+  error("none not handled (consider ??)")
+  error("none not handled (consider ??)")
   "foo"
   "foo"

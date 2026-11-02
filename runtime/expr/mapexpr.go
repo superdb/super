@@ -46,11 +46,34 @@ func (m *MapExpr) Eval(this vector.Any) vector.Any {
 
 func (m *MapExpr) eval(vecs ...vector.Any) vector.Any {
 	n := len(m.entries)
-	key := m.build(vecs[:n])
-	val := m.build(vecs[n:])
+	// An entry whose value is a plain none (e.g., from ok() or ?.)
+	// disappears, as with a field of a record expression.  (An option
+	// none is a value and is kept.)
+	keys, vals := vecs[:n:n], vecs[n:]
+	if slices.ContainsFunc(vals, isNone) {
+		var k, v []vector.Any
+		for i, val := range vals {
+			if !isNone(val) {
+				k = append(k, keys[i])
+				v = append(v, val)
+			}
+		}
+		if len(k) == 0 {
+			mtyp := m.sctx.LookupTypeMap(super.TypeNone, super.TypeNone)
+			c := vector.NewNone(0)
+			return vector.NewMap(mtyp, make([]uint32, vecs[0].Len()+1), c, c)
+		}
+		keys, vals, n = k, v, len(k)
+	}
+	key := m.build(keys)
+	val := m.build(vals)
 	offsets := buildStaticOffsets(uint32(n), vecs[0].Len())
 	mtyp := m.sctx.LookupTypeMap(key.Type(), val.Type())
 	return vector.NewMap(mtyp, offsets, key, val)
+}
+
+func isNone(vec vector.Any) bool {
+	return vec.Kind() == vector.KindNone
 }
 
 func (m *MapExpr) build(vecs []vector.Any) vector.Any {

@@ -15,7 +15,9 @@ and returns `none` when `val` is `none` or an error and otherwise returns `val`
 unmodified.
 
 This function is useful when errors are expected and are to be explicitly managed
-with `none` operators.
+with `none` operators.  The `none` disappears from a record expression, an
+array, or a map and otherwise must be handled with `??` since a query may not
+output a `none`.
 
 ## Examples
 
