@@ -17,7 +17,8 @@ The _under_ function returns the value underlying the argument `val`:
 * for [type values](../../types/type.md), it returns
   * the underlying type of a named type,
   * the element type of an array or set type,
-  * the type wrapped by an option or error type,
+  * the type wrapped by an option, error, or fusion type (i.e., the supertype
+    of a fusion type),
   * an array of the types of a union type, and
   * a record `{key:<K>,value:<V>}` of the key and value types of a map type,
   and otherwise returns the type value unmodified; otherwise,

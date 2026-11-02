@@ -165,6 +165,7 @@
             - [optionize](super-sql/functions/types/optionize.md)
             - [sum_type](super-sql/functions/types/sum_type.md)
             - [superdefuse](super-sql/functions/types/superdefuse.md)
+            - [supertypeof](super-sql/functions/types/supertypeof.md)
             - [typename](super-sql/functions/types/typename.md)
             - [typeof](super-sql/functions/types/typeof.md)
             - [upcast](super-sql/functions/types/upcast.md)
