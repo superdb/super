@@ -155,7 +155,11 @@ func (c *canon) expr(e ast.Expr, parent string) {
 		c.write("]")
 	case *ast.MatchExpr:
 		c.write("match ")
-		c.expr(e.Expr, "")
+		c.assignment(ast.Assignment{LHS: e.Name, RHS: e.Expr})
+		if len(e.With) != 0 {
+			c.write(" with ")
+			c.assignments(e.With)
+		}
 		for _, mc := range e.Cases {
 			c.write(" case ")
 			c.typ(mc.Type)

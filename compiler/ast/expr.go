@@ -125,11 +125,15 @@ type (
 	// A MatchExpr selects the first of its cases whose type is the type of
 	// Expr (as for a type assertion) and is the value of that case's
 	// expression or else the value of Else.
+	// A MatchExpr is "match [name:=]expr [with assignments] case ...".
+	// Name is nil if not given.
 	MatchExpr struct {
-		Kind  string      `json:"kind" unpack:""`
-		Expr  Expr        `json:"expr"`
-		Cases []MatchCase `json:"cases"`
-		Else  Expr        `json:"else"`
+		Kind  string       `json:"kind" unpack:""`
+		Name  Expr         `json:"name"`
+		Expr  Expr         `json:"expr"`
+		With  []Assignment `json:"with"`
+		Cases []MatchCase  `json:"cases"`
+		Else  Expr         `json:"else"`
 		Loc   `json:"loc"`
 	}
 	// A TypeAssertExpr is a type assertion, expr.(type), whose value is the

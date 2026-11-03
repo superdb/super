@@ -181,8 +181,10 @@ func clrExpr(expr sem.Expr) {
 		clrExpr(expr.Expr)
 		for _, c := range expr.Cases {
 			clrExpr(c.Type)
+			clrExpr(c.Input)
 			clrExpr(c.Expr)
 		}
+		clrExpr(expr.ElseInput)
 		clrExpr(expr.Else)
 	case *sem.MapCallExpr:
 		expr.Node = nil

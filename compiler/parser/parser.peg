@@ -1343,10 +1343,13 @@ Primary
     }
 
 MatchExpr
-  = MATCH _ expr:Expr cases:MatchCase+ else_:(_ ELSE _ Expr)? (_ END)? {
+  = MATCH _ match:Assignment with:(_ WITH _ a:Assignments { return a, nil })? cases:MatchCase+ else_:(_ ELSE _ Expr)? (_ END)? {
+      a := match.(ast.Assignment)
       m := &ast.MatchExpr{
         Kind: "MatchExpr",
-        Expr: expr.(ast.Expr),
+        Name: a.LHS,
+        Expr: a.RHS,
+        With: sliceOf[ast.Assignment](with),
         Cases: sliceOf[ast.MatchCase](cases),
         Loc: loc(c),
       }

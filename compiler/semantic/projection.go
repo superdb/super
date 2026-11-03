@@ -89,8 +89,10 @@ func exprWalk(e sem.Expr, visit exprVisitor) sem.Expr {
 		e.Expr = exprWalk(e.Expr, visit)
 		for k := range e.Cases {
 			e.Cases[k].Type = exprWalk(e.Cases[k].Type, visit)
+			e.Cases[k].Input = exprWalk(e.Cases[k].Input, visit)
 			e.Cases[k].Expr = exprWalk(e.Cases[k].Expr, visit)
 		}
+		e.ElseInput = exprWalk(e.ElseInput, visit)
 		e.Else = exprWalk(e.Else, visit)
 	case *sem.MapExpr:
 		for _, ent := range e.Entries {

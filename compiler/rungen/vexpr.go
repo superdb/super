@@ -7,7 +7,6 @@ import (
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/dag"
-	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/runtime/expr/function"
 	"github.com/superdb/super/runtime/op"
@@ -435,15 +434,13 @@ func (b *Builder) compileVamMatchExpr(e *dag.MatchExpr) (expr.Evaluator, error) 
 	if err != nil {
 		return nil, err
 	}
-	// When the matched expression is a path, each case's result is
-	// evaluated on this with the value at the path narrowed to the case's
-	// type (see compileVamNarrow) so that the result, including any
-	// subquery in it, sees the narrowed value.
-	this, narrow := e.Expr.(*dag.ThisExpr)
-	narrow = narrow && this.Chain.IsPlain()
 	var types, cases, inputs []expr.Evaluator
 	for _, c := range e.Cases {
 		typ, err := b.compileVamExpr(c.Type)
+		if err != nil {
+			return nil, err
+		}
+		input, err := b.compileVamExpr(c.Input)
 		if err != nil {
 			return nil, err
 		}
@@ -451,41 +448,18 @@ func (b *Builder) compileVamMatchExpr(e *dag.MatchExpr) (expr.Evaluator, error) 
 		if err != nil {
 			return nil, err
 		}
-		var input expr.Evaluator
-		if narrow {
-			if input, err = b.compileVamNarrow(this.Chain, c.Type); err != nil {
-				return nil, err
-			}
-		}
 		types = append(types, typ)
-		cases = append(cases, ev)
 		inputs = append(inputs, input)
+		cases = append(cases, ev)
 	}
-	var elseExpr expr.Evaluator
+	var elseExpr, elseInput expr.Evaluator
 	if e.Else != nil {
+		if elseInput, err = b.compileVamExpr(e.ElseInput); err != nil {
+			return nil, err
+		}
 		if elseExpr, err = b.compileVamExpr(e.Else); err != nil {
 			return nil, err
 		}
 	}
-	return expr.NewMatch(b.sctx(), match, types, cases, inputs, elseExpr), nil
-}
-
-// compileVamNarrow returns an evaluator for this with the value at chain
-// replaced by its type assertion to typ, i.e., "put chain:=chain.(typ)" or,
-// if chain is empty, "this.(typ)".
-func (b *Builder) compileVamNarrow(chain field.Chain, typ dag.Expr) (expr.Evaluator, error) {
-	assert := &dag.TypeAssertExpr{Kind: "TypeAssertExpr", Expr: dag.NewThis(chain), Type: typ}
-	if len(chain) == 0 {
-		return b.compileVamExpr(assert)
-	}
-	rec, err := dag.NewRecordExprFromAssignments([]dag.Assignment{{Kind: "Assignment", LHS: dag.NewThis(chain), RHS: assert}})
-	if err != nil {
-		return nil, err
-	}
-	mergeRecordExprWithChain(rec, nil)
-	e, err := b.compileVamRecordExpr(rec)
-	if err != nil {
-		return nil, err
-	}
-	return expr.NewPutter(b.sctx(), e), nil
+	return expr.NewMatch(b.sctx(), match, types, cases, inputs, elseExpr, elseInput), nil
 }

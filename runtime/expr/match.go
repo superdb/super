@@ -16,23 +16,26 @@ type Match struct {
 	expr     Evaluator
 	types    []Evaluator
 	cases    []Evaluator
-	inputs   []Evaluator
-	elseExpr Evaluator
-	defuse   *SuperDefuse
+	inputs    []Evaluator
+	elseExpr  Evaluator
+	elseInput Evaluator
+	defuse    *SuperDefuse
 }
 
 // NewMatch returns a Match whose kth case has type types[k] and result
-// cases[k], which is evaluated on inputs[k] applied to this (for a narrowed
-// path) or, if inputs[k] is nil, on this.
-func NewMatch(sctx *super.Context, e Evaluator, types, cases, inputs []Evaluator, elseExpr Evaluator) *Match {
+// cases[k], which is evaluated on inputs[k] applied to this (e.g., the matched
+// value asserted to types[k]).  Likewise, elseExpr, if not nil, is evaluated
+// on elseInput applied to this.
+func NewMatch(sctx *super.Context, e Evaluator, types, cases, inputs []Evaluator, elseExpr, elseInput Evaluator) *Match {
 	return &Match{
-		sctx:     sctx,
-		expr:     e,
-		types:    types,
-		cases:    cases,
-		inputs:   inputs,
-		elseExpr: elseExpr,
-		defuse:   NewSuperDefuse(sctx),
+		sctx:      sctx,
+		expr:      e,
+		types:     types,
+		cases:     cases,
+		inputs:    inputs,
+		elseExpr:  elseExpr,
+		elseInput: elseInput,
+		defuse:    NewSuperDefuse(sctx),
 	}
 }
 
@@ -50,11 +53,7 @@ func (m *Match) Eval(this vector.Any) vector.Any {
 			if slices.ContainsFunc(levels, func(level vector.Any) bool {
 				return hasType(level.Type(), target)
 			}) {
-				in := this
-				if m.inputs[k] != nil {
-					in = m.inputs[k].Eval(this)
-				}
-				return m.cases[k].Eval(in)
+				return m.cases[k].Eval(m.inputs[k].Eval(this))
 			}
 		}
 		leaf := levels[len(levels)-1]
@@ -63,7 +62,7 @@ func (m *Match) Eval(this vector.Any) vector.Any {
 			return leaf
 		}
 		if m.elseExpr != nil {
-			return m.elseExpr.Eval(this)
+			return m.elseExpr.Eval(m.elseInput.Eval(this))
 		}
 		return vector.NewNone(leaf.Len())
 	})

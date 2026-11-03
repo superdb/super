@@ -249,10 +249,10 @@ func (e *evaluator) expr(expr sem.Expr) bool {
 	case *sem.MatchExpr:
 		ok := e.expr(expr.Expr)
 		for _, c := range expr.Cases {
-			ok = e.expr(c.Type) && e.expr(c.Expr) && ok
+			ok = e.expr(c.Type) && e.expr(c.Input) && e.expr(c.Expr) && ok
 		}
 		if expr.Else != nil {
-			ok = e.expr(expr.Else) && ok
+			ok = e.expr(expr.ElseInput) && e.expr(expr.Else) && ok
 		}
 		return ok
 	case *sem.MapCallExpr:

@@ -1,5 +1,6 @@
-# A match picks the first case whose type the value has.  Narrowing makes
-# the scrutinee path have the case type in the result.
+# A match picks the first case whose type the value has.  A case's result is
+# evaluated on the matched value asserted to the case's type and the else
+# result on the matched value.
 spq: |
   values match this
     case int64 then this+1
@@ -24,7 +25,7 @@ output: |
 
 # Unions, options, and fusions match their underlying values.  (An option
 # may be none, which no case matches, so an else is needed.)
-spq: values match x case int64 x+1 case string x||"!" else "none"
+spq: values match x case int64 this+1 case string this||"!" else "none"
 
 input: |
   {x:1::(int64|string)}
@@ -38,8 +39,8 @@ output: |
 
 ---
 
-# A path scrutinee is narrowed and an unmatched value is none.
-spq: values {v:match a.b case int64 a.b*10}
+# Any expression may be matched and an unmatched value is none.
+spq: values {v:match a.b case int64 this*10}
 
 input: |
   {a:{b:1}}
@@ -156,9 +157,8 @@ output: |
 
 ---
 
-# A case's input is narrowed (not just references to the path), so a
-# subquery in a case sees the narrowed value.
-spq: values match x case int64 then (values x+1) else 0
+# A subquery in a case has the case's input as its input.
+spq: values match x case int64 then (values this+1) else 0
 
 input: |
   {x:1::(int64|string)}
@@ -169,3 +169,47 @@ output: |
   2
   0
   3
+
+---
+
+# A match with a with clause has a record input whose first field is the
+# (asserted) matched value and whose other fields are the with values.
+# Names are derived from the expressions as for put.
+spq: values match x with y case int64 x+y case string x else y
+
+input: |
+  {x:1,y:10}
+  {x:"a",y:20}
+  {x:true,y:30}
+
+output: |
+  11
+  "a"
+  30
+
+---
+
+# A derived name for a function call is the function's name and for this is
+# "that", and a name may be given with :=.
+spq: |
+  values match upper(s) with this case string upper||"/"||that.s,
+         match s:=upper(s) with that:=this case string s||"/"||that.s,
+         match s:=upper(s) case string s||"!"
+
+input: |
+  {s:"a"}
+
+output: |
+  "A/a"
+  "A/a"
+  "A!"
+
+---
+
+# The field names of a match's input must be unique.
+spq: values match x with x case int64 1 else 0
+
+error: |
+  match: duplicate field name "x" at line 1, column 21:
+  values match x with x case int64 1 else 0
+                      ~

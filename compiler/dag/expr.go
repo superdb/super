@@ -85,11 +85,14 @@ type (
 		Expr Expr   `json:"expr"`
 		Type Expr   `json:"type"`
 	}
+	// MatchExpr is a match expression.  Each case's result is evaluated on
+	// the case's input and Else is evaluated on ElseInput.
 	MatchExpr struct {
-		Kind  string      `json:"kind" unpack:""`
-		Expr  Expr        `json:"expr"`
-		Cases []MatchCase `json:"cases"`
-		Else  Expr        `json:"else"`
+		Kind      string      `json:"kind" unpack:""`
+		Expr      Expr        `json:"expr"`
+		Cases     []MatchCase `json:"cases"`
+		Else      Expr        `json:"else"`
+		ElseInput Expr        `json:"else_input"`
 	}
 	MapCallExpr struct {
 		Kind   string    `json:"kind" unpack:""`
@@ -161,8 +164,9 @@ type (
 )
 
 type MatchCase struct {
-	Type Expr `json:"type"`
-	Expr Expr `json:"expr"`
+	Type  Expr `json:"type"`
+	Input Expr `json:"input"`
+	Expr  Expr `json:"expr"`
 }
 
 func (*AggExpr) exprNode()          {}

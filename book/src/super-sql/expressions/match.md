@@ -1,9 +1,9 @@
 # Match
 
-A match expression selects a result according to the type of a value and
-has the form
+A match expression is a multi-way [type assertion](type-assertions.md)
+that selects a result according to the type of a value and has the form
 ```
-match <expr>
+match [<name>:=]<expr> [ with <assignments> ]
 case <type-1> [then] <result-1>
 [ case <type-2> [then] <result-2> ]
 ...
@@ -24,11 +24,22 @@ and is typically handled with the `??` operator.
 An [error](../types/error.md) or `missing` value is passed through
 unless a case has its type.
 
-When `<expr>` is a field reference like `x` or `a.b` (or `this`), its value
-is narrowed to the type of the matching case, i.e., a result is evaluated
-with `x` replaced by `x.(<type>)`, so `x` in `case int64 x+1` is an `int64`,
-including in any subquery in the result.  A reference that uses `?.`, like
-`a?.b`, isn't narrowed.
+A result is evaluated with `this` bound to the value of `<expr>` asserted to
+the type of its case, i.e., `<expr>.(<type>)`, so `this` in
+`match x case int64 this+1` is an `int64`.  The else result is evaluated
+with `this` bound to the value of `<expr>`.  To keep the rest of a record,
+use a [spread](../types/record.md), e.g., `{...this,x:match x case int64 this+1 else 0}`.
+
+To refer to other values in a result, give the match a name with `:=` or
+list the values in a `with` clause.  Then `this` in a result is a record
+whose first field is the (asserted) value of `<expr>` and whose other fields
+are the `with` values, where each field's name is given with `:=` or, as for
+[put](../operators/put.md), derived from its expression (e.g., `upper(s)` is
+named `upper` and `this` is named `that`).  For example,
+```
+match s:=upper(s) with that:=this case string s||that.suffix
+```
+evaluates its result on `{s:upper(s).(string),that:this}`.
 
 The `then` and `end` keywords are optional.  Without `end`, a nested match
 extends as far as possible, i.e., any `case` or `else` that follows belongs to
@@ -79,11 +90,28 @@ values cast(this, <Push|Watch>)
 
 ---
 
+_Refer to other values with a with clause_
+
+```mdtest-spq
+# spq
+values match x with y case int64 x+y case string x else y
+# input
+{x:1,y:10}
+{x:"a",y:20}
+{x:true,y:30}
+# expected output
+11
+"a"
+30
+```
+
+---
+
 _Without an else, an unmatched value is none_
 
 ```mdtest-spq
 # spq
-values {n:match x case int64 x*2}
+values {n:match x case int64 this*2}
 # input
 {x:1}
 {x:"a"}

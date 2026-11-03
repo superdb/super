@@ -358,10 +358,10 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 		var targets, types []super.Type
 		for _, mc := range e.Cases {
 			targets = append(targets, c.typeOfTypeExpr(mc.Type))
-			types = append(types, c.expr(typ, mc.Expr))
+			types = append(types, c.expr(c.caseInputType(typ, mc.Input), mc.Expr))
 		}
 		if e.Else != nil {
-			types = append(types, c.expr(typ, e.Else))
+			types = append(types, c.expr(c.expr(typ, e.ElseInput), e.Else))
 		}
 		return c.matchType(in, targets, types, e.Else != nil)
 	case *sem.MapCallExpr:
@@ -1798,28 +1798,38 @@ func (c *checker) typeOfTypeExpr(e sem.Expr) super.Type {
 	return typ
 }
 
-// narrowPath returns the type of this, typ, with the type of the value at
-// path replaced with target.  If path doesn't lead to a field of a record
-// type, typ is returned.
-func (c *checker) narrowPath(typ super.Type, path []string, target super.Type) super.Type {
-	if len(path) == 0 {
-		return target
+// caseInputType returns the type of input, the input of a case of a match
+// expression (see translator.matchExpr) evaluated on a value of type typ,
+// where the assertion of the matched value has the case's type since the
+// case matched.
+func (c *checker) caseInputType(typ super.Type, input sem.Expr) super.Type {
+	switch e := input.(type) {
+	case *sem.TypeAssertExpr:
+		if target := c.typeOfTypeExpr(e.Type); target != nil {
+			return target
+		}
+		return c.unknown
+	case *sem.RecordExpr:
+		// The first field is the asserted matched value and the others
+		// are the with values.
+		var fields []super.Field
+		for k, elem := range e.Elems {
+			f, ok := elem.(*sem.FieldElem)
+			if !ok {
+				return c.unknown
+			}
+			ftyp := c.expr(typ, f.Value)
+			if k == 0 {
+				ftyp = c.caseInputType(typ, f.Value)
+			}
+			fields = append(fields, super.NewField(f.Name, ftyp))
+		}
+		if rec, err := c.t.sctx.LookupTypeRecord(fields); err == nil {
+			return rec
+		}
+		return c.unknown
 	}
-	rec, ok := under(typ).(*super.TypeRecord)
-	if !ok {
-		return typ
-	}
-	k, ok := rec.IndexOfField(path[0])
-	if !ok {
-		return typ
-	}
-	fields := slices.Clone(rec.Fields)
-	fields[k].Type = c.narrowPath(fields[k].Type, path[1:], target)
-	out, err := c.t.sctx.LookupTypeRecord(fields)
-	if err != nil {
-		return typ
-	}
-	return out
+	return c.expr(typ, input)
 }
 
 // matchType returns the type of a match expression whose matched value has

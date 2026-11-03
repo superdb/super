@@ -1421,44 +1421,93 @@ func isCorrelated(seq sem.Seq) bool {
 	return true
 }
 
-// matchExpr translates a match expression.  When the matched expression is
-// a plain path (e.g., x or this.a.b but not a?.b), the value at that path is
-// narrowed in each case to the case's type, i.e., the case is type checked
-// with the path having that type and, at runtime, is evaluated on this with
-// the value at the path replaced by its type assertion to that type (see
-// rungen's compileVamNarrow), which unwraps a union, option, or fusion value.
-// Since the input is narrowed (and not references to the path), a subquery
-// in the case sees the narrowed value.
+// matchExpr translates a match expression, which is a multi-way type
+// assertion of the matched value.  Each case's result is evaluated on the
+// case's input, which is the matched value asserted to the case's type, and
+// the else result is evaluated on the matched value.  If the match is named
+// ("match name:=expr") or has a with clause ("with assignments"), the input
+// is instead a record whose first field is the (asserted) matched value and
+// whose other fields are the with values.  A field's name is derived from
+// its expression, as for put, when it isn't given.
 func (t *translator) matchExpr(e *ast.MatchExpr, inType super.Type) (sem.Expr, super.Type) {
 	expr, exprType := t.expr(e.Expr, inType)
-	this, isPath := expr.(*sem.ThisExpr)
-	isPath = isPath && this.Chain.IsPlain()
-	var path []string
-	if isPath {
-		for _, elem := range this.Chain {
-			path = append(path, elem.ID)
+	named := e.Name != nil || len(e.With) > 0
+	var matchName string
+	var withs []*sem.FieldElem
+	var withTypes []super.Type
+	if named {
+		names := map[string]bool{}
+		matchName = t.matchFieldName(e.Name, e.Expr, names)
+		for _, a := range e.With {
+			name := t.matchFieldName(a.LHS, a.RHS, names)
+			val, typ := t.expr(a.RHS, inType)
+			withs = append(withs, &sem.FieldElem{Node: a.RHS, Name: name, Value: val})
+			withTypes = append(withTypes, typ)
 		}
+	}
+	// input returns the input of a case or else given val, the asserted or
+	// unasserted matched value, and its type typ.
+	input := func(val sem.Expr, typ super.Type) (sem.Expr, super.Type) {
+		if !named {
+			return val, typ
+		}
+		elems := []sem.RecordElem{&sem.FieldElem{Node: e, Name: matchName, Value: val}}
+		fields := []super.Field{super.NewField(matchName, typ)}
+		for k, w := range withs {
+			elems = append(elems, &sem.FieldElem{Node: w.Node, Name: w.Name, Value: sem.CopyExpr(w.Value)})
+			fields = append(fields, super.NewField(w.Name, withTypes[k]))
+		}
+		rec := &sem.RecordExpr{Node: e, Elems: elems}
+		recType, err := t.sctx.LookupTypeRecord(fields)
+		if err != nil {
+			return rec, t.checker.unknown
+		}
+		return rec, recType
 	}
 	var cases []sem.MatchCase
 	var targets, types []super.Type
 	for _, c := range e.Cases {
 		typExpr, _ := t.semType(c.Type)
 		target := t.checker.typeOfTypeExpr(typExpr)
-		armIn := inType
-		if isPath && target != nil {
-			armIn = t.checker.narrowPath(inType, path, target)
+		// The asserted value has the case's type since the case matched.
+		asserted := target
+		if asserted == nil {
+			asserted = t.checker.unknown
 		}
-		arm, armType := t.expr(c.Expr, armIn)
-		cases = append(cases, sem.MatchCase{Type: typExpr, Expr: arm})
+		assert := &sem.TypeAssertExpr{Node: e, Expr: sem.CopyExpr(expr), Type: sem.CopyExpr(typExpr)}
+		in, inT := input(assert, asserted)
+		arm, armType := t.expr(c.Expr, inT)
+		cases = append(cases, sem.MatchCase{Type: typExpr, Input: in, Expr: arm})
 		targets = append(targets, target)
 		types = append(types, armType)
 	}
-	var elseExpr sem.Expr
+	var elseExpr, elseInput sem.Expr
 	if e.Else != nil {
-		var elseType super.Type
-		elseExpr, elseType = t.expr(e.Else, inType)
+		var inT, elseType super.Type
+		elseInput, inT = input(sem.CopyExpr(expr), exprType)
+		elseExpr, elseType = t.expr(e.Else, inT)
 		types = append(types, elseType)
 	}
-	out := &sem.MatchExpr{Node: e, Expr: expr, Cases: cases, Else: elseExpr}
+	out := &sem.MatchExpr{Node: e, Expr: expr, Cases: cases, Else: elseExpr, ElseInput: elseInput}
 	return out, t.checker.matchType(exprType, targets, types, elseExpr != nil)
+}
+
+// matchFieldName returns the name of a field of the input record of a named
+// match for the assignment of rhs to lhs, where lhs must be a field name if
+// it's not nil and otherwise the name is derived from rhs as for put.  names
+// holds the names already used.
+func (t *translator) matchFieldName(lhs, rhs ast.Expr, names map[string]bool) string {
+	name := deriveNameFromExpr(rhs)
+	if lhs != nil {
+		if id, ok := lhs.(*ast.IDExpr); ok && id.Name != "this" {
+			name = id.Name
+		} else {
+			t.error(lhs, errors.New("match: left-hand side of := must be a field name"))
+		}
+	}
+	if names[name] {
+		t.error(rhs, fmt.Errorf("match: duplicate field name %q", name))
+	}
+	names[name] = true
+	return name
 }

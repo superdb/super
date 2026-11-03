@@ -235,11 +235,11 @@ func eqExpr(aexpr, bexpr sem.Expr) bool {
 		return ok && eqExpr(a.Expr, b.Expr) && eqExpr(a.Type, b.Type)
 	case *sem.MatchExpr:
 		b, ok := bexpr.(*sem.MatchExpr)
-		if !ok || !eqExpr(a.Expr, b.Expr) || !eqExpr(a.Else, b.Else) || len(a.Cases) != len(b.Cases) {
+		if !ok || !eqExpr(a.Expr, b.Expr) || !eqExpr(a.Else, b.Else) || !eqExpr(a.ElseInput, b.ElseInput) || len(a.Cases) != len(b.Cases) {
 			return false
 		}
 		for k := range a.Cases {
-			if !eqExpr(a.Cases[k].Type, b.Cases[k].Type) || !eqExpr(a.Cases[k].Expr, b.Cases[k].Expr) {
+			if !eqExpr(a.Cases[k].Type, b.Cases[k].Type) || !eqExpr(a.Cases[k].Input, b.Cases[k].Input) || !eqExpr(a.Cases[k].Expr, b.Cases[k].Expr) {
 				return false
 			}
 		}
