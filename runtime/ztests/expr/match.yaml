@@ -192,9 +192,9 @@ output: |
 # A derived name for a function call is the function's name and for this is
 # "that", and a name may be given with :=.
 spq: |
-  values match upper(s) with this case string upper||"/"||that.s,
-         match s:=upper(s) with that:=this case string s||"/"||that.s,
-         match s:=upper(s) case string s||"!"
+  values match upper(s) with this case string upper||"/"||that.s else "",
+         match s:=upper(s) with that:=this case string s||"/"||that.s else "",
+         match s:=upper(s) case string s||"!" else ""
 
 input: |
   {s:"a"}
@@ -208,6 +208,9 @@ output: |
 
 # The field names of a match's input must be unique.
 spq: values match x with x case int64 1 else 0
+
+input: |
+  {x:1}
 
 error: |
   match: duplicate field name "x" at line 1, column 21:
