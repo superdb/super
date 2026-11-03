@@ -98,11 +98,14 @@ _Errors pass through unless a case has an error type_
 
 ```mdtest-spq
 # spq
-values match this case int64 this case error(string) "caught"
+values {
+  passed: match this case int64 this else 0,
+  caught: match this case int64 this case error(string) "caught" else 0
+}
 # input
 1
 error("oops")
 # expected output
-1
-"caught"
+{passed:1,caught:1}
+{passed:error("oops"),caught:"caught"}
 ```
