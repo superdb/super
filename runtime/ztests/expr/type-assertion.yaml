@@ -183,3 +183,17 @@ output: |
   <none>
   <none>
   <int64>
+
+---
+
+# A value whose type is a member of an asserted union type has that type at
+# any level, e.g., an option value asserted to a union with its option type.
+spq: values typeof(this.(option(int64)|string)) == <option(int64)>
+
+input: |
+  some(1)
+  none::int64
+
+output: |
+  true
+  true

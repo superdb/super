@@ -36,6 +36,17 @@ func (c Chain) AppendNullish(id string) Chain {
 	return append(c, ChainElem{id, false, true})
 }
 
+// IsPlain returns true if no element of c is noneish or nullish, i.e., c is
+// a path of plain field references (e.g., a.b but not a?.b).
+func (c Chain) IsPlain() bool {
+	for _, elem := range c {
+		if elem.Noneish || elem.Nullish {
+			return false
+		}
+	}
+	return true
+}
+
 func (c Chain) Path() Path {
 	path := make([]string, 0, len(c))
 	for _, elem := range c {

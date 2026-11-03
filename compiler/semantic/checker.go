@@ -352,15 +352,7 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 		c.expr(typ, e.Expr)
 		return super.TypeBool
 	case *sem.TypeAssertExpr:
-		in := c.expr(typ, e.Expr)
-		if e.Narrowed {
-			// The assertion of the matched value in a match case.
-			if target := c.typeOfTypeExpr(e.Type); target != nil {
-				return target
-			}
-			return c.unknown
-		}
-		return c.typeAssert(in, e.Type)
+		return c.typeAssert(c.expr(typ, e.Expr), e.Type)
 	case *sem.MatchExpr:
 		in := c.expr(typ, e.Expr)
 		var targets, types []super.Type
@@ -1861,15 +1853,13 @@ func (c *checker) matchType(in super.Type, targets, types []super.Type, hasElse 
 	return c.orNone(c.fuse(out))
 }
 
-// matchesType returns true if a value of type typ has type target in a type
-// assertion.
+// matchesType returns true if every value of type typ has type target in a
+// type assertion, i.e., typ is target or a member of the union type target.
+// (An option whose some value has type target doesn't match since its none
+// doesn't.)
 func matchesType(typ, target super.Type) bool {
 	if typ == target {
 		return true
-	}
-	if _, ok := typ.(*super.TypeOption); ok {
-		// An option may be none, which doesn't match.
-		return false
 	}
 	if u, ok := super.TypeUnder(target).(*super.TypeUnion); ok {
 		return slices.Contains(u.Types, typ)

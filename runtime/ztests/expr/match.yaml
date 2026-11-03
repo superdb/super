@@ -126,3 +126,45 @@ input: |
 
 output: |
   2
+
+---
+
+# A value matches by the same rules as a type assertion, so an option value
+# (including an option's none) matches its option type, and the first case
+# whose type the value has wins.
+spq: |
+  values match this case option(int64) "option" case int64 "int64" else "other",
+         match this case int64 "member" case int64|string "union" else "other",
+         match this case int64|string "union" case int64 "member" else "other"
+
+input: |
+  some(1)
+  none::int64
+  1::(int64|string)
+
+output: |
+  "option"
+  "member"
+  "union"
+  "option"
+  "other"
+  "other"
+  "int64"
+  "member"
+  "union"
+
+---
+
+# A case's input is narrowed (not just references to the path), so a
+# subquery in a case sees the narrowed value.
+spq: values match x case int64 then (values x+1) else 0
+
+input: |
+  {x:1::(int64|string)}
+  {x:"a"::(int64|string)}
+  {x:some(2)}
+
+output: |
+  2
+  0
+  3

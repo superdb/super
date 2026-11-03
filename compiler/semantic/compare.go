@@ -232,7 +232,7 @@ func eqExpr(aexpr, bexpr sem.Expr) bool {
 		return ok && eqExpr(a.Expr, b.Expr)
 	case *sem.TypeAssertExpr:
 		b, ok := bexpr.(*sem.TypeAssertExpr)
-		return ok && eqExpr(a.Expr, b.Expr) && eqExpr(a.Type, b.Type) && a.Narrowed == b.Narrowed
+		return ok && eqExpr(a.Expr, b.Expr) && eqExpr(a.Type, b.Type)
 	case *sem.MatchExpr:
 		b, ok := bexpr.(*sem.MatchExpr)
 		if !ok || !eqExpr(a.Expr, b.Expr) || !eqExpr(a.Else, b.Else) || len(a.Cases) != len(b.Cases) {

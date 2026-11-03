@@ -1420,3 +1420,45 @@ func isCorrelated(seq sem.Seq) bool {
 	}
 	return true
 }
+
+// matchExpr translates a match expression.  When the matched expression is
+// a plain path (e.g., x or this.a.b but not a?.b), the value at that path is
+// narrowed in each case to the case's type, i.e., the case is type checked
+// with the path having that type and, at runtime, is evaluated on this with
+// the value at the path replaced by its type assertion to that type (see
+// rungen's compileVamNarrow), which unwraps a union, option, or fusion value.
+// Since the input is narrowed (and not references to the path), a subquery
+// in the case sees the narrowed value.
+func (t *translator) matchExpr(e *ast.MatchExpr, inType super.Type) (sem.Expr, super.Type) {
+	expr, exprType := t.expr(e.Expr, inType)
+	this, isPath := expr.(*sem.ThisExpr)
+	isPath = isPath && this.Chain.IsPlain()
+	var path []string
+	if isPath {
+		for _, elem := range this.Chain {
+			path = append(path, elem.ID)
+		}
+	}
+	var cases []sem.MatchCase
+	var targets, types []super.Type
+	for _, c := range e.Cases {
+		typExpr, _ := t.semType(c.Type)
+		target := t.checker.typeOfTypeExpr(typExpr)
+		armIn := inType
+		if isPath && target != nil {
+			armIn = t.checker.narrowPath(inType, path, target)
+		}
+		arm, armType := t.expr(c.Expr, armIn)
+		cases = append(cases, sem.MatchCase{Type: typExpr, Expr: arm})
+		targets = append(targets, target)
+		types = append(types, armType)
+	}
+	var elseExpr sem.Expr
+	if e.Else != nil {
+		var elseType super.Type
+		elseExpr, elseType = t.expr(e.Else, inType)
+		types = append(types, elseType)
+	}
+	out := &sem.MatchExpr{Node: e, Expr: expr, Cases: cases, Else: elseExpr}
+	return out, t.checker.matchType(exprType, targets, types, elseExpr != nil)
+}

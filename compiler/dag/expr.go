@@ -160,20 +160,19 @@ type (
 	}
 )
 
-func (*AggExpr) exprNode()    {}
-func (*ArrayExpr) exprNode()  {}
-func (*BadExpr) exprNode()    {}
-func (*BinaryExpr) exprNode() {}
-func (*CallExpr) exprNode()   {}
-func (*CondExpr) exprNode()   {}
-func (*DotExpr) exprNode()    {}
-func (*IndexExpr) exprNode()  {}
-
 type MatchCase struct {
 	Type Expr `json:"type"`
 	Expr Expr `json:"expr"`
 }
 
+func (*AggExpr) exprNode()          {}
+func (*ArrayExpr) exprNode()        {}
+func (*BadExpr) exprNode()          {}
+func (*BinaryExpr) exprNode()       {}
+func (*CallExpr) exprNode()         {}
+func (*CondExpr) exprNode()         {}
+func (*DotExpr) exprNode()          {}
+func (*IndexExpr) exprNode()        {}
 func (*IsNullExpr) exprNode()       {}
 func (*TypeAssertExpr) exprNode()   {}
 func (*MatchExpr) exprNode()        {}

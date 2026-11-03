@@ -24,13 +24,16 @@ and is typically handled with the `??` operator.
 An [error](../types/error.md) or `missing` value is passed through
 unless a case has its type.
 
-When `<expr>` is a field reference like `x` or `a.b` (or `this`), references
-to it in a result have the type of the matching case, i.e., `x` in
-`case int64 x+1` means `x.(int64)`.
+When `<expr>` is a field reference like `x` or `a.b` (or `this`), its value
+is narrowed to the type of the matching case, i.e., a result is evaluated
+with `x` replaced by `x.(<type>)`, so `x` in `case int64 x+1` is an `int64`,
+including in any subquery in the result.  A reference that uses `?.`, like
+`a?.b`, isn't narrowed.
 
-The `then` and `end` keywords are optional.  Without `end`, an `else` belongs
-to the innermost match, so a nested match with an `else` should be
-parenthesized or ended with `end`.
+The `then` and `end` keywords are optional.  Without `end`, a nested match
+extends as far as possible, i.e., any `case` or `else` that follows belongs to
+the innermost match, so a nested match should be parenthesized or ended with
+`end`.
 
 ## Examples
 
