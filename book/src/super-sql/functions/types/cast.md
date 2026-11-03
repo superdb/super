@@ -22,8 +22,10 @@ In the second form, the target type is a [named type](../../types/named.md)
 whose name is the `name` parameter and whose type is the type of `val`.
 
 When a cast is successful, the return value of `cast` has the target type,
-except when attempting to cast a `null` value to a non-null type, which returns
-a [union](../../types/union.md) of `null` and the target type.
+except when casting a null value to a non-null type,
+which returns a [union](../../types/union.md) of `null` and the target type,
+or if the target is an option type that doesn’t admit null,
+the option’s `none`.
 
 If errors are encountered, then some or all of the resulting value
 will be embedded with structured errors and the result does not have
