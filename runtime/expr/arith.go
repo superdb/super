@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"github.com/superdb/super"
+	"github.com/superdb/super/runtime/expr/cast"
 	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector"
 )
@@ -33,6 +34,9 @@ func (a *Arith) eval(vecs ...vector.Any) (out vector.Any) {
 	}
 	lhs := vector.Under(vecs[0])
 	rhs := vector.Under(vecs[1])
+	// The difference of two timestamps is a duration.
+	timeDiff := a.opCode == vector.ArithSub &&
+		lhs.Type().ID() == super.IDTimestamp && rhs.Type().ID() == super.IDTimestamp
 	lhs, rhs, errVal := coerceVals(a.sctx, lhs, rhs)
 	if errVal != nil {
 		return errVal
@@ -66,6 +70,14 @@ func (a *Arith) eval(vecs ...vector.Any) (out vector.Any) {
 				}
 			}
 		}()
+	}
+	if timeDiff {
+		out = f(lhs, rhs)
+		if vec, ok := out.(*vector.Int); ok {
+			// f made a new vector so relabel it instead of copying it.
+			return vector.NewInt(super.TypeDuration, vec.Values)
+		}
+		return cast.To(a.sctx, out, super.TypeDuration)
 	}
 	return f(lhs, rhs)
 }

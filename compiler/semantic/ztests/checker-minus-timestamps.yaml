@@ -1,0 +1,33 @@
+# The type checker types the difference of two timestamps as a duration,
+# which is nullable when either timestamp is.
+spq: |
+  values {a:2025-04-22T18:16:50Z,b:2025-04-22T18:16:46Z}
+  | values (a - b) + "x"
+
+error: |
+  type mismatch: duration + string at line 2, column 10:
+  | values (a - b) + "x"
+           ~~~~~~~~~~~~~
+
+---
+
+spq: |
+  values {a:2025-04-22T18:16:50Z,b:2025-04-22T18:16:46Z}, {a:2025-04-22T18:16:50Z,b:null}
+  | values (a - b) + "x"
+
+error: |
+  type mismatch: duration|null + string at line 2, column 10:
+  | values (a - b) + "x"
+           ~~~~~~~~~~~~~
+
+---
+
+spq: |
+  type mytime=timestamp
+  values {a:cast(2025-04-22T18:16:50Z, mytime),b:2025-04-22T18:16:46Z}, {a:2025-04-22T18:16:50Z,b:2025-04-22T18:16:46Z}
+  | values (a - b) + "x"
+
+error: |
+  type mismatch: duration + string at line 3, column 10:
+  | values (a - b) + "x"
+           ~~~~~~~~~~~~~
