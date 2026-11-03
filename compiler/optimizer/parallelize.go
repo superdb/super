@@ -305,7 +305,7 @@ func (o *Optimizer) concurrentPath(seq dag.Seq, sortKeys order.SortKeys) (length
 				return 0, nil, false, nil
 			}
 			return k, sortExprsForSortKeys(sortKeys), true, nil
-		case *dag.ForkOp, *dag.HeadOp, *dag.ScatterOp, *dag.TailOp, *dag.UniqOp, *dag.FuseOp,
+		case *dag.DistinctOp, *dag.ForkOp, *dag.HeadOp, *dag.ScatterOp, *dag.TailOp, *dag.UniqOp, *dag.FuseOp,
 			*dag.HashJoinOp, *dag.InferOp, *dag.JoinOp, *dag.OutputOp:
 			return k, sortExprsForSortKeys(sortKeys), true, nil
 		default:
