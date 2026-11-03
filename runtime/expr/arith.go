@@ -39,6 +39,13 @@ func (a *Arith) eval(vecs ...vector.Any) (out vector.Any) {
 	}
 	kind := lhs.Kind()
 	if kind != rhs.Kind() {
+		// Coercion yields errors for values that overflow the target
+		// type (e.g., a uint64 too large for int64).  Apply again so
+		// those slots produce errors and the others are computed.
+		if lhs.Kind() == vector.KindError || rhs.Kind() == vector.KindError ||
+			isDynamic(lhs) || isDynamic(rhs) {
+			return vector.Apply(vector.ApplyRipUnions, a.eval, lhs, rhs)
+		}
 		panic(fmt.Sprintf("vector kind mismatch after coerce (%#v and %#v)", lhs, rhs))
 	}
 	if kind == vector.KindFloat && a.opCode == vector.ArithMod {
@@ -118,4 +125,9 @@ func (a *Arith) evalDivideByZero(kind vector.Kind, lhs, rhs vector.Any) vector.A
 		return vector.Combine(out, errs, vector.NewStringError(a.sctx, "divide by zero", uint32(len(errs))))
 	}
 	return out
+}
+
+func isDynamic(vec vector.Any) bool {
+	_, ok := vec.(*vector.Dynamic)
+	return ok
 }

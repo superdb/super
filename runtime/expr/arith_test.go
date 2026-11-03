@@ -66,3 +66,21 @@ func TestArithOpsAndForms(t *testing.T) {
 	}
 
 }
+
+// Test that a uint64 value too large for int64 yields an error in its slot
+// when combined with a signed integer, and that the other slots still compute.
+func TestArithUintOverflow(t *testing.T) {
+	uints := vector.NewUint(super.TypeUint64, []uint64{5, 1 << 63, 7})
+	ints := vector.NewConstInt(super.TypeInt64, 1, 3)
+	for _, swap := range []bool{false, true} {
+		lhs, rhs := vector.Any(uints), vector.Any(ints)
+		if swap {
+			lhs, rhs = rhs, lhs
+		}
+		out := NewArith(super.NewContext(), "+", &testEval{lhs}, &testEval{rhs}).Eval(nil).(*vector.Dynamic)
+		assert.Equal(t, uint32(3), out.Len())
+		assert.Equal(t, super.TypeInt64, out.TypeOf(0))
+		assert.IsType(t, &super.TypeError{}, out.TypeOf(1))
+		assert.Equal(t, super.TypeInt64, out.TypeOf(2))
+	}
+}
