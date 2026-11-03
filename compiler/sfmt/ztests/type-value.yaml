@@ -7,5 +7,5 @@ outputs:
     data: |
       search is(this, <foo>) and bar
       null
-      | where is(this, <id:48>) and search(80)
+      | where is(this, <uint16|ip>) and search(80)
       | output main

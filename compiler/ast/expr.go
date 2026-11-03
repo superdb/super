@@ -122,6 +122,14 @@ type (
 		Not  bool   `json:"not"`
 		Loc  `json:"loc"`
 	}
+	// A TypeAssertExpr is a type assertion, expr.(type), whose value is the
+	// value of expr when it has the asserted type and none otherwise.
+	TypeAssertExpr struct {
+		Kind string `json:"kind" unpack:""`
+		Expr Expr   `json:"expr"`
+		Type Type   `json:"type"`
+		Loc  `json:"loc"`
+	}
 	LambdaExpr struct {
 		Kind   string `json:"kind" unpack:""`
 		Params []*ID  `json:"params"`
@@ -292,6 +300,7 @@ func (*GlobExpr) exprNode()        {}
 func (*IDExpr) exprNode()          {}
 func (*IndexExpr) exprNode()       {}
 func (*IsNullExpr) exprNode()      {}
+func (*TypeAssertExpr) exprNode()  {}
 func (*LambdaExpr) exprNode()      {}
 func (*MapExpr) exprNode()         {}
 func (*Primitive) exprNode()       {}

@@ -1,0 +1,185 @@
+# A type assertion is the value when it has the type and none otherwise
+# (which ?? handles).  It doesn't convert values.
+spq: values this.(string) ?? "other", this.(int64) ?? -1
+
+input: |
+  "a"
+  1
+  "1"
+  {s:"x"}
+
+output: |
+  "a"
+  -1
+  "other"
+  1
+  "1"
+  -1
+  "other"
+  -1
+
+---
+
+# A union type asserts any of its members.
+spq: values this.(int64|string) ?? "other"
+
+input: |
+  1
+  "x"
+  true
+
+output: |
+  1
+  "x"
+  "other"
+
+---
+
+# The member of a union value, the some value of an option, and the subtype
+# of a fusion value are asserted.
+spq: values this.(int64) ?? -1
+
+input: |
+  1::(int64|string)
+  "a"::(int64|string)
+  some(2)
+  none::int64
+  fusion(3::(int64|string),<int64>)
+  fusion("b"::(int64|string),<string>)
+
+output: |
+  1
+  -1
+  2
+  -1
+  3
+  -1
+
+---
+
+# Record types and named types are asserted exactly.
+spq: |
+  type port=uint16
+  values {x:1}.({x:int64}) ?? "no", {x:1}.({x:string}) ?? "no", (80::port).(port) ?? "no", (80::port).(uint16) ?? "no"
+
+output: |
+  {x:1}
+  "no"
+  type port=uint16
+  80::port
+  "no"
+
+---
+
+# Errors and missing are passed through unless the error type is asserted.
+spq: values this.a.(string) ?? "default", this.(error(string)) ?? "not an error"
+
+flags: -dynamic
+
+input: |
+  {a:"x"}
+  {a:1}
+  {b:1}
+  error("bad")
+
+output: |
+  "x"
+  "not an error"
+  "default"
+  "not an error"
+  error("no such field a")
+  "not an error"
+  error("bad")
+  error("bad")
+
+---
+
+# A failed assertion is none, which disappears from a record or an array.
+spq: values {s:x.(string),n:x.(int64)}, [x.(string), x.(int64)]
+
+input: |
+  {x:"a"}
+  {x:1}
+
+output: |
+  {s:"a"}
+  ["a"]
+  {n:1}
+  [1]
+
+---
+
+# Assertions chain with dot and ?. so a variant of a sum type can be selected.
+spq: |
+  type Push={kind:string,ref:string}
+  type Watch={kind:string,action:string}
+  values this::(Push|Watch)
+  | values this.(Push)?.ref ?? "not a push"
+
+input: |
+  {kind:"Push",ref:"main"}
+  {kind:"Watch",action:"started"}
+
+output: |
+  "main"
+  "not a push"
+
+---
+
+# Statically, an assertion has the asserted type or none, so none must be
+# handled.
+spq: values {a:1}.a.(int64) + 1
+
+error: |
+  int64|none: none not handled (consider ?? or ?.) at line 1, column 8:
+  values {a:1}.a.(int64) + 1
+         ~~~~~~~~~~~~~~~
+
+---
+
+# ... with ??.
+spq: values ({a:1}.a.(int64) ?? 0) + 1
+
+output: |
+  2
+
+---
+
+# A value whose type is the asserted type is the value, including a union
+# or named value, so it keeps its type.  A value whose type is a member of
+# a union type has its member type.
+spq: |
+  type T=int64|string
+  values
+    typeof((1::(int64|string)).(int64|string)) == <int64|string>,
+    typeof((1::T).(T)) == <T>,
+    typeof((1).(T)) == <int64>,
+    typeof((1).(int64|string)) == <int64>
+
+output: |
+  true
+  true
+  true
+  true
+
+---
+
+# An option value has an option type, so it's asserted as is (including an
+# option's none).  Otherwise, it's asserted on its some value.
+spq: values typeof(this.(option(int64))), typeof(this.(int64))
+
+input: |
+  some(1)
+  none::int64
+  some("a")
+  1
+
+output: |
+  <option(int64)>
+  <int64>
+  <option(int64)>
+  <none>
+  <none>
+  <none>
+  <none>
+  <int64>

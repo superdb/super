@@ -153,6 +153,17 @@ func (c *canon) expr(e ast.Expr, parent string) {
 		c.write("[")
 		c.expr(e.Index, "")
 		c.write("]")
+	case *ast.TypeAssertExpr:
+		c.expr(e.Expr, "")
+		if u, ok := e.Type.(*ast.TypeUnion); ok {
+			// A union type is formatted in parentheses.
+			c.write(".")
+			c.typ(u)
+		} else {
+			c.write(".(")
+			c.typ(e.Type)
+			c.write(")")
+		}
 	case *ast.IsNullExpr:
 		c.expr(e.Expr, "")
 		c.write(" IS ")

@@ -230,6 +230,9 @@ func eqExpr(aexpr, bexpr sem.Expr) bool {
 	case *sem.IsNullExpr:
 		b, ok := bexpr.(*sem.IsNullExpr)
 		return ok && eqExpr(a.Expr, b.Expr)
+	case *sem.TypeAssertExpr:
+		b, ok := bexpr.(*sem.TypeAssertExpr)
+		return ok && eqExpr(a.Expr, b.Expr) && eqExpr(a.Type, b.Type)
 	case *sem.MapCallExpr:
 		b, ok := bexpr.(*sem.MapCallExpr)
 		return ok && eqExpr(a.Expr, b.Expr) && eqExpr(a.Lambda, b.Lambda)

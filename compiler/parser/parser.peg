@@ -1202,6 +1202,14 @@ DerefExpr
         Loc: loc(c),
       }, nil
     }
+  / expr:DerefExpr "." "(" __ typ:Type __ ")" {
+      return &ast.TypeAssertExpr{
+        Kind: "TypeAssertExpr",
+        Expr: expr.(ast.Expr),
+        Type: typ.(ast.Type),
+        Loc: loc(c),
+      }, nil
+    }
   / expr:DerefExpr "."  name:FuncNameExpr "("__ args:FunctionArgs __ ")" {
   	  return &ast.CallExpr{
 		Kind: "CallExpr",

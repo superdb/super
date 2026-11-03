@@ -351,6 +351,8 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 	case *sem.IsNullExpr:
 		c.expr(typ, e.Expr)
 		return super.TypeBool
+	case *sem.TypeAssertExpr:
+		return c.typeAssert(c.expr(typ, e.Expr), e.Type)
 	case *sem.MapCallExpr:
 		containerType := c.expr(typ, e.Expr)
 		elemType, ok := c.isContainer(containerType)
@@ -1734,4 +1736,43 @@ func (c *checker) notMissing(loc ast.Node, typ super.Type) bool {
 	}
 	c.error(loc, errMissing)
 	return false
+}
+
+// typeAssert returns the type of a type assertion of a value of type in to
+// the type of the type expression e, which is the asserted type (or, for a
+// named union type, the named type or one of its members) or none,
+// plus any error or missing types of in, which a type assertion passes
+// through (unless the asserted type is the error type).
+func (c *checker) typeAssert(in super.Type, e sem.Expr) super.Type {
+	typeExpr, ok := e.(*sem.TypeExpr)
+	if !ok {
+		return c.unknown
+	}
+	target, err := c.t.defs.LookupType(typeExpr.ID)
+	if err != nil {
+		return c.unknown
+	}
+	if target, err = c.t.sctx.TranslateType(target); err != nil {
+		return c.unknown
+	}
+	types := []super.Type{target}
+	if _, ok := target.(*super.TypeNamed); ok {
+		if u, ok := under(target).(*super.TypeUnion); ok {
+			// A value whose type is a member of a named union type is
+			// the value with its member type (not the named type).
+			types = append(types, u.Types...)
+		}
+	}
+	if !hasUnknown(in) {
+		members := []super.Type{defuse(in)}
+		if u, ok := under(members[0]).(*super.TypeUnion); ok {
+			members = u.Types
+		}
+		for _, t := range members {
+			if (isErrorType(t) || isMissingType(t)) && t != target {
+				types = append(types, t)
+			}
+		}
+	}
+	return c.orNone(c.fuse(types))
 }

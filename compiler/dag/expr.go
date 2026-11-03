@@ -80,6 +80,11 @@ type (
 		Kind string `json:"kind" unpack:""`
 		Expr Expr   `json:"expr"`
 	}
+	TypeAssertExpr struct {
+		Kind string `json:"kind" unpack:""`
+		Expr Expr   `json:"expr"`
+		Type Expr   `json:"type"`
+	}
 	MapCallExpr struct {
 		Kind   string    `json:"kind" unpack:""`
 		Expr   Expr      `json:"expr"`
@@ -158,6 +163,7 @@ func (*CondExpr) exprNode()         {}
 func (*DotExpr) exprNode()          {}
 func (*IndexExpr) exprNode()        {}
 func (*IsNullExpr) exprNode()       {}
+func (*TypeAssertExpr) exprNode()   {}
 func (*MapCallExpr) exprNode()      {}
 func (*MapExpr) exprNode()          {}
 func (*PrimitiveExpr) exprNode()    {}

@@ -1,0 +1,11 @@
+script: |
+  super compile -C 'values {a:this.({x:int64})}'
+  super compile -dag -C 'values {a:this.({x:int64})}'
+
+outputs:
+  - name: stdout
+    data: |
+      values {a:this.({x:int64})}
+      null
+      | values {a:this.({x:int64})}
+      | output main
