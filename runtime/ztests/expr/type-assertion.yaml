@@ -60,7 +60,7 @@ output: |
 # Record types and named types are asserted exactly.
 spq: |
   type port=uint16
-  values {x:1}.({x:int64}), {x:1}.({x:string}) ?? "no", (80::port).(port), (80::port).(uint16) ?? "no"
+  values {x:1}.({x:int64}) ?? "no", {x:1}.({x:string}) ?? "no", (80::port).(port) ?? "no", (80::port).(uint16) ?? "no"
 
 output: |
   {x:1}
