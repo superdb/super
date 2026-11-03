@@ -55,6 +55,7 @@ var unpacker = unpack.New(
 	IndexExpr{},
 	IsNullExpr{},
 	TypeAssertExpr{},
+	MatchExpr{},
 	JoinOp{},
 	LambdaExpr{},
 	LoadOp{},

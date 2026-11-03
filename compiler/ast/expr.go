@@ -122,6 +122,16 @@ type (
 		Not  bool   `json:"not"`
 		Loc  `json:"loc"`
 	}
+	// A MatchExpr selects the first of its cases whose type is the type of
+	// Expr (as for a type assertion) and is the value of that case's
+	// expression or else the value of Else.
+	MatchExpr struct {
+		Kind  string      `json:"kind" unpack:""`
+		Expr  Expr        `json:"expr"`
+		Cases []MatchCase `json:"cases"`
+		Else  Expr        `json:"else"`
+		Loc   `json:"loc"`
+	}
 	// A TypeAssertExpr is a type assertion, expr.(type), whose value is the
 	// value of expr when it has the asserted type and none otherwise.
 	TypeAssertExpr struct {
@@ -219,6 +229,12 @@ type MapEntry struct {
 	Loc   `json:"loc"`
 }
 
+type MatchCase struct {
+	Type Type `json:"type"`
+	Expr Expr `json:"expr"`
+	Loc  `json:"loc"`
+}
+
 type When struct {
 	Cond Expr `json:"expr"`
 	Then Expr `json:"else"`
@@ -301,6 +317,7 @@ func (*IDExpr) exprNode()          {}
 func (*IndexExpr) exprNode()       {}
 func (*IsNullExpr) exprNode()      {}
 func (*TypeAssertExpr) exprNode()  {}
+func (*MatchExpr) exprNode()       {}
 func (*LambdaExpr) exprNode()      {}
 func (*MapExpr) exprNode()         {}
 func (*Primitive) exprNode()       {}

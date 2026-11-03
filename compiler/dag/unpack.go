@@ -37,6 +37,7 @@ var unpacker = unpack.New(
 	InferOp{},
 	IsNullExpr{},
 	TypeAssertExpr{},
+	MatchExpr{},
 	JoinOp{},
 	DBMetaScan{},
 	ListerScan{},

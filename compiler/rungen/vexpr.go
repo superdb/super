@@ -35,6 +35,8 @@ func (b *Builder) compileVamExpr(e dag.Expr) (expr.Evaluator, error) {
 		return b.compileVamIndexExpr(e)
 	case *dag.IsNullExpr:
 		return b.compileVamIsNullExpr(e)
+	case *dag.MatchExpr:
+		return b.compileVamMatchExpr(e)
 	case *dag.TypeAssertExpr:
 		e1, err := b.compileVamExpr(e.Expr)
 		if err != nil {
@@ -425,4 +427,31 @@ func (b *Builder) compileVamListElems(elems []dag.VectorElem) ([]expr.ListElem, 
 		}
 	}
 	return out, nil
+}
+
+func (b *Builder) compileVamMatchExpr(e *dag.MatchExpr) (expr.Evaluator, error) {
+	match, err := b.compileVamExpr(e.Expr)
+	if err != nil {
+		return nil, err
+	}
+	var types, cases []expr.Evaluator
+	for _, c := range e.Cases {
+		typ, err := b.compileVamExpr(c.Type)
+		if err != nil {
+			return nil, err
+		}
+		ev, err := b.compileVamExpr(c.Expr)
+		if err != nil {
+			return nil, err
+		}
+		types = append(types, typ)
+		cases = append(cases, ev)
+	}
+	var elseExpr expr.Evaluator
+	if e.Else != nil {
+		if elseExpr, err = b.compileVamExpr(e.Else); err != nil {
+			return nil, err
+		}
+	}
+	return expr.NewMatch(b.sctx(), match, types, cases, elseExpr), nil
 }

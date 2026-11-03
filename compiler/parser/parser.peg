@@ -1227,6 +1227,7 @@ DerefExpr
         Loc: loc(c),
       }, nil
     }
+  / MatchExpr
   / CaseExpr
   / Function
   / Primary
@@ -1339,6 +1340,29 @@ Primary
   / "[" __ expr:SubqueryExpr __ "]" { 
       expr.(*ast.SubqueryExpr).Array = true
       return expr, nil 
+    }
+
+MatchExpr
+  = MATCH _ expr:Expr cases:MatchCase+ else_:(_ ELSE _ Expr)? (_ END)? {
+      m := &ast.MatchExpr{
+        Kind: "MatchExpr",
+        Expr: expr.(ast.Expr),
+        Cases: sliceOf[ast.MatchCase](cases),
+        Loc: loc(c),
+      }
+      if else_ != nil {
+        m.Else = else_.([]any)[3].(ast.Expr)
+      }
+      return m, nil
+    }
+
+MatchCase
+  = _ CASE _ typ:Type (_ THEN)? _ expr:Expr {
+      return ast.MatchCase{
+        Type: typ.(ast.Type),
+        Expr: expr.(ast.Expr),
+        Loc: loc(c),
+      }, nil
     }
 
 CaseExpr
@@ -2648,6 +2672,7 @@ BETWEEN    = "BETWEEN"i         !IdentifierRest
 BY         = "BY"i              !IdentifierRest
 CALL       = "CALL"i            !IdentifierRest
 CASE       = "CASE"i            !IdentifierRest
+MATCH      = "MATCH"i           !IdentifierRest
 CAST       = "CAST"i            !IdentifierRest
 CONST      = "CONST"i           !IdentifierRest
 COUNT      = "COUNT"i           !IdentifierRest

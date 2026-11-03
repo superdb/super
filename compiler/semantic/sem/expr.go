@@ -74,6 +74,15 @@ type (
 		ast.Node
 		Expr Expr
 		Type Expr
+		// Narrowed is true for an assertion of the matched value of a
+		// MatchExpr in a case of that type, which always succeeds.
+		Narrowed bool
+	}
+	MatchExpr struct {
+		ast.Node
+		Expr  Expr
+		Cases []MatchCase
+		Else  Expr
 	}
 	MapCallExpr struct {
 		ast.Node
@@ -182,17 +191,24 @@ func (*FieldElem) recordElemNode()  {}
 func (*SpreadElem) arrayElemNode()  {}
 func (*SpreadElem) recordElemNode() {}
 
-func (*AggFunc) exprNode()          {}
-func (*AggRef) exprNode()           {}
-func (*ArrayExpr) exprNode()        {}
-func (*BadExpr) exprNode()          {}
-func (*BinaryExpr) exprNode()       {}
-func (*CondExpr) exprNode()         {}
-func (*CallExpr) exprNode()         {}
-func (*DotExpr) exprNode()          {}
-func (*IndexExpr) exprNode()        {}
+func (*AggFunc) exprNode()    {}
+func (*AggRef) exprNode()     {}
+func (*ArrayExpr) exprNode()  {}
+func (*BadExpr) exprNode()    {}
+func (*BinaryExpr) exprNode() {}
+func (*CondExpr) exprNode()   {}
+func (*CallExpr) exprNode()   {}
+func (*DotExpr) exprNode()    {}
+func (*IndexExpr) exprNode()  {}
+
+type MatchCase struct {
+	Type Expr
+	Expr Expr
+}
+
 func (*IsNullExpr) exprNode()       {}
 func (*TypeAssertExpr) exprNode()   {}
+func (*MatchExpr) exprNode()        {}
 func (*MapCallExpr) exprNode()      {}
 func (*MapExpr) exprNode()          {}
 func (*PrimitiveExpr) exprNode()    {}
@@ -345,9 +361,21 @@ func CopyExpr(e Expr) Expr {
 		}
 	case *TypeAssertExpr:
 		return &TypeAssertExpr{
-			Node: e.Node,
-			Expr: CopyExpr(e.Expr),
-			Type: CopyExpr(e.Type),
+			Node:     e.Node,
+			Expr:     CopyExpr(e.Expr),
+			Type:     CopyExpr(e.Type),
+			Narrowed: e.Narrowed,
+		}
+	case *MatchExpr:
+		cases := make([]MatchCase, 0, len(e.Cases))
+		for _, c := range e.Cases {
+			cases = append(cases, MatchCase{Type: CopyExpr(c.Type), Expr: CopyExpr(c.Expr)})
+		}
+		return &MatchExpr{
+			Node:  e.Node,
+			Expr:  CopyExpr(e.Expr),
+			Cases: cases,
+			Else:  CopyExpr(e.Else),
 		}
 	case *MapCallExpr:
 		return &MapCallExpr{

@@ -123,6 +123,20 @@ func (c *canonDAG) expr(e dag.Expr, parent string) {
 	case *dag.IsNullExpr:
 		c.expr(e.Expr, "")
 		c.write(" IS NULL")
+	case *dag.MatchExpr:
+		c.write("match ")
+		c.expr(e.Expr, "")
+		for _, mc := range e.Cases {
+			c.write(" case ")
+			c.expr(mc.Type, "")
+			c.write(" then ")
+			c.expr(mc.Expr, "")
+		}
+		if e.Else != nil {
+			c.write(" else ")
+			c.expr(e.Else, "")
+		}
+		c.write(" end")
 	case *dag.TypeAssertExpr:
 		c.expr(e.Expr, "")
 		if t, ok := e.Type.(*dag.TypeExpr); ok {

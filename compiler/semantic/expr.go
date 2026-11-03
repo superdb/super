@@ -157,6 +157,8 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 			Index: index,
 			Base1: t.scope.indexBase() == 1,
 		}, outType
+	case *ast.MatchExpr:
+		return t.matchExpr(e, inType)
 	case *ast.TypeAssertExpr:
 		expr, exprType := t.expr(e.Expr, inType)
 		typ, _ := t.semType(e.Type)

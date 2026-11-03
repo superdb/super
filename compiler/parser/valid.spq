@@ -47,3 +47,4 @@ insert into "t" from 'x.json' | where a > 1;
 const x = 1; values x
 insert into baz (values 1,2|{x:this,y:this*2}); insert into baz (select 5, 6)
 values a.(string) ?? "x", b.(int64|string), this.({x:int64}).x, c.d.(foo)?.e
+values match x case int64 x+1 case string then upper(x) else 0 end, match this case {a:int64} a case Push ref

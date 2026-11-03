@@ -188,6 +188,12 @@ func (a *demandAnalyzer) demandForExpr(expr dag.Expr) demand.Demand {
 		return a.demandForExpr(expr.Expr)
 	case *dag.TypeAssertExpr:
 		return demand.Union(a.demandForExpr(expr.Expr), a.demandForExpr(expr.Type))
+	case *dag.MatchExpr:
+		d := demand.Union(a.demandForExpr(expr.Expr), a.demandForExpr(expr.Else))
+		for _, c := range expr.Cases {
+			d = demand.Union(d, a.demandForExpr(c.Type), a.demandForExpr(c.Expr))
+		}
+		return d
 	case *dag.PrimitiveExpr, *dag.TypeExpr:
 		return demand.None()
 	case *dag.MapCallExpr:

@@ -352,7 +352,26 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 		c.expr(typ, e.Expr)
 		return super.TypeBool
 	case *sem.TypeAssertExpr:
-		return c.typeAssert(c.expr(typ, e.Expr), e.Type)
+		in := c.expr(typ, e.Expr)
+		if e.Narrowed {
+			// The assertion of the matched value in a match case.
+			if target := c.typeOfTypeExpr(e.Type); target != nil {
+				return target
+			}
+			return c.unknown
+		}
+		return c.typeAssert(in, e.Type)
+	case *sem.MatchExpr:
+		in := c.expr(typ, e.Expr)
+		var targets, types []super.Type
+		for _, mc := range e.Cases {
+			targets = append(targets, c.typeOfTypeExpr(mc.Type))
+			types = append(types, c.expr(typ, mc.Expr))
+		}
+		if e.Else != nil {
+			types = append(types, c.expr(typ, e.Else))
+		}
+		return c.matchType(in, targets, types, e.Else != nil)
 	case *sem.MapCallExpr:
 		containerType := c.expr(typ, e.Expr)
 		elemType, ok := c.isContainer(containerType)
@@ -1739,20 +1758,17 @@ func (c *checker) notMissing(loc ast.Node, typ super.Type) bool {
 }
 
 // typeAssert returns the type of a type assertion of a value of type in to
+<<<<<<< HEAD
 // the type of the type expression e, which is the asserted type (or, for a
 // named union type, the named type or one of its members) or none,
+=======
+// the type of the type expression e, which is the asserted type or none,
+>>>>>>> 07418918f (add type assertions)
 // plus any error or missing types of in, which a type assertion passes
 // through (unless the asserted type is the error type).
 func (c *checker) typeAssert(in super.Type, e sem.Expr) super.Type {
-	typeExpr, ok := e.(*sem.TypeExpr)
-	if !ok {
-		return c.unknown
-	}
-	target, err := c.t.defs.LookupType(typeExpr.ID)
-	if err != nil {
-		return c.unknown
-	}
-	if target, err = c.t.sctx.TranslateType(target); err != nil {
+	target := c.typeOfTypeExpr(e)
+	if target == nil {
 		return c.unknown
 	}
 	types := []super.Type{target}
@@ -1775,4 +1791,92 @@ func (c *checker) typeAssert(in super.Type, e sem.Expr) super.Type {
 		}
 	}
 	return c.orNone(c.fuse(types))
+}
+
+// typeOfTypeExpr returns the type of the type expression e or nil if it
+// isn't known.
+func (c *checker) typeOfTypeExpr(e sem.Expr) super.Type {
+	typeExpr, ok := e.(*sem.TypeExpr)
+	if !ok {
+		return nil
+	}
+	typ, err := c.t.defs.LookupType(typeExpr.ID)
+	if err != nil {
+		return nil
+	}
+	if typ, err = c.t.sctx.TranslateType(typ); err != nil {
+		return nil
+	}
+	return typ
+}
+
+// narrowPath returns the type of this, typ, with the type of the value at
+// path replaced with target.  If path doesn't lead to a field of a record
+// type, typ is returned.
+func (c *checker) narrowPath(typ super.Type, path []string, target super.Type) super.Type {
+	if len(path) == 0 {
+		return target
+	}
+	rec, ok := under(typ).(*super.TypeRecord)
+	if !ok {
+		return typ
+	}
+	k, ok := rec.IndexOfField(path[0])
+	if !ok {
+		return typ
+	}
+	fields := slices.Clone(rec.Fields)
+	fields[k].Type = c.narrowPath(fields[k].Type, path[1:], target)
+	out, err := c.t.sctx.LookupTypeRecord(fields)
+	if err != nil {
+		return typ
+	}
+	return out
+}
+
+// matchType returns the type of a match expression whose matched value has
+// type in, whose cases have types targets (nil if unknown), and whose case
+// (and else) expressions have types types.  An error or missing value that
+// no case matches is passed through, and without an else, the value is
+// none if no case matches, unless the cases cover every type of in.
+func (c *checker) matchType(in super.Type, targets, types []super.Type, hasElse bool) super.Type {
+	out := slices.Clone(types)
+	exhaustive := !hasUnknown(in) && !slices.Contains(targets, nil)
+	members := []super.Type{defuse(in)}
+	if u, ok := under(members[0]).(*super.TypeUnion); ok {
+		members = u.Types
+	}
+	for _, m := range members {
+		matched := slices.ContainsFunc(targets, func(target super.Type) bool {
+			return target != nil && matchesType(m, target)
+		})
+		if matched {
+			continue
+		}
+		if isErrorType(m) || isMissingType(m) {
+			out = append(out, m)
+			continue
+		}
+		exhaustive = false
+	}
+	if hasElse || exhaustive {
+		return c.fuse(out)
+	}
+	return c.orNone(c.fuse(out))
+}
+
+// matchesType returns true if a value of type typ has type target in a type
+// assertion.
+func matchesType(typ, target super.Type) bool {
+	if typ == target {
+		return true
+	}
+	if _, ok := typ.(*super.TypeOption); ok {
+		// An option may be none, which doesn't match.
+		return false
+	}
+	if u, ok := super.TypeUnder(target).(*super.TypeUnion); ok {
+		return slices.Contains(u.Types, typ)
+	}
+	return false
 }

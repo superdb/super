@@ -153,6 +153,20 @@ func (c *canon) expr(e ast.Expr, parent string) {
 		c.write("[")
 		c.expr(e.Index, "")
 		c.write("]")
+	case *ast.MatchExpr:
+		c.write("match ")
+		c.expr(e.Expr, "")
+		for _, mc := range e.Cases {
+			c.write(" case ")
+			c.typ(mc.Type)
+			c.write(" then ")
+			c.expr(mc.Expr, "")
+		}
+		if e.Else != nil {
+			c.write(" else ")
+			c.expr(e.Else, "")
+		}
+		c.write(" end")
 	case *ast.TypeAssertExpr:
 		c.expr(e.Expr, "")
 		if u, ok := e.Type.(*ast.TypeUnion); ok {

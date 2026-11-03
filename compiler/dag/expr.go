@@ -85,6 +85,12 @@ type (
 		Expr Expr   `json:"expr"`
 		Type Expr   `json:"type"`
 	}
+	MatchExpr struct {
+		Kind  string      `json:"kind" unpack:""`
+		Expr  Expr        `json:"expr"`
+		Cases []MatchCase `json:"cases"`
+		Else  Expr        `json:"else"`
+	}
 	MapCallExpr struct {
 		Kind   string    `json:"kind" unpack:""`
 		Expr   Expr      `json:"expr"`
@@ -154,16 +160,23 @@ type (
 	}
 )
 
-func (*AggExpr) exprNode()          {}
-func (*ArrayExpr) exprNode()        {}
-func (*BadExpr) exprNode()          {}
-func (*BinaryExpr) exprNode()       {}
-func (*CallExpr) exprNode()         {}
-func (*CondExpr) exprNode()         {}
-func (*DotExpr) exprNode()          {}
-func (*IndexExpr) exprNode()        {}
+func (*AggExpr) exprNode()    {}
+func (*ArrayExpr) exprNode()  {}
+func (*BadExpr) exprNode()    {}
+func (*BinaryExpr) exprNode() {}
+func (*CallExpr) exprNode()   {}
+func (*CondExpr) exprNode()   {}
+func (*DotExpr) exprNode()    {}
+func (*IndexExpr) exprNode()  {}
+
+type MatchCase struct {
+	Type Expr `json:"type"`
+	Expr Expr `json:"expr"`
+}
+
 func (*IsNullExpr) exprNode()       {}
 func (*TypeAssertExpr) exprNode()   {}
+func (*MatchExpr) exprNode()        {}
 func (*MapCallExpr) exprNode()      {}
 func (*MapExpr) exprNode()          {}
 func (*PrimitiveExpr) exprNode()    {}
