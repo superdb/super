@@ -1,0 +1,11 @@
+spq: values {x:1,y?:none}
+
+output: |
+  {x:1,y:error("none cannot be some")}
+
+---
+
+spq: values {y?:none}
+
+output: |
+  {y:error("none cannot be some")}

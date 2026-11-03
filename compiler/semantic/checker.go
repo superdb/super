@@ -556,7 +556,9 @@ func (c *checker) coalesce(lhs, rhs super.Type) super.Type {
 }
 
 func (c *checker) optionize(typ super.Type) super.Type {
-	if hasUnknown(typ) {
+	if hasUnknown(typ) || isNoneType(typ) {
+		// A bare none can't be wrapped in an option type, and some() of
+		// it is an error at runtime, so leave the type as is.
 		return typ
 	}
 	return c.t.sctx.Optionize(typ)
