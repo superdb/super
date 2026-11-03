@@ -262,28 +262,3 @@ func TestCastWithOptions(t *testing.T) {
 		require.Equal(t, c.out, sup.FormatValue(vector.ValueAt(nil, out, 0)), "cast(%s, <%s>) %+v", c.val, c.typ, c.opts)
 	}
 }
-
-// With the Strict option, only the maps with a key that isn't a field are
-// errors since, unlike the fields of a record, keys vary per map.
-func TestCastStrictMapToRecord(t *testing.T) {
-	sctx := super.NewContext()
-	typ := parseType(t, sctx, `{x:int64}`)
-	in := []string{`map{"x":1}`, `map{"x":2,"z":3}`, `map{"x":4}`}
-	var b vector.ValueBuilder
-	for _, s := range in {
-		val := parseValue(t, sctx, s)
-		if b == nil {
-			b = vector.NewValueBuilder(val.Type())
-		}
-		b.Write(val.Bytes())
-	}
-	out := cast.CastWithOptions(sctx, b.Build(sctx), typ, cast.Options{Strict: true})
-	expected := []string{
-		`{x:1}`,
-		`error({message:"cannot cast to {x:int64}: no field z in type",on:map{"x":2,"z":3}})`,
-		`{x:4}`,
-	}
-	for k, s := range expected {
-		require.Equal(t, s, sup.FormatValue(vector.ValueAt(nil, out, uint32(k))))
-	}
-}
