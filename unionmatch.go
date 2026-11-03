@@ -13,19 +13,51 @@ package super
 // recursively to nested records, arrays, sets, maps, and unions.  Among the
 // matching members, the one with the most matching leaf types wins, with
 // ties going to the lowest tag.
+//
+// A record type also matches a map type with string keys whose value type
+// every field of the record matches, but only when no other member of the
+// union matches, so a record is cast to a map only if it can't be cast to
+// a record (e.g., for a recursive JSON type with a map{string:JSON} member).
 func BestUnionMatch(in Type, union *TypeUnion) int {
 	switch TypeUnder(in).(type) {
 	case *TypeRecord, *TypeArray, *TypeSet, *TypeMap:
 	default:
 		return -1
 	}
-	best, bestScore := -1, -1
-	for tag, member := range union.Types {
-		if score, ok := matchType(in, member); ok && score > bestScore {
-			best, bestScore = tag, score
+	tag, _, _ := bestMember(in, union.Types)
+	return tag
+}
+
+// bestMember returns the tag and score of the member of types that best
+// matches in (see BestUnionMatch) or -1 and false if none matches.
+func bestMember(in Type, types []Type) (int, int, bool) {
+	_, isRecord := TypeUnder(in).(*TypeRecord)
+	for _, maps := range []bool{false, true} {
+		if maps && !isRecord {
+			break
+		}
+		best, bestScore := -1, -1
+		for tag, member := range types {
+			if isRecord && isMapType(member) != maps {
+				continue
+			}
+			if score, ok := matchType(in, member); ok && score > bestScore {
+				best, bestScore = tag, score
+			}
+		}
+		if best >= 0 {
+			return best, bestScore, true
 		}
 	}
-	return best
+	return -1, 0, false
+}
+
+func isMapType(typ Type) bool {
+	if o, ok := typ.(*TypeOption); ok {
+		typ = o.Type
+	}
+	_, ok := TypeUnder(typ).(*TypeMap)
+	return ok
 }
 
 // matchType reports whether in can be cast to out structurally and, if so,
@@ -57,13 +89,8 @@ func matchType(in, out Type) (int, bool) {
 		return best, ok
 	}
 	if union, ok := out.(*TypeUnion); ok {
-		best, ok := -1, false
-		for _, typ := range union.Types {
-			if score, ok2 := matchType(in, typ); ok2 && score > best {
-				best, ok = score, true
-			}
-		}
-		return best, ok
+		_, score, ok := bestMember(in, union.Types)
+		return score, ok
 	}
 	if in == TypeNull || in == TypeNone {
 		// Null and none can be cast to anything.
@@ -71,6 +98,22 @@ func matchType(in, out Type) (int, bool) {
 	}
 	switch in := in.(type) {
 	case *TypeRecord:
+		if m, ok := out.(*TypeMap); ok {
+			// A record matches a map with string keys whose value type
+			// each field matches.
+			if TypeUnder(m.KeyType) != TypeString {
+				return 0, false
+			}
+			var score int
+			for _, f := range in.Fields {
+				s, ok := matchType(f.Type, m.ValType)
+				if !ok {
+					return 0, false
+				}
+				score += s
+			}
+			return score, true
+		}
 		out, ok := out.(*TypeRecord)
 		if !ok {
 			return 0, false

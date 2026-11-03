@@ -1,0 +1,57 @@
+# A record cast to a map with string keys has an entry for each field with
+# the field's value cast to the map's value type.  An absent optional field
+# has no entry.
+spq: values this::map{string:int64}, this::map{string:string}
+
+input: |
+  {a:1,b:2}
+  {a?:1,b?:none::int64}
+  {}
+  {a:1,b:"x"}
+
+output: |
+  map{"a":1,"b":2}
+  map{"a":"1","b":"2"}
+  map{"a":1}
+  map{"a":"1"}
+  map{}
+  map{}
+  map{"a":1,"b":error({message:"cannot cast to int64",on:"x"})}
+  map{"a":"1","b":"x"}
+
+---
+
+# A record can't be cast to a map without string keys.
+spq: values {a:1}::map{int64:int64}
+
+output: |
+  error({message:"cannot cast to map{int64:int64}",on:{a:1}})
+
+---
+
+# A record is cast to a map member of a union only if no record member fits.
+spq: values this::({a:int64}|map{string:int64}), this::({a?:int64}|map{string:int64})
+
+input: |
+  {a:1}
+  {b:1}
+
+output: |
+  {a:1}::({a:int64}|map{string:int64})
+  {a?:1}::({a?:int64}|map{string:int64})
+  map{"b":1}::({a:int64}|map{string:int64})
+  map{"b":1}::({a?:int64}|map{string:int64})
+
+---
+
+# Any JSON value can be cast to a recursive JSON type.
+spq: |
+  type JSON = null|bool|int64|float64|string|[JSON]|map{string:JSON}
+  values this::JSON
+
+input: |
+  {"id":1,"name":"alice","tags":["a","b"],"addr":{"city":"Berkeley","zip":null}}
+
+output: |
+  type JSON=int64|float64|bool|string|null|[JSON]|map{string:JSON}
+  map{"id":1::JSON,"addr":map{"zip":null,"city":"Berkeley"::JSON},"name":"alice"::JSON,"tags":["a","b"]::[JSON]::JSON}

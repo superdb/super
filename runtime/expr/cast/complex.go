@@ -9,6 +9,7 @@ import (
 	"github.com/superdb/super/scode"
 	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/vbuild"
 )
 
 // Cast casts vec to typ, which may be any type.  It is the vector
@@ -270,6 +271,9 @@ func (c *complexCaster) toEnum(vec vector.Any, to *super.TypeEnum) vector.Any {
 func (c *complexCaster) toRecord(vec vector.Any, to *super.TypeRecord) vector.Any {
 	rec, ok := under(vec).(*vector.Record)
 	if !ok {
+		if m, ok := under(vec).(*vector.Map); ok && isStringKeyType(m.Typ.KeyType) {
+			return c.mapToRecord(vec, m, to)
+		}
 		return c.error(vec, to)
 	}
 	n := rec.Len()
@@ -299,6 +303,13 @@ func (c *complexCaster) toRecord(vec vector.Any, to *super.TypeRecord) vector.An
 		}
 		fields = append(fields, c.cast(field, f.Type))
 	}
+	return c.buildRecord(to, fields)
+}
+
+// buildRecord returns the record of type to with the cast field values in
+// fields, whose types may differ from the types of the fields of to (e.g.,
+// for an error from a failed cast).
+func (c *complexCaster) buildRecord(to *super.TypeRecord, fields []vector.Any) vector.Any {
 	return vector.Apply(vector.ApplyNone, func(vecs ...vector.Any) vector.Any {
 		typ := to
 		for k, vec := range vecs {
@@ -419,6 +430,9 @@ func newList(typ super.Type, offsets []uint32, vals vector.Any) vector.Any {
 func (c *complexCaster) toMap(vec vector.Any, to *super.TypeMap) vector.Any {
 	m, ok := under(vec).(*vector.Map)
 	if !ok {
+		if rec, ok := under(vec).(*vector.Record); ok && super.TypeUnder(to.KeyType) == super.TypeString {
+			return c.recordToMap(rec, to)
+		}
 		return c.error(vec, to)
 	}
 	keys := newElems(c.sctx, c.cast(m.Keys, to.KeyType))
@@ -798,4 +812,129 @@ func AdmitsNull(typ super.Type) bool {
 		return slices.ContainsFunc(union.Types, AdmitsNull)
 	}
 	return super.TypeUnder(typ) == super.TypeNull
+}
+
+// recordToMap casts rec to the map type to, whose key type is string, with an
+// entry for each field of rec whose key is the field's name and whose value
+// is the field's value cast to the map's value type.  An absent optional
+// field has no entry.
+func (c *complexCaster) recordToMap(rec *vector.Record, to *super.TypeMap) vector.Any {
+	n := rec.Len()
+	// For each field, vals is its present values and present tells whether
+	// each row has the field (or is nil if every row does).
+	vals := make([]vector.Any, len(rec.Fields))
+	present := make([][]bool, len(rec.Fields))
+	for k, f := range rec.Fields {
+		vals[k] = f
+		o, ok := vector.Under(vector.PushView(f)).(*vector.Option)
+		if !ok {
+			continue
+		}
+		p := make([]bool, n)
+		switch any := o.Any.(type) {
+		case *vector.None:
+			vals[k] = nil
+		case *vector.Dynamic:
+			for i, tag := range any.Tags {
+				p[i] = tag == super.OptionSomeTag
+			}
+			vals[k] = any.Values[super.OptionSomeTag]
+		default:
+			for i := range p {
+				p[i] = true
+			}
+			vals[k] = any
+		}
+		present[k] = p
+	}
+	offsets := []uint32{0}
+	keys := vector.NewStringEmpty(0)
+	var tags []uint32
+	for i := range n {
+		for k, f := range rec.Typ.Fields {
+			if vals[k] == nil || present[k] != nil && !present[k][i] {
+				continue
+			}
+			keys.Append(f.Name)
+			tags = append(tags, uint32(k))
+		}
+		offsets = append(offsets, uint32(len(tags)))
+	}
+	if len(tags) == 0 {
+		return vector.NewMap(to, offsets, vector.NewEmpty(to.KeyType), vector.NewEmpty(to.ValType))
+	}
+	for k, val := range vals {
+		if val == nil {
+			// The values of a dynamic must be non-nil.
+			vals[k] = vector.NewEmpty(super.TypeNull)
+		}
+	}
+	values := vbuild.MergeSameTypesInDynamic(vector.FlattenUnions(vector.NewDynamic(tags, vals)))
+	if d, ok := values.(*vector.Dynamic); ok {
+		values = vector.NewUnionFromDynamic(c.sctx, d)
+	}
+	m := vector.NewMap(c.sctx.LookupTypeMap(super.TypeString, values.Type()), offsets, keys, values)
+	return c.toMap(m, to)
+}
+
+// mapToRecord casts m, a map with string keys, to the record type to, where
+// the value of each field of to is the value of the map entry whose key is
+// the field's name cast to the field's type.  As when casting a record to a
+// record, an entry whose key isn't a field of to is omitted and a field with
+// no entry is absent (see absentField).
+func (c *complexCaster) mapToRecord(vec vector.Any, m *vector.Map, to *super.TypeRecord) vector.Any {
+	n := m.Len()
+	which := make(map[string]int, len(to.Fields))
+	for k, f := range to.Fields {
+		which[f.Name] = k
+	}
+	// For each field, index is the positions in m.Values of its entries
+	// and absent is the rows with no entry for it.
+	index := make([][]uint32, len(to.Fields))
+	absent := make([][]uint32, len(to.Fields))
+	found := make([]bool, len(to.Fields))
+	for row := range n {
+		clear(found)
+		for i := m.Offsets[row]; i < m.Offsets[row+1]; i++ {
+			k, ok := which[vector.StringValue(m.Keys, i)]
+			if !ok {
+				if c.opts.Strict {
+					return vector.NewWrappedError(c.sctx, "cannot cast to "+sup.FormatType(to)+": no field "+sup.QuotedName(vector.StringValue(m.Keys, i))+" in type", vec)
+				}
+				continue
+			}
+			index[k] = append(index[k], i)
+			found[k] = true
+		}
+		for k := range to.Fields {
+			if !found[k] {
+				absent[k] = append(absent[k], row)
+			}
+		}
+	}
+	if len(to.Fields) == 0 {
+		return vector.NewRecord(to, nil, n)
+	}
+	fields := make([]vector.Any, 0, len(to.Fields))
+	for k, f := range to.Fields {
+		var field vector.Any
+		switch {
+		case len(absent[k]) == int(n):
+			field = c.absentField(f, n)
+		case len(absent[k]) == 0:
+			field = c.cast(vector.Pick(m.Values, index[k]), f.Type)
+		default:
+			present := c.cast(vector.Pick(m.Values, index[k]), f.Type)
+			field = vector.Combine(present, absent[k], c.absentField(f, uint32(len(absent[k]))))
+		}
+		fields = append(fields, field)
+	}
+	return c.buildRecord(to, fields)
+}
+
+// isStringKeyType returns true if typ is string or none, the key type of an
+// empty map literal.
+func isStringKeyType(typ super.Type) bool {
+	typ = super.TypeUnder(typ)
+	return typ == super.TypeString || typ == super.TypeNone
 }
