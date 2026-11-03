@@ -817,7 +817,7 @@ func AdmitsNull(typ super.Type) bool {
 // recordToMap casts rec to the map type to, whose key type is string, with an
 // entry for each field of rec whose key is the field's name and whose value
 // is the field's value cast to the map's value type.  An absent optional
-// field has no entry.
+// field or a field of type missing has no entry.
 func (c *complexCaster) recordToMap(rec *vector.Record, to *super.TypeMap) vector.Any {
 	n := rec.Len()
 	// For each field, vals is its present values and present tells whether
@@ -825,6 +825,11 @@ func (c *complexCaster) recordToMap(rec *vector.Record, to *super.TypeMap) vecto
 	vals := make([]vector.Any, len(rec.Fields))
 	present := make([][]bool, len(rec.Fields))
 	for k, f := range rec.Fields {
+		if super.TypeUnder(f.Type()) == super.TypeMissing {
+			// A field of type missing is absent and has no entry (as
+			// when casting a record to a record).
+			continue
+		}
 		vals[k] = f
 		o, ok := vector.Under(vector.PushView(f)).(*vector.Option)
 		if !ok {
@@ -880,13 +885,22 @@ func (c *complexCaster) recordToMap(rec *vector.Record, to *super.TypeMap) vecto
 // mapToRecord casts m, a map with string keys, to the record type to, where
 // the value of each field of to is the value of the map entry whose key is
 // the field's name cast to the field's type.  As when casting a record to a
-// record, an entry whose key isn't a field of to is omitted and a field with
-// no entry is absent (see absentField).
+// record, an entry whose key isn't a field of to is omitted (or, with the
+// Strict option, makes the map an error) and a field with no entry is absent
+// (see absentField).  If a key appears more than once, its first entry is
+// used.
 func (c *complexCaster) mapToRecord(vec vector.Any, m *vector.Map, to *super.TypeRecord) vector.Any {
 	n := m.Len()
 	which := make(map[string]int, len(to.Fields))
 	for k, f := range to.Fields {
 		which[f.Name] = k
+	}
+	// The key type may be a named string type.
+	keys := vector.Under(m.Keys)
+	if c.opts.Strict {
+		if out, ok := c.strictMapToRecord(vec, m, keys, which, to); ok {
+			return out
+		}
 	}
 	// For each field, index is the positions in m.Values of its entries
 	// and absent is the rows with no entry for it.
@@ -896,11 +910,9 @@ func (c *complexCaster) mapToRecord(vec vector.Any, m *vector.Map, to *super.Typ
 	for row := range n {
 		clear(found)
 		for i := m.Offsets[row]; i < m.Offsets[row+1]; i++ {
-			k, ok := which[vector.StringValue(m.Keys, i)]
-			if !ok {
-				if c.opts.Strict {
-					return vector.NewWrappedError(c.sctx, "cannot cast to "+sup.FormatType(to)+": no field "+sup.QuotedName(vector.StringValue(m.Keys, i))+" in type", vec)
-				}
+			k, ok := which[vector.StringValue(keys, i)]
+			if !ok || found[k] {
+				// Skip a key that isn't a field or that's a duplicate.
 				continue
 			}
 			index[k] = append(index[k], i)
@@ -930,6 +942,62 @@ func (c *complexCaster) mapToRecord(vec vector.Any, m *vector.Map, to *super.Typ
 		fields = append(fields, field)
 	}
 	return c.buildRecord(to, fields)
+}
+
+// strictMapToRecord handles the Strict option for mapToRecord.  Each map in
+// m with a key that isn't a field of to is an error, as with a record with a
+// field that isn't in to, and the other maps are cast to to.  Since keys vary
+// per map (unlike the fields of a record vector), this is decided per map.
+// If no map has such a key, strictMapToRecord returns false.
+func (c *complexCaster) strictMapToRecord(vec vector.Any, m *vector.Map, keys vector.Any, which map[string]int, to *super.TypeRecord) (vector.Any, bool) {
+	n := m.Len()
+	var good []uint32
+	// tags is 0 for a map that is cast and otherwise 1 plus the index in
+	// msgs of its error message.
+	tags := make([]uint32, n)
+	var msgs []string
+	rows := map[string][]uint32{}
+	for row := range n {
+		var bad string
+		var isBad bool
+		for i := m.Offsets[row]; i < m.Offsets[row+1]; i++ {
+			if key := vector.StringValue(keys, i); !hasKey(which, key) {
+				bad, isBad = key, true
+				break
+			}
+		}
+		if !isBad {
+			good = append(good, row)
+			continue
+		}
+		msg := "cannot cast to " + sup.FormatType(to) + ": no field " + sup.QuotedName(bad) + " in type"
+		if _, ok := rows[msg]; !ok {
+			msgs = append(msgs, msg)
+		}
+		rows[msg] = append(rows[msg], row)
+		tags[row] = uint32(slices.Index(msgs, msg) + 1)
+	}
+	if len(msgs) == 0 {
+		return nil, false
+	}
+	vals := make([]vector.Any, 0, len(msgs)+1)
+	if len(good) != 0 {
+		// These maps have no such keys so they're cast normally (and
+		// nested values are still cast strictly).
+		vals = append(vals, c.cast(vector.Pick(vec, good), to))
+	} else {
+		// The values of a dynamic must be non-nil.
+		vals = append(vals, vector.NewEmpty(to))
+	}
+	for _, msg := range msgs {
+		vals = append(vals, vector.NewWrappedError(c.sctx, msg, vector.Pick(vec, rows[msg])))
+	}
+	return vector.NewDynamic(tags, vals), true
+}
+
+func hasKey(which map[string]int, key string) bool {
+	_, ok := which[key]
+	return ok
 }
 
 // isStringKeyType returns true if typ is string or none, the key type of an

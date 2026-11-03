@@ -36,3 +36,15 @@ input: |
 output: |
   {a:{b:1},c:[{d:true}]}
   {x:1,y:2}
+
+---
+
+# A map whose key type is a named string type can be cast to a record, and
+# the first entry of a duplicate key is used.
+spq: |
+  type k=string
+  values map{"a"::k:1}::{a:int64}, map{"a":1,"a":2}::{a:int64}
+
+output: |
+  {a:1}
+  {a:1}
