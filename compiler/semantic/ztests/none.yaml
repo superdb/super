@@ -130,21 +130,22 @@ error: |
 ---
 
 # ... which yields none when the option is none.
-spq: values r.ok()?.f, (r.ok()?.f ?? 0) + 1
+spq: values {v:r.ok()?.f}, (r.ok()?.f ?? 0) + 1
 
 input: |
   {r:{f:1}}
   {s:1}
 
 output: |
-  1
+  {v:1}
   2
-  none
+  {}
   1
 
 ---
 
-# The runtime ?. passes the none from ok() through.
+# The runtime ?. passes the none from ok() through, which is an error when
+# it's output.
 spq: values r.ok()?.f
 
 flags: -dynamic
@@ -155,7 +156,7 @@ input: |
 
 output: |
   1
-  none
+  error("none not handled (consider ?? or ?.)")
 
 ---
 

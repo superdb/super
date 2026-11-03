@@ -1165,15 +1165,15 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 		}
 		return c.fuse(types)
 	case *super.TypeOption:
-		// e?.f is none when e is none and otherwise e.f, so its type is
-		// option(typeof(e.f)), whereas e.f on an option doesn't handle none.
-		// The none keeps the type of e.f so, e.g., {y:e?.f} has an optional
-		// field y rather than y being dropped.
+		// e?.f is a plain none when e is none and otherwise e.f, so its
+		// type is typeof(e.f)|none, whereas e.f on an option doesn't handle
+		// none.  The plain none disappears from a record expression (e.g.,
+		// {y:e?.f} has no field y when e is none), an array, or a map.
 		if !noneish {
 			c.error(loc, fmt.Errorf("%s: %w", sup.FormatType(inType), errNone))
 			return c.unknown
 		}
-		return c.optionize(c.deref(loc, typ.Type, field, noneish))
+		return c.orNone(c.deref(loc, typ.Type, field, noneish))
 	case *super.TypeOfNone:
 		if !noneish {
 			c.error(loc, fmt.Errorf("%s: %w", sup.FormatType(inType), errNone))
@@ -1705,6 +1705,25 @@ func (c *checker) result(loc ast.Node, typ super.Type) {
 	if typ != nil && !hasUnknown(typ) && mayBeMissing(typ) {
 		c.error(loc, errMissing)
 	}
+}
+
+// output reports an error at loc if typ, the type of an output value, may
+// be a plain none.  (An option none or a none of a named type is a value
+// and is allowed.)
+func (c *checker) output(loc ast.Node, typ super.Type) {
+	typ = defuse(typ)
+	if typ != nil && !hasUnknown(typ) && hasPlainNone(typ) {
+		c.error(loc, errNone)
+	}
+}
+
+// hasPlainNone reports whether typ is none or a union with none as one of
+// its types.  Unlike hasNone, a named type whose type is none isn't none.
+func hasPlainNone(typ super.Type) bool {
+	if u, ok := typ.(*super.TypeUnion); ok {
+		return slices.ContainsFunc(u.Types, hasPlainNone)
+	}
+	return typ == super.TypeNone
 }
 
 // notMissing reports an error at loc if typ may be missing.

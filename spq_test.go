@@ -221,7 +221,8 @@ func runOneFusionBoomerang(t *testing.T, data string) {
 	require.NoError(t, err)
 	defer dataPuller.Pull(true)
 
-	// Serialize non-fusion values from dataReader to baseline as SUP.
+	// Serialize non-fusion values (other than plain nones) from dataReader
+	// to baseline as SUP.
 	r := &fusionRemovingReader{sbuf.PullerReader(sbuf.NewMaterializer(dataPuller)), hasFusion{}}
 	puller := sbuf.NewDematerializer(dataSctx, sbuf.NewPuller(r))
 	baseline, err := serialize(puller, "sup")
@@ -302,6 +303,10 @@ func (f *fusionRemovingReader) Read() (*super.Value, error) {
 		val, err := f.r.Read()
 		if val != nil && err == nil {
 			if f.h.hasFusion(val.Type()) {
+				continue
+			}
+			if val.Type() == super.TypeNone {
+				// A plain none can't be output by a query.
 				continue
 			}
 		}

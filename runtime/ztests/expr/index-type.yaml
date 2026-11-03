@@ -33,14 +33,14 @@ output: |
 
 ---
 
-spq: values <{x:int64}>['z'], <{x:int64}>[3], <int64>[0], <map{string:int64}>['a'], ok(<{x:int64}>['z'])
+spq: values <{x:int64}>['z'], <{x:int64}>[3], <int64>[0], <map{string:int64}>['a'], {v:ok(<{x:int64}>['z'])}
 
 output: |
   error({message:"no such field 'z'",on:<{x:int64}>})
   error({message:"invalid type index",on:<{x:int64}>})
   error({message:"invalid type index",on:<int64>})
   error({message:"no such field 'a'",on:<map{string:int64}>})
-  none
+  {}
 
 ---
 

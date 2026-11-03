@@ -64,7 +64,7 @@ error: |
 
 ---
 
-spq: r.y.ok()
+spq: r.y.ok() ?? 0
 
 input: |
   {r:{y:1}}
@@ -72,7 +72,7 @@ input: |
 
 output: |
   1
-  none
+  0
 
 ---
 
@@ -103,18 +103,16 @@ error: |
 
 ---
 
-spq: values y.ok(), {x,y:y.ok()}, [y.ok()], y.ok() ?? 0
+spq: values {x,y:y.ok()}, [y.ok()], y.ok() ?? 0
 
 input: |
   {x:1}
   {x:2,y:3}
 
 output: |
-  none
   {x:1}
   []
   0
-  3
   {x:2,y:3}
   [3]
   3
