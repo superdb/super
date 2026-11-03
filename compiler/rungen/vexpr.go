@@ -35,6 +35,16 @@ func (b *Builder) compileVamExpr(e dag.Expr) (expr.Evaluator, error) {
 		return b.compileVamIndexExpr(e)
 	case *dag.IsNullExpr:
 		return b.compileVamIsNullExpr(e)
+	case *dag.TypeAssertExpr:
+		e1, err := b.compileVamExpr(e.Expr)
+		if err != nil {
+			return nil, err
+		}
+		typ, err := b.compileVamExpr(e.Type)
+		if err != nil {
+			return nil, err
+		}
+		return expr.NewTypeAssert(b.sctx(), e1, typ), nil
 	case *dag.MapCallExpr:
 		return b.compileVamMapCallExpr(e)
 	case *dag.MapExpr:

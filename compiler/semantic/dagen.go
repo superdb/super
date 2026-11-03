@@ -444,6 +444,12 @@ func (d *dagen) expr(e sem.Expr) dag.Expr {
 			Kind: "IsNullExpr",
 			Expr: d.expr(e.Expr),
 		}
+	case *sem.TypeAssertExpr:
+		return &dag.TypeAssertExpr{
+			Kind: "TypeAssertExpr",
+			Expr: d.expr(e.Expr),
+			Type: d.expr(e.Type),
+		}
 	case *sem.PrimitiveExpr:
 		return &dag.PrimitiveExpr{
 			Kind:  "PrimitiveExpr",

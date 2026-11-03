@@ -157,6 +157,11 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 			Index: index,
 			Base1: t.scope.indexBase() == 1,
 		}, outType
+	case *ast.TypeAssertExpr:
+		expr, exprType := t.expr(e.Expr, inType)
+		typ, _ := t.semType(e.Type)
+		out := &sem.TypeAssertExpr{Node: e, Expr: expr, Type: typ}
+		return out, t.checker.typeAssert(exprType, typ)
 	case *ast.IsNullExpr:
 		expr, _ := t.expr(e.Expr, inType)
 		var out sem.Expr = &sem.IsNullExpr{Node: e, Expr: expr}

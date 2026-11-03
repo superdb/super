@@ -70,6 +70,11 @@ type (
 		ast.Node
 		Expr Expr
 	}
+	TypeAssertExpr struct {
+		ast.Node
+		Expr Expr
+		Type Expr
+	}
 	MapCallExpr struct {
 		ast.Node
 		Expr   Expr
@@ -187,6 +192,7 @@ func (*CallExpr) exprNode()         {}
 func (*DotExpr) exprNode()          {}
 func (*IndexExpr) exprNode()        {}
 func (*IsNullExpr) exprNode()       {}
+func (*TypeAssertExpr) exprNode()   {}
 func (*MapCallExpr) exprNode()      {}
 func (*MapExpr) exprNode()          {}
 func (*PrimitiveExpr) exprNode()    {}
@@ -336,6 +342,12 @@ func CopyExpr(e Expr) Expr {
 		return &IsNullExpr{
 			Node: e.Node,
 			Expr: CopyExpr(e.Expr),
+		}
+	case *TypeAssertExpr:
+		return &TypeAssertExpr{
+			Node: e.Node,
+			Expr: CopyExpr(e.Expr),
+			Type: CopyExpr(e.Type),
 		}
 	case *MapCallExpr:
 		return &MapCallExpr{

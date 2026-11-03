@@ -244,6 +244,8 @@ func (e *evaluator) expr(expr sem.Expr) bool {
 		return e.expr(expr.Expr) && e.expr(expr.Index)
 	case *sem.IsNullExpr:
 		return e.expr(expr.Expr)
+	case *sem.TypeAssertExpr:
+		return e.expr(expr.Expr) && e.expr(expr.Type)
 	case *sem.MapCallExpr:
 		return e.expr(expr.Expr) && e.expr(expr.Lambda)
 	case *sem.MapExpr:

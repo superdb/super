@@ -112,6 +112,11 @@ func (c *canonDAG) expr(e dag.Expr, parent string) {
 	case *dag.IsNullExpr:
 		c.expr(e.Expr, "")
 		c.write(" IS NULL")
+	case *dag.TypeAssertExpr:
+		c.expr(e.Expr, "")
+		c.write(".(")
+		c.expr(e.Type, "")
+		c.write(")")
 	case *dag.MapExpr:
 		c.write("map{")
 		for k, e := range e.Entries {

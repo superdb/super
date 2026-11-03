@@ -42,6 +42,7 @@
         - [Logic](super-sql/expressions/logic.md)
         - [Slices](super-sql/expressions/slices.md)
         - [Subqueries](super-sql/expressions/subqueries.md)
+        - [Type Assertions](super-sql/expressions/type-assertions.md)
     - [Types](super-sql/types/intro.md)
         - [Numbers](super-sql/types/numbers.md)
         - [Strings](super-sql/types/string.md)

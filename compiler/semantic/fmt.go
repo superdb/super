@@ -172,6 +172,10 @@ func clrExpr(expr sem.Expr) {
 	case *sem.IsNullExpr:
 		expr.Node = nil
 		clrExpr(expr.Expr)
+	case *sem.TypeAssertExpr:
+		expr.Node = nil
+		clrExpr(expr.Expr)
+		clrExpr(expr.Type)
 	case *sem.MapCallExpr:
 		expr.Node = nil
 		clrExpr(expr.Expr)
