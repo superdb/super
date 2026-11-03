@@ -158,7 +158,7 @@ func (c ColumnHeader) check() error {
 	if err := checkVersion(c.Version); err != nil {
 		return err
 	}
-	if err := checkSize("column frame", int(c.FrameSize), MaxMetaSize); err != nil {
+	if err := checkSize("column frame", int(c.FrameSize), MaxFrameSize); err != nil {
 		return err
 	}
 	if err := checkSize("fused type", int(c.FusedTypeSize), MaxMetaSize); err != nil {
@@ -241,7 +241,7 @@ func (r RowHeader) check() error {
 	if err := checkVersion(r.Version); err != nil {
 		return err
 	}
-	if err := checkSize("row frame", int(r.FrameSize), MaxMetaSize); err != nil {
+	if err := checkSize("row frame", int(r.FrameSize), MaxFrameSize); err != nil {
 		return err
 	}
 	if err := checkSize("fused type", int(r.FusedTypeSize), MaxMetaSize); err != nil {
