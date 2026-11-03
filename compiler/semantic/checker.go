@@ -583,7 +583,6 @@ func defuse(typ super.Type) super.Type {
 
 var errMissing = errors.New("field may be missing (consider ok())")
 var errNone = errors.New("none not handled (consider ?? or ?.)")
-var errNoneOutput = errors.New("value may be none (consider ??)")
 
 func (c *checker) binary(op string, loc, lloc, rloc ast.Node, lhs, rhs super.Type) super.Type {
 	lhs = defuse(lhs)
@@ -1714,7 +1713,7 @@ func (c *checker) result(loc ast.Node, typ super.Type) {
 func (c *checker) output(loc ast.Node, typ super.Type) {
 	typ = defuse(typ)
 	if typ != nil && !hasUnknown(typ) && hasPlainNone(typ) {
-		c.error(loc, errNoneOutput)
+		c.error(loc, errNone)
 	}
 }
 

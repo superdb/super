@@ -156,7 +156,7 @@ input: |
 
 output: |
   1
-  error("none not handled (consider ??)")
+  error("none not handled (consider ?? or ?.)")
 
 ---
 

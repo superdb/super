@@ -48,7 +48,7 @@ func (m *MapExpr) eval(vecs ...vector.Any) vector.Any {
 	n := len(m.entries)
 	// An entry whose value is a plain none (e.g., from ok() or ?.)
 	// disappears, as with a field of a record expression.  (An option
-	// none is a value and is kept.)
+	// none or a none of a named type is a value and is kept.)
 	keys, vals := vecs[:n:n], vecs[n:]
 	if slices.ContainsFunc(vals, isNone) {
 		var k, v []vector.Any
@@ -72,8 +72,10 @@ func (m *MapExpr) eval(vecs ...vector.Any) vector.Any {
 	return vector.NewMap(mtyp, offsets, key, val)
 }
 
+// isNone reports whether vec is a plain none.  (A none of a named type is
+// a value.)
 func isNone(vec vector.Any) bool {
-	return vec.Kind() == vector.KindNone
+	return vec.Type() == super.TypeNone
 }
 
 func (m *MapExpr) build(vecs []vector.Any) vector.Any {

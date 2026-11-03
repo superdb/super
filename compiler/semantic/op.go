@@ -1963,8 +1963,10 @@ func (t *translator) maybeEval(e sem.Expr) (super.Value, bool) {
 
 // output reports an error at loc if typ, the type of a value output by the
 // values operator, may be a plain none (e.g., from ok() or ?.).  A plain none
-// disappears from a record, array, or map but the query must handle it with
-// ?? if it would otherwise be output, which is an error at runtime.  The
+// disappears from a record, array, or map but otherwise must be handled with
+// ?? before it leaves the operator that produced it, i.e., a plain none is
+// never passed to a downstream operator, even one that would handle it.
+// (A plain none that reaches the query output at runtime is an error.)  The
 // result of an expression subquery may be none since it's an expression
 // value.
 func (t *translator) output(loc ast.Node, typ super.Type) {

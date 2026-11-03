@@ -31,7 +31,7 @@ output: |
   1
   <{s:string}>
   1
-  error("none not handled (consider ??)")
+  error("none not handled (consider ?? or ?.)")
 
 ---
 

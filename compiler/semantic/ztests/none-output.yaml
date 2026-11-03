@@ -45,10 +45,10 @@ outputs:
       {y:2}
   - name: stderr
     data: |
-      value may be none (consider ??) at line 1, column 23:
+      none not handled (consider ?? or ?.) at line 1, column 23:
       from in.bsup | values org?.id
                             ~~~~~~~
-      value may be none (consider ??) at line 1, column 23:
+      none not handled (consider ?? or ?.) at line 1, column 23:
       from in.bsup | values y.ok()
                             ~~~~~~
 
@@ -64,7 +64,7 @@ input: |
   {org?:{id:1}}
 
 output: |
-  error("none not handled (consider ??)")
+  error("none not handled (consider ?? or ?.)")
   1
 
 ---
@@ -73,7 +73,7 @@ output: |
 spq: values none
 
 error: |
-  value may be none (consider ??) at line 1, column 8:
+  none not handled (consider ?? or ?.) at line 1, column 8:
   values none
          ~~~~
 
@@ -108,3 +108,25 @@ spq: type foo=none values none::foo
 output: |
   type foo=none
   none::foo
+
+---
+
+# A union whose type has a none member keeps its type for values that
+# aren't plain nones.
+spq: values this
+
+input: |
+  1::(int64|none)
+
+output: |
+  1::(int64|none)
+
+---
+
+# A none of a named type survives in a union and in a map.
+spq: type foo=none values 1::(int64|foo), map{"a":none::foo}
+
+output: |
+  type foo=none
+  1::(int64|foo)
+  map{"a":none::foo}

@@ -11,7 +11,8 @@ import (
 // Output is the puller for an output of a query.  It turns any plain none
 // values into errors.  A plain none comes from an operator like ok() or ?.
 // that handles a none so it can disappear from a record, array, or map, but
-// a query must not output one (it should be handled with ??).
+// a query must not output one (it should be handled with ??).  A none of a
+// named type is a value and is output as is.
 type Output struct {
 	sctx   *super.Context
 	parent vio.Puller
@@ -29,7 +30,7 @@ func (o *Output) Pull(done bool) (vector.Any, error) {
 	return o.noneToError(vec), nil
 }
 
-const noneErr = "none not handled (consider ??)"
+const noneErr = "none not handled (consider ?? or ?.)"
 
 func (o *Output) noneToError(vec vector.Any) vector.Any {
 	switch v := vec.(type) {
@@ -54,9 +55,21 @@ func (o *Output) noneToError(vec vector.Any) vector.Any {
 		}
 		return vector.NewDynamic(v.Tags, vals)
 	case *vector.Union:
-		if slices.ContainsFunc(v.Values(), isNoneVec) {
-			return o.noneToError(v.Dynamic())
+		// Only the slots that are plain nones become errors.  The rest
+		// keep the union type.
+		if !slices.ContainsFunc(v.Values(), isNoneVec) {
+			return vec
 		}
+		values := v.Values()
+		var index, rest []uint32
+		for i, tag := range v.Tags() {
+			if isNoneVec(values[tag]) {
+				index = append(index, uint32(i))
+			} else {
+				rest = append(rest, uint32(i))
+			}
+		}
+		return o.slotsToError(vec, index, rest)
 	case *vector.Fusion:
 		// A fusion value is a plain none if its subtype is none.
 		var index, rest []uint32
@@ -67,14 +80,7 @@ func (o *Output) noneToError(vec vector.Any) vector.Any {
 				rest = append(rest, uint32(i))
 			}
 		}
-		if len(index) == 0 {
-			return vec
-		}
-		errs := vector.NewStringError(o.sctx, noneErr, uint32(len(index)))
-		if len(rest) == 0 {
-			return errs
-		}
-		return vector.Combine(vector.Pick(vec, rest), index, errs)
+		return o.slotsToError(vec, index, rest)
 	case *vector.View:
 		if isNoneVec(v.Any) {
 			return vector.NewStringError(o.sctx, noneErr, v.Len())
@@ -83,6 +89,21 @@ func (o *Output) noneToError(vec vector.Any) vector.Any {
 	return vec
 }
 
+// slotsToError returns vec with the slots in index replaced by errors and the
+// slots in rest left as is.
+func (o *Output) slotsToError(vec vector.Any, index, rest []uint32) vector.Any {
+	if len(index) == 0 {
+		return vec
+	}
+	errs := vector.NewStringError(o.sctx, noneErr, uint32(len(index)))
+	if len(rest) == 0 {
+		return errs
+	}
+	return vector.Combine(vector.Pick(vec, rest), index, errs)
+}
+
+// isNoneVec reports whether vec is a plain none.  (A none of a named type
+// is a value.)
 func isNoneVec(vec vector.Any) bool {
-	return vec != nil && vec.Kind() == vector.KindNone
+	return vec != nil && vec.Type() == super.TypeNone
 }
