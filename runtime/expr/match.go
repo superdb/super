@@ -12,10 +12,10 @@ import (
 // the value of its else expression or none if it has none.  An error or
 // missing value that no case matches is passed through.
 type Match struct {
-	sctx     *super.Context
-	expr     Evaluator
-	types    []Evaluator
-	cases    []Evaluator
+	sctx      *super.Context
+	expr      Evaluator
+	types     []Evaluator
+	cases     []Evaluator
 	inputs    []Evaluator
 	elseExpr  Evaluator
 	elseInput Evaluator
