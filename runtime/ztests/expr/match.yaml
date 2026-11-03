@@ -22,8 +22,9 @@ output: |
 
 ---
 
-# Unions, options, and fusions match their underlying values.
-spq: values match x case int64 x+1 case string x||"!"
+# Unions, options, and fusions match their underlying values.  (An option
+# may be none, which no case matches, so an else is needed.)
+spq: values match x case int64 x+1 case string x||"!" else "none"
 
 input: |
   {x:1::(int64|string)}
