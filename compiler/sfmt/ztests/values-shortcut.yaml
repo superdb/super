@@ -33,5 +33,5 @@ outputs:
       | values map{"foo":1,"bar":2}
       | output main
       null
-      | values cast(1, <id:48>)
+      | values cast(1, <int64|string>)
       | output main

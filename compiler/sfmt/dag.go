@@ -1,6 +1,7 @@
 package sfmt
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -15,6 +16,13 @@ func DAG(main *dag.Main) string {
 		shared: shared{formatter{tab: 2}},
 		head:   true,
 		first:  true,
+	}
+	if len(main.Types) != 0 {
+		// Resolve the IDs of type expressions so their types can be
+		// formatted.
+		if defs, ok := super.NewTypeDefsFromBytes(main.Types); ok {
+			d.types = super.NewTypeDefsMapper(super.NewContext(), defs)
+		}
 	}
 	d.main(main)
 	d.flush()
@@ -40,6 +48,9 @@ type canonDAG struct {
 	shared
 	head  bool
 	first bool
+	// types resolves the IDs of non-primitive types in type expressions
+	// and is nil if the DAG has no types table.
+	types *super.TypeDefsMapper
 }
 
 func (c *canonDAG) assignments(assignments []dag.Assignment) {
@@ -114,9 +125,13 @@ func (c *canonDAG) expr(e dag.Expr, parent string) {
 		c.write(" IS NULL")
 	case *dag.TypeAssertExpr:
 		c.expr(e.Expr, "")
-		c.write(".(")
-		c.expr(e.Type, "")
-		c.write(")")
+		if t, ok := e.Type.(*dag.TypeExpr); ok {
+			c.write(".(%s)", c.typeName(t))
+		} else {
+			c.write(".(")
+			c.expr(e.Type, "")
+			c.write(")")
+		}
 	case *dag.MapExpr:
 		c.write("map{")
 		for k, e := range e.Entries {
@@ -177,11 +192,7 @@ func (c *canonDAG) expr(e dag.Expr, parent string) {
 	case *dag.ThisExpr:
 		c.fieldchain(e.Chain)
 	case *dag.TypeExpr:
-		if typ, err := super.LookupPrimitiveByID(e.ID); err == nil {
-			c.write("<%s>", super.PrimitiveName(typ))
-		} else {
-			c.write("<id:%d>", e.ID)
-		}
+		c.write("<%s>", c.typeName(e))
 	case *dag.UnaryExpr:
 		if isnull, ok := e.Operand.(*dag.IsNullExpr); ok && e.Op == "!" {
 			c.expr(isnull.Expr, "")
@@ -195,6 +206,20 @@ func (c *canonDAG) expr(e dag.Expr, parent string) {
 		c.close()
 		c.ret()
 	}
+}
+
+// typeName returns the formatted type of e or, if its type can't be
+// resolved, "id:" followed by its type ID.
+func (c *canonDAG) typeName(e *dag.TypeExpr) string {
+	if typ, err := super.LookupPrimitiveByID(e.ID); err == nil {
+		return super.PrimitiveName(typ)
+	}
+	if c.types != nil {
+		if typ := c.types.LookupType(uint32(e.ID)); typ != nil {
+			return sup.FormatType(typ)
+		}
+	}
+	return fmt.Sprintf("id:%d", e.ID)
 }
 
 func (c *canonDAG) binary(e *dag.BinaryExpr, parent string) {

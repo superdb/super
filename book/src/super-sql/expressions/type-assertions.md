@@ -18,12 +18,16 @@ A type assertion is a postfix operator that binds like the
 e.g., `a.b.(string)` or `x.(Push)?.ref`.
 
 A value has the asserted type when
-* its type is `<type>`,
+* its type is `<type>`, including a union, option, or named type, in which
+  case the value keeps its type,
 * `<type>` is a [union](../types/union.md) type and the value's type is one
-  of its member types,
+  of its member types, in which case the value keeps its member type,
 * it is a value of a union type whose member has the asserted type,
-* it is an option value whose value has the asserted type, or
+* it is an option value whose some value has the asserted type, or
 * it is a fusion value whose subtype is the asserted type.
+
+An option's `none` has an option type, so it's the value of an assertion of
+its option type, e.g., `x.(option(int64))`, and is otherwise `none`.
 
 [Named types](../types/named.md) are distinct, e.g., a value of type
 `port=uint16` has type `port` but not type `uint16`.
@@ -106,6 +110,21 @@ none::int64
 -1
 2
 -1
+```
+
+---
+
+_An option value is asserted as is or on its some value_
+
+```mdtest-spq
+# spq
+values {opt:typeof(this.(option(int64))), val:typeof(this.(int64))}
+# input
+some(1)
+none::int64
+# expected output
+{opt:<option(int64)>,val:<int64>}
+{opt:<option(int64)>,val:<none>}
 ```
 
 ---

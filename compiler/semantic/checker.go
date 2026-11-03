@@ -1739,7 +1739,8 @@ func (c *checker) notMissing(loc ast.Node, typ super.Type) bool {
 }
 
 // typeAssert returns the type of a type assertion of a value of type in to
-// the type of the type expression e, which is the asserted type or none,
+// the type of the type expression e, which is the asserted type (or, for a
+// named union type, the named type or one of its members) or none,
 // plus any error or missing types of in, which a type assertion passes
 // through (unless the asserted type is the error type).
 func (c *checker) typeAssert(in super.Type, e sem.Expr) super.Type {
@@ -1755,6 +1756,13 @@ func (c *checker) typeAssert(in super.Type, e sem.Expr) super.Type {
 		return c.unknown
 	}
 	types := []super.Type{target}
+	if _, ok := target.(*super.TypeNamed); ok {
+		if u, ok := under(target).(*super.TypeUnion); ok {
+			// A value whose type is a member of a named union type is
+			// the value with its member type (not the named type).
+			types = append(types, u.Types...)
+		}
+	}
 	if !hasUnknown(in) {
 		members := []super.Type{defuse(in)}
 		if u, ok := under(members[0]).(*super.TypeUnion); ok {
