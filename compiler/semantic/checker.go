@@ -618,7 +618,9 @@ func (c *checker) binary(op string, loc, lloc, rloc ast.Node, lhs, rhs super.Typ
 		return c.comparison(lhs, rhs)
 	case "+":
 		return c.plus(loc, lhs, rhs)
-	case "-", "*", "/", "%":
+	case "-":
+		return c.minus(lloc, rloc, lhs, rhs)
+	case "*", "/", "%":
 		return c.arithmetic(lloc, rloc, lhs, rhs)
 	case "??":
 		// ?? handles none (and null) but not a field that may be missing,
@@ -1328,6 +1330,37 @@ func (c *checker) arithmetic(lloc, rloc ast.Node, lhs, rhs super.Type) super.Typ
 	c.number(lloc, lhs)
 	c.number(rloc, rhs)
 	return c.fuse([]super.Type{lhs, rhs})
+}
+
+func (c *checker) minus(lloc, rloc ast.Node, lhs, rhs super.Type) super.Type {
+	typ := c.arithmetic(lloc, rloc, lhs, rhs)
+	// The difference of two timestamps is a duration.
+	if isTimestamp(lhs) && isTimestamp(rhs) {
+		if hasNullType(typ) {
+			return c.fuse([]super.Type{super.TypeDuration, super.TypeNull})
+		}
+		return super.TypeDuration
+	}
+	return typ
+}
+
+// isTimestamp reports whether typ is timestamp or a union of timestamp types
+// and null (e.g., a nullable column or a mix of named and unnamed timestamps).
+func isTimestamp(typ super.Type) bool {
+	u, ok := under(typ).(*super.TypeUnion)
+	if !ok {
+		return under(typ).ID() == super.IDTimestamp
+	}
+	var found bool
+	for _, t := range u.Types {
+		switch {
+		case isTimestamp(t):
+			found = true
+		case under(t) != super.TypeNull:
+			return false
+		}
+	}
+	return found
 }
 
 func (c *checker) plus(loc ast.Node, lhs, rhs super.Type) super.Type {

@@ -1,0 +1,35 @@
+# The difference of two timestamps is a duration.  Subtracting a duration
+# from a timestamp still yields a timestamp.
+spq: values a - b, typeof(a - b), a - 1s
+
+input: |
+  {a:2025-04-22T18:16:50Z,b:2025-04-22T18:16:46Z}
+  {a:2025-04-22T18:16:46Z,b:2025-04-22T18:16:50Z}
+  {a:2025-04-22T18:16:50Z,b:null}
+  {a:null,b:2025-04-22T18:16:46Z}
+
+output: |
+  4s
+  <duration>
+  2025-04-22T18:16:49Z
+  -4s
+  <duration>
+  2025-04-22T18:16:45Z
+  null
+  <null>
+  2025-04-22T18:16:49Z
+  null
+  <null>
+  null
+
+---
+
+# Constants and named timestamp types.
+spq: |
+  type mytime=timestamp
+  values 2025-04-22T18:16:50Z - 2025-04-22T18:16:46Z,
+    cast(2025-04-22T18:16:50Z, mytime) - 2025-04-22T18:16:46Z
+
+output: |
+  4s
+  4s

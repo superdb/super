@@ -388,7 +388,7 @@ func TestArithmetic(t *testing.T) {
 	testSuccessful(t, "null % 1", "", "null")
 
 	// Difference of two times is a duration
-	// sam-only testSuccessful(t, "a - b", "{a:2022-09-22T00:00:01Z,b:2022-09-22T00:00:00Z}", "1s")
+	testSuccessful(t, "a - b", "{a:2022-09-22T00:00:01Z,b:2022-09-22T00:00:00Z}", "1s")
 
 	// Difference of time and duration is a time
 	testSuccessful(t, "2022-09-22T00:00:01Z - 1h", "", "2022-09-21T23:00:01Z")
