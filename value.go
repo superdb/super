@@ -78,6 +78,10 @@ func boolToUint64(b bool) uint64 {
 	return 0
 }
 
+func (v Value) IsValid() bool {
+	return v.typ != nil
+}
+
 // Uint returns v's underlying value.  It panics if v's underlying type is not
 // TypeUint8, TypeUint16, TypeUint32, or TypeUint64.
 func (v Value) Uint() uint64 {
