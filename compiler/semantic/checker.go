@@ -830,9 +830,10 @@ func (c *checker) callBuiltin(call *sem.CallExpr, args []super.Type) super.Type 
 
 // castType returns the type of a cast of a value of type in to the type value
 // e, which is known when e is a type expression (e.g., <int64> or a named
-// type) and is otherwise unknown.  A cast passes a null through so the type
-// admits null if in does, and a cast produces missing only from missing so
-// the type admits missing only if in does.
+// type) and is otherwise unknown.  A cast passes a null through (except to
+// an option type that doesn't admit null, which makes it the option's none)
+// so the type admits null if in does, and a cast produces missing only from
+// missing so the type admits missing only if in does.
 func (c *checker) castType(in super.Type, e sem.Expr) super.Type {
 	typeExpr, ok := e.(*sem.TypeExpr)
 	if !ok {
@@ -854,6 +855,11 @@ func (c *checker) castType(in super.Type, e sem.Expr) super.Type {
 		typ = rest
 	}
 	if hasNullType(in) && !hasNullType(typ) {
+		if o, ok := under(typ).(*super.TypeOption); ok && !hasNullType(o.Type) {
+			// A cast of null to an option type that doesn't admit null
+			// is the option's none.
+			return typ
+		}
 		return c.fuse([]super.Type{typ, super.TypeNull})
 	}
 	return typ

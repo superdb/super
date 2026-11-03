@@ -45,3 +45,33 @@ output: |
   error({message:"optionize: argument is not a type",on:1})
   null
   error({message:"optionize: error value encountered",on:error("bad")})
+
+---
+
+# A null member of the type of a record field is treated like missing so the
+# field becomes optional, except that null is kept if it's the field's only
+# type (so null stays null and missing|null becomes option(null)).  A null in
+# a union that isn't a field's type is left as is.
+spq: values optionize(this)
+
+input: |
+  <{a:null|int64}>
+  <{a:missing|null|int64}>
+  <{a:missing|null|int64|string}>
+  <{a:null}>
+  <{a:missing|null}>
+  <{a:{b:null|string}}>
+  <{a:[int64|null]}>
+  <int64|null>
+  <[{a:null|int64}]>
+
+output: |
+  <{a?:int64}>
+  <{a?:int64}>
+  <{a?:int64|string}>
+  <{a:null}>
+  <{a?:null}>
+  <{a:{b?:string}}>
+  <{a:[int64|null]}>
+  <int64|null>
+  <[{a?:int64}]>

@@ -1,0 +1,28 @@
+# A null cast to an option type whose type doesn't admit null is the
+# option's none.  Otherwise, null is cast as usual.
+spq: values null::option(int64), null::option(int64|null), null::int64, [null]::[option(int64)], 1::(int64|null)::option(int64)
+
+output: |
+  none::int64
+  some(null::(int64|null))
+  null::(int64|null)
+  [none::int64]
+  some(1)
+
+---
+
+# A null field cast to an optional field that doesn't admit null is absent.
+spq: values this::{a?:int64}, this::{a?:int64|null}
+
+input: |
+  {a:null}
+  {a:1}
+  {}
+
+output: |
+  {a?:none::int64}
+  {a?:null::(int64|null)}
+  {a?:1}
+  {a?:1::(int64|null)}
+  {a?:none::int64}
+  {a?:none::option(int64|null)}
