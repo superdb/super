@@ -1,0 +1,50 @@
+# A map with string keys cast to a record has each field's value from the
+# entry with the field's name.  Other entries are omitted and a field with
+# no entry is absent (none for an optional field and otherwise an error).
+spq: values this::{x:int64,y?:string}, this::{x:int64,z:int64}
+
+input: |
+  map{"x":1,"y":"a"}
+  map{"x":"2","w":3}
+  map{}
+
+output: |
+  {x:1,y?:"a"}
+  {x:1,z:error("no such field z")}
+  {x:2,y?:none::string}
+  {x:2,z:error("no such field z")}
+  {x:error("no such field x"),y?:none::string}
+  {x:error("no such field x"),z:error("no such field z")}
+
+---
+
+# A map without string keys can't be cast to a record.
+spq: values map{1:1}::{x:int64}
+
+output: |
+  error({message:"cannot cast to {x:int64}",on:map{1:1}})
+
+---
+
+# Maps nested in records and arrays are cast too, and a record cast to a map
+# can be cast back.
+spq: values this::{a:{b:int64},c:[{d:bool}]}, {x:1,y:2}::map{string:int64}::{x:int64,y:int64}
+
+input: |
+  map{"a":map{"b":1},"c":[map{"d":true}]}
+
+output: |
+  {a:{b:1},c:[{d:true}]}
+  {x:1,y:2}
+
+---
+
+# A map whose key type is a named string type can be cast to a record, and
+# the first entry of a duplicate key is used.
+spq: |
+  type k=string
+  values map{"a"::k:1}::{a:int64}, map{"a":1,"a":2}::{a:int64}
+
+output: |
+  {a:1}
+  {a:1}

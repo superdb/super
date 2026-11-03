@@ -90,6 +90,10 @@ The casting rules for complex values are as follows:
     target type are set to null, and the value of each input field present
     in both the input and target are recursively cast to the target's type of
     that field,
+  * a [map](../types/map.md) type with `string` keys where each field of the
+    input value is an entry whose key is the field's name and whose value is
+    the field's value recursively cast to the value type of the target map
+    type (an absent optional field has no entry),
   * a [string](../types/string.md) type where the string is the input value
     serialized in the [SUP](../../formats/sup.md) format, or
   * a [union](#union-types) or [named type](#named-types).
@@ -113,6 +117,11 @@ The casting rules for complex values are as follows:
 * A [map](../types/map.md) may be cast to
   * a [map](../types/map.md) type where the keys and values of the input value are
     recursively cast to the key and value type of the target map type,
+  * a [record](../types/record.md) type, when the keys of the input value are
+    strings, where each field's value is the value of the entry whose key is
+    the field's name recursively cast to the field's type, entries whose
+    keys aren't fields of the target type are omitted, and a field with no
+    entry is absent as when casting a record,
   * a [string](../types/string.md) type where the string is the input value
     serialized in the [SUP](../../formats/sup.md) format, or
   * a [union](#union-types) or [named type](#named-types).
@@ -130,6 +139,10 @@ to find a _best fit_ of the available types.  If no fit exists, a structured
 error is returned.
 
 If the input type is present in the member types, then the best fit is that type.
+
+A record is cast to a map member of the union only if no other member fits,
+e.g., so that any JSON value may be cast to a recursive JSON type like
+`type JSON = null|bool|int64|float64|string|[JSON]|map{string:JSON}`.
 
 Otherwise, the best fit is determined from the input type as follows:
 

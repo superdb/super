@@ -251,6 +251,8 @@ func TestCastWithOptions(t *testing.T) {
 		{`{x:1,z:2}`, `{x:int64}`, cast.Options{Strict: true}, `error({message:"cannot cast to {x:int64}: no field z in type",on:{x:1,z:2}})`},
 		{`{a:{x:1,z:2}}`, `{a:{x:int64}}`, cast.Options{Strict: true}, `{a:error({message:"cannot cast to {x:int64}: no field z in type",on:{x:1,z:2}})}`},
 		{`"1"`, `int64|null`, cast.Options{}, `1::(int64|null)`},
+		{`map{"x":1,"z":2}`, `{x:int64}`, cast.Options{}, `{x:1}`},
+		{`map{"x":1,"z":2}`, `{x:int64}`, cast.Options{Strict: true}, `error({message:"cannot cast to {x:int64}: no field z in type",on:map{"x":1,"z":2}})`},
 	}
 	for _, c := range cases {
 		sctx := super.NewContext()

@@ -1,0 +1,18 @@
+# db load casts maps to the table type strictly so a map with a key that
+# isn't a field of the table type fails.  Since keys vary per map, the error
+# is for that map and not for another map cast with it.  Maps whose keys are
+# all fields are loaded.
+script: |
+  super db init -q test
+  super db attach -q test
+  super db create -q -type '{x:string}' typed
+  echo 'map{"x":"a"} map{"x":"b","y":"c"}' | super db load -q -use typed - 2>&1 || true
+  echo 'map{"x":"a"} map{"x":"b"}' | super db load -q -use typed -
+  super db -s -c "from typed | sort x"
+
+outputs:
+  - name: stdout
+    data: |
+      value map{"x":"b","y":"c"} cannot be cast to table type {x:string}: no field y in type
+      {x:"a"}
+      {x:"b"}
