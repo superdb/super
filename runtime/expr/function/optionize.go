@@ -7,7 +7,8 @@ import (
 )
 
 // Optionize returns its type argument with every union type that has a
-// missing member replaced by an option type (see super.Context.OptionizeMissing).
+// missing member, and every union type of a record field that has a null
+// member, replaced by an option type (see super.Context.OptionizeMissing).
 type Optionize struct {
 	sctx *super.Context
 }

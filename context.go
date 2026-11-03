@@ -1855,6 +1855,10 @@ func NewTypeDefsFromBytes(bytes []byte) (*TypeDefs, bool) {
 // or option(T1|T2|...).  Since an option already represents an absent value,
 // none members and option members of such a union are absorbed into the
 // result, e.g., (missing|none|option(T1)|T2) becomes option(T1|T2).
+// In addition, a null member of the type of a record field is treated like
+// missing, i.e., a field of type (null|T), (missing|T), or (missing|null|T)
+// becomes a field of type option(T), unless null is the only type left
+// besides missing, in which case the field is left as is.
 // OptionizeMissing descends into all complex types except named types,
 // which are left as is (since a named type's name is bound to its type and
 // named types may be recursive).
@@ -1863,7 +1867,7 @@ func (c *Context) OptionizeMissing(typ Type) Type {
 	case *TypeRecord:
 		var fields []Field
 		for k, f := range typ.Fields {
-			if t := c.OptionizeMissing(f.Type); t != f.Type {
+			if t := c.optionizeNullField(c.OptionizeMissing(f.Type)); t != f.Type {
 				if fields == nil {
 					fields = slices.Clone(typ.Fields)
 				}
@@ -1906,6 +1910,41 @@ func (c *Context) OptionizeMissing(typ Type) Type {
 		return c.optionizeUnion(typ)
 	}
 	return typ
+}
+
+// optionizeNullField returns typ, the optionized type of a record field,
+// with a null member removed and the result made an option, i.e., (null|T)
+// becomes option(T) and option(null|T) becomes option(T).  If null is the
+// only type, typ is returned as is.
+func (c *Context) optionizeNullField(typ Type) Type {
+	var union *TypeUnion
+	switch t := typ.(type) {
+	case *TypeUnion:
+		union = t
+	case *TypeOption:
+		if u, ok := t.Type.(*TypeUnion); ok {
+			union = u
+		}
+	}
+	if union == nil || !slices.Contains(union.Types, Type(TypeNull)) {
+		return typ
+	}
+	var inner []Type
+	for _, t := range union.Types {
+		if t != TypeNull {
+			inner = append(inner, t)
+		}
+	}
+	switch len(inner) {
+	case 0:
+		return typ
+	case 1:
+		if _, ok := inner[0].(*TypeOption); ok {
+			return inner[0]
+		}
+		return c.LookupTypeOption(inner[0])
+	}
+	return c.LookupTypeOption(c.MustLookupTypeUnion(inner))
 }
 
 func (c *Context) optionizeUnion(union *TypeUnion) Type {

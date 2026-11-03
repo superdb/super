@@ -211,6 +211,13 @@ func (c *complexCaster) toOption(vec vector.Any, to *super.TypeOption) vector.An
 		// Casting none or missing (e.g., from a field of type T|missing)
 		// to an option type yields that option's none.
 		return vector.NewOptionNone(to, n)
+	case super.TypeNull:
+		// Casting null to an option type whose type doesn't admit null
+		// yields the option's none.  (Otherwise, null is cast to the
+		// option's type, as for any other value.)
+		if !AdmitsNull(to.Type) {
+			return vector.NewOptionNone(to, n)
+		}
 	}
 	return vector.Apply(vector.ApplyNone, func(vecs ...vector.Any) vector.Any {
 		vec := vecs[0]
@@ -783,4 +790,12 @@ func (e *elems) concat(typ super.Type, sources func(func(vector.Any, uint32)), n
 		b.Write(sb.Bytes().Body())
 	})
 	return b.Build(e.sctx)
+}
+
+// AdmitsNull returns true if typ is null or a union with a null member.
+func AdmitsNull(typ super.Type) bool {
+	if union, ok := super.TypeUnder(typ).(*super.TypeUnion); ok {
+		return slices.ContainsFunc(union.Types, AdmitsNull)
+	}
+	return super.TypeUnder(typ) == super.TypeNull
 }
