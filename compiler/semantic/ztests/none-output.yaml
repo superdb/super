@@ -111,9 +111,11 @@ output: |
 
 ---
 
-# A union whose type has a none member keeps its type for values that
-# aren't plain nones.
+# At runtime, a union whose type has a none member keeps its type for values
+# that aren't plain nones.  (Statically, the type may be none so it's an error.)
 spq: values this
+
+flags: -dynamic
 
 input: |
   1::(int64|none)
@@ -128,5 +130,5 @@ spq: type foo=none values 1::(int64|foo), map{"a":none::foo}
 
 output: |
   type foo=none
-  1::(int64|foo)
+  1::(foo|int64)
   map{"a":none::foo}
