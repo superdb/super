@@ -176,7 +176,7 @@ input: |
 
 output: |
   <option(int64)>
-  <none>
+  <int64>
   <option(int64)>
   <none>
   <none>
