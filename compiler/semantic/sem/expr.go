@@ -75,6 +75,16 @@ type (
 		Expr Expr
 		Type Expr
 	}
+	// MatchExpr is a match expression.  Each case's result is evaluated on
+	// the case's input and Else is evaluated on ElseInput (see
+	// translator.matchExpr).
+	MatchExpr struct {
+		ast.Node
+		Expr      Expr
+		Cases     []MatchCase
+		Else      Expr
+		ElseInput Expr
+	}
 	MapCallExpr struct {
 		ast.Node
 		Expr   Expr
@@ -182,6 +192,12 @@ func (*FieldElem) recordElemNode()  {}
 func (*SpreadElem) arrayElemNode()  {}
 func (*SpreadElem) recordElemNode() {}
 
+type MatchCase struct {
+	Type  Expr
+	Input Expr
+	Expr  Expr
+}
+
 func (*AggFunc) exprNode()          {}
 func (*AggRef) exprNode()           {}
 func (*ArrayExpr) exprNode()        {}
@@ -193,6 +209,7 @@ func (*DotExpr) exprNode()          {}
 func (*IndexExpr) exprNode()        {}
 func (*IsNullExpr) exprNode()       {}
 func (*TypeAssertExpr) exprNode()   {}
+func (*MatchExpr) exprNode()        {}
 func (*MapCallExpr) exprNode()      {}
 func (*MapExpr) exprNode()          {}
 func (*PrimitiveExpr) exprNode()    {}
@@ -348,6 +365,18 @@ func CopyExpr(e Expr) Expr {
 			Node: e.Node,
 			Expr: CopyExpr(e.Expr),
 			Type: CopyExpr(e.Type),
+		}
+	case *MatchExpr:
+		cases := make([]MatchCase, 0, len(e.Cases))
+		for _, c := range e.Cases {
+			cases = append(cases, MatchCase{Type: CopyExpr(c.Type), Input: CopyExpr(c.Input), Expr: CopyExpr(c.Expr)})
+		}
+		return &MatchExpr{
+			Node:      e.Node,
+			Expr:      CopyExpr(e.Expr),
+			Cases:     cases,
+			Else:      CopyExpr(e.Else),
+			ElseInput: CopyExpr(e.ElseInput),
 		}
 	case *MapCallExpr:
 		return &MapCallExpr{

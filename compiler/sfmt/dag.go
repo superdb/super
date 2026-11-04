@@ -123,6 +123,32 @@ func (c *canonDAG) expr(e dag.Expr, parent string) {
 	case *dag.IsNullExpr:
 		c.expr(e.Expr, "")
 		c.write(" IS NULL")
+	case *dag.MatchExpr:
+		// A case's input is shown only when it's a record (for a named
+		// match or one with a with clause) and isn't the matched value
+		// asserted to the case's type.
+		c.write("match ")
+		c.expr(e.Expr, "")
+		for _, mc := range e.Cases {
+			c.write(" case ")
+			c.expr(mc.Type, "")
+			if _, ok := mc.Input.(*dag.RecordExpr); ok {
+				c.write(" input ")
+				c.expr(mc.Input, "")
+			}
+			c.write(" then ")
+			c.expr(mc.Expr, "")
+		}
+		if e.Else != nil {
+			c.write(" else ")
+			if _, ok := e.ElseInput.(*dag.RecordExpr); ok {
+				c.write("input ")
+				c.expr(e.ElseInput, "")
+				c.write(" ")
+			}
+			c.expr(e.Else, "")
+		}
+		c.write(" end")
 	case *dag.TypeAssertExpr:
 		c.expr(e.Expr, "")
 		if t, ok := e.Type.(*dag.TypeExpr); ok {

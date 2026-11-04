@@ -353,6 +353,17 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 		return super.TypeBool
 	case *sem.TypeAssertExpr:
 		return c.typeAssert(c.expr(typ, e.Expr), e.Type)
+	case *sem.MatchExpr:
+		in := c.expr(typ, e.Expr)
+		var targets, types []super.Type
+		for _, mc := range e.Cases {
+			targets = append(targets, c.typeOfTypeExpr(mc.Type))
+			types = append(types, c.expr(c.caseInputType(typ, mc.Input), mc.Expr))
+		}
+		if e.Else != nil {
+			types = append(types, c.expr(c.expr(typ, e.ElseInput), e.Else))
+		}
+		return c.matchType(in, targets, types, e.Else != nil)
 	case *sem.MapCallExpr:
 		containerType := c.expr(typ, e.Expr)
 		elemType, ok := c.isContainer(containerType)
@@ -1744,15 +1755,8 @@ func (c *checker) notMissing(loc ast.Node, typ super.Type) bool {
 // plus any error or missing types of in, which a type assertion passes
 // through (unless the asserted type is the error type).
 func (c *checker) typeAssert(in super.Type, e sem.Expr) super.Type {
-	typeExpr, ok := e.(*sem.TypeExpr)
-	if !ok {
-		return c.unknown
-	}
-	target, err := c.t.defs.LookupType(typeExpr.ID)
-	if err != nil {
-		return c.unknown
-	}
-	if target, err = c.t.sctx.TranslateType(target); err != nil {
+	target := c.typeOfTypeExpr(e)
+	if target == nil {
 		return c.unknown
 	}
 	types := []super.Type{target}
@@ -1775,4 +1779,100 @@ func (c *checker) typeAssert(in super.Type, e sem.Expr) super.Type {
 		}
 	}
 	return c.orNone(c.fuse(types))
+}
+
+// typeOfTypeExpr returns the type of the type expression e or nil if it
+// isn't known.
+func (c *checker) typeOfTypeExpr(e sem.Expr) super.Type {
+	typeExpr, ok := e.(*sem.TypeExpr)
+	if !ok {
+		return nil
+	}
+	typ, err := c.t.defs.LookupType(typeExpr.ID)
+	if err != nil {
+		return nil
+	}
+	if typ, err = c.t.sctx.TranslateType(typ); err != nil {
+		return nil
+	}
+	return typ
+}
+
+// caseInputType returns the type of input, the input of a case of a match
+// expression (see translator.matchExpr) evaluated on a value of type typ,
+// where the assertion of the matched value has the case's type since the
+// case matched.
+func (c *checker) caseInputType(typ super.Type, input sem.Expr) super.Type {
+	switch e := input.(type) {
+	case *sem.TypeAssertExpr:
+		if target := c.typeOfTypeExpr(e.Type); target != nil {
+			return target
+		}
+		return c.unknown
+	case *sem.RecordExpr:
+		// The first field is the asserted matched value and the others
+		// are the with values.
+		var fields []super.Field
+		for k, elem := range e.Elems {
+			f, ok := elem.(*sem.FieldElem)
+			if !ok {
+				return c.unknown
+			}
+			ftyp := c.expr(typ, f.Value)
+			if k == 0 {
+				ftyp = c.caseInputType(typ, f.Value)
+			}
+			fields = append(fields, super.NewField(f.Name, ftyp))
+		}
+		if rec, err := c.t.sctx.LookupTypeRecord(fields); err == nil {
+			return rec
+		}
+		return c.unknown
+	}
+	return c.expr(typ, input)
+}
+
+// matchType returns the type of a match expression whose matched value has
+// type in, whose cases have types targets (nil if unknown), and whose case
+// (and else) expressions have types types.  An error or missing value that
+// no case matches is passed through, and without an else, the value is
+// none if no case matches, unless the cases cover every type of in.
+func (c *checker) matchType(in super.Type, targets, types []super.Type, hasElse bool) super.Type {
+	out := slices.Clone(types)
+	exhaustive := !hasUnknown(in) && !slices.Contains(targets, nil)
+	members := []super.Type{defuse(in)}
+	if u, ok := under(members[0]).(*super.TypeUnion); ok {
+		members = u.Types
+	}
+	for _, m := range members {
+		matched := slices.ContainsFunc(targets, func(target super.Type) bool {
+			return target != nil && matchesType(m, target)
+		})
+		if matched {
+			continue
+		}
+		if isErrorType(m) || isMissingType(m) {
+			out = append(out, m)
+			continue
+		}
+		exhaustive = false
+	}
+	if hasElse || exhaustive {
+		return c.fuse(out)
+	}
+	return c.orNone(c.fuse(out))
+}
+
+// matchesType returns true if every value of type typ has type target in a
+// type assertion, i.e., typ is target or a member of the union type target.
+// (An option whose some value has type target doesn't match since its none
+// doesn't.)
+func matchesType(typ, target super.Type) bool {
+	if typ == target {
+		return true
+	}
+	if u, ok := super.TypeUnder(target).(*super.TypeUnion); ok {
+		return slices.Contains(u.Types, typ)
+	}
+	return false
 }

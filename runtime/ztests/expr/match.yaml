@@ -1,0 +1,218 @@
+# A match picks the first case whose type the value has.  A case's result is
+# evaluated on the matched value asserted to the case's type and the else
+# result on the matched value.
+spq: |
+  values match this
+    case int64 then this+1
+    case string upper(this)
+    case {a:int64} a
+    else "other"
+  end
+
+input: |
+  1
+  "a"
+  {a:2}
+  true
+
+output: |
+  2
+  "A"
+  2
+  "other"
+
+---
+
+# Unions, options, and fusions match their underlying values.  (An option
+# may be none, which no case matches, so an else is needed.)
+spq: values match x case int64 this+1 case string this||"!" else "none"
+
+input: |
+  {x:1::(int64|string)}
+  {x:"a"::(int64|string)}
+  {x:some(2)}
+
+output: |
+  2
+  "a!"
+  3
+
+---
+
+# Any expression may be matched and an unmatched value is none.
+spq: values {v:match a.b case int64 this*10}
+
+input: |
+  {a:{b:1}}
+  {a:{b:"x"}}
+
+output: |
+  {v:10}
+  {}
+
+---
+
+# A union-type case matches any of its members.
+spq: values match this case int64|string "scalar" else "other"
+
+input: |
+  1
+  "a"
+  [1]
+
+output: |
+  "scalar"
+  "scalar"
+  "other"
+
+---
+
+# Errors and missing pass through unless a case has an error type.
+spq: |
+  values match this case int64 this,
+         match this case error(string) "caught" else "ok"
+
+input: |
+  1
+  error("e")
+
+output: |
+  1
+  "ok"
+  error("e")
+  "caught"
+
+---
+
+# A match covering all members of a union has no none in its type.
+spq: |
+  values cast(this, <int64|string>)
+  | values typeof(match this case int64 "i" case string "s")
+
+input: |
+  1
+
+output: |
+  <string>
+
+---
+
+# Without end, else belongs to the innermost match.
+spq: values match this case int64 match this case int64 "inner" else "x" case string "s"
+
+input: |
+  1
+  "a"
+
+output: |
+  "inner"
+  "s"
+
+---
+
+# A match without an else may be none, which must be handled.
+spq: values (match this case int64 this) + 1
+
+error: |
+  int64|none: none not handled (consider ?? or ?.) at line 1, column 9:
+  values (match this case int64 this) + 1
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+---
+
+# match is still a valid identifier.
+spq: values match + 1
+
+input: |
+  {match:1}
+
+output: |
+  2
+
+---
+
+# A value matches by the same rules as a type assertion, so an option value
+# (including an option's none) matches its option type, and the first case
+# whose type the value has wins.
+spq: |
+  values match this case option(int64) "option" case int64 "int64" else "other",
+         match this case int64 "member" case int64|string "union" else "other",
+         match this case int64|string "union" case int64 "member" else "other"
+
+input: |
+  some(1)
+  none::int64
+  1::(int64|string)
+
+output: |
+  "option"
+  "member"
+  "union"
+  "option"
+  "other"
+  "other"
+  "int64"
+  "member"
+  "union"
+
+---
+
+# A subquery in a case has the case's input as its input.
+spq: values match x case int64 then (values this+1) else 0
+
+input: |
+  {x:1::(int64|string)}
+  {x:"a"::(int64|string)}
+  {x:some(2)}
+
+output: |
+  2
+  0
+  3
+
+---
+
+# A match with a with clause has a record input whose first field is the
+# (asserted) matched value and whose other fields are the with values.
+# Names are derived from the expressions as for put.
+spq: values match x with y case int64 x+y case string x else y
+
+input: |
+  {x:1,y:10}
+  {x:"a",y:20}
+  {x:true,y:30}
+
+output: |
+  11
+  "a"
+  30
+
+---
+
+# A derived name for a function call is the function's name and for this is
+# "that", and a name may be given with :=.
+spq: |
+  values match upper(s) with this case string upper||"/"||that.s else "",
+         match s:=upper(s) with that:=this case string s||"/"||that.s else "",
+         match s:=upper(s) case string s||"!" else ""
+
+input: |
+  {s:"a"}
+
+output: |
+  "A/a"
+  "A/a"
+  "A!"
+
+---
+
+# The field names of a match's input must be unique.
+spq: values match x with x case int64 1 else 0
+
+input: |
+  {x:1}
+
+error: |
+  match: duplicate field name "x" at line 1, column 21:
+  values match x with x case int64 1 else 0
+                      ~

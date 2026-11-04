@@ -40,6 +40,7 @@
         - [Inputs](super-sql/expressions/inputs.md)
         - [Literals](super-sql/expressions/literals.md)
         - [Logic](super-sql/expressions/logic.md)
+        - [Match](super-sql/expressions/match.md)
         - [Slices](super-sql/expressions/slices.md)
         - [Subqueries](super-sql/expressions/subqueries.md)
         - [Type Assertions](super-sql/expressions/type-assertions.md)

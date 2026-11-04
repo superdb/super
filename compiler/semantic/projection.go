@@ -85,6 +85,15 @@ func exprWalk(e sem.Expr, visit exprVisitor) sem.Expr {
 	case *sem.TypeAssertExpr:
 		e.Expr = exprWalk(e.Expr, visit)
 		e.Type = exprWalk(e.Type, visit)
+	case *sem.MatchExpr:
+		e.Expr = exprWalk(e.Expr, visit)
+		for k := range e.Cases {
+			e.Cases[k].Type = exprWalk(e.Cases[k].Type, visit)
+			e.Cases[k].Input = exprWalk(e.Cases[k].Input, visit)
+			e.Cases[k].Expr = exprWalk(e.Cases[k].Expr, visit)
+		}
+		e.ElseInput = exprWalk(e.ElseInput, visit)
+		e.Else = exprWalk(e.Else, visit)
 	case *sem.MapExpr:
 		for _, ent := range e.Entries {
 			ent.Key = exprWalk(ent.Key, visit)

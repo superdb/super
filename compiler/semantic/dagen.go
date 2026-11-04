@@ -450,6 +450,18 @@ func (d *dagen) expr(e sem.Expr) dag.Expr {
 			Expr: d.expr(e.Expr),
 			Type: d.expr(e.Type),
 		}
+	case *sem.MatchExpr:
+		cases := make([]dag.MatchCase, 0, len(e.Cases))
+		for _, c := range e.Cases {
+			cases = append(cases, dag.MatchCase{Type: d.expr(c.Type), Input: d.expr(c.Input), Expr: d.expr(c.Expr)})
+		}
+		return &dag.MatchExpr{
+			Kind:      "MatchExpr",
+			Expr:      d.expr(e.Expr),
+			Cases:     cases,
+			Else:      d.expr(e.Else),
+			ElseInput: d.expr(e.ElseInput),
+		}
 	case *sem.PrimitiveExpr:
 		return &dag.PrimitiveExpr{
 			Kind:  "PrimitiveExpr",
