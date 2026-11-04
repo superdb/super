@@ -1,7 +1,9 @@
 package loader
 
 import (
+	"fmt"
 	"iter"
+	"sync"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
@@ -21,6 +23,22 @@ type FrameLoader struct {
 	sctx  *super.Context
 	frame *bsup.ColFrame
 	root  shadow
+
+	mapperMu sync.Mutex
+	mapper   *super.TypeDefsMapper
+}
+
+func (f *FrameLoader) lookupType(id uint32) super.Type {
+	f.mapperMu.Lock()
+	if f.mapper == nil {
+		f.mapper = super.NewTypeDefsMapper(f.sctx, f.frame.Context().LoadSubtypes())
+	}
+	typ := f.mapper.LookupType(id)
+	f.mapperMu.Unlock()
+	if typ == nil {
+		panic(fmt.Errorf("bad type ID %d in BSUP metadata", id))
+	}
+	return typ
 }
 
 func NewFrameLoader(sctx *super.Context, frame *bsup.ColFrame) *FrameLoader {

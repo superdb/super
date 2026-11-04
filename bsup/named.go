@@ -30,7 +30,7 @@ func (n *NamedEncoder) Encode(group *errgroup.Group) {
 
 func (n *NamedEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
 	if n.encoder == nil {
-		return off, bctx.enter(&Empty{Type: n.typ})
+		return off, bctx.enter(&Empty{bctx.TypeDefs().LookupType(n.typ)})
 	}
 	off, id := n.encoder.Metadata(bctx, off)
 	return off, bctx.enter(&Named{n.typ.Name, id})

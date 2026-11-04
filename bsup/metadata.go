@@ -9,7 +9,7 @@ type Metadata interface {
 }
 
 type Empty struct {
-	Type super.Type
+	TypeID uint32
 }
 
 func (*Empty) Len(*Context) uint32 {
@@ -123,7 +123,7 @@ func (f *Fusion) Len(bctx *Context) uint32 {
 }
 
 type Option struct {
-	Type   super.Type `super:"Type"`
+	TypeID uint32
 	Length uint32
 	Tags   Segment
 	Values ID
@@ -263,16 +263,9 @@ func (n *None) Len(*Context) uint32 {
 }
 
 type Const struct {
-	Value super.Value // this value lives in local context and needs to be translated by shadow
-	Count uint32
-}
-
-func (c *Const) Type(_ *Context, sctx *super.Context) super.Type {
-	typ, err := sctx.TranslateType(c.Value.Type())
-	if err != nil {
-		panic(err)
-	}
-	return typ
+	TypeID uint32
+	Bytes  []byte
+	Count  uint32
 }
 
 func (c *Const) Len(*Context) uint32 {

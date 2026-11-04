@@ -52,19 +52,15 @@ func (o *option) load(loader *FrameLoader) []uint32 {
 }
 
 func (o *option) project(loader *FrameLoader, projection field.Projection) vector.Any {
-	typ, err := loader.sctx.TranslateType(o.meta.Type)
-	if err != nil {
-		panic(err)
-	}
-	optionType := typ.(*super.TypeOption)
+	typ := loader.lookupType(o.meta.TypeID).(*super.TypeOption)
 	vec := o.values.project(loader, projection)
 	if vec.Kind() == vector.KindNone {
-		return vector.NewOptionNone(optionType, vec.Len())
+		return vector.NewOptionNone(typ, vec.Len())
 	}
 	noneLen := o.len - vec.Len()
 	if noneLen == 0 {
-		return vector.NewOptionSome(optionType, vec)
+		return vector.NewOptionSome(typ, vec)
 	}
 	tags := o.load(loader)
-	return vector.NewOption(optionType, tags, vec, vector.NewNone(noneLen))
+	return vector.NewOption(typ, tags, vec, vector.NewNone(noneLen))
 }

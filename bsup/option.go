@@ -50,10 +50,10 @@ func (o *OptionEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
 	off, tags := o.tags.Segment(off)
 	off, id := o.values.Metadata(bctx, off)
 	return off, bctx.enter(&Option{
-		Tags:   tags,
-		Values: id,
-		Length: o.count,
-		Type:   o.typ,
+		bctx.TypeDefs().LookupType(o.typ),
+		o.count,
+		tags,
+		id,
 	})
 }
 

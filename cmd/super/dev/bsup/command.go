@@ -256,11 +256,11 @@ func (c *Command) columnFrame(frame *bsup.RawColFrame) error {
 		}
 	}
 	if c.fused {
-		fusedTypeBytes, err := frame.FusedTypeBytes()
+		typedefsBytes, err := frame.Typedefs()
 		if err != nil {
 			return err
 		}
-		fusedType, err := c.sctx.LookupByValue(fusedTypeBytes)
+		fusedType, err := c.translateTypeID(typedefsBytes, frame.Header().FusedType)
 		if err != nil {
 			return err
 		}
@@ -269,6 +269,18 @@ func (c *Command) columnFrame(frame *bsup.RawColFrame) error {
 		}
 	}
 	return nil
+}
+
+func (c *Command) translateTypeID(typedefBytes []byte, id uint32) (super.Type, error) {
+	defs, ok := super.NewTypeDefsFromBytes(typedefBytes)
+	if !ok {
+		return nil, errors.New("malformed typedefs")
+	}
+	typ := super.NewTypeDefsMapper(c.sctx, defs).LookupType(id)
+	if typ == nil {
+		return nil, errors.New("fused type ID not in typedefs")
+	}
+	return typ, nil
 }
 
 func (c *Command) rowFrame(frame *bsup.RawRowFrame) error {
@@ -287,11 +299,11 @@ func (c *Command) rowFrame(frame *bsup.RawRowFrame) error {
 		}
 	}
 	if c.fused {
-		fusedTypeBytes, err := frame.FusedTypeBytes()
+		typedefsBytes, err := frame.Typedefs()
 		if err != nil {
 			return err
 		}
-		fusedType, err := c.sctx.LookupByValue(fusedTypeBytes)
+		fusedType, err := c.translateTypeID(typedefsBytes, frame.Header().FusedType)
 		if err != nil {
 			return err
 		}

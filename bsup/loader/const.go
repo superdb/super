@@ -23,35 +23,22 @@ func (c *const_) length() uint32 {
 func (*const_) unmarshal(*bsup.Context, field.Projection) {}
 
 func (c *const_) project(loader *FrameLoader, projection field.Projection) vector.Any {
-	// Map the const super.Value in the bsup's type context to
-	// a new one in the query type context.
-	val := c.meta.Value
+	// Map the type from the BSUP context to the query context.
+	typ := loader.lookupType(c.meta.TypeID)
 	if c.length() == 0 {
-		typ, err := loader.sctx.TranslateType(val.Type())
-		if err != nil {
-			panic(err)
-		}
 		return vector.NewEmpty(typ)
 	}
-	if val.IsNull() {
+	if typ == super.TypeNull {
 		return vector.NewNull(c.length())
 	}
-	typ, err := loader.sctx.TranslateType(val.Type())
-	if err != nil {
-		panic(err)
-	}
-	return vector.NewConstFromValue(loader.sctx, super.NewValue(typ, val.Bytes()), c.length())
+	return vector.NewConstFromValue(loader.sctx, super.NewValue(typ, c.meta.Bytes), c.length())
 }
+
 func (k *const_) strings(c *collector) {
-	val := k.meta.Value
-	if val.IsNull() {
-		return
-	}
-	typ := super.TypeUnder(val.Type())
-	if typ.Kind() == super.PrimitiveKind && typ.ID() != super.IDString {
+	if id := c.loader.lookupType(k.meta.TypeID).ID(); id < super.IDTypeComplex && id != super.IDString {
 		return
 	}
 	// Complex consts: every embedded string appears verbatim in the
 	// encoding, so the raw bytes are a safe superset to scan.
-	c.append(val.Bytes())
+	c.append(k.meta.Bytes)
 }
