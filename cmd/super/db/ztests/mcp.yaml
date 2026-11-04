@@ -1,0 +1,112 @@
+# super db mcp is an MCP server on stdio: requests are JSON-RPC messages, one
+# per line, on stdin and responses are written one per line to stdout.  The
+# version and table IDs vary so they're masked.
+script: |
+  super db init -q test
+  super db -attach test create -q logs
+  super db -attach test load -q -use logs logs.sup
+  super db -attach test create -q mixed
+  echo '{a:1}' | super db -attach test load -q -use mixed -
+  echo '{a:"x",b:true}' | super db -attach test load -q -use mixed -
+  super db mcp test < requests.jsonl |
+    sed -E -e 's/"version":"[^"]*"/"version":"VERSION"/' \
+           -e 's/"instructions":"[^"]*(\\"[^"]*)*"/"instructions":"INSTRUCTIONS"/' \
+           -e 's/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/ID/g'
+  echo === readonly
+  super db mcp -readonly test < readonly.jsonl
+  echo === tools
+  echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' |
+    super db mcp test | grep -o '"name":"[a-z_]*"'
+  echo === readonly tools
+  echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' |
+    super db mcp -readonly test | grep -o '"name":"[a-z_]*"'
+  echo === load
+  super db mcp -user tester test < load.jsonl |
+    sed -E -e 's/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/ID/g'
+  super db -attach test -s -c 'from mixed:log | values {author,message} | where !is_error(author) | head 1'
+
+inputs:
+  - name: logs.sup
+    data: |
+      {ts:2025-01-01T00:00:00Z,status:200,path:"/a",ip:10.0.0.1,dur:15ms}
+      {ts:2025-01-01T00:01:00Z,status:500,path:"/b",ip:10.0.0.2,dur:1.5s}
+      {ts:2025-01-01T00:02:00Z,status:200,path:"/a",ip:10.0.0.1,dur:30ms,user:"bob"}
+  - name: requests.jsonl
+    data: |
+      {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}
+      {"jsonrpc":"2.0","method":"notifications/initialized"}
+      {"jsonrpc":"2.0","id":2,"method":"ping"}
+      {"jsonrpc":"2.0","id":3,"method":"nosuch"}
+      not json
+      {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nosuch"}}
+      {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"list_tables"}}
+      {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"describe_table","arguments":{"table":"logs"}}}
+      {"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"describe_table","arguments":{"table":"logs","form":"fused"}}}
+      {"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"describe_table","arguments":{"table":"mixed"}}}
+      {"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | sort ts"}}}
+      {"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | sort ts","format":"sup","limit":2}}}
+      {"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | count() by status | sort status"}}}
+      {"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"query","arguments":{"query":"from nosuch"}}}
+      {"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs","format":"csv"}}}
+      {"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | where false"}}}
+  - name: more.json
+    data: |
+      {"a":2}
+      {"a":3,"b":false}
+  - name: load.jsonl
+    data: |
+      {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed","path":"more.json"}}}
+      {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed","data":"{a:4} {a:5}","format":"sup","message":"from mcp"}}}
+      {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query","arguments":{"query":"from mixed | sort a","format":"sup"}}}
+      {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed"}}}
+      {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed","path":"nosuch.json"}}}
+      {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed","data":"{a:1","format":"sup"}}}
+  - name: readonly.jsonl
+    data: |
+      {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | count()"}}}
+      {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query","arguments":{"query":"create table t (a int)"}}}
+      {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query","arguments":{"query":"insert into logs values {a:1}"}}}
+      {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"query","arguments":{"query":"drop table logs"}}}
+      {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"query","arguments":{"query":"op w: ( load logs ) values {a:1} | w()"}}}
+
+outputs:
+  - name: stdout
+    data: |
+      {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"superdb","title":"SuperDB","version":"VERSION"},"instructions":"INSTRUCTIONS"}}
+      {"jsonrpc":"2.0","id":2,"result":{}}
+      {"jsonrpc":"2.0","id":3,"error":{"code":-32601,"message":"method not found: nosuch"}}
+      {"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"parse error: invalid character 'o' in literal null (expecting 'u')"}}
+      {"jsonrpc":"2.0","id":4,"error":{"code":-32602,"message":"unknown tool: nosuch"}}
+      {"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"[\n  {\n    \"name\": \"logs\",\n    \"id\": \"ID\"\n  },\n  {\n    \"name\": \"mixed\",\n    \"id\": \"ID\"\n  }\n]"}]}}
+      {"jsonrpc":"2.0","id":6,"result":{"content":[{"type":"text","text":"{\n  \"name\": \"logs\",\n  \"id\": \"ID\",\n  \"type\": \"{ts:timestamp,status:int64,path:string,ip:ip,dur:duration,user:fusion(string|missing)}\",\n  \"declared\": false\n}"}]}}
+      {"jsonrpc":"2.0","id":13,"result":{"content":[{"type":"text","text":"{\n  \"name\": \"logs\",\n  \"id\": \"ID\",\n  \"type\": \"{ts:timestamp,status:int64,path:string,ip:ip,dur:duration,user:string|missing}\",\n  \"declared\": false\n}"}]}}
+      {"jsonrpc":"2.0","id":14,"result":{"content":[{"type":"text","text":"{\n  \"name\": \"mixed\",\n  \"id\": \"ID\",\n  \"type\": \"{a:fusion(int64|string),b:fusion(bool|missing)}\",\n  \"declared\": false\n}"}]}}
+      {"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"{\"ts\":\"2025-01-01T00:00:00Z\",\"status\":200,\"path\":\"/a\",\"ip\":\"10.0.0.1\",\"dur\":\"15ms\"}\n{\"ts\":\"2025-01-01T00:01:00Z\",\"status\":500,\"path\":\"/b\",\"ip\":\"10.0.0.2\",\"dur\":\"1.5s\"}\n{\"ts\":\"2025-01-01T00:02:00Z\",\"status\":200,\"path\":\"/a\",\"ip\":\"10.0.0.1\",\"dur\":\"30ms\",\"user\":\"bob\"}"}]}}
+      {"jsonrpc":"2.0","id":8,"result":{"content":[{"type":"text","text":"{ts:2025-01-01T00:00:00Z,status:200,path:\"/a\",ip:10.0.0.1,dur:15ms}\n{ts:2025-01-01T00:01:00Z,status:500,path:\"/b\",ip:10.0.0.2,dur:1.5s}"},{"type":"text","text":"(results truncated to 2 values; refine the query or raise limit)"}]}}
+      {"jsonrpc":"2.0","id":9,"result":{"content":[{"type":"text","text":"{\"status\":200,\"count\":2}\n{\"status\":500,\"count\":1}"}]}}
+      {"jsonrpc":"2.0","id":10,"result":{"content":[{"type":"text","text":"nosuch: table not found at line 1, column 6:\nfrom nosuch\n     ~~~~~~"}],"isError":true}}
+      {"jsonrpc":"2.0","id":11,"error":{"code":-32602,"message":"invalid arguments: format must be \"json\" or \"sup\""}}
+      {"jsonrpc":"2.0","id":12,"result":{"content":[{"type":"text","text":"(query produced no values)"}]}}
+      === readonly
+      {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"3"}]}}
+      {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"the server is read-only but the query modifies the database (CREATE TABLE)"}],"isError":true}}
+      {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"the server is read-only but the query modifies the database (INSERT INTO)"}],"isError":true}}
+      {"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"the server is read-only but the query modifies the database (DROP TABLE)"}],"isError":true}}
+      {"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"the server is read-only but the query modifies the database (load)"}],"isError":true}}
+      === tools
+      "name":"query"
+      "name":"list_tables"
+      "name":"describe_table"
+      "name":"load"
+      === readonly tools
+      "name":"query"
+      "name":"list_tables"
+      "name":"describe_table"
+      === load
+      {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"{\n  \"commit\": \"ID\",\n  \"values\": 2\n}"}]}}
+      {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\n  \"commit\": \"ID\",\n  \"values\": 2\n}"}]}}
+      {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{a:1}\n{a:2}\n{a:3,b:false}\n{a:4}\n{a:5}\n{a:\"x\",b:true}"}]}}
+      {"jsonrpc":"2.0","id":4,"error":{"code":-32602,"message":"invalid arguments: exactly one of path, data, or data_base64 is required"}}
+      {"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"nosuch.json: file does not exist"}],"isError":true}}
+      {"jsonrpc":"2.0","id":6,"result":{"content":[{"type":"text","text":"load: unexpected end of data after 0 values (is the data truncated or not in format \"sup\"?)"}],"isError":true}}
+      {author:"tester",message:"from mcp"}
