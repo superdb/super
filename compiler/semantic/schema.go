@@ -114,19 +114,19 @@ type (
 	}
 )
 
-func newTableFromType(typ super.Type) relTable {
+func (t *translator) newTableFromType(typ super.Type) relTable {
 	if typ == badType {
 		return badTable
 	}
 	if typ != nil {
-		if recType := recordOf(typ); recType != nil {
+		if recType := t.recordOf(typ); recType != nil {
 			return &staticTable{typ: recType}
 		}
 	}
 	return &dynamicTable{}
 }
 
-func recordOf(typ super.Type) *super.TypeRecord {
+func (t *translator) recordOf(typ super.Type) *super.TypeRecord {
 	switch typ := super.TypeUnder(typ).(type) {
 	case *super.TypeRecord:
 		return typ
@@ -134,15 +134,22 @@ func recordOf(typ super.Type) *super.TypeRecord {
 		if hasUnknown(typ) {
 			return nil
 		}
-		// We assume here this is a fused type and thus has only one record
-		// type in the union.
+		// A fused type has at most one unnamed record type in a union, but
+		// the fuser keeps named types apart, so a union like foo|{b:int64}
+		// can have more than one record type.  Fuse them so the table has
+		// the columns of all of them.
+		var recs []super.Type
 		for _, typ := range typ.Types {
-			if typ := recordOf(typ); typ != nil {
-				return typ
+			if typ := t.recordOf(typ); typ != nil {
+				recs = append(recs, typ)
 			}
 		}
+		if len(recs) > 0 {
+			recType, _ := super.TypeUnder(t.checker.fuse(recs)).(*super.TypeRecord)
+			return recType
+		}
 	case *super.TypeFusion:
-		return recordOf(typ.Type)
+		return t.recordOf(typ.Type)
 	}
 	return nil
 }
