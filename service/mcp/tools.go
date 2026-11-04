@@ -228,7 +228,7 @@ func (s *Server) queryTool(ctx context.Context, raw json.RawMessage) (*toolResul
 	var args struct {
 		Query  string `json:"query"`
 		Format string `json:"format"`
-		Limit  int    `json:"limit"`
+		Limit  *int   `json:"limit"`
 	}
 	if err := unmarshalArgs(raw, &args); err != nil {
 		return nil, err
@@ -243,24 +243,25 @@ func (s *Server) queryTool(ctx context.Context, raw json.RawMessage) (*toolResul
 	default:
 		return nil, invalidArgs("format must be \"json\" or \"sup\"")
 	}
-	if args.Limit < 0 {
-		return nil, invalidArgs("limit must be positive")
-	}
-	if args.Limit == 0 {
-		args.Limit = defaultLimit
+	limit := defaultLimit
+	if args.Limit != nil {
+		if *args.Limit < 1 {
+			return nil, invalidArgs("limit must be at least 1")
+		}
+		limit = *args.Limit
 	}
 	if s.opts.ReadOnly {
 		if err := checkReadOnly(args.Query); err != nil {
 			return nil, err
 		}
 	}
-	text, truncated, err := runQuery(ctx, s.db, args.Query, args.Format, args.Limit)
+	text, truncated, err := runQuery(ctx, s.db, args.Query, args.Format, limit)
 	if err != nil {
 		return nil, err
 	}
 	switch {
 	case truncated:
-		return textResult(text, fmt.Sprintf("(results truncated to %d values; refine the query or raise limit)", args.Limit)), nil
+		return textResult(text, fmt.Sprintf("(results truncated to %d values; refine the query or raise limit)", limit)), nil
 	case text == "":
 		return textResult("(query produced no values)"), nil
 	}
