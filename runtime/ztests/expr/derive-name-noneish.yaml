@@ -1,0 +1,23 @@
+# A field reference with ?. is named like one with . when a name is derived
+# from it (e.g., by put, aggregate, a record expression, or match).
+spq: |
+  put o?.y
+  | values this, {p.o?.y}, match o?.y with o?.z case int64 y+(z ?? 0) else 0
+
+input: |
+  {o:some({y:1,z:2}),p:{o:some({y:3})}}
+
+output: |
+  {o?:{y:1,z:2},p:{o?:{y:3}},y:1}
+  {y:3}
+  3
+
+---
+
+spq: aggregate count() by o?.y
+
+input: |
+  {o:some({y:1})}
+
+output: |
+  {y:1,count:1}

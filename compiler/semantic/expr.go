@@ -1052,7 +1052,8 @@ func dottedName(e *ast.BinaryExpr) (string, bool) {
 	if e.Op == "??" {
 		return deriveNameFromExpr(e.LHS), true
 	}
-	if e.Op != "." {
+	// A field reference with ?. (e.g., a?.b) is named like one with . (b).
+	if e.Op != "." && e.Op != "?." {
 		return "", false
 	}
 	rhs, ok := idString(e.RHS)
