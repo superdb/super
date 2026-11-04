@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 
 	"github.com/superdb/super"
@@ -219,9 +220,38 @@ func unmarshalArgs(raw json.RawMessage, args any) error {
 		raw = json.RawMessage("{}")
 	}
 	if err := json.Unmarshal(raw, args); err != nil {
+		var typeErr *json.UnmarshalTypeError
+		if errors.As(err, &typeErr) {
+			if typeErr.Field == "" {
+				return invalidArgs("arguments must be an object")
+			}
+			return invalidArgs("%s must be %s", typeErr.Field, jsonTypeName(typeErr.Type))
+		}
 		return invalidArgs("%s", err)
 	}
 	return nil
+}
+
+// jsonTypeName describes a Go type as the JSON type that unmarshals into it.
+func jsonTypeName(typ reflect.Type) string {
+	for typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
+	switch typ.Kind() {
+	case reflect.Bool:
+		return "a boolean"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return "an integer"
+	case reflect.Float32, reflect.Float64:
+		return "a number"
+	case reflect.String:
+		return "a string"
+	case reflect.Slice, reflect.Array:
+		return "an array"
+	default:
+		return "an object"
+	}
 }
 
 func (s *Server) queryTool(ctx context.Context, raw json.RawMessage) (*toolResult, error) {
@@ -261,7 +291,7 @@ func (s *Server) queryTool(ctx context.Context, raw json.RawMessage) (*toolResul
 	}
 	switch {
 	case truncated:
-		return textResult(text, fmt.Sprintf("(results truncated to %d values; refine the query or raise limit)", limit)), nil
+		return textResult(text, fmt.Sprintf("(results truncated to %s; refine the query or raise limit)", plural(limit, "value"))), nil
 	case text == "":
 		return textResult("(query produced no values)"), nil
 	}
@@ -491,7 +521,7 @@ func (s *Server) loadTool(ctx context.Context, raw json.RawMessage) (*toolResult
 	commit, err := s.db.Load(ctx, sctx, tableID, args.Branch, counter, message)
 	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 		// A bare EOF from a reader means the data ended mid-value.
-		return nil, fmt.Errorf("load: unexpected end of data after %d values (is the data truncated or not in format %q?)", counter.n, args.Format)
+		return nil, fmt.Errorf("load: unexpected end of data after %s (is the data truncated or not in format %q?)", plural(counter.n, "value"), args.Format)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("load: %w", err)
@@ -526,4 +556,11 @@ func jsonResult(v any) (*toolResult, error) {
 		return nil, err
 	}
 	return textResult(strings.TrimSuffix(b.String(), "\n")), nil
+}
+
+func plural(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
 }

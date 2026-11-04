@@ -26,6 +26,13 @@ script: |
   post -d '[{"jsonrpc":"2.0","id":4,"method":"ping"}]'
   echo === limit 0
   post -d '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"query","arguments":{"query":"from t","limit":0}}}'
+  echo === limit not an integer
+  post -d '{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"query","arguments":{"query":"from t","limit":"2"}}}'
+  post -d '{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"query","arguments":{"query":"from t","limit":1.5}}}'
+  echo === arguments not an object
+  post -d '{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"query","arguments":["from t"]}}'
+  echo === truncated to 1 value
+  post -d '{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"query","arguments":{"query":"from t | sort a","format":"sup","limit":1}}}'
   echo === GET
   curl -s -o /dev/null -w '[%{http_code}]\n' $DB_URL/mcp
   curl -s -o /dev/null -w '[%{http_code}]\n' -H 'Accept: text/event-stream' $DB_URL/mcp
@@ -59,6 +66,17 @@ outputs:
       [200]
       === limit 0
       {"jsonrpc":"2.0","id":7,"error":{"code":-32602,"message":"invalid arguments: limit must be at least 1"}}
+      [200]
+      === limit not an integer
+      {"jsonrpc":"2.0","id":8,"error":{"code":-32602,"message":"invalid arguments: limit must be an integer"}}
+      [200]
+      {"jsonrpc":"2.0","id":9,"error":{"code":-32602,"message":"invalid arguments: limit must be an integer"}}
+      [200]
+      === arguments not an object
+      {"jsonrpc":"2.0","id":10,"error":{"code":-32602,"message":"invalid arguments: arguments must be an object"}}
+      [200]
+      === truncated to 1 value
+      {"jsonrpc":"2.0","id":11,"result":{"content":[{"type":"text","text":"{a:1,ip:10.0.0.1}"},{"type":"text","text":"(results truncated to 1 value; refine the query or raise limit)"}]}}
       [200]
       === GET
       [405]
