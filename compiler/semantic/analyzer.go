@@ -79,9 +79,6 @@ type translator struct {
 	sctx     *super.Context
 	types    *sup.Analyzer
 	defs     *super.Context
-	// subqueries is the depth of expression subqueries being translated.
-	// Their results may be none (see checker.output).
-	subqueries int
 }
 
 func newTranslator(ctx context.Context, r reporter, env *exec.Environment) *translator {

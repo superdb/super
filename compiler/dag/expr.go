@@ -146,7 +146,11 @@ type (
 	SubqueryExpr struct {
 		Kind       string `json:"kind" unpack:""`
 		Correlated bool   `json:"correlated"`
-		Body       Seq    `json:"body"`
+		// SQL is true for a subquery in a SQL expression, whose value is
+		// null when the subquery produces no values.  Otherwise, the value
+		// is none.
+		SQL  bool `json:"sql,omitempty"`
+		Body Seq  `json:"body"`
 	}
 	ThisExpr struct {
 		Kind  string      `json:"kind" unpack:""`

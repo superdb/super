@@ -92,7 +92,7 @@ output: |
 
 ---
 
-# A plain none to unnest is an error as for an unnamed unnest.
+# A plain none to unnest produces no values as for an unnamed unnest.
 spq: unnest x:=o?.a with s
 
 flags: -dynamic
@@ -102,5 +102,28 @@ input: |
   {o:some({a:[5]}),s:2}
 
 output: |
-  error({message:"unnest: encountered non-array value",on:none})
   {x:5,s:2}
+
+---
+
+# A plain none to unnest (e.g., from ok()) produces no values.
+spq: unnest ok(a)
+
+input: |
+  {a:[1,2]}
+  {b:3}
+  {a:[4]}
+
+output: |
+  1
+  2
+  4
+
+---
+
+# Statically, a plain none to unnest isn't an error.
+spq: values {a:[1,2]},{b:3} | unnest ok(a) | values typeof(this)
+
+output: |
+  <int64>
+  <int64>

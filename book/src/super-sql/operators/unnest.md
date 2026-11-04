@@ -41,7 +41,8 @@ produces
 ```
 
 The value of `<expr>` must be an array (or a set), whose elements form the
-derived sequence.
+derived sequence.  A `null` or a plain `none` value (e.g., from
+[ok](../functions/generics/ok.md) or `?.`) produces no values.
 
 To carry other values along with each unnested element, give the unnested
 value a name with `:=` or list the values in a `with` clause.  Then each

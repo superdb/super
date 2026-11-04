@@ -184,6 +184,11 @@ func runOneBoomerang(t *testing.T, format, data string) {
 		}
 		t.Fatalf("unexpected error writing %s baseline: %s", format, err)
 	}
+	if baseline == "" {
+		// The data has no values (e.g., it's only plain nones, which are
+		// dropped).
+		t.Skip("skipping due to no values")
+	}
 	readerFormat := format
 	if readerFormat == "bsup -rows" {
 		readerFormat = "bsup"
@@ -305,8 +310,9 @@ func (f *fusionRemovingReader) Read() (*super.Value, error) {
 			if f.h.hasFusion(val.Type()) {
 				continue
 			}
-			if val.Type() == super.TypeNone {
-				// A plain none can't be output by a query.
+			if val.Deunion().Type() == super.TypeNone {
+				// A plain none (even in a union) is dropped from the
+				// output of a query.
 				continue
 			}
 		}

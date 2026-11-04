@@ -15,6 +15,8 @@ type Values struct {
 
 var _ vio.Puller = (*Values)(nil)
 
+// NewValues returns a Values that outputs the values of exprs.  Plain none
+// values are dropped (see dropPlainNones).
 func NewValues(sctx *super.Context, parent vio.Puller, exprs []expr.Evaluator) *Values {
 	return &Values{
 		sctx:   sctx,
@@ -33,12 +35,18 @@ func (v *Values) Pull(done bool) (vector.Any, error) {
 		for _, e := range v.exprs {
 			vals = append(vals, e.Eval(val))
 		}
-		if len(vals) == 1 {
-			return vals[0], nil
-		} else if len(vals) != 0 {
-			return interleave(vals), nil
+		var out vector.Any
+		switch len(vals) {
+		case 0:
+			continue
+		case 1:
+			out = vals[0]
+		default:
+			out = interleave(vals)
 		}
-		// If no vals, continue the loop.
+		if out = dropPlainNones(out); out != nil {
+			return out, nil
+		}
 	}
 }
 

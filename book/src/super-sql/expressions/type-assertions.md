@@ -7,7 +7,8 @@ A type assertion has the form
 where `<expr>` is any [expression](intro.md) and `<type>` is any
 [type](../types/intro.md).  Its value is the value of `<expr>` when that
 value has type `<type>` and is otherwise `none`,
-which disappears from a record, array, or map and is typically handled with
+which disappears from a record, array, or map, is dropped from the output of the
+[values](../operators/values.md) operator, and is typically handled with
 the `??` operator, e.g.,
 ```
 v.(string) ?? "default"

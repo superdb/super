@@ -1,0 +1,21 @@
+# A subquery that produces no values is none in a pipe expression and null
+# in a SQL expression, for both correlated and uncorrelated subqueries.
+spq: |
+  values {c:(values this | where false)},
+         {u:(values 1 | where false)},
+         (values this | where false) ?? "none"
+
+input: |
+  1
+
+output: |
+  {}
+  {}
+  "none"
+
+---
+
+spq: select (select 1 where false) as x
+
+output: |
+  {x:null}

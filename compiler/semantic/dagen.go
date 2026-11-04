@@ -587,6 +587,7 @@ func (d *dagen) subquery(e *sem.SubqueryExpr) *dag.SubqueryExpr {
 	subquery := &dag.SubqueryExpr{
 		Kind:       "SubqueryExpr",
 		Correlated: e.Correlated,
+		SQL:        e.SQL,
 		Body:       d.seq(e.Body),
 	}
 	if e.Array {
