@@ -1,5 +1,5 @@
 spq: |
-  unnest {outer:this,id:tweet_ids} into (
+  unnest id:=tweet_ids with outer:=this into (
     ids:=collect(id::string) by outer
     | values {...outer,tweet_ids:join(ids,',')}
   )

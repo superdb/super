@@ -1,8 +1,8 @@
 script: |
   super -dynamic -s -c 'from input.sup
-            | values (unnest {outer: this, inner: (from foo.sup)} | where inner.id=outer.id | values inner.name) ||
+            | values (unnest inner:=(from foo.sup) with outer:=this | where inner.id=outer.id | values inner.name) ||
               "_" ||
-              (unnest {outer: this, inner: (from bar.sup)} | where inner.id=outer.id | values inner.name)'
+              (unnest inner:=(from bar.sup) with outer:=this | where inner.id=outer.id | values inner.name)'
 
 # enable once we allow unnest expressions in vector runtime.
 # vector: true

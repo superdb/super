@@ -421,7 +421,7 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		if err != nil {
 			return nil, err
 		}
-		return op.NewUnnest(b.sctx(), parent, e), nil
+		return op.NewUnnest(b.sctx(), parent, e, o.Field), nil
 	case *dag.ValuesOp:
 		exprs, err := b.compileVamExprs(o.Exprs)
 		if err != nil {

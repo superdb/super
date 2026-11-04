@@ -211,10 +211,14 @@ type (
 		ast.Node
 		Cflag bool
 	}
+	// UnnestOp unnests Expr.  If Field isn't empty, Expr is a record whose
+	// field named Field is unnested and whose other fields are copied to
+	// each unnested value (see translator.unnestExpr).
 	UnnestOp struct {
 		ast.Node
-		Expr Expr
-		Body Seq
+		Expr  Expr
+		Field string
+		Body  Seq
 	}
 	ValuesOp struct {
 		ast.Node

@@ -1030,18 +1030,19 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 		}
 		return append(seq, &sem.MergeOp{Node: o, Exprs: exprs}), inType
 	case *ast.UnnestOp:
-		e, typ := t.expr(o.Expr, inType)
+		e, typ, field := t.unnestExpr(o, inType)
 		t.enterScope()
 		defer t.exitScope()
-		typ = t.checker.unnest(o.Expr, typ)
+		typ = t.checker.unnest(o.Expr, typ, field)
 		var body sem.Seq
 		if o.Body != nil {
 			body, typ = t.seq(o.Body, typ)
 		}
 		return append(seq, &sem.UnnestOp{
-			Node: o,
-			Expr: e,
-			Body: body,
+			Node:  o,
+			Expr:  e,
+			Field: field,
+			Body:  body,
 		}), typ
 	case *ast.ShapesOp:
 		e := sem.Expr(sem.NewThis(o, nil))
@@ -1974,4 +1975,34 @@ func (t *translator) output(loc ast.Node, typ super.Type) {
 		return
 	}
 	t.checker.output(loc, typ)
+}
+
+// unnestExpr translates the expression of an unnest operator and returns it,
+// its type, and, if the unnest is named ("unnest name:=expr") or has a with
+// clause ("with assignments"), the name of the field to unnest.  In that
+// case, the expression is a record whose first field is the value to unnest
+// and whose other fields are the with values, which are copied to each
+// unnested value.  A field's name is derived from its expression, as for put,
+// when it isn't given.
+func (t *translator) unnestExpr(o *ast.UnnestOp, inType super.Type) (sem.Expr, super.Type, string) {
+	e, typ := t.expr(o.Expr, inType)
+	if o.Name == nil && len(o.With) == 0 {
+		return e, typ, ""
+	}
+	names := map[string]bool{}
+	field := t.assignedFieldName("unnest", o.Name, o.Expr, names)
+	elems := []sem.RecordElem{&sem.FieldElem{Node: o.Expr, Name: field, Value: e}}
+	fields := []super.Field{super.NewField(field, typ)}
+	for _, a := range o.With {
+		name := t.assignedFieldName("unnest", a.LHS, a.RHS, names)
+		val, valType := t.expr(a.RHS, inType)
+		elems = append(elems, &sem.FieldElem{Node: a.RHS, Name: name, Value: val})
+		fields = append(fields, super.NewField(name, valType))
+	}
+	rec := &sem.RecordExpr{Node: o, Elems: elems}
+	recType, err := t.sctx.LookupTypeRecord(fields)
+	if err != nil {
+		return rec, t.checker.unknown, field
+	}
+	return rec, recType, field
 }

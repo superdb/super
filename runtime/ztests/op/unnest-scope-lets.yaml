@@ -1,5 +1,5 @@
 spq: |
-  unnest {that:{v:c,w:a},b} into (
+  unnest b with that:={v:c,w:a} into (
     values {x:that.w,y:b,z:that.v}
   )
 

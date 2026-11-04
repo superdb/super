@@ -960,7 +960,11 @@ func (c *canon) joinCond(e ast.JoinCond) {
 func (c *canon) unnest(o *ast.UnnestOp) {
 	c.next()
 	c.write("unnest ")
-	c.expr(o.Expr, "")
+	c.assignment(ast.Assignment{LHS: o.Name, RHS: o.Expr})
+	if len(o.With) != 0 {
+		c.write(" with ")
+		c.assignments(o.With)
+	}
 	if o.Body != nil {
 		c.write(" into (")
 		c.open()

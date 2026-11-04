@@ -178,9 +178,13 @@ type (
 		Kind  string `json:"kind" unpack:""`
 		Cflag bool   `json:"cflag"`
 	}
+	// UnnestOp unnests Expr.  If Field isn't empty, Expr is a record whose
+	// field named Field is unnested and whose other fields are copied to
+	// each unnested value.
 	UnnestOp struct {
-		Kind string `json:"kind" unpack:""`
-		Expr Expr   `json:"exprs"`
+		Kind  string `json:"kind" unpack:""`
+		Expr  Expr   `json:"exprs"`
+		Field string `json:"field"`
 	}
 	ValuesOp struct {
 		Kind  string `json:"kind" unpack:""`

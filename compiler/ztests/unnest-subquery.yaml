@@ -1,5 +1,5 @@
-spq: unnest {x:1,y:[values 1,2]}
+spq: unnest y:=[values 1,2] with x:=1
 
 output: |
-  {x:1,y:1}
-  {x:1,y:2}
+  {y:1,x:1}
+  {y:2,x:1}

@@ -83,11 +83,11 @@ no such field "val": . applied to int64 at line 3, column 18:
 ```
 because the field reference to `val` within the subquery does not exist.
 Instead the parameter `val` can be carried into the subquery using
-the compound form of [unnest](../operators/unnest.md):
+the `with` clause of [unnest](../operators/unnest.md):
 ```mdtest-spq {data-layout='no-labels'} {style='margin:auto;width:85%'}
 # spq
 fn apply(a,val): (
-  unnest {outer:val,item:a}
+  unnest item:=a with outer:=val
   | collect(outer+item)
 )
 values apply([1,2,3], 1)
@@ -194,12 +194,12 @@ no such field "val": . applied to int64 at line 3, column 18:
                  ~~~
 ```
 ---
-_The compound unnest form brings parameters into subquery scope_
+_The with clause of unnest brings parameters into subquery scope_
 
 ```mdtest-spq {data-layout="stacked"}
 # spq
 fn apply(a,val): (
-  unnest {outer:val,item:a}
+  unnest item:=a with outer:=val
   | collect(outer+item)
 )
 values apply([1,2,3], 1)

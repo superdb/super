@@ -1,5 +1,5 @@
 spq: |
-  unnest {foo:"bar",arr:this} into (tail 1 | values {num: arr, foo})
+  unnest arr:=this with foo:="bar" into (tail 1 | values {num: arr, foo})
 
 input: '[1,2,3,4,5]'
 

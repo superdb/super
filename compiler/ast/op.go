@@ -215,10 +215,14 @@ type (
 		Cflag bool   `json:"cflag"`
 		Loc   `json:"loc"`
 	}
+	// An UnnestOp is "unnest [name:=]expr [with assignments] [into (body)]".
+	// Name is nil if not given.
 	UnnestOp struct {
-		Kind string `json:"kind" unpack:""`
-		Expr Expr   `json:"expr"`
-		Body Seq    `json:"body"`
+		Kind string       `json:"kind" unpack:""`
+		Name Expr         `json:"name"`
+		Expr Expr         `json:"expr"`
+		With []Assignment `json:"with"`
+		Body Seq          `json:"body"`
 		Loc  `json:"loc"`
 	}
 	ValuesOp struct {
