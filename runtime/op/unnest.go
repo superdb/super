@@ -113,8 +113,9 @@ func (u *Unnest) flattenDynamic(vec *vector.Dynamic, record bool) (vector.Any, [
 func (u *Unnest) flattenRecord(vec *vector.Record) (vector.Any, []uint32) {
 	k, ok := vec.Typ.IndexOfField(u.field)
 	if !ok {
-		// The field is absent since its value is missing.
-		return vector.NewWrappedError(u.sctx, "unnest: encountered non-array value", vector.NewMissing(vec.Len())), nil
+		// The field is absent since its value is a plain none, which
+		// disappears from a record, so report it as for an unnamed unnest.
+		return vector.NewWrappedError(u.sctx, "unnest: encountered non-array value", vector.NewNone(vec.Len())), nil
 	}
 	if union, ok := vec.Fields[k].(*vector.Union); ok {
 		dynamic := union.Dynamic()

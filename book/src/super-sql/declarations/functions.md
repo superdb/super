@@ -194,7 +194,7 @@ no such field "val": . applied to int64 at line 3, column 18:
                  ~~~
 ```
 ---
-_The compound unnest form brings parameters into subquery scope_
+_The with clause of unnest brings parameters into subquery scope_
 
 ```mdtest-spq {data-layout="stacked"}
 # spq

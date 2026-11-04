@@ -89,3 +89,18 @@ input: |
 
 output: |
   error({message:"unnest: encountered non-array value",on:{x:"foo",y:[1,2]}})
+
+---
+
+# A plain none to unnest is an error as for an unnamed unnest.
+spq: unnest x:=o?.a with s
+
+flags: -dynamic
+
+input: |
+  {o:none::{a:[int64]},s:1}
+  {o:some({a:[5]}),s:2}
+
+output: |
+  error({message:"unnest: encountered non-array value",on:none})
+  {x:5,s:2}
