@@ -35,8 +35,27 @@ format "sup" to get SUP, SuperDB's human-readable data format, which is a supers
 of JSON that preserves every value's type exactly (e.g., 1, 1.5, 2025-01-01T00:00:00Z,
 10.0.0.1, 1h30m, 80::uint16).  Prefer SUP when types matter.
 
+` + fusionNotes + `
+
 See https://superdb.org/super-sql/intro.html for SuperSQL and
 https://superdb.org/formats/sup.html for SUP.`
+
+// fusionDocs is where the docs describe fusion types.
+const fusionDocs = "https://superdb.org/super-sql/operators/superfuse.html"
+
+// fusionNotes explains how to read the fusion types in a superfused type.  It's
+// part of the server's instructions and also accompanies any describe_table
+// result whose type has a fusion type, so a client that drops the
+// instructions still sees it.
+const fusionNotes = `Reading types from describe_table: a superfused type summarizes heterogeneous
+data in one type.  fusion(T1|T2|...) at a position means the values there vary
+across these types in the data.  missing in a fusion means the value is absent:
+a record field that some values lack, or, inside an array, no element (an empty
+array).  For example, tags:fusion(string|missing|[fusion(string|missing)]) means
+tags is sometimes a string, sometimes absent, and sometimes an array of strings
+that may be empty.  When data is defused, an empty array with no other type
+becomes [none].  Use form "fused" to get a plain union type instead.
+See ` + fusionDocs + `.`
 
 const readOnlyInstructions = `
 
@@ -121,8 +140,10 @@ At most limit values are returned (default 1000).`
 otherwise the type of its data, which is computed from the type of each of its data
 objects (without scanning its values).  By default, the type is superfused, i.e., a
 fusion type shows exactly where the data's types vary (e.g., {a:int64,b:fusion(string|missing)}
-means b is absent from some values).  Form "fused" returns the type without fusion
-types (e.g., {a:int64,b:string|missing}).`,
+means b is absent from some values, and [fusion(string|missing)] means an array of
+strings that is sometimes empty).  If the type has a fusion type, the result's notes
+explain how to read it.  Form "fused" returns the type without fusion types (e.g.,
+{a:int64,b:string|missing}).  See ` + fusionDocs + `.`,
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -414,6 +435,7 @@ func (s *Server) describeTableTool(ctx context.Context, raw json.RawMessage) (*t
 			ID       string `json:"id"`
 			Type     string `json:"type"`
 			Declared bool   `json:"declared"`
+			Notes    string `json:"notes,omitempty"`
 		}{Name: t.Name, ID: t.ID.String()}
 		sctx := super.NewContext()
 		if len(t.Type) != 0 {
@@ -422,6 +444,9 @@ func (s *Server) describeTableTool(ctx context.Context, raw json.RawMessage) (*t
 				return nil, err
 			}
 			desc.Type, desc.Declared = sup.FormatType(typ), true
+			if hasFusion(typ) {
+				desc.Notes = fusionNotes
+			}
 			return jsonResult(desc)
 		}
 		// The type of the table's data is the superfused type of its data
@@ -443,9 +468,43 @@ func (s *Server) describeTableTool(ctx context.Context, raw json.RawMessage) (*t
 			typ = fuser.SuperType()
 		}
 		desc.Type = sup.FormatType(typ)
+		if hasFusion(typ) {
+			desc.Notes = fusionNotes
+		}
 		return jsonResult(desc)
 	}
 	return nil, fmt.Errorf("table %q not found", args.Table)
+}
+
+// hasFusion reports whether typ is or contains a fusion type.
+func hasFusion(typ super.Type) bool {
+	switch typ := super.TypeUnder(typ).(type) {
+	case *super.TypeFusion:
+		return true
+	case *super.TypeRecord:
+		for _, f := range typ.Fields {
+			if hasFusion(f.Type) {
+				return true
+			}
+		}
+	case *super.TypeArray:
+		return hasFusion(typ.Type)
+	case *super.TypeSet:
+		return hasFusion(typ.Type)
+	case *super.TypeMap:
+		return hasFusion(typ.KeyType) || hasFusion(typ.ValType)
+	case *super.TypeUnion:
+		for _, t := range typ.Types {
+			if hasFusion(t) {
+				return true
+			}
+		}
+	case *super.TypeError:
+		return hasFusion(typ.Type)
+	case *super.TypeOption:
+		return hasFusion(typ.Type)
+	}
+	return false
 }
 
 func (s *Server) loadTool(ctx context.Context, raw json.RawMessage) (*toolResult, error) {
