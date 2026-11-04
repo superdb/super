@@ -24,8 +24,11 @@ script: |
   super db -s -c 'from t:log | values {author} | where !is_error(author) | head 1'
   echo === batch
   post -d '[{"jsonrpc":"2.0","id":4,"method":"ping"}]'
+  echo === limit 0
+  post -d '{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"query","arguments":{"query":"from t","limit":0}}}'
   echo === GET
   curl -s -o /dev/null -w '[%{http_code}]\n' $DB_URL/mcp
+  curl -s -o /dev/null -w '[%{http_code}]\n' -H 'Accept: text/event-stream' $DB_URL/mcp
   echo === unsupported protocol version
   post -H 'MCP-Protocol-Version: 1999-01-01' -d '{"jsonrpc":"2.0","id":5,"method":"ping"}'
   echo === origin without -cors.origin
@@ -54,7 +57,11 @@ outputs:
       === batch
       {"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"batches are not supported"}}
       [200]
+      === limit 0
+      {"jsonrpc":"2.0","id":7,"error":{"code":-32602,"message":"invalid arguments: limit must be at least 1"}}
+      [200]
       === GET
+      [405]
       [405]
       === unsupported protocol version
       unsupported MCP-Protocol-Version: 1999-01-01

@@ -185,7 +185,7 @@ func (c *Core) addAPIServerRoutes() {
 	if c.mcp != nil {
 		// GET and DELETE are routed to the MCP server, which rejects
 		// them as the MCP Streamable HTTP transport requires.
-		c.authhandle("/mcp", handleMCP).Methods("OPTIONS", "GET", "POST", "DELETE")
+		c.mcphandle("/mcp").Methods("OPTIONS", "GET", "POST", "DELETE")
 	}
 	c.authhandle("/query", handleQuery).Methods("OPTIONS", "POST")
 	c.authhandle("/query/describe", handleQueryDescribe).Methods("OPTIONS", "POST")
@@ -219,6 +219,22 @@ func (c *Core) authhandle(path string, f func(*Core, *ResponseWriter, *Request))
 		f = c.auth.Middleware(f)
 	}
 	return c.routerAPI.Handle(path, c.handler(f))
+}
+
+// mcphandle is like authhandle for the MCP endpoint, which does its own
+// content negotiation (e.g., a GET with "Accept: text/event-stream" must
+// reach it to get a 405), so the Accept header is ignored and errors from
+// the auth middleware are JSON.
+func (c *Core) mcphandle(path string) *mux.Route {
+	f := handleMCP
+	if c.auth != nil {
+		f = c.auth.Middleware(f)
+	}
+	return c.routerAPI.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		res, req := newRequestNoAccept(w, r, c)
+		res.Format = "json"
+		f(c, res, req)
+	}))
 }
 
 func (c *Core) Registry() *prometheus.Registry {

@@ -64,6 +64,21 @@ func newRequest(w http.ResponseWriter, r *http.Request, c *Core) (*ResponseWrite
 	return nil, nil, false
 }
 
+// newRequestNoAccept is like newRequest but ignores the Accept header.
+func newRequestNoAccept(w http.ResponseWriter, r *http.Request, c *Core) (*ResponseWriter, *Request) {
+	req := &Request{Request: r}
+	req.Logger = c.logger.With(zap.String("request_id", req.ID()))
+	m := super.NewMarshaler(super.NewContext())
+	m.Decorate(super.StylePackage)
+	res := &ResponseWriter{
+		ResponseWriter: w,
+		Logger:         req.Logger,
+		marshaler:      m,
+		request:        req,
+	}
+	return res, req
+}
+
 func (r *Request) openTable(w *ResponseWriter, root *db.Root) (*db.Table, bool) {
 	id, ok := r.TableID(w, root)
 	if !ok {
