@@ -11,11 +11,15 @@ import (
 type cachedSubquery struct {
 	sctx   *super.Context
 	body   vio.Puller
+	sql    bool
 	cached vector.Any
 }
 
-func NewCachedSubquery(sctx *super.Context, body vio.Puller) expr.Evaluator {
-	return &cachedSubquery{sctx: sctx, body: body}
+// NewCachedSubquery returns an uncorrelated subquery, which is evaluated once.
+// If it produces no values, its value is null if sql is true (as in SQL) and
+// otherwise none.
+func NewCachedSubquery(sctx *super.Context, body vio.Puller, sql bool) expr.Evaluator {
+	return &cachedSubquery{sctx: sctx, body: body, sql: sql}
 }
 
 func (c *cachedSubquery) Eval(this vector.Any) vector.Any {
@@ -40,7 +44,7 @@ func (c *cachedSubquery) exec() vector.Any {
 		vecs = append(vecs, vec)
 	}
 	if len(vecs) == 0 {
-		return vector.NewNull(1)
+		return emptyResult(c.sql)
 	}
 	if len(vecs) == 1 && vecs[0].Len() == 1 {
 		return vecs[0]

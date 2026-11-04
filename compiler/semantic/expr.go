@@ -735,11 +735,13 @@ func (t *translator) semCall(call *ast.CallExpr, inType super.Type) (sem.Expr, s
 
 func (t *translator) maybeSubquery(n ast.Node, name string, inType super.Type) (*sem.SubqueryExpr, super.Type) {
 	if seq, typ := t.scope.lookupQuery(t, name); seq != nil {
-		return &sem.SubqueryExpr{
+		e := &sem.SubqueryExpr{
 			Node:       n,
 			Correlated: isCorrelated(seq),
+			SQL:        t.scope.sql != nil,
 			Body:       seq,
-		}, typ
+		}
+		return e, t.checker.subquery(e, typ)
 	}
 	return nil, nil
 }
@@ -888,12 +890,14 @@ func (t *translator) maybeSubqueryCall(call *ast.CallExpr, name string, inType s
 	// (i.e., starts with a from), in which case we put the uncorrelated body
 	// in the subquery without the correlating values logic. This is controlled
 	// via the Correlated flag.
-	return &sem.SubqueryExpr{
+	e := &sem.SubqueryExpr{
 		Node:       call,
 		Array:      false,
 		Correlated: isCorrelated(userOp),
+		SQL:        t.scope.sql != nil,
 		Body:       userOp,
-	}, typ
+	}
+	return e, t.checker.subquery(e, typ)
 }
 
 func (t *translator) semMapCall(call *ast.CallExpr, args []sem.Expr, argTypes []super.Type) (sem.Expr, super.Type) {
@@ -1341,14 +1345,13 @@ func (t *translator) arraySubquery(elems []sem.ArrayElem) *sem.SubqueryExpr {
 func (t *translator) subqueryExpr(astExpr ast.Expr, array bool, body ast.Seq, inType super.Type) (*sem.SubqueryExpr, super.Type) {
 	// We pass inType in whether or not it's correlated since an uncorrelated
 	// subquery will just ignore it.
-	t.subqueries++
 	seq, outType := t.seq(body, inType)
-	t.subqueries--
 	correlated := isCorrelated(seq)
 	e := &sem.SubqueryExpr{
 		Node:       astExpr,
 		Array:      array,
 		Correlated: correlated,
+		SQL:        t.scope.sql != nil,
 		Body:       seq,
 	}
 	// Add a nullscan only for uncorrelated queries that don't have a source.
@@ -1360,10 +1363,7 @@ func (t *translator) subqueryExpr(astExpr ast.Expr, array bool, body ast.Seq, in
 		// condition with this complex cleanup...
 		e.Body, outType = t.scalarSubqueryCheck(astExpr, e.Body, outType)
 	}
-	if array {
-		outType = t.sctx.LookupTypeArray(outType)
-	}
-	return e, outType
+	return e, t.checker.subquery(e, outType)
 }
 
 func (t *translator) scalarSubqueryCheck(n ast.Node, seq sem.Seq, thisType super.Type) (sem.Seq, super.Type) {

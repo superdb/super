@@ -1171,9 +1171,8 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 		exprs, types := t.exprs(o.Exprs, inType)
 		for k, typ := range types {
 			t.checker.result(o.Exprs[k], typ)
-			t.output(o.Exprs[k], typ)
 		}
-		return append(seq, sem.NewValues(o, exprs...)), t.checker.fuse(types)
+		return append(seq, sem.NewValues(o, exprs...)), t.checker.values(types)
 	case *ast.Script:
 		t.error(o, errors.New("a script of multiple statements cannot be used here"))
 		return append(seq, badOp), badType
@@ -1380,13 +1379,24 @@ func (t *translator) singletonKey(agg ast.Assignment, seq sem.Seq, inType super.
 	if !ok || len(this.Chain) != 1 {
 		return nil, nil
 	}
+	// A plain none key disappears from the aggregate's record (see the
+	// aggregate operator), so the key's value is none when the record
+	// doesn't have its field, and values drops it.  (ok() would turn an error
+	// key into none too.)
+	name := &sem.PrimitiveExpr{Node: out.Node, Value: sup.QuotedString(this.Chain[0].ID)}
+	key := &sem.CondExpr{
+		Node: out.Node,
+		Cond: sem.NewCall(out.Node, "has", []sem.Expr{sem.NewThis(out.Node, nil), name}),
+		Then: this,
+		Else: &sem.PrimitiveExpr{Node: out.Node, Value: "none"},
+	}
 	return append(seq,
 		&sem.AggregateOp{
 			Node: out.Node,
 			Keys: []sem.Assignment{out},
 		},
-		sem.NewValues(out.Node, this),
-	), path.typ
+		sem.NewValues(out.Node, key),
+	), t.checker.values([]super.Type{path.typ})
 }
 
 // semDecls enters a block of declarations into the current scope.  We do late binding
@@ -1553,6 +1563,10 @@ func (t *translator) typeQueryDecl(d *ast.TypeQueryDecl) {
 		t.error(d, fmt.Errorf("type query for %q: %s", d.Name.Name, sup.FormatValue(val)))
 		return
 	}
+	if val.Type() == super.TypeNone {
+		t.error(d, fmt.Errorf("type query for %q must yield a single type value but yielded no values", d.Name.Name))
+		return
+	}
 	if val.Type() != super.TypeType || val.IsNull() {
 		t.error(d, fmt.Errorf("type query for %q must yield a single type value: %s", d.Name.Name, sup.FormatValue(val)))
 		return
@@ -1709,10 +1723,10 @@ func (t *translator) exprOp(e ast.Expr, seq sem.Seq, inType super.Type) (sem.Seq
 	if t.isBool(out) {
 		return append(seq, &sem.FilterOp{Node: e, Expr: out}), t.checker.narrow(inType, out)
 	}
-	// As with the values operator, the value must not be missing or none.
+	// As with the values operator, the value must not be missing and a
+	// plain none is dropped.
 	t.checker.result(e, typ)
-	t.output(e, typ)
-	return append(seq, sem.NewValues(e, out)), typ
+	return append(seq, sem.NewValues(e, out)), t.checker.values([]super.Type{typ})
 }
 
 func (t *translator) isBool(e sem.Expr) bool {
@@ -2020,21 +2034,6 @@ func (t *translator) mustEval(e sem.Expr) (super.Value, bool) {
 // indicating if the eval was successful
 func (t *translator) maybeEval(e sem.Expr) (super.Value, bool) {
 	return newEvaluator(t, t.resolver.funcs).maybeEval(t.sctx, e)
-}
-
-// output reports an error at loc if typ, the type of a value output by the
-// values operator, may be a plain none (e.g., from ok() or ?.).  A plain none
-// disappears from a record, array, or map but otherwise must be handled with
-// ?? before it leaves the operator that produced it, i.e., a plain none is
-// never passed to a downstream operator, even one that would handle it.
-// (A plain none that reaches the query output at runtime is an error.)  The
-// result of an expression subquery may be none since it's an expression
-// value.
-func (t *translator) output(loc ast.Node, typ super.Type) {
-	if t.subqueries > 0 {
-		return
-	}
-	t.checker.output(loc, typ)
 }
 
 // unnestExpr translates the expression of an unnest operator and returns it,

@@ -14,10 +14,12 @@ import (
 // the expression.  When Eval is called, it repeatedly constructs a single-slot
 // vector from the current slot of the this vector, sends it to the embedded
 // query, pulls from the query until EOS, appends the value to the result
-// vector, and then advances to the next slot.
+// vector, and then advances to the next slot.  If the query produces no
+// values, the result is null if sql is true (as in SQL) and otherwise none.
 type Subquery struct {
 	ctx    context.Context
 	sctx   *super.Context
+	sql    bool
 	create func() *Subquery
 
 	body vio.Puller
@@ -28,10 +30,11 @@ type Subquery struct {
 	tos   int
 }
 
-func NewSubquery(ctx context.Context, sctx *super.Context, create func() *Subquery) *Subquery {
+func NewSubquery(ctx context.Context, sctx *super.Context, sql bool, create func() *Subquery) *Subquery {
 	return &Subquery{
 		ctx:    ctx,
 		sctx:   sctx,
+		sql:    sql,
 		create: create,
 		ch:     make(chan vector.Any, 1),
 		tos:    -2,
@@ -83,7 +86,7 @@ func (s *Subquery) bodyPull() vector.Any {
 		return vector.NewStringError(s.sctx, err.Error(), 1)
 	}
 	if vec == nil {
-		return vector.NewNull(1)
+		return emptyResult(s.sql)
 	}
 	vec2, err := s.body.Pull(false)
 	if err != nil {
@@ -112,4 +115,13 @@ func (s *Subquery) Pull(done bool) (vector.Any, error) {
 	case <-s.ctx.Done():
 		return nil, s.ctx.Err()
 	}
+}
+
+// emptyResult returns the value of a subquery that produces no values: null
+// in a SQL expression and otherwise none.
+func emptyResult(sql bool) vector.Any {
+	if sql {
+		return vector.NewNull(1)
+	}
+	return vector.NewNone(1)
 }

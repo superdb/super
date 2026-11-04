@@ -55,6 +55,10 @@ The output values are records formed from the
 [field assignments](intro.md#field-assignment)
 first from the grouping expressions then from the aggregate functions
 in left-to-right order.
+As in a record expression, a grouping key whose value
+is a plain `none` (e.g., `ok(x)` when `x` is missing) disappears from its
+output record, so the values whose key is `none` form a group whose record
+has no field for that key.
 
 When the result of `aggregate` is a single value (e.g., a single aggregate
 function without grouping expressions or a single grouping expression without aggregates)

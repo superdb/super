@@ -14,10 +14,10 @@ inputs:
         | values {...p,name:name.primaryName}
       )
       values {
-        title: title.primaryTitle,
+        title: title?.primaryTitle,
         director: (people 'director' | collect(name)),
         writer: (people 'writer' | collect(name)),
-        genres: title.genres,
+        genres: title?.genres,
         actors: (people 'actor'
                 | order by ordering
                 | limit 10

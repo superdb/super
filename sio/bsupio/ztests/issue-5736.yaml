@@ -9,7 +9,7 @@ script: |
           did
     | count := sum(count),
       users := count()
-        by event
+        by event:=ok(event)
     | sort -r count"
 
 inputs:

@@ -1,8 +1,6 @@
 package op
 
 import (
-	"slices"
-
 	"github.com/superdb/super"
 	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/vector"
@@ -41,7 +39,11 @@ func (u *Unnest) Pull(done bool) (vector.Any, error) {
 		vec = vector.Apply(vector.ApplyRipUnions, func(vecs ...vector.Any) vector.Any {
 			return vecs[0]
 		}, u.defuse.Eval(u.expr.Eval(vec)))
-		if vec, _ = u.flatten(vec, u.field != ""); vec != nil {
+		// An unnested value may be a plain none (e.g., an element of an
+		// array of type [int64|none]), which is dropped as for the values
+		// operator.
+		vec, _ = u.flatten(vec, u.field != "")
+		if vec = dropPlainNones(vec); vec != nil {
 			return vec, nil
 		}
 	}
@@ -50,11 +52,16 @@ func (u *Unnest) Pull(done bool) (vector.Any, error) {
 // flatten unnests vec, which is a record whose field named u.field is
 // unnested if record is true and otherwise an array or set, and returns the
 // unnested values and the offsets of the values of each slot of vec.  It
-// returns nil values for nulls and nil offsets for errors, which map
-// one-to-one to the slots of vec.
+// returns nil values for nulls and plain nones, which produce no values, and
+// nil offsets for errors, which map one-to-one to the slots of vec.
 func (u *Unnest) flatten(vec vector.Any, record bool) (vector.Any, []uint32) {
 	if dynamic, ok := vec.(*vector.Dynamic); ok {
 		return u.flattenDynamic(dynamic, record)
+	}
+	if vec.Len() == 0 || isNoneVec(vec) {
+		// An empty vector (e.g., a member of a union with no values)
+		// has nothing to unnest.
+		return nil, nil
 	}
 	vec = vector.Under(vec)
 	switch vec.Kind() {
@@ -90,6 +97,8 @@ func (u *Unnest) flattenDynamic(vec *vector.Dynamic, record bool) (vector.Any, [
 	var tags []uint32
 	for _, tag := range vec.Tags {
 		if vecs[tag] == nil {
+			// A null or plain none produces no values.
+			offsets = append(offsets, length)
 			continue
 		}
 		if offsets := vecOffsets[tag]; offsets != nil {
@@ -105,6 +114,10 @@ func (u *Unnest) flattenDynamic(vec *vector.Dynamic, record bool) (vector.Any, [
 		}
 		offsets = append(offsets, length)
 	}
+	if length == 0 {
+		// Every slot is a null or plain none, which produce no values.
+		return nil, nil
+	}
 	return vector.NewDynamic(tags, vecs), offsets
 }
 
@@ -114,8 +127,9 @@ func (u *Unnest) flattenRecord(vec *vector.Record) (vector.Any, []uint32) {
 	k, ok := vec.Typ.IndexOfField(u.field)
 	if !ok {
 		// The field is absent since its value is a plain none, which
-		// disappears from a record, so report it as for an unnamed unnest.
-		return vector.NewWrappedError(u.sctx, "unnest: encountered non-array value", vector.NewNone(vec.Len())), nil
+		// disappears from a record, so as for an unnamed unnest, there's
+		// nothing to unnest.
+		return nil, nil
 	}
 	if union, ok := vec.Fields[k].(*vector.Union); ok {
 		dynamic := union.Dynamic()
@@ -161,10 +175,17 @@ func (u *Unnest) flattenRecord(vec *vector.Record) (vector.Any, []uint32) {
 // newRecord returns a record vector of the fields of typ whose values are
 // vecs, where the type of each field is the type of its value.  All vecs
 // have the same length.
+// A field whose value is a plain none disappears, as in a record expression.
 func (u *Unnest) newRecord(typ *super.TypeRecord, vecs []vector.Any) vector.Any {
-	fields := slices.Clone(typ.Fields)
+	n := vecs[0].Len()
+	fields := make([]super.Field, 0, len(vecs))
+	out := make([]vector.Any, 0, len(vecs))
 	for j, vec := range vecs {
-		fields[j].Type = vec.Type()
+		if isNoneVec(vec) {
+			continue
+		}
+		fields = append(fields, super.NewField(typ.Fields[j].Name, vec.Type()))
+		out = append(out, vec)
 	}
-	return vector.NewRecord(u.sctx.MustLookupTypeRecord(fields), vecs, vecs[0].Len())
+	return vector.NewRecord(u.sctx.MustLookupTypeRecord(fields), out, n)
 }

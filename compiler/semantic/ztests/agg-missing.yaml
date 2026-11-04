@@ -86,7 +86,8 @@ error: |
 
 ---
 
-# With ok(), the absent values form the none group.
+# With ok(), the absent values form the none group, whose record has no y
+# since a plain none disappears from a record.
 spq: aggregate sum(x) by y.ok() | sort y
 
 input: |
@@ -96,7 +97,7 @@ input: |
 
 output: |
   {y:"a",sum:4}
-  {y:none,sum:2}
+  {sum:2}
 
 ---
 

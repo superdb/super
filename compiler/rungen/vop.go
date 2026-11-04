@@ -317,7 +317,7 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		return vio.NewPuller(vector.NewNull(1)), nil
 	case *dag.OutputOp:
 		if parent != nil {
-			parent = op.NewOutput(b.sctx(), parent)
+			parent = op.NewOutput(parent)
 		}
 		b.channels[o.Name] = append(b.channels[o.Name], parent)
 		return parent, nil

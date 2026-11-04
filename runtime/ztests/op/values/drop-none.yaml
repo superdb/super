@@ -1,0 +1,55 @@
+# The values operator drops plain nones, including those interleaved with
+# the values of other expressions and those in a union, but keeps an
+# option's none.
+spq: values ok(a), 0
+
+input: |
+  {a:1}
+  {b:2}
+  {a:"s"}
+
+output: |
+  1
+  0
+  0
+  "s"
+  0
+
+---
+
+spq: values this
+
+input: |
+  1::(int64|none)
+  none::(int64|none)
+  2::(int64|none)
+
+output: |
+  1::(int64|none)
+  2::(int64|none)
+
+---
+
+spq: values ok(a) ?? none::int64
+
+input: |
+  {a:1}
+  {b:2}
+
+output: |
+  1
+  none::int64
+
+---
+
+# A dropped none isn't passed downstream.
+spq: "values this==2 ? none : this | values typeof(this)"
+
+input: |
+  1
+  2
+  3
+
+output: |
+  <int64>
+  <int64>

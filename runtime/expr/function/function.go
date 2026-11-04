@@ -80,6 +80,10 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 	case "grok":
 		argmin, argmax = 2, 3
 		f = newGrok(sctx)
+	case "has":
+		argmin = 2
+		argmax = 2
+		f = &Has{sctx: sctx}
 	case "has_error":
 		f = HasError{sctx}
 	case "hex":
@@ -262,7 +266,7 @@ func (f *samFunc) Call(args ...vector.Any) vector.Any {
 // signatures so the return type can be introspected.
 func HasBoolResult(name string) bool {
 	switch name {
-	case "grep", "has_error", "is", "is_error", "is_ok", "missing", "cidr_match":
+	case "grep", "has", "has_error", "is", "is_error", "is_ok", "missing", "cidr_match":
 		return true
 	}
 	return false

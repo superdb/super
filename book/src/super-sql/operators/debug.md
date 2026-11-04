@@ -16,6 +16,8 @@ each value in the input, evaluates the optional
 and transmits each result to a _debugging output_.
 If `<expr>` is omitted, then each input value is passed unmodified to the
 debugging output.
+As for the [values](values.md) operator, a result that is a plain `none`
+(e.g., from [ok](../functions/generics/ok.md) or `?.`) is dropped.
 
 An optional filter may be applied to the values sent to the debugging output,
 which is specified with Boolean-valued expression `<pred>`.

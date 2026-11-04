@@ -144,7 +144,7 @@ output: |
 
 ---
 
-# The runtime ?. passes the none from ok() through, which is an error when
+# The runtime ?. passes the none from ok() through, which is dropped when
 # it's output.
 spq: values r.ok()?.f
 
@@ -156,7 +156,6 @@ input: |
 
 output: |
   1
-  error("none not handled (consider ?? or ?.)")
 
 ---
 
