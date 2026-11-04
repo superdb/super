@@ -1,0 +1,64 @@
+# With -mcp, the service serves the MCP Streamable HTTP transport at /mcp:
+# each POST carries a JSON-RPC message, a request's response is JSON, and a
+# notification is accepted (202) with no body.
+script: |
+  DB_EXTRA_FLAGS=-mcp source service.sh
+  super db create -q t
+  echo '{a:1,ip:10.0.0.1}' | super db load -q -use t -
+  post() {
+    curl -s -w '[%{http_code}]\n' -H 'Content-Type: application/json' \
+      -H 'Accept: application/json, text/event-stream' "$@" $DB_URL/mcp |
+      sed -E -e 's/"version":"[^"]*"/"version":"VERSION"/' \
+             -e 's/"instructions":"[^"]*(\\"[^"]*)*"/"instructions":"INSTRUCTIONS"/' \
+             -e 's/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/ID/g'
+  }
+  echo === initialize
+  post -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}'
+  echo === notification
+  post -H 'MCP-Protocol-Version: 2025-06-18' -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+  echo === query
+  post -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query","arguments":{"query":"from t","format":"sup"}}}'
+  echo === load
+  post -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"load","arguments":{"table":"t","data":"{a:2}"}}}'
+  super db -s -c 'from t | sort a'
+  super db -s -c 'from t:log | values {author} | where !is_error(author) | head 1'
+  echo === batch
+  post -d '[{"jsonrpc":"2.0","id":4,"method":"ping"}]'
+  echo === GET
+  curl -s -o /dev/null -w '[%{http_code}]\n' $DB_URL/mcp
+  echo === unsupported protocol version
+  post -H 'MCP-Protocol-Version: 1999-01-01' -d '{"jsonrpc":"2.0","id":5,"method":"ping"}'
+  echo === origin without -cors.origin
+  post -H 'Origin: http://example.com' -d '{"jsonrpc":"2.0","id":6,"method":"ping"}'
+
+inputs:
+  - name: service.sh
+
+outputs:
+  - name: stdout
+    data: |
+      === initialize
+      {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"superdb","title":"SuperDB","version":"VERSION"},"instructions":"INSTRUCTIONS"}}
+      [200]
+      === notification
+      [202]
+      === query
+      {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{a:1,ip:10.0.0.1}"}]}}
+      [200]
+      === load
+      {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\n  \"commit\": \"ID\",\n  \"values\": 1\n}"}]}}
+      [200]
+      {a:1,ip:10.0.0.1}
+      {a:2}
+      {author:"mcp"}
+      === batch
+      {"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"batches are not supported"}}
+      [200]
+      === GET
+      [405]
+      === unsupported protocol version
+      unsupported MCP-Protocol-Version: 1999-01-01
+      [400]
+      === origin without -cors.origin
+      origin not allowed
+      [403]

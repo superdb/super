@@ -239,6 +239,7 @@ super db -f db -c "from logs:objects"
 * [log](#super-db-log) display the commit log
 * [ls](#super-db-ls) list the tables in a database
 * [manage](#super-db-manage) run regular maintenance on a database
+* [mcp](#super-db-mcp) run a Model Context Protocol (MCP) server for AI agents
 * [merge](#super-db-merge) merged data from one branch to another
 * [rename](#super-db-rename) rename a table
 * [revert](#super-db-revert) reverse an old commit
@@ -652,6 +653,69 @@ As an alternative to running `manage` as a separate command, the `-manage`
 option is also available on the [serve](#super-db-serve) sub-command to have maintenance
 tasks run at the specified interval by the service process.
 
+### super db mcp
+
+```
+super db mcp [options] <path>
+```
+* `-log.devmode` development mode (if enabled dpanic level logs will cause a panic)
+* `-log.filemode` logger file write mode (values: append, truncate, rotate)
+* `-log.level` logging level
+* `-log.path` path to send logs (values: stderr, path in file system)
+* `-message` default commit message for loads
+* `-meta` default application metadata for loads
+* `-readonly` reject queries that modify the database and disable loading
+* `-user` default user name for the commit messages of loads
+* [Global](options.md#global)
+
+The `mcp` command runs a [Model Context Protocol](https://modelcontextprotocol.io)
+(MCP) server so that an AI agent can query and load a database.  The required
+`path` argument is the storage path of the database to serve.  Like
+[serve](#super-db-serve), the command is a service for the database, so any
+previously attached database is not relevant to this command.
+
+To serve MCP to agents alongside other clients of a running service, use the
+`-mcp` option of [serve](#super-db-serve) instead.
+
+The server uses the MCP stdio transport, i.e., it reads JSON-RPC requests
+from standard input and writes responses to standard output, so an agent
+typically runs it as a subprocess (and logs go to standard error by default).
+For example, to add a database to Claude Code:
+```
+claude mcp add superdb -- super db mcp /path/to/db
+```
+or, for an agent configured with JSON,
+```
+{
+  "mcpServers": {
+    "superdb": {
+      "command": "super",
+      "args": ["db", "mcp", "/path/to/db"]
+    }
+  }
+}
+```
+
+The server provides these tools:
+* `query` runs a SuperSQL query and returns up to `limit` values (default 1000)
+in JSON or, with format `sup`, in [SUP](../formats/sup.md), which preserves
+SuperDB's types (e.g., timestamps, durations, IP addresses, and named types)
+that JSON loses,
+* `list_tables` lists the database's tables,
+* `describe_table` returns a table's declared type or, if it has none,
+the superfused type of its data computed from the types of its data
+objects, which shows where the data's types vary (e.g.,
+`{a:int64,b:fusion(string|missing)}` means `b` is absent from some values),
+or, with form `fused`, the type without fusion types, and
+* `load` loads a file (by path or S3 URI) or inline data (text or base64-encoded
+binary) in any supported format, e.g., JSON, CSV, Parquet, or Arrow, into a table
+and commits it, which is much faster than formatting the data as an `INSERT INTO`
+query.
+
+A query may modify the database (e.g., with `INSERT INTO` or `CREATE TABLE`)
+unless `-readonly` is given, in which case such a query is rejected and the
+`load` tool is not available.
+
 ### super db merge
 
 ```
@@ -736,6 +800,8 @@ super db serve [options] <path>
 * `-log.level` logging level
 * `-log.path` path to send logs (values: stderr, stdout, path in file system)
 * `-manage duration` when positive, run database maintenance tasks at this interval
+* `-mcp` serve the Model Context Protocol (MCP) for AI agents at `/mcp`
+* `-mcp.readonly` make the `/mcp` endpoint read-only (implies `-mcp`)
 * `-rootcontentfile` file to serve for GET /
 * [Global](options.md#global)
 * [Database](options.md#database)
@@ -755,6 +821,19 @@ is recommended.
 
 The `-manage` option enables the running of the same maintenance tasks
 normally performed via the [manage](#super-db-manage) sub-command.
+
+The `-mcp` option adds a [Model Context Protocol](https://modelcontextprotocol.io)
+(MCP) endpoint at `/mcp` using the MCP Streamable HTTP transport, so AI agents can
+use the service's database alongside other API clients.  It provides the same
+tools as [mcp](#super-db-mcp) and requires the same authentication as the rest of
+the API.  With `-mcp.readonly`, the endpoint rejects queries that modify the
+database and has no `load` tool while the rest of the API is unaffected.  To
+prevent DNS rebinding attacks, a request from a web page (i.e., with an `Origin`
+header) is accepted only from an origin allowed by `-cors.origin`.  For example,
+to add the endpoint to Claude Code:
+```
+claude mcp add --transport http superdb http://localhost:9867/mcp
+```
 
 ### super db use
 

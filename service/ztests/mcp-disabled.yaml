@@ -1,0 +1,12 @@
+# Without -mcp, the service has no /mcp endpoint.
+script: |
+  source service.sh
+  curl -s -o /dev/null -w '%{http_code}\n' -d '{"jsonrpc":"2.0","id":1,"method":"ping"}' $DB_URL/mcp
+
+inputs:
+  - name: service.sh
+
+outputs:
+  - name: stdout
+    data: |
+      404
