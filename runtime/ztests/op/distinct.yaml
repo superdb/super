@@ -1,40 +1,61 @@
-script: |
-  super -s -c 'from "1.sup" | distinct x.ok()'
-  echo ===
-  super -s -c 'from "2.sup" | distinct abs(this)'
-  echo ===
-  super -s -c 'from "3.sup" | unnest this into (distinct this | count())'
+spq: distinct x.ok()
 
-inputs:
-  - name: 1.sup
-    data: |
-      {x:1}
-      {x:2}
-      {x:2}
-      {y:3}
-      type named={y:int64}
-      {y:3}::named
-  - name: 2.sup
-    data: |
-      1
-      -2
-      2
-      3
-  - name: 3.sup
-    data: |
-      [1,2,2,3]
-      [2,2,3]
+input: |
+  {x:1}
+  {x:2}
+  {x:2}
+  {y:3}
+  type named={y:int64}
+  {y:3}::named
 
-outputs:
-  - name: stdout
-    data: |
-      {x:1}
-      {x:2}
-      {y:3}
-      ===
-      1
-      -2
-      3
-      ===
-      3
-      2
+output: |
+  {x:1}
+  {x:2}
+  {y:3}
+
+---
+
+spq: distinct abs(this)
+
+input: |
+  1
+  -2
+  2
+  3
+
+output: |
+  1
+  -2
+  3
+
+---
+
+spq: unnest this into (distinct this | count())
+
+input: |
+  [1,2,2,3]
+  [2,2,3]
+
+output: |
+  3
+  2
+
+---
+
+# NaN equals NaN and -0 differs from +0.  SUP formats -0 as 0., so 1./x
+# shows which zero each row is.
+spq: distinct x | values {x, inv:1./x}
+
+input: |
+  {x:NaN}
+  {x:0.}
+  {x:-0.}
+  {x:NaN}
+  {x:1.5}
+  {x:0.}
+
+output: |
+  {x:NaN,inv:NaN}
+  {x:0.,inv:+Inf}
+  {x:0.,inv:-Inf}
+  {x:1.5,inv:0.6666666666666666}
