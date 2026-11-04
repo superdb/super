@@ -1437,9 +1437,9 @@ func (t *translator) matchExpr(e *ast.MatchExpr, inType super.Type) (sem.Expr, s
 	var withTypes []super.Type
 	if named {
 		names := map[string]bool{}
-		matchName = t.matchFieldName(e.Name, e.Expr, names)
+		matchName = t.assignedFieldName("match", e.Name, e.Expr, names)
 		for _, a := range e.With {
-			name := t.matchFieldName(a.LHS, a.RHS, names)
+			name := t.assignedFieldName("match", a.LHS, a.RHS, names)
 			val, typ := t.expr(a.RHS, inType)
 			withs = append(withs, &sem.FieldElem{Node: a.RHS, Name: name, Value: val})
 			withTypes = append(withTypes, typ)
@@ -1492,21 +1492,21 @@ func (t *translator) matchExpr(e *ast.MatchExpr, inType super.Type) (sem.Expr, s
 	return out, t.checker.matchType(exprType, targets, types, elseExpr != nil)
 }
 
-// matchFieldName returns the name of a field of the input record of a named
-// match for the assignment of rhs to lhs, where lhs must be a field name if
-// it's not nil and otherwise the name is derived from rhs as for put.  names
-// holds the names already used.
-func (t *translator) matchFieldName(lhs, rhs ast.Expr, names map[string]bool) string {
+// assignedFieldName returns the name of a field of a record built by a named
+// match or unnest (op names which) for the assignment of rhs to lhs, where
+// lhs must be a field name if it's not nil and otherwise the name is derived
+// from rhs as for put.  names holds the names already used.
+func (t *translator) assignedFieldName(op string, lhs, rhs ast.Expr, names map[string]bool) string {
 	name := deriveNameFromExpr(rhs)
 	if lhs != nil {
 		if id, ok := lhs.(*ast.IDExpr); ok && id.Name != "this" {
 			name = id.Name
 		} else {
-			t.error(lhs, errors.New("match: left-hand side of := must be a field name"))
+			t.error(lhs, fmt.Errorf("%s: left-hand side of := must be a field name", op))
 		}
 	}
 	if names[name] {
-		t.error(rhs, fmt.Errorf("match: duplicate field name %q", name))
+		t.error(rhs, fmt.Errorf("%s: duplicate field name %q", op, name))
 	}
 	names[name] = true
 	return name

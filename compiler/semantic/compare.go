@@ -144,7 +144,7 @@ func eqOp(aop, bop sem.Op) bool {
 		return ok && a.Cflag == b.Cflag
 	case *sem.UnnestOp:
 		b, ok := bop.(*sem.UnnestOp)
-		return ok && eqExpr(a.Expr, b.Expr) && eqSeq(a.Body, b.Body)
+		return ok && eqExpr(a.Expr, b.Expr) && a.Field == b.Field && eqSeq(a.Body, b.Body)
 	case *sem.ValuesOp:
 		b, ok := bop.(*sem.ValuesOp)
 		return ok && eqExprs(a.Exprs, b.Exprs)

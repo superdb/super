@@ -5,7 +5,7 @@
 ## Synopsis
 
 ```
-unnest <expr> [ into ( <query> ) ]
+unnest [<name>:=]<expr> [ with <assignments> ] [ into ( <query> ) ]
 ```
 
 ## Description
@@ -40,22 +40,23 @@ produces
 3
 ```
 
-If `<expr>` is an array, then the elements of that array form the derived sequence.
+The value of `<expr>` must be an array (or a set), whose elements form the
+derived sequence.
 
-If `<expr>` is a record, it must have two fields of the form:
+To carry other values along with each unnested element, give the unnested
+value a name with `:=` or list the values in a `with` clause.  Then each
+derived value is a record whose first field is an element and whose other
+fields are the `with` values, which are copied to each derived value, where
+each field's name is given with `:=` or, as for [put](put.md), derived from
+its expression (e.g., `a.b` is named `b` and `this` is named `that`).  For
+example,
 ```
-{<first>: <any>, <second>:<array>}
+unnest item:=a with outer:=this
 ```
-where `<first>` and `<second>` are arbitrary field names, `<any>` is any
-SuperSQL value, and `<array>` is an array value.  In this compound form of `unnest`, the derived
-sequence has the form:
+produces, for each element `<elem>` of `a`,
 ```
-{<first>: <any>, <second>:<elem0>}
-{<first>: <any>, <second>:<elem1>}
-...
+{item:<elem>,outer:<this>}
 ```
-where the first field is copied to each derived value and the second field is
-the unnested elements of the array `elem0`, `elem1`, etc.
 
 To explode the leaf values of records, arrays, sets, and maps along with their
 paths, use the [`flatten`](../functions/records/flatten.md) function, which
@@ -65,21 +66,11 @@ For example, if `this` is a record, it can be unnested with `unnest flatten(this
 
 ## Errors
 
-If a value encountered by `unnest` does not have either of the forms defined
-above, then an error results as follows:
+If the value to unnest is not an array or set, then an error results as follows:
 ```
 error({message:"unnest: encountered non-array value",on:<value>})
 ```
 where `<value>` is the offending value.
-
-When a record value is encountered without the proper form, then the error is:
-```
-error({message:"unnest: encountered record without two fields",on:<value>})
-```
-or
-```
-error({message:"unnest: encountered record without an array/set type for second field",on:<value>})
-```
 
 ## Examples
 
@@ -174,7 +165,7 @@ unnest a into ( sum(this) )
 _Access an outer value in a subquery_
 ```mdtest-spq
 # spq
-unnest {s,a} into ( sum(a) by s )
+unnest a with s into ( sum(a) by s )
 # input
 {a:[1,2],s:"foo"}
 {a:[3,4,5],s:"bar"}
@@ -188,7 +179,7 @@ unnest {s,a} into ( sum(a) by s )
 _Unnested the elements of a record by flattening it_
 ```mdtest-spq
 # spq
-unnest {s,f:flatten(r)} into ( values {s,key:f.path[0],val:f.value} )
+unnest f:=flatten(r) with s into ( values {s,key:f.path[0],val:f.value} )
 # input
 {s:"foo",r:{a:1,b:2}}
 {s:"bar",r:{a:3,b:4}}

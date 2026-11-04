@@ -1,7 +1,7 @@
 spq: |
-  unnest { TOP:this["top"], outer } into (
+  unnest outer with TOP:=this["top"] into (
     values {msg:"OUTER", top:`TOP`, inner:outer.inner, b:outer.b}
-    | unnest {c:{BOTTOM:b,TOP:top}, elem:inner} into (
+    | unnest elem:=inner with c:={BOTTOM:b,TOP:top} into (
       values {top:c.TOP, bottom:c.BOTTOM, elem}
     )
   )

@@ -691,6 +691,9 @@ func (c *canonDAG) project(fields []field.Path) {
 func (c *canonDAG) unnest(u *dag.UnnestOp) {
 	c.next()
 	c.write("unnest ")
+	if u.Field != "" {
+		c.write("field %s of ", sup.QuotedName(u.Field))
+	}
 	c.expr(u.Expr, "")
 }
 

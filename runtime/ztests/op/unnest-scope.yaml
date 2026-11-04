@@ -1,5 +1,5 @@
 spq: |
-  unnest {w:a,b} into (
+  unnest b with w:=a into (
     values {x:w,y:b}
   )
 

@@ -1,5 +1,5 @@
 spq: |
-  unnest {foo:"bar",num:this} into (sort num | values {num, foo})
+  unnest num:=this with foo:="bar" into (sort num | values {num, foo})
 
 input: "[4,2,6,1]"
 

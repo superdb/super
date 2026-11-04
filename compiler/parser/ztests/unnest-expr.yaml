@@ -1,6 +1,6 @@
 script: |
   echo === aggregation
-  super compile -C 'collect((unnest {a:b,c} | ?d))'
+  super compile -C 'collect((unnest c with a:=b | ?d))'
   echo === cast
   super compile -C 'uint8((unnest a | ?b))'
   echo === expression
@@ -16,7 +16,7 @@ outputs:
       === aggregation
       aggregate
           collect((
-            unnest {a:b,c}
+            unnest c with a:=b
             | search d
           ))
       === cast

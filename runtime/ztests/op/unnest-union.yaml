@@ -17,23 +17,23 @@ output: |
 ---
 
 spq: |
-  unnest {m:"foo",a:[{m:"bar",n:{m:"baz",b:[2]}}]}
+  unnest a:=[{m:"bar",n:{m:"baz",b:[2]}}] with m:="foo"
 
 output: |
-  {m:"foo",a:{m:"bar",n:{m:"baz",b:[2]}}}
+  {a:{m:"bar",n:{m:"baz",b:[2]}},m:"foo"}
 
 ---
 
 spq: |
-  unnest {query:"foo"::(string|null),answer:["bar"]::[string|null]::(null|[string|null])}
+  unnest answer:=["bar"]::[string|null]::(null|[string|null]) with query:="foo"::(string|null)
 
 output: |
-  {query:"foo"::(string|null),answer:"bar"}
+  {answer:"bar",query:"foo"::(string|null)}
 
 ---
 
 spq: |
-  unnest {a:0,b}
+  unnest b with a:=0
 
 input: |
   {b:[1]}
@@ -42,10 +42,10 @@ input: |
   {b:[4,44::(bool|string|int64|null)]}
 
 output: |
-  {a:0,b:1}
-  {a:0,b:2}
-  {a:0,b:22}
-  {a:0,b:3}
-  {a:0,b:33}
-  {a:0,b:4}
-  {a:0,b:44}
+  {b:1,a:0}
+  {b:2,a:0}
+  {b:22,a:0}
+  {b:3,a:0}
+  {b:33,a:0}
+  {b:4,a:0}
+  {b:44,a:0}

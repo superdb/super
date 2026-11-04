@@ -160,7 +160,7 @@ func (c *checker) op(typ super.Type, op sem.Op) super.Type {
 	case *sem.UniqOp:
 		return typ
 	case *sem.UnnestOp:
-		return c.seq(c.unnest(op.Expr, c.expr(typ, op.Expr)), op.Body)
+		return c.seq(c.unnest(op.Expr, c.expr(typ, op.Expr), op.Field), op.Body)
 	case *sem.ValuesOp:
 		return c.fuse(c.exprs(typ, op.Exprs))
 	default:
@@ -198,9 +198,17 @@ func (c *checker) join(types []super.Type, op *sem.JoinOp) super.Type {
 	return typ
 }
 
-func (c *checker) unnest(loc ast.Node, typ super.Type) super.Type {
+// unnest returns the type of the values produced by unnesting a value of type
+// typ or, if field isn't empty, by unnesting the field named field of a record
+// of type typ and copying its other fields to each unnested value.
+func (c *checker) unnest(loc ast.Node, typ super.Type, field string) super.Type {
 	c.pushErrs()
-	typ, ok := c.unnestCheck(loc, typ)
+	var ok bool
+	if field != "" {
+		typ, ok = c.unnestField(loc, typ, field)
+	} else {
+		typ, ok = c.unnestCheck(loc, typ)
+	}
 	errs := c.popErrs()
 	if !ok {
 		c.keepErrs(errs)
@@ -231,26 +239,32 @@ func (c *checker) unnestCheck(loc ast.Node, typ super.Type) (super.Type, bool) {
 		return c.unnestCheck(loc, typ.Type)
 	case *super.TypeArray:
 		return typ.Type, true
-	case *super.TypeRecord:
-		if len(typ.Fields) != 2 {
-			c.error(loc, errors.New("unnested record must have two fields"))
-			return c.unknown, false
-		}
-		arrayField := typ.Fields[1]
-		if isUnknown(arrayField.Type) {
-			return typ, true
-		}
-		arrayElemType, ok := c.hasArray(arrayField.Type)
-		if !ok {
-			c.error(loc, errors.New("unnested record must have array for second field"))
-			return c.unknown, false
-		}
-		fields := []super.Field{typ.Fields[0], {Name: arrayField.Name, Type: arrayElemType}}
-		return c.t.sctx.MustLookupTypeRecord(fields), true
 	default:
-		c.error(loc, errors.New("unnest value must be array or record"))
+		c.error(loc, errors.New("unnest value must be an array"))
 		return c.unknown, false
 	}
+}
+
+// unnestField returns the type of the records produced by unnesting the field
+// named field of a record of type typ, which has the type of the field's
+// elements, and copying the record's other fields.
+func (c *checker) unnestField(loc ast.Node, typ super.Type, field string) (super.Type, bool) {
+	rec, ok := under(typ).(*super.TypeRecord)
+	if !ok {
+		return c.unknown, true
+	}
+	k, ok := rec.IndexOfField(field)
+	if !ok {
+		return c.unknown, true
+	}
+	elemType, ok := c.unnestCheck(loc, rec.Fields[k].Type)
+	fields := slices.Clone(rec.Fields)
+	fields[k].Type = elemType
+	out, err := c.t.sctx.LookupTypeRecord(fields)
+	if err != nil {
+		return c.unknown, ok
+	}
+	return out, ok
 }
 
 // assignments returns a set of paths where the LHS is a dotted path. If LHS is more

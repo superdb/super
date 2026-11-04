@@ -1078,7 +1078,7 @@ bringing that value into the scope using a `with` clause appended to the
 with the desired value:
 ```mdtest-command-skip dir=book/src/tutorials
 super -s -c '
-  unnest {user:user.login,reviewer:requested_reviewers} into (
+  unnest reviewer:=requested_reviewers with user:=user.login into (
     reviewers:=union(reviewer.login) by user
   )
   | sort user,len(reviewers)
@@ -1100,7 +1100,7 @@ The final step is to simply aggregate the "reviewer sets" with the `user` field
 as the grouping key:
 ```mdtest-command-skip dir=book/src/tutorials
 super -S -c '
-  unnest {user:user.login,reviewer:requested_reviewers} into (
+  unnest reviewer:=requested_reviewers with user:=user.login into (
     reviewers:=union(reviewer.login) by user
   )
   | groups:=union(reviewers) by user
@@ -1223,7 +1223,7 @@ of reviewers.  To do this, we just average the reviewer set size
 with an aggregation:
 ```mdtest-command-skip dir=book/src/tutorials
 super -s -c '
-  unnest {user:user.login,reviewer:requested_reviewers} into (
+  unnest reviewer:=requested_reviewers with user:=user.login into (
     reviewers:=union(reviewer.login) by user
   )
   | avg_reviewers:=avg(len(reviewers)) by user
@@ -1243,7 +1243,7 @@ Of course, if you'd like the query output in JSON, you can just say `-j` and
 `super` will happily format the sets as JSON arrays, e.g.,
 ```mdtest-command-skip dir=book/src/tutorials
 super -j -c '
-  unnest {user:user.login,reviewer:requested_reviewers} into (
+  unnest reviewer:=requested_reviewers with user:=user.login into (
     reviewers:=union(reviewer.login) by user
   )
   | groups:=union(reviewers) by user

@@ -87,7 +87,7 @@ In this case, the subquery is a
 A correlated subquery can always be rewritten as a pipe subquery using
 [unnest](../operators/unnest.md) using this pattern:
 ```
-unnest {outer:this,inner:[<query>]}
+unnest inner:=[<query>] with outer:=this
 ```
 where `<query>` generates the correlated subquery values, then they can
 be accessed as if the `outer` field is the outer scope and the `inner` field

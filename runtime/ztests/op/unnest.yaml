@@ -31,7 +31,7 @@ output: |
 
 ---
 
-spq: unnest {a,b} | values a+b
+spq: unnest b with a | values a+b
 
 input: |
   {a:1,b:[1,2,3]}
@@ -49,7 +49,7 @@ output: |
 ---
 
 # Unnest on fusion values
-spq: unnest this
+spq: unnest y with x
 
 flags: -dynamic
 
@@ -58,6 +58,34 @@ input: |
   fusion({x:"foo",y:[1,2],z?:3},<{x:string,y:[int64],z:int64}>)
 
 output: |
-  {x:"foo",y:1}
-  {x:"foo",y:2}
-  error({message:"unnest: encountered record without two fields",on:{x:"foo",y:[1,2],z:3}})
+  {y:1,x:"foo"}
+  {y:2,x:"foo"}
+  {y:1,x:"foo"}
+  {y:2,x:"foo"}
+
+---
+
+# A record is not unnested unless a field is named, which is a static error
+# when the record's type is known ...
+spq: unnest this
+
+input: |
+  {x:"foo",y:[1,2]}
+
+error: |
+  unnest value must be an array at line 1, column 8:
+  unnest this
+         ~~~~
+
+---
+
+# ... and otherwise a runtime error.
+spq: unnest this
+
+flags: -dynamic
+
+input: |
+  {x:"foo",y:[1,2]}
+
+output: |
+  error({message:"unnest: encountered non-array value",on:{x:"foo",y:[1,2]}})

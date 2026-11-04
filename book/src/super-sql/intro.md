@@ -339,7 +339,7 @@ The array subquery produces an array value so it is often desirable to
 [unnest](operators/unnest.md) this array with respect to the outer
 values as in
 ```
-from f1.json | unnest {outer:this,inner:[from f2.json | ...]} into ( <query> )
+from f1.json | unnest inner:=[from f2.json | ...] with outer:=this into ( <query> )
 ```
 where `<query>` is an arbitrary pipe query that processes each
 collection of unnested values separately as a unit for each outer value.
@@ -363,7 +363,7 @@ unnesting the data from the subquery with the values coming from the outer
 scope as in
 ```
 from f2.json
-| unnest {f2:this,f1:[from f1.json]} into ( s:=sum(f1.x+f2.y) )
+| unnest f1:=[from f1.json] with f2:=this into ( s:=sum(f1.x+f2.y) )
 ```
 giving the same result
 ```

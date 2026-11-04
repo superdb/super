@@ -297,8 +297,9 @@ func (d *dagen) op(op sem.Op) dag.Op {
 
 func (d *dagen) unnest(op *sem.UnnestOp) dag.Op {
 	u := &dag.UnnestOp{
-		Kind: "UnnestOp",
-		Expr: d.expr(op.Expr),
+		Kind:  "UnnestOp",
+		Expr:  d.expr(op.Expr),
+		Field: op.Field,
 	}
 	if op.Body == nil {
 		return u
