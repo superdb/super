@@ -3,9 +3,9 @@
 # result on the matched value.
 spq: |
   values match this
-    case int64 then this+1
-    case string upper(this)
-    case {a:int64} a
+    when int64 then this+1
+    when string upper(this)
+    when {a:int64} a
     else "other"
   end
 
@@ -25,7 +25,7 @@ output: |
 
 # Unions, options, and fusions match their underlying values.  (An option
 # may be none, which no case matches, so an else is needed.)
-spq: values match x case int64 this+1 case string this||"!" else "none"
+spq: values match x when int64 this+1 when string this||"!" else "none"
 
 input: |
   {x:1::(int64|string)}
@@ -40,7 +40,7 @@ output: |
 ---
 
 # Any expression may be matched and an unmatched value is none.
-spq: values {v:match a.b case int64 this*10}
+spq: values {v:match a.b when int64 this*10}
 
 input: |
   {a:{b:1}}
@@ -53,7 +53,7 @@ output: |
 ---
 
 # A union-type case matches any of its members.
-spq: values match this case int64|string "scalar" else "other"
+spq: values match this when int64|string "scalar" else "other"
 
 input: |
   1
@@ -69,8 +69,8 @@ output: |
 
 # Errors and missing pass through unless a case has an error type.
 spq: |
-  values match this case int64 this,
-         match this case error(string) "caught" else "ok"
+  values match this when int64 this,
+         match this when error(string) "caught" else "ok"
 
 input: |
   1
@@ -87,7 +87,7 @@ output: |
 # A match covering all members of a union has no none in its type.
 spq: |
   values cast(this, <int64|string>)
-  | values typeof(match this case int64 "i" case string "s")
+  | values typeof(match this when int64 "i" when string "s")
 
 input: |
   1
@@ -98,7 +98,7 @@ output: |
 ---
 
 # Without end, else belongs to the innermost match.
-spq: values match this case int64 match this case int64 "inner" else "x" case string "s"
+spq: values match this when int64 match this when int64 "inner" else "x" when string "s"
 
 input: |
   1
@@ -111,11 +111,11 @@ output: |
 ---
 
 # A match without an else may be none, which must be handled.
-spq: values (match this case int64 this) + 1
+spq: values (match this when int64 this) + 1
 
 error: |
   int64|none: none not handled (consider ?? or ?.) at line 1, column 9:
-  values (match this case int64 this) + 1
+  values (match this when int64 this) + 1
           ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ---
@@ -135,9 +135,9 @@ output: |
 # (including an option's none) matches its option type, and the first case
 # whose type the value has wins.
 spq: |
-  values match this case option(int64) "option" case int64 "int64" else "other",
-         match this case int64 "member" case int64|string "union" else "other",
-         match this case int64|string "union" case int64 "member" else "other"
+  values match this when option(int64) "option" when int64 "int64" else "other",
+         match this when int64 "member" when int64|string "union" else "other",
+         match this when int64|string "union" when int64 "member" else "other"
 
 input: |
   some(1)
@@ -158,7 +158,7 @@ output: |
 ---
 
 # A subquery in a case has the case's input as its input.
-spq: values match x case int64 then (values this+1) else 0
+spq: values match x when int64 then (values this+1) else 0
 
 input: |
   {x:1::(int64|string)}
@@ -175,7 +175,7 @@ output: |
 # A match with a with clause has a record input whose first field is the
 # (asserted) matched value and whose other fields are the with values.
 # Names are derived from the expressions as for put.
-spq: values match x with y case int64 x+y case string x else y
+spq: values match x with y when int64 x+y when string x else y
 
 input: |
   {x:1,y:10}
@@ -192,9 +192,9 @@ output: |
 # A derived name for a function call is the function's name and for this is
 # "that", and a name may be given with :=.
 spq: |
-  values match upper(s) with this case string upper||"/"||that.s else "",
-         match s:=upper(s) with that:=this case string s||"/"||that.s else "",
-         match s:=upper(s) case string s||"!" else ""
+  values match upper(s) with this when string upper||"/"||that.s else "",
+         match s:=upper(s) with that:=this when string s||"/"||that.s else "",
+         match s:=upper(s) when string s||"!" else ""
 
 input: |
   {s:"a"}
@@ -207,12 +207,12 @@ output: |
 ---
 
 # The field names of a match's input must be unique.
-spq: values match x with x case int64 1 else 0
+spq: values match x with x when int64 1 else 0
 
 input: |
   {x:1}
 
 error: |
   match: duplicate field name "x" at line 1, column 21:
-  values match x with x case int64 1 else 0
+  values match x with x when int64 1 else 0
                       ~

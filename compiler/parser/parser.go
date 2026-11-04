@@ -9089,7 +9089,7 @@ var g = &grammar{
 						},
 						&ruleRefExpr{
 							pos:  position{line: 1366, col: 7, offset: 33737},
-							name: "CASE",
+							name: "WHEN",
 						},
 						&ruleRefExpr{
 							pos:  position{line: 1366, col: 12, offset: 33742},
