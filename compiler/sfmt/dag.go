@@ -130,7 +130,7 @@ func (c *canonDAG) expr(e dag.Expr, parent string) {
 		c.write("match ")
 		c.expr(e.Expr, "")
 		for _, mc := range e.Cases {
-			c.write(" case ")
+			c.write(" when ")
 			c.expr(mc.Type, "")
 			if _, ok := mc.Input.(*dag.RecordExpr); ok {
 				c.write(" input ")

@@ -161,7 +161,7 @@ func (c *canon) expr(e ast.Expr, parent string) {
 			c.assignments(e.With)
 		}
 		for _, mc := range e.Cases {
-			c.write(" case ")
+			c.write(" when ")
 			c.typ(mc.Type)
 			c.write(" then ")
 			c.expr(mc.Expr, "")

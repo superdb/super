@@ -1363,7 +1363,7 @@ MatchExpr
     }
 
 MatchCase
-  = _ CASE _ typ:Type (_ THEN)? _ expr:Expr {
+  = _ WHEN _ typ:Type (_ THEN)? _ expr:Expr {
       return ast.MatchCase{
         Type: typ.(ast.Type),
         Expr: expr.(ast.Expr),
