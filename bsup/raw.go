@@ -67,11 +67,6 @@ func (r *RawColFrame) Typedefs() ([]byte, error) {
 	return io.ReadAll(io.NewSectionReader(r.readerAt, off, size))
 }
 
-func (r *RawColFrame) FusedTypeBytes() ([]byte, error) {
-	off, size := r.header.FusedTypeSection()
-	return io.ReadAll(io.NewSectionReader(r.readerAt, off, size))
-}
-
 func (c *RawColFrame) Root() ID {
 	return ID(c.header.Root)
 }
@@ -102,11 +97,6 @@ func (r *RawRowFrame) Size() uint64 {
 
 func (r *RawRowFrame) Typedefs() ([]byte, error) {
 	off, size := r.header.TypedefsSection()
-	return io.ReadAll(io.NewSectionReader(r.readerAt, off, size))
-}
-
-func (r *RawRowFrame) FusedTypeBytes() ([]byte, error) {
-	off, size := r.header.FusedTypeSection()
 	return io.ReadAll(io.NewSectionReader(r.readerAt, off, size))
 }
 

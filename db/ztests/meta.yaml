@@ -70,7 +70,7 @@ outputs:
         min: 1,
         max: 2,
         count: 2::uint64,
-        size: 615
+        size: 471
       }
       {
         nameof: "db.BranchTip"

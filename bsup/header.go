@@ -82,33 +82,33 @@ type Header interface {
 // Version (2 bytes) - 6-bit major and 10-bit minor (see Version)
 // Frame size (8 bytes) - entire frame including header to end of data section
 // Root ID (4 bytes)
-// Fused type size (8 bytes) - 0 if not present
+// Fused type ID (4 bytes) - in typedefs
 // Metadata section size (8 bytes)
+// Typedefs section size (8 bytes)
 // [variable data]
 // Metadata (encoded as a rows SuperFrame)
 // Typedefs (encoded as bytes of typedefs serialization)
-// Fused type value (encoded as raw type value bytes)
-// Data section (encoded as raw bytes with size = FrameSize - MetadataSize)
+// Data section (encoded as raw bytes with size = FrameSize - MetadataSize - TypedefsSize)
 type ColumnHeader struct {
-	Version       Version // off 4
-	FrameSize     uint64  // 6
-	Root          uint32  // 14
-	MetadataSize  uint64  // 18
-	TypedefsSize  uint64  // 26
-	FusedTypeSize uint64  // 34
+	Version      Version // off 4
+	FrameSize    uint64  // 6
+	Root         uint32  // 14
+	FusedType    uint32  // 18
+	MetadataSize uint64  // 22
+	TypedefsSize uint64  // 30
 }
 
-const ColumnHeaderSize = 42
+const ColumnHeaderSize = 38
 
-func newColumnHeader(root ID, metadataSize, typedefsSize, fusedTypeSize, dataSectionSize uint64) ColumnHeader {
-	frameSize := ColumnHeaderSize + metadataSize + typedefsSize + fusedTypeSize + dataSectionSize
+func newColumnHeader(root ID, fusedType uint32, metadataSize, typedefsSize, dataSectionSize uint64) ColumnHeader {
+	frameSize := ColumnHeaderSize + metadataSize + typedefsSize + dataSectionSize
 	return ColumnHeader{
-		Version:       CurrentVersion,
-		FrameSize:     frameSize,
-		Root:          uint32(root),
-		MetadataSize:  metadataSize,
-		TypedefsSize:  typedefsSize,
-		FusedTypeSize: fusedTypeSize,
+		Version:      CurrentVersion,
+		FrameSize:    frameSize,
+		Root:         uint32(root),
+		FusedType:    fusedType,
+		MetadataSize: metadataSize,
+		TypedefsSize: typedefsSize,
 	}
 }
 
@@ -122,9 +122,9 @@ func (c ColumnHeader) Serialize() []byte {
 	c.Version.Serialize(bytes[4:])
 	binary.LittleEndian.PutUint64(bytes[6:], c.FrameSize)
 	binary.LittleEndian.PutUint32(bytes[14:], c.Root)
-	binary.LittleEndian.PutUint64(bytes[18:], c.MetadataSize)
-	binary.LittleEndian.PutUint64(bytes[26:], c.TypedefsSize)
-	binary.LittleEndian.PutUint64(bytes[34:], c.FusedTypeSize)
+	binary.LittleEndian.PutUint32(bytes[18:], c.FusedType)
+	binary.LittleEndian.PutUint64(bytes[22:], c.MetadataSize)
+	binary.LittleEndian.PutUint64(bytes[30:], c.TypedefsSize)
 	return bytes[:]
 }
 
@@ -132,9 +132,9 @@ func (c *ColumnHeader) Deserialize(bytes [ColumnHeaderSize]byte) {
 	c.Version.Deserialize(bytes[4:])
 	c.FrameSize = binary.LittleEndian.Uint64(bytes[6:])
 	c.Root = binary.LittleEndian.Uint32(bytes[14:])
-	c.MetadataSize = binary.LittleEndian.Uint64(bytes[18:])
-	c.TypedefsSize = binary.LittleEndian.Uint64(bytes[26:])
-	c.FusedTypeSize = binary.LittleEndian.Uint64(bytes[34:])
+	c.FusedType = binary.LittleEndian.Uint32(bytes[18:])
+	c.MetadataSize = binary.LittleEndian.Uint64(bytes[22:])
+	c.TypedefsSize = binary.LittleEndian.Uint64(bytes[30:])
 }
 
 func (c ColumnHeader) MetadataSection() (int64, int64) {
@@ -145,12 +145,8 @@ func (c ColumnHeader) TypedefsSection() (int64, int64) {
 	return ColumnHeaderSize + int64(c.MetadataSize), int64(c.TypedefsSize)
 }
 
-func (c ColumnHeader) FusedTypeSection() (int64, int64) {
-	return ColumnHeaderSize + int64(c.MetadataSize) + int64(c.TypedefsSize), int64(c.FusedTypeSize)
-}
-
 func (c ColumnHeader) SegmentsSection() (int64, int64) {
-	off := ColumnHeaderSize + int64(c.MetadataSize) + int64(c.TypedefsSize) + int64(c.FusedTypeSize)
+	off := ColumnHeaderSize + int64(c.MetadataSize) + int64(c.TypedefsSize)
 	return off, int64(c.FrameSize) - off
 }
 
@@ -159,9 +155,6 @@ func (c ColumnHeader) check() error {
 		return err
 	}
 	if err := checkSize("column frame", int(c.FrameSize), MaxFrameSize); err != nil {
-		return err
-	}
-	if err := checkSize("fused type", int(c.FusedTypeSize), MaxMetaSize); err != nil {
 		return err
 	}
 	if err := checkSize("metadata section", int(c.MetadataSize), MaxMetaSize); err != nil {
@@ -175,28 +168,27 @@ func (c ColumnHeader) check() error {
 // S U P R (4 byte string)
 // Version (2 bytes) - 6-bit major and 10-bit minor (see Version)
 // Frame size (8 bytes) - entire frame including header to end of data section
-// Fused type size (8 bytes) - 0 if not present
+// Fused type ID (4 bytes) - in typedefs
 // Typedefs section size (8 bytes)
-// Fused type value (variable bytes)
 // Typedefs section (variable bytes)
-// Values section size = FrameSize - (FusedTypeSize+TypedefsSize)
+// Values section size = FrameSize - TypedefsSize
 type RowHeader struct {
-	Version       Version
-	FrameSize     uint64
-	FusedTypeSize uint64
-	TypedefsSize  uint64
-	Control       bool
+	Version      Version
+	FrameSize    uint64
+	FusedType    uint32
+	TypedefsSize uint64
+	Control      bool
 }
 
-const RowHeaderSize = 30
+const RowHeaderSize = 26
 
-func newRowHeader(oob bool, typedefsSize, fusedTypeSize, dataSectionSize uint64) RowHeader {
-	frameSize := RowHeaderSize + +typedefsSize + fusedTypeSize + dataSectionSize
+func newRowHeader(fusedType uint32, typedefsSize, dataSectionSize uint64) RowHeader {
+	frameSize := RowHeaderSize + typedefsSize + dataSectionSize
 	return RowHeader{
-		Version:       CurrentVersion,
-		FrameSize:     frameSize,
-		TypedefsSize:  typedefsSize,
-		FusedTypeSize: fusedTypeSize,
+		Version:      CurrentVersion,
+		FrameSize:    frameSize,
+		FusedType:    fusedType,
+		TypedefsSize: typedefsSize,
 	}
 }
 
@@ -213,28 +205,24 @@ func (r RowHeader) Serialize(ctrl bool) []byte {
 	}
 	r.Version.Serialize(bytes[4:])
 	binary.LittleEndian.PutUint64(bytes[6:], r.FrameSize)
-	binary.LittleEndian.PutUint64(bytes[14:], r.FusedTypeSize)
-	binary.LittleEndian.PutUint64(bytes[22:], r.TypedefsSize)
+	binary.LittleEndian.PutUint32(bytes[14:], r.FusedType)
+	binary.LittleEndian.PutUint64(bytes[18:], r.TypedefsSize)
 	return bytes[:]
 }
 
 func (r *RowHeader) Deserialize(bytes [RowHeaderSize]byte) {
 	r.Version.Deserialize(bytes[4:])
 	r.FrameSize = binary.LittleEndian.Uint64(bytes[6:])
-	r.FusedTypeSize = binary.LittleEndian.Uint64(bytes[14:])
-	r.TypedefsSize = binary.LittleEndian.Uint64(bytes[22:])
-}
-
-func (c RowHeader) FusedTypeSection() (int64, int64) {
-	return RowHeaderSize, int64(c.FusedTypeSize)
+	r.FusedType = binary.LittleEndian.Uint32(bytes[14:])
+	r.TypedefsSize = binary.LittleEndian.Uint64(bytes[18:])
 }
 
 func (c RowHeader) TypedefsSection() (int64, int64) {
-	return RowHeaderSize + int64(c.FusedTypeSize), int64(c.TypedefsSize)
+	return RowHeaderSize, int64(c.TypedefsSize)
 }
 
 func (c RowHeader) DataSection() (int64, int64) {
-	off := RowHeaderSize + int64(c.FusedTypeSize) + int64(c.TypedefsSize)
+	off := RowHeaderSize + int64(c.TypedefsSize)
 	return off, int64(c.FrameSize) - off
 }
 func (r RowHeader) check() error {
@@ -242,9 +230,6 @@ func (r RowHeader) check() error {
 		return err
 	}
 	if err := checkSize("row frame", int(r.FrameSize), MaxFrameSize); err != nil {
-		return err
-	}
-	if err := checkSize("fused type", int(r.FusedTypeSize), MaxMetaSize); err != nil {
 		return err
 	}
 	return checkSize("typedefs section", int(r.TypedefsSize), MaxMetaSize)

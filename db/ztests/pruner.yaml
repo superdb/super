@@ -24,20 +24,20 @@ script: |
 outputs:
   - name: stdout
     data: |
-      {type:<{k:int64}>,min:20,max:25,count:6::uint64,size:615}
+      {type:<{k:int64}>,min:20,max:25,count:6::uint64,size:471}
       ===
-      {type:<{k:int64}>,min:8,max:12,count:5::uint64,size:615}
-      {type:<{k:int64}>,min:10,max:15,count:6::uint64,size:615}
+      {type:<{k:int64}>,min:8,max:12,count:5::uint64,size:471}
+      {type:<{k:int64}>,min:10,max:15,count:6::uint64,size:471}
       ===
-      {type:<{k:int64}>,min:10,max:15,count:6::uint64,size:615}
-      {type:<{k:int64}>,min:14,max:16,count:3::uint64,size:615}
+      {type:<{k:int64}>,min:10,max:15,count:6::uint64,size:471}
+      {type:<{k:int64}>,min:14,max:16,count:3::uint64,size:471}
       ===
-      {type:<{k:int64}>,min:8,max:12,count:5::uint64,size:615}
-      {type:<{k:int64}>,min:20,max:25,count:6::uint64,size:615}
+      {type:<{k:int64}>,min:8,max:12,count:5::uint64,size:471}
+      {type:<{k:int64}>,min:20,max:25,count:6::uint64,size:471}
       ===
-      {type:<{k:int64}>,min:8,max:12,count:5::uint64,size:615}
-      {type:<{k:int64}>,min:10,max:15,count:6::uint64,size:615}
-      {type:<{k:int64}>,min:14,max:16,count:3::uint64,size:615}
-      {type:<{k:int64}>,min:20,max:25,count:6::uint64,size:615}
+      {type:<{k:int64}>,min:8,max:12,count:5::uint64,size:471}
+      {type:<{k:int64}>,min:10,max:15,count:6::uint64,size:471}
+      {type:<{k:int64}>,min:14,max:16,count:3::uint64,size:471}
+      {type:<{k:int64}>,min:20,max:25,count:6::uint64,size:471}
       ===
-      {type:<{k:int64}>,min:20,max:25,count:6::uint64,size:615}
+      {type:<{k:int64}>,min:20,max:25,count:6::uint64,size:471}

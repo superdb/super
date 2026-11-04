@@ -1,14 +1,13 @@
 package loader
 
 import (
-	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/vector"
 )
 
 type empty struct {
-	typ super.Type
+	typeID uint32
 }
 
 func (*empty) length() uint32 {
@@ -16,16 +15,12 @@ func (*empty) length() uint32 {
 }
 
 func newEmpty(meta *bsup.Empty) *empty {
-	return &empty{typ: meta.Type}
+	return &empty{meta.TypeID}
 }
 
 func (e *empty) unmarshal(bctx *bsup.Context, projection field.Projection) {
 }
 
 func (e *empty) project(loader *FrameLoader, projection field.Projection) vector.Any {
-	typ, err := loader.sctx.TranslateType(e.typ)
-	if err != nil {
-		panic(err)
-	}
-	return vector.NewEmpty(typ)
+	return vector.NewEmpty(loader.lookupType(e.typeID))
 }

@@ -50,7 +50,7 @@ func TestTableStats(t *testing.T) {
 	span := nano.Span{Ts: 1e9, Dur: 1e9 + 1}
 	expected := exec.TableStats{
 		Span: &span,
-		Size: 966,
+		Size: 758,
 	}
 	require.Equal(t, expected, conn.TestTableStats(tableID))
 }

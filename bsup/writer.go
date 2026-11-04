@@ -120,21 +120,19 @@ func (c *ColumnWriter) pushFrame() error {
 	if vec.Len() == 0 {
 		return nil
 	}
+	enc := NewDynamicEncoder(vec)
+	bctx := enc.bctx
 	// Compute the fused type for just the ColumnFrame.  This type is fed into
 	// the SuperFrame fuser below so we have a type for each ColumnFrame and a type
-	// for the SuperFrame.  The ColumnFrame types will useful for future frame pruning.
-	var fusedTypeBytes []byte
-	var fusedType super.Type
-	fusedType = fuse(c.fuser.sctx, vec)
-	fusedTypeBytes = c.fuser.sctx.LookupTypeValue(fusedType).Bytes()
-	enc := NewDynamicEncoder(vec)
+	// for the SuperFrame.  The ColumnFrame types will be useful for future frame pruning.
+	fusedType := c.fuser.fuseVecsStandalone(vec.Values)
+	fusedTypeID := bctx.TypeDefs().LookupType(fusedType)
 	root, dataSectionSize, err := enc.Encode()
 	if err != nil {
 		return fmt.Errorf("system error: could not encode BSUP metadata: %w", err)
 	}
 	var metaData bytes.Buffer
 	rowWriter := NewRowWriter(sio.NopCloser(&metaData))
-	bctx := enc.bctx
 	m := super.NewMarshaler(bctx.local)
 	m.Decorate(super.StyleSimple)
 	for id := range len(bctx.metas) {
@@ -153,7 +151,7 @@ func (c *ColumnWriter) pushFrame() error {
 	typedefs := bctx.typedefs.Bytes()
 	c.frameOffs = append(c.frameOffs, c.size)
 	c.frameStats = append(c.frameStats, enc.Stats())
-	header := newColumnHeader(root, uint64(metaDataSize), uint64(len(typedefs)), uint64(len(fusedTypeBytes)), dataSectionSize)
+	header := newColumnHeader(root, fusedTypeID, uint64(metaDataSize), uint64(len(typedefs)), dataSectionSize)
 	if _, err := c.writer.Write(header.Serialize()); err != nil {
 		return fmt.Errorf("system error: could not write BSUP header: %w", err)
 	}
@@ -162,9 +160,6 @@ func (c *ColumnWriter) pushFrame() error {
 	}
 	if _, err := c.writer.Write(typedefs); err != nil {
 		return fmt.Errorf("system error: could not write BSUP typedefs: %w", err)
-	}
-	if _, err := c.writer.Write(fusedTypeBytes); err != nil {
-		return fmt.Errorf("system error: could not write BSUP fused type: %w", err)
 	}
 	// Data section
 	if err := enc.Emit(c.writer); err != nil {
@@ -178,18 +173,6 @@ func (c *ColumnWriter) pushFrame() error {
 	}
 	c.dynamic = vbuild.NewDynamicBuilder()
 	return nil
-}
-
-func fuse(sctx *super.Context, dynamic *vector.Dynamic) super.Type {
-	fuser := super.NewFuser(sctx)
-	for _, vec := range dynamic.Values {
-		typ, err := sctx.TranslateType(vec.Type())
-		if err != nil {
-			panic(err)
-		}
-		fuser.Fuse(typ)
-	}
-	return fuser.FusedType()
 }
 
 func writeFooter(w io.Writer, size uint64, fusedTypeBytes, statsBytes []byte) (uint64, error) {
@@ -298,14 +281,11 @@ func (r *RowWriter) pushFrame(ctrl bool) error {
 	// Compute the fused type for just the ColumnFrame.  This type is fed into
 	// the SuperFrame fuser below so we have a type for each ColumnFrame and a type
 	// for the SuperFrame.  The ColumnFrame types will useful for future frame pruning.
-	fusedTypeBytes := r.fuser.typeBytes()
+	fusedTypeID := r.typedefs.LookupType(r.fuser.fuser.FusedType())
 	typedefs := r.typedefs.Bytes()
-	header := newRowHeader(false, uint64(len(typedefs)), uint64(len(fusedTypeBytes)), uint64(len(r.bytes)))
+	header := newRowHeader(fusedTypeID, uint64(len(typedefs)), uint64(len(r.bytes)))
 	if _, err := r.writer.Write(header.Serialize(ctrl)); err != nil {
 		return fmt.Errorf("could not write BSUP header: %w", err)
-	}
-	if _, err := r.writer.Write(fusedTypeBytes); err != nil {
-		return fmt.Errorf("could not write BSUP fused type: %w", err)
 	}
 	if _, err := r.writer.Write(typedefs); err != nil {
 		return fmt.Errorf("could not write BSUP typedefs: %w", err)
@@ -343,23 +323,24 @@ func (r *RowWriter) EndSuperFrame() (uint64, error) {
 }
 
 type fuser struct {
-	sctx  *super.Context
-	fuser *super.Fuser
+	sctx   *super.Context
+	fuser  *super.Fuser
+	defs   *super.TypeDefs
+	mapper *super.TypeDefsMapper
 }
 
 func newFuser(sctx *super.Context) fuser {
+	defs := super.NewTypeDefs()
 	return fuser{
-		sctx:  sctx,
-		fuser: super.NewFuser(sctx),
+		sctx:   sctx,
+		fuser:  super.NewFuser(sctx),
+		defs:   defs,
+		mapper: super.NewTypeDefsMapper(sctx, defs),
 	}
 }
 
 func (f fuser) fuse(typ super.Type) {
-	typ, err := f.sctx.TranslateType(typ)
-	if err != nil {
-		panic(err)
-	}
-	f.fuser.Fuse(typ)
+	f.fuser.Fuse(f.translate(typ))
 }
 
 func (f fuser) fuseVec(vec vector.Any) {
@@ -373,6 +354,18 @@ func (f fuser) fuseVec(vec vector.Any) {
 	} else {
 		f.fuse(vec.Type())
 	}
+}
+
+func (f fuser) fuseVecsStandalone(vecs []vector.Any) super.Type {
+	fuser := super.NewFuser(f.sctx)
+	for _, vec := range vecs {
+		fuser.Fuse(f.translate(vec.Type()))
+	}
+	return fuser.FusedType()
+}
+
+func (f fuser) translate(typ super.Type) super.Type {
+	return f.mapper.LookupType(f.defs.LookupType(typ))
 }
 
 func (f fuser) typeBytes() []byte {
