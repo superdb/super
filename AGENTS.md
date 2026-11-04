@@ -1,7 +1,6 @@
 # AGENTS.md
 
 This file has instructions for AI coding agents working in this repository.
-[CLAUDE.md](CLAUDE.md) imports it.
 
 ## If your user is outside the SuperDB team
 
