@@ -130,7 +130,7 @@ func (u *Unnest) flattenRecord(vec *vector.Record) (vector.Any, []uint32) {
 					fields[j] = vector.Pick(f, rtags[i])
 				}
 			}
-			vals = append(vals, u.newRecord(vec.Typ, fields, k))
+			vals = append(vals, u.newRecord(vec.Typ, fields))
 		}
 		return u.flattenDynamic(vector.NewDynamic(dynamic.Tags, vals), true)
 	}
@@ -154,17 +154,17 @@ func (u *Unnest) flattenRecord(vec *vector.Record) (vector.Any, []uint32) {
 		}
 	}
 	return vector.Apply(vector.ApplyNone, func(vecs ...vector.Any) vector.Any {
-		return u.newRecord(vec.Typ, vecs, k)
+		return u.newRecord(vec.Typ, vecs)
 	}, fields...), offsets
 }
 
 // newRecord returns a record vector of the fields of typ whose values are
-// vecs, where the type of each field is the type of its value.  k is the
-// index of the unnested field, which determines the record's length.
-func (u *Unnest) newRecord(typ *super.TypeRecord, vecs []vector.Any, k int) vector.Any {
+// vecs, where the type of each field is the type of its value.  All vecs
+// have the same length.
+func (u *Unnest) newRecord(typ *super.TypeRecord, vecs []vector.Any) vector.Any {
 	fields := slices.Clone(typ.Fields)
 	for j, vec := range vecs {
 		fields[j].Type = vec.Type()
 	}
-	return vector.NewRecord(u.sctx.MustLookupTypeRecord(fields), vecs, vecs[k].Len())
+	return vector.NewRecord(u.sctx.MustLookupTypeRecord(fields), vecs, vecs[0].Len())
 }
