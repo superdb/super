@@ -1,0 +1,28 @@
+# A plain none group key (e.g., from ok()) disappears from its output record,
+# including when the aggregate is split into partials (as for a file scan)
+# and for a nested key.
+script: |
+  super -s -c 'values {a:1},{b:2},{b:3} | count() by k:=ok(a) | sort count'
+  echo ===
+  super -s -c 'from test.sup | count() by k:=ok(a) | sort count'
+  echo ===
+  super -s -c 'from test.sup | count() by x.k:=ok(a) | sort count'
+
+inputs:
+  - name: test.sup
+    data: |
+      {a:1}
+      {b:2}
+      {b:3}
+
+outputs:
+  - name: stdout
+    data: |
+      {k:1,count:1}
+      {count:2}
+      ===
+      {k:1,count:1}
+      {count:2}
+      ===
+      {x:{k:1},count:1}
+      {x:{},count:2}

@@ -22,12 +22,20 @@ output: |
 
 ---
 
-# Statically, a value that may be a plain none (e.g., from ?. or ok()) can't
-# be output and must be handled with ??.
+# A plain none (e.g., from ?. or ok()) output by the values operator is
+# dropped, so it isn't passed downstream, unless it's handled
+# with ??.
 script: |
   super -o in.bsup in.sup
-  ! super -s -c 'from in.bsup | values org?.id'
-  ! super -s -c 'from in.bsup | values y.ok()'
+  echo ===
+  super -s -c 'from in.bsup | values org?.id'
+  echo ===
+  super -s -c 'from in.bsup | values y.ok()'
+  echo ===
+  super -s -c 'from in.bsup | values y.ok() | values typeof(this)'
+  echo ===
+  super -s -c 'from in.bsup | y.ok()'
+  echo ===
   super -s -c 'from in.bsup | values org?.id ?? 0, {y:y.ok()}'
 
 inputs:
@@ -39,22 +47,23 @@ inputs:
 outputs:
   - name: stdout
     data: |
+      ===
+      1
+      ===
+      2
+      ===
+      <int64>
+      ===
+      2
+      ===
       0
       {}
       1
       {y:2}
-  - name: stderr
-    data: |
-      none not handled (consider ?? or ?.) at line 1, column 23:
-      from in.bsup | values org?.id
-                            ~~~~~~~
-      none not handled (consider ?? or ?.) at line 1, column 23:
-      from in.bsup | values y.ok()
-                            ~~~~~~
 
 ---
 
-# At runtime, a plain none output is an error.
+# At runtime, a plain none output is dropped.
 spq: values org?.id
 
 flags: -dynamic
@@ -64,18 +73,15 @@ input: |
   {org?:{id:1}}
 
 output: |
-  error("none not handled (consider ?? or ?.)")
   1
 
 ---
 
-# A none literal can't be output.
-spq: values none
+# A none literal is a plain none, so it's dropped.
+spq: values none, 1
 
-error: |
-  none not handled (consider ?? or ?.) at line 1, column 8:
-  values none
-         ~~~~
+output: |
+  1
 
 ---
 
@@ -111,8 +117,8 @@ output: |
 
 ---
 
-# At runtime, a union whose type has a none member keeps its type for values
-# that aren't plain nones.  (Statically, the type may be none so it's an error.)
+# A union whose type has a none member keeps its type for values that
+# aren't plain nones.
 spq: values this
 
 flags: -dynamic

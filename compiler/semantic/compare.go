@@ -281,7 +281,7 @@ func eqExpr(aexpr, bexpr sem.Expr) bool {
 		return ok && eqExpr(a.Expr, b.Expr) && eqExpr(a.From, b.From) && eqExpr(a.To, b.To)
 	case *sem.SubqueryExpr:
 		b, ok := bexpr.(*sem.SubqueryExpr)
-		return ok && a.Correlated == b.Correlated && a.Array == b.Array && eqSeq(a.Body, b.Body)
+		return ok && a.Correlated == b.Correlated && a.Array == b.Array && a.SQL == b.SQL && eqSeq(a.Body, b.Body)
 	case *sem.ThisExpr:
 		b, ok := bexpr.(*sem.ThisExpr)
 		if !ok || len(a.Chain) != len(b.Chain) {

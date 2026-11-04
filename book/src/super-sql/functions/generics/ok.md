@@ -16,8 +16,9 @@ unmodified.
 
 This function is useful when errors are expected and are to be explicitly managed
 with `none` operators.  The `none` disappears from a record expression, an
-array, or a map and otherwise must be handled with `??` since a query may not
-output a `none`.
+array, or a map and is dropped from the output of the
+[values](../../operators/values.md) operator, so `??` is needed only to replace
+it with another value.
 
 ## Examples
 

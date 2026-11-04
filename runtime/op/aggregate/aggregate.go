@@ -32,6 +32,10 @@ func New(parent vio.Puller, sctx *super.Context, aggNames []field.Path, aggExprs
 	if err != nil {
 		return nil, err
 	}
+	// A plain none group key (e.g., from ok() or ?.) disappears from an
+	// output record.  It's kept in a partial so the downstream aggregate can
+	// group by it.
+	builder.DropNones = !partialsOut
 	return &Aggregate{
 		parent:      parent,
 		sctx:        sctx,

@@ -19,6 +19,13 @@ in left-to-right order.  Each `<expr>` may be any valid
 The input order convolved with left-to-right evaluation order is preserved
 at the output.
 
+A result that is a plain `none`, e.g., from [ok](../functions/generics/ok.md),
+`?.`, a [type assertion](../expressions/type-assertions.md) that fails, or a
+[match](../expressions/match.md) with no matching case and no `else`,
+is dropped, so a `none` is never passed to a downstream operator.
+To output another value in its place, use the `??` operator.
+An option's `none` (e.g., `none::int64`) is a value and is output as is.
+
 The `values` operator name is optional since it can be used as a
 [shortcut](intro.md#shortcuts).  When used as a shortcut, only one expression
 may be present.
@@ -126,4 +133,19 @@ values [a,b],[b,a] | collect(this)
 {a:1,b:2}
 # expected output
 [[1,2],[2,1]]
+```
+
+---
+
+_A plain none is dropped unless it's replaced with ??_
+```mdtest-spq
+# spq
+values ok(a), ok(a) ?? 0
+# input
+{a:1}
+{b:2}
+# expected output
+1
+1
+0
 ```

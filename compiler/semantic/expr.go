@@ -730,6 +730,7 @@ func (t *translator) maybeSubquery(n ast.Node, name string, inType super.Type) (
 		return &sem.SubqueryExpr{
 			Node:       n,
 			Correlated: isCorrelated(seq),
+			SQL:        t.scope.sql != nil,
 			Body:       seq,
 		}, typ
 	}
@@ -884,6 +885,7 @@ func (t *translator) maybeSubqueryCall(call *ast.CallExpr, name string, inType s
 		Node:       call,
 		Array:      false,
 		Correlated: isCorrelated(userOp),
+		SQL:        t.scope.sql != nil,
 		Body:       userOp,
 	}, typ
 }
@@ -1327,14 +1329,13 @@ func (t *translator) arraySubquery(elems []sem.ArrayElem) *sem.SubqueryExpr {
 func (t *translator) subqueryExpr(astExpr ast.Expr, array bool, body ast.Seq, inType super.Type) (*sem.SubqueryExpr, super.Type) {
 	// We pass inType in whether or not it's correlated since an uncorrelated
 	// subquery will just ignore it.
-	t.subqueries++
 	seq, outType := t.seq(body, inType)
-	t.subqueries--
 	correlated := isCorrelated(seq)
 	e := &sem.SubqueryExpr{
 		Node:       astExpr,
 		Array:      array,
 		Correlated: correlated,
+		SQL:        t.scope.sql != nil,
 		Body:       seq,
 	}
 	// Add a nullscan only for uncorrelated queries that don't have a source.

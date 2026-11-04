@@ -10,6 +10,10 @@ import (
 type RecordBuilder struct {
 	sctx *super.Context
 	base *rec
+	// DropNones causes a field whose value is a plain none (e.g., an
+	// aggregate's group key from ok() or ?.) to disappear from a record, as
+	// for a record expression.
+	DropNones bool
 }
 
 func NewRecordBuilder(sctx *super.Context, fields field.List) (*RecordBuilder, error) {
@@ -23,7 +27,7 @@ func NewRecordBuilder(sctx *super.Context, fields field.List) (*RecordBuilder, e
 }
 
 func (r *RecordBuilder) New(vecs []Any) *Record {
-	rec, _ := r.base.build(r.sctx, vecs)
+	rec, _ := r.base.build(r.sctx, vecs, r.DropNones)
 	return rec
 }
 
@@ -56,19 +60,26 @@ func addPath(r *rec, path field.Path) error {
 	return nil
 }
 
-func (r *rec) build(sctx *super.Context, leafs []Any) (*Record, []Any) {
+// build returns a record whose leaf fields are the leading values of leafs
+// and the rest of leafs.  If dropNones is true, a leaf field whose value is
+// a plain none disappears from the record.
+func (r *rec) build(sctx *super.Context, leafs []Any, dropNones bool) (*Record, []Any) {
+	n := leafs[0].Len()
 	var fields []super.Field
 	var out []Any
 	for i, name := range r.paths {
 		var vec Any
 		if r.recs[i] != nil {
-			vec, leafs = r.recs[i].build(sctx, leafs)
+			vec, leafs = r.recs[i].build(sctx, leafs, dropNones)
 		} else {
 			vec, leafs = leafs[0], leafs[1:]
+			if dropNones && vec.Type() == super.TypeNone {
+				continue
+			}
 		}
 		fields = append(fields, super.NewField(name, vec.Type()))
 		out = append(out, vec)
 	}
 	typ := sctx.MustLookupTypeRecord(fields)
-	return NewRecord(typ, out, out[0].Len()), leafs
+	return NewRecord(typ, out, n), leafs
 }

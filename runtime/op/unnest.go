@@ -50,11 +50,14 @@ func (u *Unnest) Pull(done bool) (vector.Any, error) {
 // flatten unnests vec, which is a record whose field named u.field is
 // unnested if record is true and otherwise an array or set, and returns the
 // unnested values and the offsets of the values of each slot of vec.  It
-// returns nil values for nulls and nil offsets for errors, which map
-// one-to-one to the slots of vec.
+// returns nil values for nulls and plain nones, which produce no values, and
+// nil offsets for errors, which map one-to-one to the slots of vec.
 func (u *Unnest) flatten(vec vector.Any, record bool) (vector.Any, []uint32) {
 	if dynamic, ok := vec.(*vector.Dynamic); ok {
 		return u.flattenDynamic(dynamic, record)
+	}
+	if isNoneVec(vec) {
+		return nil, nil
 	}
 	vec = vector.Under(vec)
 	switch vec.Kind() {
@@ -114,8 +117,9 @@ func (u *Unnest) flattenRecord(vec *vector.Record) (vector.Any, []uint32) {
 	k, ok := vec.Typ.IndexOfField(u.field)
 	if !ok {
 		// The field is absent since its value is a plain none, which
-		// disappears from a record, so report it as for an unnamed unnest.
-		return vector.NewWrappedError(u.sctx, "unnest: encountered non-array value", vector.NewNone(vec.Len())), nil
+		// disappears from a record, so as for an unnamed unnest, there's
+		// nothing to unnest.
+		return nil, nil
 	}
 	if union, ok := vec.Fields[k].(*vector.Union); ok {
 		dynamic := union.Dynamic()

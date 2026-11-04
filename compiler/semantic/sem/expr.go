@@ -133,7 +133,10 @@ type (
 		ast.Node
 		Correlated bool
 		Array      bool
-		Body       Seq
+		// SQL is true for a subquery in a SQL expression (see
+		// dag.SubqueryExpr).
+		SQL  bool
+		Body Seq
 	}
 	ThisExpr struct {
 		ast.Node
@@ -462,6 +465,7 @@ func CopyExpr(e Expr) Expr {
 			Node:       e.Node,
 			Correlated: e.Correlated,
 			Array:      e.Array,
+			SQL:        e.SQL,
 			Body:       CopySeq(e.Body),
 		}
 	case *ThisExpr:

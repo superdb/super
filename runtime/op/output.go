@@ -1,109 +1,30 @@
 package op
 
 import (
-	"slices"
-
-	"github.com/superdb/super"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
 )
 
-// Output is the puller for an output of a query.  It turns any plain none
-// values into errors.  A plain none comes from an operator like ok() or ?.
-// that handles a none so it can disappear from a record, array, or map, but
-// a query must not output one (it should be handled with ??).  A none of a
-// named type is a value and is output as is.
+// Output is the puller for an output of a query.  It drops any plain none
+// values, which come from an expression like ok() or ?. that handles a none
+// (see dropPlainNones).  A none of a named type is a value and is output
+// as is.
 type Output struct {
-	sctx   *super.Context
 	parent vio.Puller
 }
 
-func NewOutput(sctx *super.Context, parent vio.Puller) *Output {
-	return &Output{sctx: sctx, parent: parent}
+func NewOutput(parent vio.Puller) *Output {
+	return &Output{parent: parent}
 }
 
 func (o *Output) Pull(done bool) (vector.Any, error) {
-	vec, err := o.parent.Pull(done)
-	if vec == nil || err != nil {
-		return vec, err
-	}
-	return o.noneToError(vec), nil
-}
-
-const noneErr = "none not handled (consider ?? or ?.)"
-
-func (o *Output) noneToError(vec vector.Any) vector.Any {
-	switch v := vec.(type) {
-	case *vector.None:
-		return vector.NewStringError(o.sctx, noneErr, v.Len())
-	case *vector.Dynamic:
-		// The values of a dynamic may themselves be dynamics.
-		var vals []vector.Any
-		for k, val := range v.Values {
-			if val == nil {
-				continue
-			}
-			if out := o.noneToError(val); out != val {
-				if vals == nil {
-					vals = slices.Clone(v.Values)
-				}
-				vals[k] = out
-			}
+	for {
+		vec, err := o.parent.Pull(done)
+		if vec == nil || err != nil {
+			return vec, err
 		}
-		if vals == nil {
-			return vec
-		}
-		return vector.NewDynamic(v.Tags, vals)
-	case *vector.Union:
-		// Only the slots that are plain nones become errors.  The rest
-		// keep the union type.
-		if !slices.ContainsFunc(v.Values(), isNoneVec) {
-			return vec
-		}
-		values := v.Values()
-		var index, rest []uint32
-		for i, tag := range v.Tags() {
-			if isNoneVec(values[tag]) {
-				index = append(index, uint32(i))
-			} else {
-				rest = append(rest, uint32(i))
-			}
-		}
-		return o.slotsToError(vec, index, rest)
-	case *vector.Fusion:
-		// A fusion value is a plain none if its subtype is none.
-		var index, rest []uint32
-		for i, typ := range v.Subtypes.Types() {
-			if typ == super.TypeNone {
-				index = append(index, uint32(i))
-			} else {
-				rest = append(rest, uint32(i))
-			}
-		}
-		return o.slotsToError(vec, index, rest)
-	case *vector.View:
-		if isNoneVec(v.Any) {
-			return vector.NewStringError(o.sctx, noneErr, v.Len())
+		if vec = dropPlainNones(vec); vec != nil {
+			return vec, nil
 		}
 	}
-	return vec
-}
-
-// slotsToError returns vec with the slots in index replaced by errors and the
-// slots in rest left as is.
-func (o *Output) slotsToError(vec vector.Any, index, rest []uint32) vector.Any {
-	if len(index) == 0 {
-		return vec
-	}
-	errs := vector.NewStringError(o.sctx, noneErr, uint32(len(index)))
-	if len(rest) == 0 {
-		return errs
-	}
-	return vector.Combine(vector.Pick(vec, rest), index, errs)
-}
-
-// isNoneVec reports whether vec is a plain none.  (A none of a named type
-// is a value.)
-func isNoneVec(vec vector.Any) bool {
-	return vec != nil && vec.Type() == super.TypeNone
 }
