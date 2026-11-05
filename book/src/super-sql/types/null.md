@@ -68,7 +68,7 @@ null
 # expected output
 {out:error("no such field y")}
 {out:3}
-{out:error("cannot access field 'y' of null")}
+{out:null}
 ```
 
 ---
