@@ -103,12 +103,13 @@ func (c *Command) Run(args []string) error {
 	env.ReaderOpts = c.inputFlags.ReaderOpts
 	env.Static = c.inputFlags.Static
 	comp := compiler.NewCompilerWithEnv(env)
-	query, err := runtime.CompileQuery(ctx, super.NewContext(), comp, ast)
+	sctx := super.NewContext()
+	query, err := runtime.CompileQuery(ctx, sctx, comp, ast)
 	if err != nil {
 		return err
 	}
 	defer query.Pull(true)
-	writer, err := c.outputFlags.Open(ctx, env.Engine())
+	writer, err := c.outputFlags.Open(ctx, sctx, env.Engine())
 	if err != nil {
 		return err
 	}

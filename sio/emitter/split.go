@@ -15,6 +15,7 @@ import (
 
 type Split struct {
 	ctx        context.Context
+	sctx       *super.Context
 	dir        *storage.URI
 	prefix     string
 	unbuffered bool
@@ -27,7 +28,7 @@ type Split struct {
 
 var _ vio.Pusher = (*Split)(nil)
 
-func NewSplit(ctx context.Context, engine storage.Engine, dir *storage.URI, prefix string, unbuffered bool, opts anyio.WriterOpts) (*Split, error) {
+func NewSplit(ctx context.Context, sctx *super.Context, engine storage.Engine, dir *storage.URI, prefix string, unbuffered bool, opts anyio.WriterOpts) (*Split, error) {
 	e := sio.Extension(opts.Format)
 	if e == "" {
 		return nil, fmt.Errorf("unknown format: %s", opts.Format)
@@ -37,6 +38,7 @@ func NewSplit(ctx context.Context, engine storage.Engine, dir *storage.URI, pref
 	}
 	return &Split{
 		ctx:        ctx,
+		sctx:       sctx,
 		dir:        dir,
 		prefix:     prefix,
 		unbuffered: unbuffered,
@@ -69,7 +71,7 @@ func (s *Split) lookupOutput(typ super.Type) (vio.PushCloser, error) {
 	if ok {
 		return w, nil
 	}
-	w, err := NewFileFromURI(s.ctx, s.engine, s.path(), s.unbuffered, s.opts)
+	w, err := NewFileFromURI(s.ctx, s.sctx, s.engine, s.path(), s.unbuffered, s.opts)
 	if err != nil {
 		return nil, err
 	}

@@ -123,7 +123,7 @@ func main() {
 	}
 	ctx := context.TODO()
 	db := client.NewConnectionTo(uri.String())
-	q, err := db.Query(ctx, srcfiles.Plain("from Demo"))
+	q, err := db.Query(ctx, super.NewContext(), srcfiles.Plain("from Demo"))
 	if err != nil {
 		log.Fatalln(err)
 	}

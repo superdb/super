@@ -127,13 +127,14 @@ type objectIterator struct {
 
 func newObjectIterator(ctx context.Context, db runtime.Database, head *dbid.Committish) (*objectIterator, error) {
 	query := fmt.Sprintf(iteratorQuery, head.Table, head.Branch)
-	q, err := db.Query(ctx, srcfiles.Plain(query))
+	sctx := super.NewContext()
+	q, err := db.Query(ctx, sctx, srcfiles.Plain(query))
 	if err != nil {
 		return nil, err
 	}
 	puller := sbuf.NewMaterializer(q)
 	u := super.NewUnmarshaler()
-	u.SetContext(super.NewContext())
+	u.SetContext(sctx)
 	return &objectIterator{
 		reader:      sbuf.PullerReader(puller),
 		puller:      puller,

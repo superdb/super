@@ -44,7 +44,7 @@ func NewWriter(sctx *super.Context, w io.WriteCloser, format string, flusher htt
 	case "ndjson":
 		d.writer = jsonio.NewWriter(w, jsonio.WriterOpts{})
 	default:
-		d.writer, err = anyio.NewWriter(sio.NopCloser(w), anyio.WriterOpts{
+		d.writer, err = anyio.NewWriter(sctx, sio.NopCloser(w), anyio.WriterOpts{
 			Format: format,
 		})
 	}

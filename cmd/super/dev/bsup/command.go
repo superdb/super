@@ -89,7 +89,8 @@ func (c *Command) Run(args []string) error {
 	if c.metabytes {
 		return c.dumpMetaBytes(ctx, reader)
 	}
-	writer, err := c.outputFlags.Open(ctx, engine)
+	c.sctx = super.NewContext()
+	writer, err := c.outputFlags.Open(ctx, c.sctx, engine)
 	if err != nil {
 		return err
 	}
@@ -105,7 +106,6 @@ func (c *Command) Run(args []string) error {
 }
 
 func (c *Command) dump(ctx context.Context, reader *bsup.RawReader) error {
-	c.sctx = super.NewContext()
 	c.marshaler = super.NewMarshaler(c.sctx)
 	c.marshaler.Decorate(super.StyleSimple)
 	for !c.stop() && ctx.Err() == nil {

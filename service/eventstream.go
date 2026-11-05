@@ -13,6 +13,7 @@ import (
 
 type event struct {
 	name  string
+	sctx  *super.Context // type context of value
 	value super.Value
 }
 
@@ -23,11 +24,11 @@ type eventStreamWriter struct {
 
 func (e *eventStreamWriter) writeEvent(ev event) error {
 	var buf bytes.Buffer
-	w, err := anyio.NewWriter(sio.NopCloser(&buf), anyio.WriterOpts{Format: e.format})
+	w, err := anyio.NewWriter(ev.sctx, sio.NopCloser(&buf), anyio.WriterOpts{Format: e.format})
 	if err != nil {
 		return err
 	}
-	if err := w.Push(sbuf.Dematerialize(super.NewContext(), ev.value)); err != nil {
+	if err := w.Push(sbuf.Dematerialize(ev.sctx, ev.value)); err != nil {
 		return err
 	}
 	if err := w.Close(); err != nil {

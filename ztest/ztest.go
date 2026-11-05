@@ -481,13 +481,14 @@ func (z *ZTest) runInternal(ctx context.Context) (string, error) {
 	env.ReaderOpts = inflags.ReaderOpts
 	// Do static type checking for all tests except those with -dynamic.
 	env.Static = !inflags.Dynamic
-	q, err := runtime.CompileQuery(ctx, super.NewContext(), compiler.NewCompilerWithEnv(env), ast)
+	sctx := super.NewContext()
+	q, err := runtime.CompileQuery(ctx, sctx, compiler.NewCompilerWithEnv(env), ast)
 	if err != nil {
 		return "", err
 	}
 	defer q.Pull(true)
 	var outbuf bytes.Buffer
-	zw, err := anyio.NewWriter(sio.NopCloser(&outbuf), outflags.Options())
+	zw, err := anyio.NewWriter(sctx, sio.NopCloser(&outbuf), outflags.Options())
 	if err != nil {
 		return "", err
 	}

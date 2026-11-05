@@ -175,7 +175,7 @@ func runOneBoomerang(t *testing.T, format, data string) {
 	require.NoError(t, err)
 	defer dataPuller.Pull(true)
 
-	baseline, err := serialize(dataPuller, format)
+	baseline, err := serialize(dataPuller, sctx, format)
 	if err != nil {
 		if errors.Is(err, arrowio.ErrMultipleTypes) ||
 			errors.Is(err, arrowio.ErrNotRecord) ||
@@ -188,13 +188,14 @@ func runOneBoomerang(t *testing.T, format, data string) {
 	if readerFormat == "bsup -rows" {
 		readerFormat = "bsup"
 	}
-	baselinePuller, err := anyio.NewReader(t.Context(), super.NewContext(), strings.NewReader(baseline), anyio.ReaderOpts{
+	baselineSctx := super.NewContext()
+	baselinePuller, err := anyio.NewReader(t.Context(), baselineSctx, strings.NewReader(baseline), anyio.ReaderOpts{
 		Format: readerFormat,
 	})
 	require.NoError(t, err)
 	defer baselinePuller.Pull(true)
 
-	boomerang, err := serialize(baselinePuller, format)
+	boomerang, err := serialize(baselinePuller, baselineSctx, format)
 	require.NoError(t, err)
 
 	require.Equal(t, baseline, boomerang, "baseline and boomerang differ")
@@ -225,7 +226,7 @@ func runOneFusionBoomerang(t *testing.T, data string) {
 	// to baseline as SUP.
 	r := &fusionRemovingReader{sbuf.PullerReader(sbuf.NewMaterializer(dataPuller)), hasFusion{}}
 	puller := sbuf.NewDematerializer(dataSctx, sbuf.NewPuller(r))
-	baseline, err := serialize(puller, "sup")
+	baseline, err := serialize(puller, dataSctx, "sup")
 	require.NoError(t, err)
 	if baseline == "" {
 		t.Skip("skipping because data contains no non-fusion values")
@@ -244,7 +245,7 @@ func fuseDefuse(ctx context.Context, s string) (string, error) {
 		return "", err
 	}
 	defer q.Pull(true)
-	return serialize(q, "sup")
+	return serialize(q, sctx, "sup")
 }
 
 // newQuery returns a query for spq that reads input in format as standard
@@ -277,14 +278,16 @@ func (u *unlabeler) Pull(done bool) (vector.Any, error) {
 	return vec, err
 }
 
-func serialize(p vio.Puller, outputFormat string) (string, error) {
+// serialize writes the vectors from p, whose type context is sctx, in
+// outputFormat.
+func serialize(p vio.Puller, sctx *super.Context, outputFormat string) (string, error) {
 	var b strings.Builder
 	opts := anyio.WriterOpts{Format: outputFormat}
 	if outputFormat == "bsup -rows" {
 		opts.Format = "bsup"
 		opts.BSUP.Rows = true
 	}
-	w, err := anyio.NewWriter(sio.NopCloser(&b), opts)
+	w, err := anyio.NewWriter(sctx, sio.NopCloser(&b), opts)
 	if err != nil {
 		return "", err
 	}

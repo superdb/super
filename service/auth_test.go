@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/superdb/super"
 	"github.com/superdb/super/api"
 	"github.com/superdb/super/api/client"
 	"github.com/superdb/super/compiler/srcfiles"
@@ -37,7 +38,7 @@ func TestAuthIdentity(t *testing.T) {
 	core, conn := newCoreWithConfig(t, service.Config{
 		Auth: authConfig,
 	})
-	_, err := conn.Query(t.Context(), srcfiles.Plain("from [tables]"))
+	_, err := conn.Query(t.Context(), super.NewContext(), srcfiles.Plain("from [tables]"))
 	require.Error(t, err)
 	require.Equal(t, 1.0, promCounterValue(core.Registry(), "request_errors_unauthorized_total"))
 
@@ -59,7 +60,7 @@ func TestAuthIdentity(t *testing.T) {
 		UserID:   "test_user_id",
 	}, res)
 
-	_, err = conn.Query(t.Context(), srcfiles.Plain("from :tables"))
+	_, err = conn.Query(t.Context(), super.NewContext(), srcfiles.Plain("from :tables"))
 	require.NoError(t, err)
 }
 

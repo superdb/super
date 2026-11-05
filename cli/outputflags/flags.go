@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/superdb/super"
 	"github.com/superdb/super/cli/auto"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/pkg/terminal"
@@ -132,16 +133,17 @@ func (f *Flags) FileName() string {
 	return f.outputFile
 }
 
-func (f *Flags) Open(ctx context.Context, engine storage.Engine) (vio.PushCloser, error) {
+// Open returns the output writer for vectors whose type context is sctx.
+func (f *Flags) Open(ctx context.Context, sctx *super.Context, engine storage.Engine) (vio.PushCloser, error) {
 	if f.split != "" {
 		dir, err := storage.ParseURI(f.split)
 		if err != nil {
 			return nil, fmt.Errorf("-split option: %w", err)
 		}
 		if size := f.splitSize.Bytes; size > 0 {
-			return emitter.NewSizeSplitter(ctx, engine, dir, f.outputFile, f.unbuffered, f.WriterOpts, int64(size))
+			return emitter.NewSizeSplitter(ctx, sctx, engine, dir, f.outputFile, f.unbuffered, f.WriterOpts, int64(size))
 		}
-		d, err := emitter.NewSplit(ctx, engine, dir, f.outputFile, f.unbuffered, f.WriterOpts)
+		d, err := emitter.NewSplit(ctx, sctx, engine, dir, f.outputFile, f.unbuffered, f.WriterOpts)
 		if err != nil {
 			return nil, err
 		}
@@ -150,7 +152,7 @@ func (f *Flags) Open(ctx context.Context, engine storage.Engine) (vio.PushCloser
 	if f.outputFile == "" && f.color && terminal.IsTerminalFile(os.Stdout) {
 		color.Enabled = true
 	}
-	w, err := emitter.NewFileFromPath(ctx, engine, f.outputFile, f.unbuffered, f.WriterOpts)
+	w, err := emitter.NewFileFromPath(ctx, sctx, engine, f.outputFile, f.unbuffered, f.WriterOpts)
 	if err != nil {
 		return nil, err
 	}

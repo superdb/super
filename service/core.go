@@ -219,7 +219,8 @@ func (c *Core) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Core) publishEvent(w *ResponseWriter, name string, data any) {
-	marshaler := super.NewMarshaler(super.NewContext())
+	sctx := super.NewContext()
+	marshaler := super.NewMarshaler(sctx)
 	marshaler.Decorate(super.StyleSimple)
 	zv, err := marshaler.Marshal(data)
 	if err != nil {
@@ -227,7 +228,7 @@ func (c *Core) publishEvent(w *ResponseWriter, name string, data any) {
 		return
 	}
 	go func() {
-		ev := event{name: name, value: zv}
+		ev := event{name: name, sctx: sctx, value: zv}
 		c.subscriptionsMu.RLock()
 		for sub := range c.subscriptions {
 			sub <- ev

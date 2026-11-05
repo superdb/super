@@ -26,7 +26,7 @@ func IsRemote(u string) bool {
 func LookupTableByName(ctx context.Context, db runtime.Database, name string) (*tables.Config, error) {
 	b := newBuffer(tables.Config{})
 	query := fmt.Sprintf("from :tables | name == '%s'", name)
-	q, err := db.Query(ctx, srcfiles.Plain(query))
+	q, err := db.Query(ctx, super.NewContext(), srcfiles.Plain(query))
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func LookupTableByName(ctx context.Context, db runtime.Database, name string) (*
 
 func GetTables(ctx context.Context, db runtime.Database) ([]*tables.Config, error) {
 	b := newBuffer(tables.Config{})
-	q, err := db.Query(ctx, srcfiles.Plain("from :tables"))
+	q, err := db.Query(ctx, super.NewContext(), srcfiles.Plain("from :tables"))
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func GetTables(ctx context.Context, db runtime.Database) ([]*tables.Config, erro
 func LookupTableByID(ctx context.Context, db runtime.Database, id uuid.UUID) (*tables.Config, error) {
 	b := newBuffer(tables.Config{})
 	query := fmt.Sprintf("from :tables | id == %s", id)
-	q, err := db.Query(ctx, srcfiles.Plain(query))
+	q, err := db.Query(ctx, super.NewContext(), srcfiles.Plain(query))
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func LookupTableByID(ctx context.Context, db runtime.Database, id uuid.UUID) (*t
 func LookupBranchByName(ctx context.Context, api runtime.Database, tableName, branchName string) (*db.BranchMeta, error) {
 	b := newBuffer(db.BranchMeta{})
 	query := fmt.Sprintf("from :branches | table.name == '%s' branch.name == '%s'", tableName, branchName)
-	q, err := api.Query(ctx, srcfiles.Plain(query))
+	q, err := api.Query(ctx, super.NewContext(), srcfiles.Plain(query))
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func LookupBranchByName(ctx context.Context, api runtime.Database, tableName, br
 func LookupBranchByID(ctx context.Context, api runtime.Database, id uuid.UUID) (*db.BranchMeta, error) {
 	b := newBuffer(db.BranchMeta{})
 	query := fmt.Sprintf("from :branches | branch.id == %s", id)
-	q, err := api.Query(ctx, srcfiles.Plain(query))
+	q, err := api.Query(ctx, super.NewContext(), srcfiles.Plain(query))
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func GetCommit(ctx context.Context, db runtime.Database, tableName, revision str
 	}
 	b := newBuffer(commits.Commit{})
 	query := fmt.Sprintf("from %q:log | where id == %s", tableID, commit)
-	q, err := db.Query(ctx, srcfiles.Plain(query))
+	q, err := db.Query(ctx, super.NewContext(), srcfiles.Plain(query))
 	if err != nil {
 		return nil, err
 	}

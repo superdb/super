@@ -72,7 +72,8 @@ func run(opts opts) wasm.Promise {
 			return "", errInvalidInput
 		}
 		var buf bytes.Buffer
-		zwc, err := anyio.NewWriter(sio.NopCloser(&buf), anyio.WriterOpts{Format: opts.OutputFormat})
+		sctx := super.NewContext()
+		zwc, err := anyio.NewWriter(sctx, sio.NopCloser(&buf), anyio.WriterOpts{Format: opts.OutputFormat})
 		if err != nil {
 			return "", err
 		}
@@ -83,7 +84,7 @@ func run(opts opts) wasm.Promise {
 			eng.AddReader("stdio:stdin", r)
 		}
 		comp := compiler.NewCompiler(eng)
-		query, err := runtime.CompileQuery(context.Background(), super.NewContext(), comp, flowgraph)
+		query, err := runtime.CompileQuery(context.Background(), sctx, comp, flowgraph)
 		if err != nil {
 			return "", err
 		}

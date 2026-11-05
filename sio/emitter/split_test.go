@@ -38,7 +38,7 @@ func TestDirS3Source(t *testing.T) {
 	sctx := super.NewContext()
 	r := supio.NewReader(sctx, strings.NewReader(input))
 	require.NoError(t, err)
-	w, err := NewSplit(t.Context(), engine, uri, "", false, anyio.WriterOpts{Format: "sup"})
+	w, err := NewSplit(t.Context(), sctx, engine, uri, "", false, anyio.WriterOpts{Format: "sup"})
 	require.NoError(t, err)
 	require.NoError(t, vio.Copy(w, sbuf.NewDematerializer(sctx, sbuf.NewPuller(r))))
 }
