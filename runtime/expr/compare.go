@@ -3,6 +3,7 @@ package expr
 //go:generate go run gencomparefuncs.go
 
 import (
+	"cmp"
 	"fmt"
 
 	"github.com/superdb/super"
@@ -56,14 +57,19 @@ func (c *Compare) evalAllowingOption(vecs ...vector.Any) vector.Any {
 		}
 		return vector.NewConstBool(which, lhs.Len())
 	}
+	origLHS, origRHS := lhs, rhs
 	lhs, rhs, errVal := coerceVals(c.sctx, lhs, rhs)
 	if errVal != nil {
 		// Incompatible types so return true for != and false otherwise.
 		return vector.NewConstBool(c.opCode == vector.CompNE, errVal.Len())
 	}
-	//XXX need to handle overflow (see sam)
 	kind := lhs.Kind()
 	if kind != rhs.Kind() {
+		// Coercion fails for a uint64 value too large for int64, so
+		// compare mixed signed and unsigned values slot by slot.
+		if isSignedUnsigned(origLHS, origRHS) {
+			return c.compareSignedUnsigned(origLHS, origRHS)
+		}
 		panic("vector kind mismatch after coerce")
 	}
 	switch kind {
@@ -121,6 +127,36 @@ func (c *Compare) compareOptions(lhs, rhs vector.Any) vector.Any {
 		}
 		return vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, c.evalAllowingOption, lhs, rhs)
 	}, lhs, rhs)
+}
+
+func isSignedUnsigned(a, b vector.Any) bool {
+	ak, bk := a.Kind(), b.Kind()
+	return ak == vector.KindInt && bk == vector.KindUint || ak == vector.KindUint && bk == vector.KindInt
+}
+
+func (c *Compare) compareSignedUnsigned(lhs, rhs vector.Any) vector.Any {
+	out := vector.NewFalse(lhs.Len())
+	for i := range lhs.Len() {
+		var result int
+		if lhs.Kind() == vector.KindInt {
+			result = compareIntUint(vector.IntValue(lhs, i), vector.UintValue(rhs, i))
+		} else {
+			result = -compareIntUint(vector.IntValue(rhs, i), vector.UintValue(lhs, i))
+		}
+		if isCompareOpSatisfied(c.opCode, result) {
+			out.Set(i)
+		}
+	}
+	return out
+}
+
+// compareIntUint returns -1, 0, or +1 as i is less than, equal to, or greater
+// than u.  A negative i is less than every uint64.
+func compareIntUint(i int64, u uint64) int {
+	if i < 0 {
+		return -1
+	}
+	return cmp.Compare(uint64(i), u)
 }
 
 func compareNones(a, b vector.Any) (bool, bool) {

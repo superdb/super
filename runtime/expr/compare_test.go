@@ -73,3 +73,26 @@ func TestCompareOpsAndForms(t *testing.T) {
 		assert.Equal(t, expected, vector.BoolValue(val, 0), "op: %s", c.op)
 	}
 }
+
+// Test that comparing signed and unsigned integers is exact, including
+// uint64 values too large for int64, which coercion to int64 cannot represent.
+func TestCompareSignedUnsignedOverflow(t *testing.T) {
+	ints := vector.NewInt(super.TypeInt64, []int64{-1, 5, 5, 5})
+	uints := vector.NewUint(super.TypeUint64, []uint64{1<<64 - 1, 5, 1 << 63, 4})
+	cases := []struct {
+		op, expected, expectedSwapped string
+	}{
+		{"==", "0100", "0100"},
+		{"!=", "1011", "1011"},
+		{"<", "1010", "0001"},
+		{"<=", "1110", "0101"},
+		{">", "0001", "1010"},
+		{">=", "0101", "1110"},
+	}
+	for _, c := range cases {
+		cmp := NewCompare(super.NewContext(), c.op, &testEval{ints}, &testEval{uints})
+		assert.Equal(t, c.expected, cmp.Eval(nil).(*vector.Bool).Bits.String(), "int %s uint", c.op)
+		cmp = NewCompare(super.NewContext(), c.op, &testEval{uints}, &testEval{ints})
+		assert.Equal(t, c.expectedSwapped, cmp.Eval(nil).(*vector.Bool).Bits.String(), "uint %s int", c.op)
+	}
+}

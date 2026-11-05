@@ -191,7 +191,6 @@ func TestCompareNumbers(t *testing.T) {
 	// floats that cast to different integers.
 	const rec2 = "{i:-1,u:18446744073709551615::uint64,f:-1.}"
 
-	/* sam-only
 	testSuccessful(t, "i == u", rec2, "false")
 	testSuccessful(t, "i != u", rec2, "true")
 	testSuccessful(t, "i < u", rec2, "true")
@@ -205,7 +204,6 @@ func TestCompareNumbers(t *testing.T) {
 	testSuccessful(t, "u <= i", rec2, "false")
 	testSuccessful(t, "u > i", rec2, "true")
 	testSuccessful(t, "u >= i", rec2, "true")
-	*/
 
 	testSuccessful(t, "f == u", rec2, "false")
 	testSuccessful(t, "f != u", rec2, "true")
