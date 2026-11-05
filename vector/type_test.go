@@ -61,6 +61,7 @@ func TestTypeValueIDs(t *testing.T) {
 	defs, foreign := vec.TypeIDs()
 	assert.Same(t, &enc.TypeDefs, defs)
 	assert.Equal(t, loader.ids, foreign)
+	assert.Equal(t, loader.ids, vec.RawIDs())
 }
 
 func TestTypeValueAppendForeign(t *testing.T) {
@@ -84,6 +85,7 @@ func TestTypeValueTypeIDsFromContext(t *testing.T) {
 	vec := vector.NewTypeValue(sctx, types)
 	defs, ids := vec.TypeIDs()
 	assert.Equal(t, vec.IDs(), ids)
+	assert.Equal(t, ids, vec.RawIDs())
 	// More types entered in sctx don't affect the snapshot.
 	n := defs.NTypes()
 	sctx.LookupTypeSet(rec)

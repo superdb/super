@@ -215,3 +215,50 @@ func TestTranslateTypeRedefined(t *testing.T) {
 	assert.Same(t, bar, got)
 	assert.Equal(t, "foo", same.(*super.TypeNamed).Name)
 }
+
+func TestTypeDefsNamedCycle(t *testing.T) {
+	// A cycle of named types with no other type in between, e.g., foo=foo
+	// or foo=bar,bar=foo, is malformed since the named types would have no
+	// underlying type.
+	named := func(name string, inner uint32) []byte {
+		b := binary.AppendUvarint([]byte{super.TypeDefNamed}, uint64(len(name)))
+		return super.AppendFixedID(append(b, name...), inner)
+	}
+	encode := func(typedefs ...[]byte) []byte {
+		b := binary.AppendUvarint(nil, uint64(len(typedefs)))
+		var off int
+		for _, td := range typedefs {
+			b = binary.AppendUvarint(b, uint64(off))
+			off += len(td)
+		}
+		for _, td := range typedefs {
+			b = append(b, td...)
+		}
+		return b
+	}
+	for name, b := range map[string][]byte{
+		"self":   encode(named("foo", super.IDTypeComplex)),
+		"mutual": encode(named("foo", super.IDTypeComplex+1), named("bar", super.IDTypeComplex)),
+	} {
+		defs, ok := super.NewTypeDefsFromBytes(b)
+		require.True(t, ok, name)
+		mapper := super.NewTypeDefsMapper(super.NewContext(), defs)
+		assert.Nil(t, mapper.LookupType(super.IDTypeComplex), name)
+		merger := super.NewTypeDefsMerger(super.NewTypeDefsBuilder(), defs)
+		assert.Panics(t, func() { merger.LookupID(super.IDTypeComplex) }, name)
+	}
+	// The same holds for a type value.
+	tv := binary.AppendUvarint([]byte{super.TypeValueNameDef}, 3)
+	tv = append(tv, "foo"...)
+	tv = binary.AppendUvarint(append(tv, super.TypeValueNameRef), 3)
+	tv = append(tv, "foo"...)
+	_, err := super.NewContext().LookupByValue(tv)
+	assert.Error(t, err)
+	// A named type bound directly to another named type is fine.
+	sctx := super.NewContext()
+	foo, err := sctx.LookupTypeNamed("foo", super.TypeInt64)
+	require.NoError(t, err)
+	bar, err := sctx.LookupTypeNamed("bar", foo)
+	require.NoError(t, err)
+	assert.Same(t, foo, bar.Type)
+}

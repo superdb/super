@@ -193,6 +193,16 @@ func (t *TypeValue) TypeIDs() (*super.TypeDefs, []uint32) {
 	return t.sctx.TypeDefsSnapshot(), ids
 }
 
+// RawIDs returns the IDs of the type values in t's table (see TypeIDs)
+// without getting the table, which for a local TypeValue would take a
+// snapshot of sctx's table.  The IDs are not mapped into sctx.
+func (t *TypeValue) RawIDs() []uint32 {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.load()
+	return t.ids
+}
+
 // WithTypeIDs returns a TypeValue of the type values with IDs ids in the
 // table of t (see TypeIDs), e.g., a subset of t's IDs.  A foreign TypeValue's
 // result shares its table and mapping.
@@ -205,7 +215,7 @@ func (t *TypeValue) WithTypeIDs(ids []uint32) *TypeValue {
 
 // Pick returns a TypeValue of the type values of t at the slots in index.
 func (t *TypeValue) Pick(index []uint32) *TypeValue {
-	_, ids := t.TypeIDs()
+	ids := t.RawIDs()
 	out := make([]uint32, len(index))
 	for k, slot := range index {
 		out[k] = ids[slot]

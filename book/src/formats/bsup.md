@@ -176,6 +176,13 @@ The typedefs are numbered in the order encountered starting at 30
 by their type ID.  Note that the type ID of a typedef is implied by its
 position in the sequence and is not explicitly encoded.
 
+A typedef other than a named type may refer only to types with smaller
+type IDs, i.e., to primitive types and to typedefs that precede it.
+A named type's inner type may refer to any type, which allows recursive
+types, but a cycle of references must include a type that is not named,
+e.g., a named type may not refer to itself directly or through other
+named types alone.  A table that breaks these rules is malformed.
+
 The typedef codes are defined as follows:
 
 | Code | Complex Type |

@@ -429,15 +429,45 @@ func (c *Context) BindTypeNamed(patch int, named *TypeNamed, inner Type) error {
 	if named.Type != nil {
 		panic("type binding protocol violation")
 	}
+	cycle := namedCycle(named, inner)
+	if cycle {
+		// Bind to missing so waiters are released and fail below.
+		inner = TypeMissing
+	}
 	// Set the inner type, patch the named typedef, and signal
 	// any concurent threads waiting on this type's resolution.
 	named.Type = inner
 	c.typedefs.BindTypeNamed(patch, c.typeID(inner))
 	named.cond.Broadcast()
+	if cycle {
+		return fmt.Errorf("named type %q is bound to itself", named.Name)
+	}
 	if containsFusion(inner) {
 		return fmt.Errorf("named type %q cannot contain a fusion", named.Name)
 	}
 	return nil
+}
+
+// namedCycle reports whether binding named to inner would create a cycle of
+// named types with no other type in between (e.g., foo=foo or foo=bar,bar=foo),
+// in which case the named types would have no underlying type.  A named type
+// in the chain that isn't bound yet (e.g., while a block of mutually recursive
+// types is being bound) ends the check, which is caught when that type is
+// bound.  It must be called with c.mu held, under which named types are bound.
+func namedCycle(named *TypeNamed, inner Type) bool {
+	for {
+		next, ok := inner.(*TypeNamed)
+		if !ok {
+			return false
+		}
+		if next == named {
+			return true
+		}
+		if next.Type == nil {
+			return false
+		}
+		inner = next.Type
+	}
 }
 
 func (c *Context) LookupTypeError(inner Type) *TypeError {
@@ -1016,9 +1046,13 @@ const (
 // (3) A named type exists and is bound in a TypeDefs and is being copied with a
 // mapper.  In this case, the mapper needs to do the decl followed by the
 // binding in case recursive types are created.
-// (4) A named type exists and is bound in a TypeDefs that is the source with a merger
-// In this case, we can do the merge one-for-one into the target typedefs and there's
-// no need to do a declare/bind sequence.
+// (4) A named type exists and is bound in a TypeDefs that is the source with a merger.
+// The merger likewise declares the name in the target typedefs before merging
+// the inner type, which may refer to it, and then binds it.
+//
+// In all cases, a cycle of named types must pass through a type that isn't
+// named (e.g., foo={l:foo|null} but not foo=foo or foo=bar,bar=foo) since
+// otherwise the named types have no underlying type.
 
 // TypeDefs is a read-only table of type definitions (typedefs) whose type IDs
 // are local to the table, where the ID of the kth typedef is IDTypeComplex+k
@@ -1477,6 +1511,29 @@ func (t *TypeDefs) loops(id uint32, scoreboard map[string]comp) bool {
 	return true
 }
 
+// namedChainOK reports whether following the inner type of the named type
+// with ID id, and of each named type it's directly bound to, reaches a type
+// that isn't named, i.e., the named types aren't in a cycle with no other
+// type in between (see Context.BindTypeNamed).
+func (t *TypeDefs) namedChainOK(id uint32) bool {
+	// Without a cycle, each named typedef is visited at most once.
+	for range t.NTypes() + 1 {
+		b := t.Serialization(id)
+		if len(b) == 0 || b[0] != TypeDefNamed {
+			// A primitive or other type, or a bad ID, which is reported
+			// when it's looked up.
+			return true
+		}
+		if _, b = DecodeName(b[1:]); b == nil {
+			return false
+		}
+		if id, b = DecodeFixedID(b); b == nil {
+			return false
+		}
+	}
+	return false
+}
+
 func AppendFixedID(b []byte, id uint32) []byte {
 	b = append(b, byte(id>>24))
 	b = append(b, byte(id>>16))
@@ -1889,6 +1946,9 @@ func (t *TypeDefsMerger) LookupID(extID uint32) uint32 {
 		if id, ok := t.LookupName(name); ok {
 			t.idmap[extID] = id
 			return id
+		}
+		if !t.ext.namedChainOK(extID) {
+			panic(extID)
 		}
 		// Declare the name and record its ID before mapping the inner type,
 		// which may refer to it (i.e., the type is recursive).

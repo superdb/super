@@ -153,7 +153,7 @@ func NewPrimitiveEncoder(bctx *Context, vec vector.Any, root bool) Encoder {
 		if root {
 			// Use the IDs in vec's table so foreign type values aren't
 			// mapped into the query context.
-			_, ids := vec.TypeIDs()
+			ids := vec.RawIDs()
 			out := maybeConvertToDictOrConst(ids, func(vals []uint32) vector.Any {
 				return vec.WithTypeIDs(vals)
 			})

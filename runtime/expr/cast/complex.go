@@ -164,7 +164,7 @@ func constOf(vec vector.Any, n uint32) vector.Any {
 			break
 		}
 		bytes := values.Value(0)
-		_, ids := v.Subtypes.TypeIDs()
+		ids := v.Subtypes.RawIDs()
 		b := vector.NewValueBuilder(super.TypeAll)
 		subtypes := make([]uint32, n)
 		for k := range subtypes {
