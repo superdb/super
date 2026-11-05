@@ -599,6 +599,12 @@ func CompareTypes(a, b Type) int {
 	case ErrorKind:
 		ea, eb := a.(*TypeError), b.(*TypeError)
 		return CompareTypes(ea.Type, eb.Type)
+	case FusionKind:
+		fa, fb := a.(*TypeFusion), b.(*TypeFusion)
+		return CompareTypes(fa.Type, fb.Type)
+	case OptionKind:
+		oa, ob := a.(*TypeOption), b.(*TypeOption)
+		return CompareTypes(oa.Type, ob.Type)
 	case DecimalKind:
 		da, db := a.(*TypeDecimal), b.(*TypeDecimal)
 		if cmp := cmp.Compare(da.Precision, db.Precision); cmp != 0 {

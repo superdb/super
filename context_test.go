@@ -74,3 +74,18 @@ func TestBindTypeNamedWakesAllWaiters(t *testing.T) {
 		wg.Wait()
 	})
 }
+
+func TestContextUnionOfOptionsAndFusions(t *testing.T) {
+	// The members of a union are sorted so a union of the same types in any
+	// order is the same type, including option and fusion members.
+	sctx := super.NewContext()
+	for _, types := range [][]super.Type{
+		{sctx.LookupTypeOption(super.TypeInt64), sctx.LookupTypeOption(super.TypeString)},
+		{sctx.MustLookupTypeFusion(super.TypeInt64), sctx.MustLookupTypeFusion(super.TypeString)},
+	} {
+		u1 := sctx.MustLookupTypeUnion([]super.Type{types[0], types[1]})
+		u2 := sctx.MustLookupTypeUnion([]super.Type{types[1], types[0]})
+		assert.Same(t, u1, u2)
+		assert.Equal(t, types, u1.Types)
+	}
+}
