@@ -1,0 +1,49 @@
+# Unnesting an array expression whose elements all disappear yields nothing.
+spq: unnest [...this]
+
+input: |
+  1
+  [2]
+  "a"
+  ["b"]
+
+output: |
+  2
+  "b"
+
+---
+
+spq: unnest [a.ok()]
+
+input: |
+  {a:1}
+  {b:2}
+  {a:"x"}
+
+output: |
+  1
+  "x"
+
+---
+
+spq: unnest [...this] | count()
+
+input: |
+  1
+  2
+
+output: |
+  0
+
+---
+
+spq: unnest e:=[a.ok()] with that:=this
+
+input: |
+  {a:1}
+  {b:2}
+  {a:"x"}
+
+output: |
+  {e:1,that:{a:1}}
+  {e:"x",that:{a:"x"}}

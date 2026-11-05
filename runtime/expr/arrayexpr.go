@@ -73,9 +73,8 @@ func buildList(sctx *super.Context, elems []ListElem, in []vector.Any) ([]uint32
 		spreadOffsets = append(spreadOffsets, offsets)
 	}
 	if len(vecs) == 0 {
-		n := in[0].Len()
-		offsets := make([]uint32, n+1)
-		return offsets, vector.NewNull(n)
+		offsets := make([]uint32, in[0].Len()+1)
+		return offsets, vector.NewEmpty(super.TypeNull)
 	}
 	if len(vecs) == 1 {
 		offsets := spreadOffsets[0]
