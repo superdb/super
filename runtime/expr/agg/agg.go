@@ -26,7 +26,7 @@ func NewPattern(sctx *super.Context, op string, distinct, hasarg bool) (expr.Agg
 		}
 	case "array_agg":
 		pattern = func() expr.AggFunc {
-			return &arrayAgg{*newCollect(sctx)}
+			return newArrayAgg(sctx)
 		}
 	case "fuse":
 		pattern = func() expr.AggFunc {
@@ -66,11 +66,11 @@ func NewPattern(sctx *super.Context, op string, distinct, hasarg bool) (expr.Agg
 		}
 	case "and":
 		pattern = func() expr.AggFunc {
-			return &and{}
+			return newAnd()
 		}
 	case "or":
 		pattern = func() expr.AggFunc {
-			return &or{}
+			return newOr()
 		}
 	default:
 		return nil, fmt.Errorf("unknown aggregation function: %s", op)

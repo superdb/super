@@ -21,6 +21,8 @@ type Aggregate struct {
 	builder     *vector.RecordBuilder
 	partialsIn  bool
 	partialsOut bool
+	// noFastPath disables specialized tables (for benchmarking).
+	noFastPath bool
 
 	types   []super.Type
 	tables  map[int]aggTable
@@ -115,18 +117,11 @@ func (a *Aggregate) consume(keys []vector.Any, vals []vector.Any) {
 
 func (a *Aggregate) newAggTable(keyTypes []super.Type) aggTable {
 	// Check if we can us an optimized table, else go slow path.
-	if a.isCountByString(keyTypes) && len(a.aggs) == 1 && a.aggs[0].Where == nil {
+	if !a.noFastPath && a.isCountByString(keyTypes) && len(a.aggs) == 1 && a.aggs[0].Where == nil {
 		// countByString.update does not handle nulls in its vals param.
 		return newCountByString(keyTypes[0], a.builder, a.partialsIn)
 	}
-	return &superTable{
-		aggs:        a.aggs,
-		builder:     a.builder,
-		partialsIn:  a.partialsIn,
-		partialsOut: a.partialsOut,
-		table:       make(map[string]int),
-		sctx:        a.sctx,
-	}
+	return newSuperTable(a, keyTypes)
 }
 
 func (a *Aggregate) isCountByString(keyTypes []super.Type) bool {

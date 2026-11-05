@@ -1,0 +1,30 @@
+# Each group's result type depends only on the values in that group, e.g.,
+# a group's sum is promoted to float64 only if the group has a float.
+spq: |
+  sum(v.ok()), min(v.ok()), max(v.ok()), avg(v.ok()), collect(v.ok()), array_agg(v.ok()) by k
+  | sort k
+
+input: |
+  {k:1,v:1}
+  {k:2,v:1.5}
+  {k:1,v:2}
+  {k:3,v:"b"}
+  {k:3,v:"a"}
+  {k:5,v:1s}
+  {k:2,v:2::uint8}
+  {k:6}
+  {k:7,v:null}
+  {k:8,v:[1,2]}
+  {k:8,v:"y"}
+  {k:9,v:1}
+  {k:9,v:"x"}
+
+output: |
+  {k:1,sum:3,min:1,max:2,avg:1.5,collect:[1,2],array_agg:[1,2]}
+  {k:2,sum:3.5,min:1.5,max:2.,avg:1.75,collect:[1.5,2::uint8],array_agg:[1.5,2::uint8]}
+  {k:3,sum:null,min:"a",max:"b",avg:null,collect:["b","a"],array_agg:["b","a"]}
+  {k:5,sum:1s,min:1s,max:1s,avg:1000000000.,collect:[1s],array_agg:[1s]}
+  {k:6,sum:null,min:null,max:null,avg:null,collect:[],array_agg:null}
+  {k:7,sum:null,min:null,max:null,avg:null,collect:[null],array_agg:[null]}
+  {k:8,sum:null,min:"y",max:"y",avg:null,collect:["y",[1,2]],array_agg:["y",[1,2]]}
+  {k:9,sum:error("mixture of string and numeric values"),min:error("mixture of string and numeric values"),max:error("mixture of string and numeric values"),avg:1.,collect:[1,"x"],array_agg:[1,"x"]}

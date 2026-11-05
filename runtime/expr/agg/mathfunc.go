@@ -8,6 +8,7 @@ import (
 )
 
 var mathSum = &mathFunc{
+	op:          opSum,
 	Init:        anymath.Add.Init,
 	funcFloat64: sum[float64],
 	funcInt64:   sum[int64],
@@ -15,6 +16,7 @@ var mathSum = &mathFunc{
 }
 
 var mathMin = &mathFunc{
+	op:          opMin,
 	Init:        anymath.Min.Init,
 	funcFloat64: minNumeric[float64],
 	funcInt64:   minNumeric[int64],
@@ -23,6 +25,7 @@ var mathMin = &mathFunc{
 }
 
 var mathMax = &mathFunc{
+	op:          opMax,
 	Init:        anymath.Max.Init,
 	funcFloat64: maxNumeric[float64],
 	funcInt64:   maxNumeric[int64],
@@ -35,7 +38,16 @@ type funcInt64 func(int64, vector.Any) int64
 type funcUint64 func(uint64, vector.Any) uint64
 type funcString func(string, vector.Any) string
 
+type mathOp int
+
+const (
+	opSum mathOp = iota
+	opMin
+	opMax
+)
+
 type mathFunc struct {
+	op mathOp
 	anymath.Init
 	funcFloat64
 	funcInt64

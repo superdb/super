@@ -5,10 +5,24 @@ import (
 	"github.com/superdb/super/vector"
 )
 
+// AggFunc computes an aggregation over a set of groups, holding the state
+// of every group.  Groups are identified by dense IDs starting at zero.
 type AggFunc interface {
-	Consume(vector.Any)
-	ConsumeAsPartial(vector.Any)
+	// Resize grows the number of groups to n.  New groups start in the
+	// initial state.
+	Resize(n uint32)
+	// Consume folds each slot of vec into the group given by the
+	// corresponding element of groups.  A nil groups means every slot
+	// belongs to group 0.  groups is valid only for the duration of the
+	// call.
+	Consume(groups []uint32, vec vector.Any)
+	// ConsumeAsPartial is like Consume but for partial results as
+	// produced by ResultAsPartial.
+	ConsumeAsPartial(groups []uint32, vec vector.Any)
+	// Result returns a vector with the result of each group, in group
+	// order.
 	Result(*super.Context) vector.Any
+	// ResultAsPartial is like Result but returns partial results.
 	ResultAsPartial(*super.Context) vector.Any
 }
 

@@ -7,27 +7,56 @@ import (
 )
 
 type avg struct {
-	sum   float64
-	count uint64
+	sums   []float64
+	counts []uint64
 }
 
 var _ expr.AggFunc = (*avg)(nil)
 
-func (a *avg) Consume(vec vector.Any) {
+func (a *avg) Resize(n uint32) {
+	a.sums = append(a.sums, make([]float64, n-uint32(len(a.sums)))...)
+	a.counts = append(a.counts, make([]uint64, n-uint32(len(a.counts)))...)
+}
+
+func (a *avg) Consume(groups []uint32, vec vector.Any) {
 	vec = vector.Under(vec)
 	if !super.IsNumber(vec.Type().ID()) {
 		return
 	}
-	a.count += uint64(vec.Len())
-	a.sum = sum(a.sum, vec)
+	if groups == nil {
+		a.counts[0] += uint64(vec.Len())
+		a.sums[0] = sum(a.sums[0], vec)
+		return
+	}
+	for _, g := range groups {
+		a.counts[g]++
+	}
+	base, index := flatten(vec)
+	foldNumeric(opSum, a.sums, nil, 0, groups, base, index)
 }
 
 func (a *avg) Result(*super.Context) vector.Any {
-	if a.count > 0 {
-		f := a.sum / float64(a.count)
-		return vector.NewFloat(super.TypeFloat64, []float64{f})
+	tags := make([]uint8, len(a.counts))
+	for g, count := range a.counts {
+		if count > 0 {
+			tags[g] = 1
+		}
 	}
-	return vector.NewNull(1)
+	return buildByTag(tags, 2, func(tag uint8, groups []uint32) vector.Any {
+		if tag == 0 {
+			n := uint32(len(a.counts))
+			if groups != nil {
+				n = uint32(len(groups))
+			}
+			return vector.NewNull(n)
+		}
+		sums, counts := pick(a.sums, groups), pick(a.counts, groups)
+		avgs := make([]float64, len(sums))
+		for i := range avgs {
+			avgs[i] = sums[i] / float64(counts[i])
+		}
+		return vector.NewFloat(super.TypeFloat64, avgs)
+	})
 }
 
 const (
@@ -35,16 +64,8 @@ const (
 	countName = "count"
 )
 
-func (a *avg) ConsumeAsPartial(partial vector.Any) {
-	if partial.Len() != 1 {
-		panic("avg: invalid partial")
-	}
-	idx := uint32(0)
-	if view, ok := partial.(*vector.View); ok {
-		idx = view.Index[0]
-		partial = view.Any
-	}
-	rec, ok := partial.(*vector.Record)
+func (a *avg) ConsumeAsPartial(groups []uint32, partial vector.Any) {
+	rec, ok := vector.PushView(partial).(*vector.Record)
 	if !ok {
 		panic("avg: invalid partial")
 	}
@@ -53,22 +74,23 @@ func (a *avg) ConsumeAsPartial(partial vector.Any) {
 	if !ok1 || !ok2 {
 		panic("avg: invalid partial")
 	}
-	fields := rec.Fields
-	sumVal := fields[si]
-	countVal := fields[ci]
+	sumVal := rec.Fields[si]
+	countVal := rec.Fields[ci]
 	if sumVal.Type() != super.TypeFloat64 || countVal.Type() != super.TypeUint64 {
 		panic("avg: invalid partial")
 	}
-	a.sum += vector.FloatValue(sumVal, idx)
-	a.count += vector.UintValue(countVal, idx)
+	for i, g := range orZeros(groups, partial.Len()) {
+		a.sums[g] += vector.FloatValue(sumVal, uint32(i))
+		a.counts[g] += vector.UintValue(countVal, uint32(i))
+	}
 }
 
 func (a *avg) ResultAsPartial(sctx *super.Context) vector.Any {
-	sum := vector.NewFloat(super.TypeFloat64, []float64{a.sum})
-	count := vector.NewUint(super.TypeUint64, []uint64{a.count})
+	sum := vector.NewFloat(super.TypeFloat64, a.sums)
+	count := vector.NewUint(super.TypeUint64, a.counts)
 	typ := sctx.MustLookupTypeRecord([]super.Field{
 		super.NewField(sumName, super.TypeFloat64),
 		super.NewField(countName, super.TypeUint64),
 	})
-	return vector.NewRecord(typ, []vector.Any{sum, count}, 1)
+	return vector.NewRecord(typ, []vector.Any{sum, count}, uint32(len(a.sums)))
 }

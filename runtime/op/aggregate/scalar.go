@@ -67,9 +67,9 @@ func (s *scalarAggregate) Pull(done bool) (vector.Any, error) {
 func (s *scalarAggregate) consume(vecs ...vector.Any) vector.Any {
 	for i, vec := range vecs {
 		if s.partialsIn {
-			s.funcs[i].ConsumeAsPartial(vec)
+			s.funcs[i].ConsumeAsPartial(nil, vec)
 		} else {
-			s.funcs[i].Consume(vec)
+			s.funcs[i].Consume(nil, vec)
 		}
 	}
 	return vector.NewNull(vecs[0].Len())
@@ -78,7 +78,9 @@ func (s *scalarAggregate) consume(vecs ...vector.Any) vector.Any {
 func newFuncs(aggs []*expr.Aggregator) []expr.AggFunc {
 	var funcs []expr.AggFunc
 	for _, agg := range aggs {
-		funcs = append(funcs, agg.Pattern())
+		f := agg.Pattern()
+		f.Resize(1)
+		funcs = append(funcs, f)
 	}
 	return funcs
 }
