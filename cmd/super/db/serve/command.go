@@ -69,6 +69,8 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	f.StringVar(&c.conf.DefaultResponseFormat, "defaultfmt", service.DefaultFormat, "default response format")
 	f.StringVar(&c.listenAddr, "l", ":9867", "[addr]:port to listen on")
 	f.DurationVar(&c.manage, "manage", 0, "when positive, run database maintenance tasks at this interval")
+	f.BoolVar(&c.conf.MCP, "mcp", false, "serve the Model Context Protocol (MCP) for AI agents at /mcp")
+	f.BoolVar(&c.conf.MCPReadOnly, "mcp.readonly", false, "make the /mcp endpoint read-only (implies -mcp)")
 	f.StringVar(&c.portFile, "portfile", "", "write listen port to file")
 	f.StringVar(&c.rootContentFile, "rootcontentfile", "", "file to serve for GET /")
 	return c, nil
@@ -90,6 +92,9 @@ func (c *Command) Run(args []string) error {
 		return err
 	}
 	c.conf.Root = root
+	if c.conf.MCPReadOnly {
+		c.conf.MCP = true
+	}
 	if api.IsRemote(c.conf.Root.String()) {
 		return errors.New("serve command available for local databases only")
 	}

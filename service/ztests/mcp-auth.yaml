@@ -1,0 +1,29 @@
+# With authentication, /mcp requires a token like the rest of the API, and
+# a load is committed with the authenticated user as its author.
+script: |
+  DB_EXTRA_FLAGS="-mcp -auth.enabled=true -auth.audience=a -auth.clientid=testuser -auth.domain=https://testdomain -auth.jwkspath=auth-public-jwks.json" source service.sh
+  token=$(gentoken -audience a -domain https://testdomain -privatekeyfile auth-private-key -keyid testkey -tenantid tenant1 -userid user1)
+  super db attach -q -configdir user1 -token $token $DB_URL
+  super db create -configdir user1 -q t
+  load='{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"load","arguments":{"table":"t","data":"{a:1}"}}}'
+  echo === without token
+  curl -s -o /dev/null -w '%{http_code}\n' -d "$load" $DB_URL/mcp
+  echo === with token
+  curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $token" -d "$load" $DB_URL/mcp
+  super db -configdir user1 -s -c 'from t:log | values {author} | where !is_error(author) | head 1'
+
+inputs:
+  - name: service.sh
+  - name: auth-public-jwks.json
+    source: ../testdata/auth-public-jwks.json
+  - name: auth-private-key
+    source: ../testdata/auth-private-key
+
+outputs:
+  - name: stdout
+    data: |
+      === without token
+      401
+      === with token
+      200
+      {author:"user1"}
