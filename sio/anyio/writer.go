@@ -29,35 +29,38 @@ type WriterOpts struct {
 	SUP       supio.WriterOpts
 }
 
-func NewWriter(w io.WriteCloser, opts WriterOpts) (vio.PushCloser, error) {
+// NewWriter returns a writer of vectors in the format given by opts.  Vectors
+// whose values may need to be defused for the format are defused in sctx,
+// which must be the type context of the vectors written.
+func NewWriter(sctx *super.Context, w io.WriteCloser, opts WriterOpts) (vio.PushCloser, error) {
 	switch opts.Format {
 	case "arrows":
-		return newDefuser(arrowio.NewWriter(w)), nil
+		return newDefuser(sctx, arrowio.NewWriter(w)), nil
 	case "bsup":
 		return bsup.NewWriterWithOpts(w, opts.BSUP), nil
 	case "csv":
-		return newDefuser(csvio.NewWriter(w, opts.CSV)), nil
+		return newDefuser(sctx, csvio.NewWriter(w, opts.CSV)), nil
 	case "db":
-		return newDefuser(dbio.NewWriter(w, opts.DB)), nil
+		return newDefuser(sctx, dbio.NewWriter(w, opts.DB)), nil
 	case "json":
-		return newDefuser(jsonio.NewWriter(w, opts.JSON)), nil
+		return newDefuser(sctx, jsonio.NewWriter(w, opts.JSON)), nil
 	case "line":
-		return newDefuser(lineio.NewWriter(w)), nil
+		return newDefuser(sctx, lineio.NewWriter(w)), nil
 	case "null":
 		return &nullWriter{}, nil
 	case "parquet":
-		return newDefuser(parquetio.NewWriter(w)), nil
+		return newDefuser(sctx, parquetio.NewWriter(w)), nil
 	case "sup", "":
 		w := vio.PushCloser(supio.NewWriter(w, opts.SUP))
 		if !opts.SUPFusion {
-			w = newDefuser(w)
+			w = newDefuser(sctx, w)
 		}
 		return w, nil
 	case "tsv":
 		opts.CSV.Delim = '\t'
-		return newDefuser(csvio.NewWriter(w, opts.CSV)), nil
+		return newDefuser(sctx, csvio.NewWriter(w, opts.CSV)), nil
 	case "zeek":
-		return newDefuser(zeekio.NewWriter(w)), nil
+		return newDefuser(sctx, zeekio.NewWriter(w)), nil
 	default:
 		return nil, fmt.Errorf("unknown format: %s", opts.Format)
 	}
@@ -68,8 +71,11 @@ type defuser struct {
 	defuse expr.Evaluator
 }
 
-func newDefuser(w vio.PushCloser) vio.PushCloser {
-	return &defuser{PushCloser: w, defuse: expr.NewSuperDefuse(super.NewContext())}
+// newDefuser returns a writer that defuses vectors in sctx, which must be the
+// type context of the vectors since defusing compares their types with types
+// it creates in sctx.
+func newDefuser(sctx *super.Context, w vio.PushCloser) vio.PushCloser {
+	return &defuser{PushCloser: w, defuse: expr.NewSuperDefuse(sctx)}
 }
 
 func (d *defuser) Push(vec vector.Any) error {

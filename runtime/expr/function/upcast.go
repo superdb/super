@@ -302,7 +302,7 @@ func (u *Upcast) toFusion(vec vector.Any, to *super.TypeFusion) vector.Any {
 			return nil
 		}
 	}
-	return vector.NewFusion(to, values, subtypes)
+	return vector.NewFusion(u.sctx, to, values, subtypes)
 }
 
 func (u *Upcast) toOption(vec vector.Any, to *super.TypeOption) vector.Any {

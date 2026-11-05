@@ -151,8 +151,11 @@ func NewPrimitiveEncoder(bctx *Context, vec vector.Any, root bool) Encoder {
 		return NewNetEncoder(vec.Values)
 	case *vector.TypeValue:
 		if root {
-			out := maybeConvertToDictOrConst(vec.Types(), func(vals []super.Type) vector.Any {
-				return vector.NewTypeValue(vals)
+			// Use the IDs in vec's table so foreign type values aren't
+			// mapped into the query context.
+			ids := vec.RawIDs()
+			out := maybeConvertToDictOrConst(ids, func(vals []uint32) vector.Any {
+				return vec.WithTypeIDs(vals)
 			})
 			return NewPrimitiveEncoder(bctx, out, false)
 		}

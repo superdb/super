@@ -126,7 +126,7 @@ func (s *Shared) writeValue(ctx context.Context, v any) error {
 	if err != nil {
 		return err
 	}
-	writer, err := s.OutputFlags.Open(ctx, storage.NewLocalEngine())
+	writer, err := s.OutputFlags.Open(ctx, sctx, storage.NewLocalEngine())
 	if err != nil {
 		return err
 	}

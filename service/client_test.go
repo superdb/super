@@ -44,7 +44,7 @@ func (c *testClient) TestBranchGet(id uuid.UUID) (config db.BranchMeta) {
 }
 
 func (c *testClient) TestTableList() []tables.Config {
-	r, err := c.Query(c.Context(), srcfiles.Plain("from :tables"))
+	r, err := c.Query(c.Context(), super.NewContext(), srcfiles.Plain("from :tables"))
 	require.NoError(c, err)
 	defer r.Close()
 	var configs []tables.Config
@@ -69,7 +69,7 @@ func (c *testClient) TestTablePost(payload api.TablePostRequest) uuid.UUID {
 }
 
 func (c *testClient) TestQuery(query string) string {
-	scanner, err := c.Connection.Query(c.Context(), srcfiles.Plain(query))
+	scanner, err := c.Connection.Query(c.Context(), super.NewContext(), srcfiles.Plain(query))
 	require.NoError(c, err)
 	defer scanner.Close()
 	var buf bytes.Buffer

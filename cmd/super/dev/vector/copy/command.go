@@ -74,7 +74,7 @@ func (c *Command) Run(args []string) error {
 	}
 	sctx := super.NewContext()
 	loader := loader.NewFrameLoader(sctx, colFrame)
-	writer, err := c.outputFlags.Open(ctx, local)
+	writer, err := c.outputFlags.Open(ctx, sctx, local)
 	if err != nil {
 		return err
 	}

@@ -113,11 +113,11 @@ func (l *local) Compact(ctx context.Context, tableID uuid.UUID, branchName strin
 	return branch.Compact(ctx, l.compiler, objects, commit.Author, commit.Body, commit.Meta)
 }
 
-func (l *local) Query(ctx context.Context, inputs []srcfiles.Input) (vio.ScanCloser, error) {
-	return l.QueryWithArgs(ctx, inputs, nil)
+func (l *local) Query(ctx context.Context, sctx *super.Context, inputs []srcfiles.Input) (vio.ScanCloser, error) {
+	return l.QueryWithArgs(ctx, sctx, inputs, nil)
 }
 
-func (l *local) QueryWithArgs(ctx context.Context, inputs []srcfiles.Input, args []string) (vio.ScanCloser, error) {
+func (l *local) QueryWithArgs(ctx context.Context, sctx *super.Context, inputs []srcfiles.Input, args []string) (vio.ScanCloser, error) {
 	ast, err := parser.ParseFiles(inputs)
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func (l *local) QueryWithArgs(ctx context.Context, inputs []srcfiles.Input, args
 	if args != nil {
 		ast.BindArgs(args)
 	}
-	q, err := runtime.CompileQueryForDB(ctx, super.NewContext(), l.compiler, ast)
+	q, err := runtime.CompileQueryForDB(ctx, sctx, l.compiler, ast)
 	if err != nil {
 		return nil, err
 	}

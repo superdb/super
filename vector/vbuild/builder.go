@@ -73,10 +73,17 @@ func New(typ super.Type) Builder {
 			},
 		}
 	case *super.TypeOfType:
-		return &genericBuilder[super.Type]{
-			valuesOf: func(vec vector.Any) []super.Type { return vec.(*vector.TypeValue).Types() },
-			build: func(vals []super.Type) vector.Any {
-				return vector.NewTypeValue(vals)
+		// Type values are built as type IDs in the context of the vectors
+		// written.
+		var sctx *super.Context
+		return &genericBuilder[uint32]{
+			valuesOf: func(vec vector.Any) []uint32 {
+				tv := vec.(*vector.TypeValue)
+				sctx = tv.Sctx()
+				return tv.IDs()
+			},
+			build: func(vals []uint32) vector.Any {
+				return vector.NewTypeValueFromIDs(sctx, vals)
 			},
 		}
 	case *super.TypeOfNull:

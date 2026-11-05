@@ -22,13 +22,8 @@ func (f *fusionBuilder) Write(vec vector.Any) {
 	if vec.Len() == 0 {
 		return
 	}
-	if view, ok := vec.(*vector.View); ok {
-		fusion := view.Any.(*vector.Fusion)
-		f.vals.Write(vector.Pick(fusion.Values, view.Index))
-		f.subtypes.Write(vector.Pick(fusion.Subtypes, view.Index))
-		return
-	}
-	fusion := vec.(*vector.Fusion)
+	// A view of a fusion is pushed down to its values and subtypes.
+	fusion := vector.PushView(vec).(*vector.Fusion)
 	f.vals.Write(fusion.Values)
 	f.subtypes.Write(fusion.Subtypes)
 }
@@ -41,91 +36,51 @@ func (f *fusionBuilder) Build() vector.Any {
 	}
 }
 
+// fusionTypeBuilder builds the subtypes of a fusion vector.  If the first
+// subtypes written are foreign (i.e., IDs in a TypeDefs table that haven't
+// been mapped into the query context, as for BSUP), the subtypes are merged
+// into a new TypeDefs table so they're mapped into the query context only if
+// needed.  Otherwise, the subtypes are type IDs in the query context.
 type fusionTypeBuilder struct {
-	sctx  *super.Context
-	defs  *super.TypeDefs
-	ids   []uint32
-	types *genericFlatWriter[super.Type]
+	sctx *super.Context
+	defs *super.TypeDefsBuilder // non-nil if merging foreign subtypes
+	ids  []uint32
+	tmap *super.TypeIDMap // mapping of defs, created on Load
 }
 
-func (t *fusionTypeBuilder) Write(vec vector.Any) {
-	if t.sctx != nil || (t.types == nil && typeSctx(vec) != nil) {
-		if t.sctx == nil {
-			t.sctx = typeSctx(vec)
-			t.defs = super.NewTypeDefs()
+// Write appends subtypes, which are always a flat TypeValue (a view of a
+// fusion's subtypes is picked when the view is pushed down).
+func (t *fusionTypeBuilder) Write(subtypes *vector.TypeValue) {
+	if t.sctx == nil {
+		t.sctx = subtypes.Sctx()
+		if subtypes.IsForeign() {
+			t.defs = super.NewTypeDefsBuilder()
 		}
-		t.writeTypeIDs(vec)
+	}
+	if t.defs == nil {
+		t.ids = append(t.ids, subtypes.IDs()...)
 		return
 	}
-	if t.types == nil {
-		t.types = &genericFlatWriter[super.Type]{
-			valuesOf: func(vec vector.Any) []super.Type { return vec.(*vector.TypeValue).Types() },
-			build: func(vals []super.Type) vector.Any {
-				return vector.NewTypeValue(vals)
-			},
-		}
-	}
-	t.types.Write(vec)
-}
-
-func (t *fusionTypeBuilder) writeTypeIDs(vec vector.Any) {
-	switch vec := vec.(type) {
-	case *vector.Const:
-		types := vec.Any.(*vector.TypeValue)
-		defs, ids := types.TypeIDs()
-		id := super.NewTypeDefsMerger(t.defs, defs).LookupID(ids[0])
-		for range vec.Len() {
-			t.ids = append(t.ids, id)
-		}
-	case *vector.Dict:
-		index := vec.Index
-		types := vec.Any.(*vector.TypeValue)
-		defs, ids := types.TypeIDs()
-		merger := super.NewTypeDefsMerger(t.defs, defs)
-		for _, slot := range index {
-			t.ids = append(t.ids, merger.LookupID(ids[slot]))
-		}
-	case *vector.View:
-		index := vec.Index
-		types := vec.Any.(*vector.TypeValue)
-		defs, ids := types.TypeIDs()
-		merger := super.NewTypeDefsMerger(t.defs, defs)
-		for _, slot := range index {
-			t.ids = append(t.ids, merger.LookupID(ids[slot]))
-		}
-	case *vector.TypeValue:
-		defs, ids := vec.TypeIDs()
-		merger := super.NewTypeDefsMerger(t.defs, defs)
-		for _, id := range ids {
-			t.ids = append(t.ids, merger.LookupID(id))
-		}
-	default:
-		panic(vec)
+	defs, ids := subtypes.TypeIDs()
+	merger := super.NewTypeDefsMerger(t.defs, defs)
+	for _, id := range ids {
+		t.ids = append(t.ids, merger.LookupID(id))
 	}
 }
 
 func (t *fusionTypeBuilder) Build() vector.Any {
-	if t.types != nil {
-		return t.types.Build()
+	if t.defs != nil {
+		return vector.NewTypeValueWithLoader(t.sctx, t)
 	}
-	return vector.NewTypeValueWithLoader(t.sctx, t)
+	if t.ids == nil {
+		t.ids = []uint32{}
+	}
+	return vector.NewTypeValueFromIDs(t.sctx, t.ids)
 }
 
-func (t *fusionTypeBuilder) Load() (*super.TypeDefs, []uint32) {
-	return t.defs, t.ids
-}
-
-func typeSctx(vec vector.Any) *super.Context {
-	switch vec := vec.(type) {
-	case *vector.Const:
-		return typeSctx(vec.Any)
-	case *vector.Dict:
-		return typeSctx(vec.Any)
-	case *vector.View:
-		return typeSctx(vec.Any)
-	case *vector.TypeValue:
-		return vec.Sctx()
-	default:
-		panic(vec)
+func (t *fusionTypeBuilder) Load() (*super.TypeIDMap, []uint32) {
+	if t.tmap == nil {
+		t.tmap = super.NewTypeIDMap(t.sctx, &t.defs.TypeDefs)
 	}
+	return t.tmap, t.ids
 }

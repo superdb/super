@@ -336,13 +336,13 @@ func (c *Connection) Revert(ctx context.Context, tableID uuid.UUID, branchName s
 //
 // As for Connection.Do, if the returned error is nil, the user is expected to
 // call Close on the returned vio.ScanCloser.
-func (c *Connection) Query(ctx context.Context, inputs []srcfiles.Input) (vio.ScanCloser, error) {
-	return c.QueryWithArgs(ctx, inputs, nil)
+func (c *Connection) Query(ctx context.Context, sctx *super.Context, inputs []srcfiles.Input) (vio.ScanCloser, error) {
+	return c.QueryWithArgs(ctx, sctx, inputs, nil)
 }
 
 // QueryWithArgs is Query where, if args is not nil, the query's args constant
 // is the array of strings in args.
-func (c *Connection) QueryWithArgs(ctx context.Context, inputs []srcfiles.Input, args []string) (vio.ScanCloser, error) {
+func (c *Connection) QueryWithArgs(ctx context.Context, sctx *super.Context, inputs []srcfiles.Input, args []string) (vio.ScanCloser, error) {
 	files, err := srcfiles.Concat(inputs)
 	if err != nil {
 		return nil, err
@@ -357,7 +357,7 @@ func (c *Connection) QueryWithArgs(ctx context.Context, inputs []srcfiles.Input,
 	if err != nil {
 		return nil, err
 	}
-	q, err := queryio.NewScanner(ctx, res.Body)
+	q, err := queryio.NewScanner(ctx, sctx, res.Body)
 	if err != nil {
 		return nil, err
 	}

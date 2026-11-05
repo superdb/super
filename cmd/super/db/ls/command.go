@@ -7,6 +7,7 @@ import (
 	"strings"
 	"uuid"
 
+	"github.com/superdb/super"
 	"github.com/superdb/super/cli/outputflags"
 	"github.com/superdb/super/cmd/super/db"
 	"github.com/superdb/super/compiler/srcfiles"
@@ -79,11 +80,12 @@ func (c *Command) Run(args []string) error {
 		}
 		query = fmt.Sprintf("%s at %s", query, at)
 	}
-	w, err := c.outputFlags.Open(ctx, local)
+	sctx := super.NewContext()
+	w, err := c.outputFlags.Open(ctx, sctx, local)
 	if err != nil {
 		return err
 	}
-	q, err := db.Query(ctx, srcfiles.Plain(query))
+	q, err := db.Query(ctx, sctx, srcfiles.Plain(query))
 	if err != nil {
 		w.Close()
 		return err

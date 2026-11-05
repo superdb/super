@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/superdb/super"
 	"github.com/superdb/super/pkg/bufwriter"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/sio"
@@ -16,6 +17,7 @@ import (
 
 type sizeSplitter struct {
 	ctx        context.Context
+	sctx       *super.Context
 	engine     storage.Engine
 	dir        *storage.URI
 	prefix     string
@@ -34,7 +36,7 @@ type sizeSplitter struct {
 // creating a new file after the current one reaches size bytes.  Files may
 // exceed size substantially due to buffering in the underlying writer as
 // determined by opts.Format.
-func NewSizeSplitter(ctx context.Context, engine storage.Engine, dir *storage.URI, prefix string, unbuffered bool,
+func NewSizeSplitter(ctx context.Context, sctx *super.Context, engine storage.Engine, dir *storage.URI, prefix string, unbuffered bool,
 	opts anyio.WriterOpts, size int64) (vio.PushCloser, error) {
 	ext := sio.Extension(opts.Format)
 	if ext == "" {
@@ -45,6 +47,7 @@ func NewSizeSplitter(ctx context.Context, engine storage.Engine, dir *storage.UR
 	}
 	return &sizeSplitter{
 		ctx:        ctx,
+		sctx:       sctx,
 		engine:     engine,
 		dir:        dir,
 		prefix:     prefix,
@@ -91,7 +94,7 @@ func (s *sizeSplitter) nextFile() error {
 		wc = bufwriter.New(wc)
 	}
 	s.cwc = countingWriteCloser{wc, 0}
-	s.zwc, err = anyio.NewWriter(&s.cwc, s.opts)
+	s.zwc, err = anyio.NewWriter(s.sctx, &s.cwc, s.opts)
 	if err != nil {
 		wc.Close()
 		s.engine.Delete(s.ctx, path)

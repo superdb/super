@@ -66,7 +66,7 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	writer, err := c.outputFlags.Open(ctx, local)
+	writer, err := c.outputFlags.Open(ctx, object.Sctx(), local)
 	projection := field.NewProjection(paths)
 	for _, loader := range object.Loaders() {
 		vec := loader.Load(projection)

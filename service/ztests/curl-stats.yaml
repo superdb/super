@@ -16,4 +16,4 @@ outputs:
       type "nano.Duration"=int64
       type "nano.Span"={ts:timestamp,dur:"nano.Duration"}
       type "exec.TableStats"={size:int64,span:"nano.Span"}
-      {size:28338,span:{ts:2020-04-21T22:40:30.06852324Z,dur:9789993714061}}::exec.TableStats
+      {size:28363,span:{ts:2020-04-21T22:40:30.06852324Z,dur:9789993714061}}::exec.TableStats

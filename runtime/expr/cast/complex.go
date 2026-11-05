@@ -123,7 +123,7 @@ func (c *complexCaster) castOne(vec vector.Any, to super.Type) vector.Any {
 			vec.Serialize(&sb, i)
 			b.Write(sb.Bytes().Body())
 		}
-		return vector.NewFusion(to, b.Build(c.sctx), subtypes)
+		return vector.NewFusion(c.sctx, to, b.Build(c.sctx), subtypes)
 	case *super.TypeDecimal, *super.TypeOfUnimplemented:
 		return vector.NewWrappedError(c.sctx, "cannot cast to "+sup.FormatType(to)+": type not yet implemented", vec)
 	case *super.TypeEnum:
@@ -164,14 +164,14 @@ func constOf(vec vector.Any, n uint32) vector.Any {
 			break
 		}
 		bytes := values.Value(0)
-		subtype := v.Subtypes.Value(0)
+		ids := v.Subtypes.RawIDs()
 		b := vector.NewValueBuilder(super.TypeAll)
-		subtypes := make([]super.Type, n)
+		subtypes := make([]uint32, n)
 		for k := range subtypes {
 			b.Write(bytes)
-			subtypes[k] = subtype
+			subtypes[k] = ids[0]
 		}
-		return vector.NewFusion(v.Typ, b.Build(nil), subtypes)
+		return &vector.Fusion{Typ: v.Typ, Values: b.Build(nil), Subtypes: v.Subtypes.WithTypeIDs(subtypes)}
 	case *vector.None:
 		return vector.NewNone(n)
 	case *vector.Null:

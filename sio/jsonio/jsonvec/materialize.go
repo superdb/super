@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/vector"
@@ -12,16 +13,18 @@ import (
 func Materialize(sctx *super.Context, b Builder) vector.Any {
 	m := &materializer{
 		sctx: sctx,
-		defs: super.NewTypeDefs(),
+		defs: super.NewTypeDefsEncoder(),
 	}
 	vec, _ := m.value(b.Value())
 	return vec
 }
 
 type materializer struct {
-	sctx   *super.Context
-	defs   *super.TypeDefs
-	mapper *super.TypeDefsMapper
+	sctx     *super.Context
+	defs     *super.TypeDefsEncoder
+	mapper   *super.TypeDefsMapper
+	tmapOnce sync.Once
+	tmap     *super.TypeIDMap
 }
 
 func (m *materializer) value(v Value) (vector.Any, []uint32) {
@@ -76,7 +79,7 @@ func (m *materializer) union(u *Union) (vector.Any, []uint32) {
 	subtypes := m.makeUnionSubtypes(u.Tags, dynamic, fixed)
 	typ := m.sctx.MustLookupTypeFusion(utyp)
 	loader := &subtypesLoader{
-		defs:     m.defs,
+		m:        m,
 		subtypes: subtypes,
 	}
 	vec := vector.NewUnion(utyp, u.Tags, vecs)
@@ -114,7 +117,7 @@ func (m *materializer) array(a *Array) (vector.Any, []uint32) {
 	}
 	fusionType := m.sctx.MustLookupTypeFusion(arrayType)
 	loader := &subtypesLoader{
-		defs:     m.defs,
+		m:        m,
 		subtypes: subtypes,
 	}
 	return vector.NewFusionWithLoader(m.sctx, fusionType, loader, array), subtypes
@@ -137,7 +140,7 @@ func (m *materializer) arrayID(ids []uint32) uint32 {
 func (m *materializer) unionArrayID(ids []uint32) uint32 {
 	// If this heavyweight lookup becomes a bottleneck, we should optimize.
 	if m.mapper == nil {
-		m.mapper = super.NewTypeDefsMapper(super.NewContext(), m.defs)
+		m.mapper = super.NewTypeDefsMapper(super.NewContext(), &m.defs.TypeDefs)
 	}
 	uniq := make(map[super.Type]struct{})
 	for _, id := range ids {
@@ -147,7 +150,7 @@ func (m *materializer) unionArrayID(ids []uint32) uint32 {
 	for typ := range uniq {
 		types = append(types, typ)
 	}
-	unionID := m.mapper.LookupTypeUnion(types)
+	unionID := m.defs.LookupTypeUnion(types)
 	return m.defs.BindTypeWrapped(super.TypeDefArray, unionID)
 }
 
@@ -203,7 +206,7 @@ func (m *materializer) record(r *Record) (vector.Any, []uint32) {
 	}
 	typ := m.sctx.MustLookupTypeFusion(rtyp)
 	loader := &subtypesLoader{
-		defs:     m.defs,
+		m:        m,
 		subtypes: subtypes,
 	}
 	return vector.NewFusionWithLoader(m.sctx, typ, loader, record), subtypes
@@ -240,7 +243,7 @@ func (m *materializer) missing(vec vector.Any, ids []uint32, fixed uint32, n uin
 		}
 	}
 	typ := m.sctx.MustLookupTypeFusion(u.Typ)
-	loader := &subtypesLoader{defs: m.defs, subtypes: subtypes}
+	loader := &subtypesLoader{m: m, subtypes: subtypes}
 	return vector.NewFusionWithLoader(m.sctx, typ, loader, u)
 }
 
@@ -304,16 +307,26 @@ func (m *materializer) makeRecordSubtypes(perm map[string]uint32, fields []super
 				scratch = append(scratch, fixed[col])
 			}
 		}
-		subtypes[i] = m.defs.BindTypeRecord(names[tag], scratch, nil)
+		subtypes[i] = m.defs.BindTypeRecord(names[tag], scratch)
 	}
 	return subtypes
 }
 
 type subtypesLoader struct {
-	defs     *super.TypeDefs
+	m        *materializer
 	subtypes []uint32
 }
 
-func (s *subtypesLoader) Load() (*super.TypeDefs, []uint32) {
-	return s.defs, s.subtypes
+func (s *subtypesLoader) Load() (*super.TypeIDMap, []uint32) {
+	return s.m.typeIDMap(), s.subtypes
+}
+
+// typeIDMap returns the mapping of m.defs to m.sctx shared by the subtypes of
+// m's fusion vectors.  It's created on first use, which is after the
+// typedefs have been entered.
+func (m *materializer) typeIDMap() *super.TypeIDMap {
+	m.tmapOnce.Do(func() {
+		m.tmap = super.NewTypeIDMap(m.sctx, &m.defs.TypeDefs)
+	})
+	return m.tmap
 }

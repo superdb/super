@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/superdb/super"
 	"github.com/superdb/super/cli/outputflags"
 	"github.com/superdb/super/cli/tableflags"
 	"github.com/superdb/super/cmd/super/db"
@@ -117,11 +118,12 @@ func (c *Command) list(ctx context.Context, db runtime.Database) error {
 	if c.outputFlags.Format == "db" {
 		c.outputFlags.WriterOpts.DB.Head = head.Branch
 	}
-	w, err := c.outputFlags.Open(ctx, storage.NewLocalEngine())
+	sctx := super.NewContext()
+	w, err := c.outputFlags.Open(ctx, sctx, storage.NewLocalEngine())
 	if err != nil {
 		return err
 	}
-	q, err := db.Query(ctx, srcfiles.Plain(query))
+	q, err := db.Query(ctx, sctx, srcfiles.Plain(query))
 	if err != nil {
 		w.Close()
 		return err

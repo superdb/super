@@ -38,11 +38,13 @@ type Request struct {
 func newRequest(w http.ResponseWriter, r *http.Request, c *Core) (*ResponseWriter, *Request, bool) {
 	req := &Request{Request: r}
 	req.Logger = c.logger.With(zap.String("request_id", req.ID()))
-	m := super.NewMarshaler(super.NewContext())
+	sctx := super.NewContext()
+	m := super.NewMarshaler(sctx)
 	m.Decorate(super.StylePackage)
 	res := &ResponseWriter{
 		ResponseWriter: w,
 		Logger:         req.Logger,
+		sctx:           sctx,
 		marshaler:      m,
 		request:        req,
 	}
@@ -219,6 +221,7 @@ type ResponseWriter struct {
 	Format    string
 	Logger    *zap.Logger
 	zw        vio.PushCloser
+	sctx      *super.Context // type context of marshaler
 	marshaler *super.Marshaler
 	request   *Request
 	written   atomic.Int32
@@ -236,7 +239,7 @@ func (w *ResponseWriter) ZioWriter() vio.PushCloser {
 			return nil
 		}
 		w.Header().Set("Content-Type", typ)
-		w.zw, err = anyio.NewWriter(sio.NopCloser(w), anyio.WriterOpts{Format: w.Format})
+		w.zw, err = anyio.NewWriter(w.sctx, sio.NopCloser(w), anyio.WriterOpts{Format: w.Format})
 		if err != nil {
 			w.Error(err)
 			return nil
@@ -292,7 +295,7 @@ func (w *ResponseWriter) Marshal(body any) bool {
 	if zw == nil {
 		return false
 	}
-	if err := zw.Push(sbuf.Dematerialize(super.NewContext(), val)); err != nil {
+	if err := zw.Push(sbuf.Dematerialize(w.sctx, val)); err != nil {
 		w.Error(err)
 		return false
 	}

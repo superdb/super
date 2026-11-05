@@ -1,0 +1,18 @@
+# The subtypes of a fusion value may include a recursive named type.
+script: |
+  super -o out.bsup in.sup
+  super -s out.bsup
+
+inputs:
+  - name: in.sup
+    data: |
+      type tree={l:tree|null,v:int64}
+      fusion({l:{l:null,v:1}::tree,v:2}::tree::(tree|int64),<tree>)
+      fusion(1::(tree|int64),<int64>)
+
+outputs:
+  - name: stdout
+    data: |
+      type tree={l:tree|null,v:int64}
+      {l:{l:null,v:1}::tree,v:2}::tree
+      1

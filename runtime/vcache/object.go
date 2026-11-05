@@ -15,6 +15,7 @@ import (
 // multiple callers of Cache and the super.Context in use is passed in for
 // each vector constructed from its in-memory shadow.
 type Object struct {
+	sctx    *super.Context
 	loaders []*loader.FrameLoader
 }
 
@@ -30,7 +31,7 @@ func NewObject(sctx *super.Context, fit bsup.FrameIter) (*Object, error) {
 			return nil, err
 		}
 		if frame == nil {
-			return &Object{loaders}, nil
+			return &Object{sctx, loaders}, nil
 		}
 		colFrame, ok := frame.(*bsup.ColFrame)
 		if !ok {
@@ -38,6 +39,11 @@ func NewObject(sctx *super.Context, fit bsup.FrameIter) (*Object, error) {
 		}
 		loaders = append(loaders, loader.NewFrameLoader(sctx, colFrame))
 	}
+}
+
+// Sctx returns the type context of the vectors loaded by o's loaders.
+func (o *Object) Sctx() *super.Context {
+	return o.sctx
 }
 
 func (o *Object) Loaders() []*loader.FrameLoader {

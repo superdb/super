@@ -21,8 +21,9 @@ type scanner struct {
 	progress vio.Progress
 }
 
-func NewScanner(ctx context.Context, rc io.ReadCloser) (vio.Scanner, error) {
-	sctx := super.NewContext()
+// NewScanner returns a scanner of the query results read from rc, whose types
+// are entered in sctx.
+func NewScanner(ctx context.Context, sctx *super.Context, rc io.ReadCloser) (vio.Scanner, error) {
 	s := &scanner{sctx: sctx}
 	r, err := bsupio.NewReader(ctx, sctx, rc, nil, &s.progress, 1)
 	if err != nil {

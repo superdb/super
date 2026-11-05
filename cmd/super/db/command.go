@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 
+	"github.com/superdb/super"
 	"github.com/superdb/super/cli/dbflags"
 	"github.com/superdb/super/cli/outputflags"
 	"github.com/superdb/super/cli/queryflags"
@@ -77,11 +78,12 @@ func (c *Command) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	w, err := c.outputFlags.Open(ctx, storage.NewLocalEngine())
+	sctx := super.NewContext()
+	w, err := c.outputFlags.Open(ctx, sctx, storage.NewLocalEngine())
 	if err != nil {
 		return err
 	}
-	query, err := db.QueryWithArgs(ctx, c.queryFlags.Query, constArgs)
+	query, err := db.QueryWithArgs(ctx, sctx, c.queryFlags.Query, constArgs)
 	if err != nil {
 		w.Close()
 		return err

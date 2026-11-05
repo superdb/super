@@ -24,5 +24,5 @@ outputs:
       {Path:["a","c"],Min:"bar"::any,Max:"foo"::any}::ColumnStats
       {Offset:0}::FrameStats
       {Path:["x"],Min:1::any,Max:10::any}::ColumnStats
-      {Offset:479}::FrameStats
+      {Offset:498}::FrameStats
       {Path:["x"],Min:11::any,Max:20::any}::ColumnStats
