@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/superdb/super/bsup"
@@ -8,51 +9,55 @@ import (
 	"github.com/superdb/super/vector"
 )
 
-type array struct {
-	mu     sync.Mutex
-	meta   *bsup.Array
-	len    uint32
-	offs   []uint32
-	values shadow
+// Array is an array vector, whose locators are its kind, count, the segment of
+// its offsets, and the locators of its values.
+type Array struct {
+	Node
+	Offsets bsup.Segment
+	Values  Shadow
+	mu      sync.Mutex
+	offs    []uint32
 }
 
-func newArray(bctx *bsup.Context, meta *bsup.Array) *array {
-	return &array{meta: meta, len: meta.Len(bctx)}
-}
-
-func (a *array) length() uint32 {
-	return a.len
-}
-
-func (a *array) unmarshal(bctx *bsup.Context, projection field.Projection) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.values == nil {
-		a.values = newShadow(bctx, a.meta.Values)
-	}
-	a.values.unmarshal(bctx, projection)
-}
-
-func (a *array) project(loader *FrameLoader, projection field.Projection) vector.Any {
-	vec := a.values.project(loader, nil)
+func (a *Array) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	vec := a.Values.project(loader, nil)
 	typ := loader.sctx.LookupTypeArray(vec.Type())
-	offs := a.load(loader)
-	if len(offs) == 0 {
-		offs = []uint32{0}
-	}
-	return vector.NewArray(typ, offs, vec)
+	return vector.NewArray(typ, a.load(loader), vec)
 }
 
-func (a *array) load(loader *FrameLoader) []uint32 {
+func (a *Array) load(loader *FrameLoader) []uint32 {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.offs != nil {
-		return a.offs
+	if a.offs == nil {
+		a.offs = loadOffsets(loader, a.Offsets, a.Length, a.Values.Len())
 	}
-	offs, err := bsup.ReadUint32s(a.meta.Lengths, loader.frame)
+	return a.offs
+}
+
+// loadOffsets loads the offsets of a list vector (e.g., an array) of length n
+// whose values have length nvals.
+func loadOffsets(loader *FrameLoader, s bsup.Segment, n, nvals uint32) []uint32 {
+	offs, err := bsup.ReadUint32s(s, loader.frame)
 	if err != nil {
 		panic(err)
 	}
-	a.offs = offs
+	if len(offs) == 0 {
+		offs = []uint32{0}
+	}
+	checkLen("list", len(offs)-1, n)
+	if offs[len(offs)-1] != nvals {
+		panic(fmt.Sprintf("BSUP loader: list vector ends at offset %d but has %d values", offs[len(offs)-1], nvals))
+	}
 	return offs
+}
+
+// Set is a set vector, whose locators are the same as an array's.
+type Set struct {
+	Array
+}
+
+func (s *Set) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	vec := s.Values.project(loader, nil)
+	typ := loader.sctx.LookupTypeSet(vec.Type())
+	return vector.NewSet(typ, s.load(loader), vec)
 }

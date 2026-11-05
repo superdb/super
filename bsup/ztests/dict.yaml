@@ -1,6 +1,6 @@
 script: |
   super -o out.bsup -
-  super dev bsup -metas out.bsup | super -s -c "nameof(this)=='Dict' | count()" -
+  super dev bsup -locators out.bsup | super -s -c "nameof(this)=='Dict' | count()" -
 
 inputs:
   - name: stdin

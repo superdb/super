@@ -53,13 +53,10 @@ func (n *NetEncoder) Encode(group *errgroup.Group) {
 	}
 }
 
-func (n *NetEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	off, bytesLoc, offsLoc := n.table.Segment(off)
-	return off, bctx.enter(&Net{
-		Bytes:   bytesLoc,
-		Offsets: offsLoc,
-		Count:   uint32(len(n.vals)),
-	})
+func (n *NetEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.WriteCount(uint32(len(n.vals)))
+	n.table.locate(w)
 }
 
 func (i *NetEncoder) Stats(path field.Path, fn CollectStatsFunc) {

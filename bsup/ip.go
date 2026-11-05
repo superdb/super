@@ -53,13 +53,10 @@ func (i *IPEncoder) Encode(group *errgroup.Group) {
 	}
 }
 
-func (i *IPEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	off, bytesLoc, offsLoc := i.table.Segment(off)
-	return off, bctx.enter(&IP{
-		Bytes:   bytesLoc,
-		Offsets: offsLoc,
-		Count:   uint32(len(i.vals)),
-	})
+func (i *IPEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.WriteCount(uint32(len(i.vals)))
+	i.table.locate(w)
 }
 
 func (i *IPEncoder) Stats(path field.Path, fn CollectStatsFunc) {

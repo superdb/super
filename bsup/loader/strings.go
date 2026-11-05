@@ -23,53 +23,48 @@ func (c *collector) append(b []byte) {
 	c.mu.Unlock()
 }
 
-func (c *collector) spawn(sh shadow) {
+func (c *collector) spawn(sh Shadow) {
 	c.wg.Go(func() { sh.strings(c) })
 }
 
-func (r *record) strings(c *collector) {
-	for _, f := range r.fields {
-		if f != nil {
-			c.spawn(f)
-		}
+func (r *Record) strings(c *collector) {
+	for _, f := range r.Fields {
+		c.spawn(f)
 	}
 }
 
-func (d *dynamic) strings(c *collector) {
-	for _, v := range d.values {
+func (d *Dynamic) strings(c *collector) {
+	for _, v := range d.Values {
 		c.spawn(v)
 	}
 }
 
-func (u *union) strings(c *collector) {
-	for _, v := range u.values {
+func (u *Union) strings(c *collector) {
+	for _, v := range u.Values {
 		c.spawn(v)
 	}
 }
 
-func (m *map_) strings(c *collector) {
-	c.spawn(m.keys)
-	c.spawn(m.values)
+func (m *Map) strings(c *collector) {
+	c.spawn(m.Keys)
+	c.spawn(m.Values)
 }
 
-func (a *array) strings(c *collector)  { a.values.strings(c) }
-func (s *set) strings(c *collector)    { s.values.strings(c) }
-func (o *option) strings(c *collector) { o.values.strings(c) }
-func (n *named) strings(c *collector)  { n.values.strings(c) }
-func (e *error_) strings(c *collector) { e.values.strings(c) }
-func (f *fusion) strings(c *collector) { f.values.strings(c) }
-func (a *_any) strings(c *collector)   { a.values.strings(c) }
-func (d *dict) strings(c *collector)   { d.values.strings(c) }
+func (f *Fusion) strings(c *collector) { f.Values.strings(c) }
+func (a *Array) strings(c *collector)  { a.Values.strings(c) }
+func (o *Option) strings(c *collector) { o.Values.strings(c) }
+func (n *Named) strings(c *collector)  { n.Values.strings(c) }
+func (e *Error) strings(c *collector)  { e.Values.strings(c) }
+func (d *Dict) strings(c *collector)   { d.Values.strings(c) }
 
-func (*int_) strings(*collector)      {}
-func (*uint_) strings(*collector)     {}
-func (*float) strings(*collector)     {}
-func (*bool_) strings(*collector)     {}
-func (*ip) strings(*collector)        {}
-func (*net) strings(*collector)       {}
-func (*null) strings(*collector)      {}
-func (*none) strings(*collector)      {}
-func (*missing) strings(*collector)   {}
-func (*empty) strings(*collector)     {}
-func (*typevalue) strings(*collector) {}
-func (*enum) strings(*collector)      {}
+func (*Int) strings(*collector)       {}
+func (*Uint) strings(*collector)      {}
+func (*Float) strings(*collector)     {}
+func (*Bool) strings(*collector)      {}
+func (*IP) strings(*collector)        {}
+func (*Net) strings(*collector)       {}
+func (*Null) strings(*collector)      {}
+func (*None) strings(*collector)      {}
+func (*Missing) strings(*collector)   {}
+func (*TypeValue) strings(*collector) {}
+func (*Enum) strings(*collector)      {}

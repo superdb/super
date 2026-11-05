@@ -37,7 +37,11 @@ func NewObject(sctx *super.Context, fit bsup.FrameIter) (*Object, error) {
 		if !ok {
 			return nil, errors.New("encountered non-column data")
 		}
-		loaders = append(loaders, loader.NewFrameLoader(sctx, colFrame))
+		l, err := loader.NewFrameLoader(sctx, colFrame)
+		if err != nil {
+			return nil, err
+		}
+		loaders = append(loaders, l)
 	}
 }
 

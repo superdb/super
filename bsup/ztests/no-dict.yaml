@@ -1,6 +1,6 @@
 script: |
   seq 100 | super -o out.bsup -c "{x:this}" -
-  super dev bsup -metas out.bsup | super -s -c "nameof(this)=='Dict'" -
+  super dev bsup -locators out.bsup | super -s -c "nameof(this)=='Dict'" -
 
 outputs:
   - name: stdout

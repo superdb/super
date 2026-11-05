@@ -42,18 +42,14 @@ func (i *IntEncoder) Encode(group *errgroup.Group) {
 	}
 }
 
-func (i *IntEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	loc := Segment{
-		Offset:            off,
+func (i *IntEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.WriteCount(uint32(len(i.vals)))
+	w.Segment(Segment{
+		Offset:            w.Offset(),
 		MemLength:         uint64(len(i.out)),
 		Length:            uint64(len(i.vals)) * 8,
 		CompressionFormat: CompressionFormatNone,
-	}
-	off += loc.MemLength
-	return off, bctx.enter(&Int{
-		Typ:      i.typ,
-		Location: loc,
-		Count:    uint32(len(i.vals)),
 	})
 }
 
@@ -114,13 +110,11 @@ func (u *UintEncoder) Segment(off uint64) (uint64, Segment) {
 	return off + loc.MemLength, loc
 }
 
-func (u *UintEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	off, loc := u.Segment(off)
-	return off, bctx.enter(&Uint{
-		Typ:      u.typ,
-		Location: loc,
-		Count:    uint32(len(u.vals)),
-	})
+func (u *UintEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.WriteCount(uint32(len(u.vals)))
+	_, loc := u.Segment(w.Offset())
+	w.Segment(loc)
 }
 
 func (u *UintEncoder) Stats(path field.Path, fn CollectStatsFunc) {

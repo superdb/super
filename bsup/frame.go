@@ -36,48 +36,78 @@ func (*ColFrame) frameType() {}
 func (*RowFrame) frameType() {}
 
 type ColFrame struct {
-	bctx       *Context
-	readerAt   io.ReaderAt
+	typedefs   *TypeDefs
 	dataReader io.ReaderAt
 	header     *ColumnHeader
 	progress   *vio.Progress
+	defs       *super.TypeDefs
+	locators   []byte
 }
 
+// newColFrame reads the vector typedefs and locator sections of a column frame
+// but doesn't decode the locators, which a loader decodes into its shadows
+// along with the typedefs of the vectors' types (see loader.NewFrameLoader).
 func newColFrame(r io.ReaderAt, header *ColumnHeader) (*ColFrame, error) {
 	c := &ColFrame{
-		bctx:     NewContext(),
-		readerAt: r,
+		typedefs: NewTypeDefs(),
 		header:   header,
 	}
-	off, size := header.MetadataSection()
-	if err := c.bctx.readMeta(io.NewSectionReader(r, off, size)); err != nil {
+	// The vector typedefs and locator sections are adjacent so read them
+	// together.
+	off, typedefsSize := header.VectorTypedefsSection()
+	_, locatorsSize := header.LocatorsSection()
+	b, err := readSection(r, off, typedefsSize+locatorsSize)
+	if err != nil {
 		return nil, err
 	}
-	if header.Root >= uint32(len(c.bctx.values)) {
-		return nil, fmt.Errorf("root ID %d larger than BSUP context table (len %d)", header.Root, len(c.bctx.values))
+	defs, ok := super.NewTypeDefsFromBytes(b[:typedefsSize])
+	if !ok {
+		return nil, errors.New("malformed BSUP vector typedefs section")
 	}
-	off, size = header.TypedefsSection()
-	c.bctx.subtypesReader = io.NewSectionReader(r, off, size)
-	c.bctx.subtypesSize = size
+	c.defs = defs
+	c.locators = b[typedefsSize:]
+	off, size := header.TypedefsSection()
+	c.typedefs.reader = io.NewSectionReader(r, off, size)
+	c.typedefs.subtypesSize = size
 	off, size = header.SegmentsSection()
 	c.dataReader = io.NewSectionReader(r, off, size)
 	return c, nil
 }
 
-func (c *ColFrame) Context() *Context {
-	return c.bctx
+func readSection(r io.ReaderAt, off, size int64) ([]byte, error) {
+	b := make([]byte, size)
+	if n, err := r.ReadAt(b, off); err != nil && !(err == io.EOF && n == len(b)) {
+		return nil, fmt.Errorf("reading BSUP column frame: %w", err)
+	}
+	return b, nil
 }
 
-func (c *ColFrame) Root() ID {
-	return ID(c.header.Root)
+// TypeDefs returns the frame's typedefs table for the types of type values
+// (as opposed to its vector typedefs table; see VectorTypeDefs).
+func (c *ColFrame) TypeDefs() *TypeDefs {
+	return c.typedefs
+}
+
+// VectorTypeDefs returns the frame's vector typedefs table, whose typedefs
+// are decoded by a loader as needed (see ReadTypeDef).
+func (c *ColFrame) VectorTypeDefs() *super.TypeDefs {
+	return c.defs
+}
+
+// Locators returns a reader of the frame's locator section, which checks that
+// each segment it decodes is within the frame's data section.
+func (c *ColFrame) Locators() *LocatorReader {
+	_, size := c.header.SegmentsSection()
+	return NewLocatorReader(c.locators, uint64(size))
 }
 
 func (c *ColFrame) Size() uint64 {
 	return c.header.FrameSize
 }
 
+// MetaSize returns the size of the frame's vector typedefs and locators.
 func (c *ColFrame) MetaSize() uint64 {
-	return c.header.MetadataSize
+	return c.header.VectorTypedefsSize + c.header.LocatorsSize
 }
 
 func (c *ColFrame) TypeSize() uint64 {
@@ -86,9 +116,9 @@ func (c *ColFrame) TypeSize() uint64 {
 
 func (c *ColFrame) LinkProgress(p *vio.Progress) {
 	c.progress = p
-	r := c.bctx.subtypesReader
+	r := c.typedefs.reader
 	if r != nil {
-		c.bctx.subtypesReader = &typesReader{r, p}
+		c.typedefs.reader = &typesReader{r, p}
 	}
 }
 

@@ -13,12 +13,14 @@ type OptionEncoder struct {
 	values Encoder
 	tags   *Uint32Encoder
 	count  uint32
-	typ    super.Type
+	// none is true if the values are all none, in which case values encodes
+	// a none vector.
+	none bool
 }
 
-var _ Encoder = (*UnionEncoder)(nil)
+var _ Encoder = (*OptionEncoder)(nil)
 
-func NewOptionEncoder(bctx *Context, vec *vector.Option) *OptionEncoder {
+func NewOptionEncoder(typedefs *TypeDefs, vec *vector.Option) *OptionEncoder {
 	var tags []uint32
 	values := vec.Any
 	if d, ok := values.(*vector.Dynamic); ok {
@@ -27,10 +29,10 @@ func NewOptionEncoder(bctx *Context, vec *vector.Option) *OptionEncoder {
 		values = d.Values[super.OptionSomeTag]
 	}
 	return &OptionEncoder{
-		values: NewEncoder(bctx, values),
+		values: NewEncoder(typedefs, values),
 		tags:   NewUint32Encoder(tags),
 		count:  vec.Len(),
-		typ:    vec.Type(),
+		none:   values.Kind() == vector.KindNone,
 	}
 }
 
@@ -46,15 +48,19 @@ func (o *OptionEncoder) Encode(group *errgroup.Group) {
 	o.values.Encode(group)
 }
 
-func (o *OptionEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	off, tags := o.tags.Segment(off)
-	off, id := o.values.Metadata(bctx, off)
-	return off, bctx.enter(&Option{
-		bctx.TypeDefs().LookupType(o.typ),
-		o.count,
-		tags,
-		id,
-	})
+func (o *OptionEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.WriteCount(o.count)
+	_, tags := o.tags.Segment(w.Offset())
+	w.Segment(tags)
+	if o.none {
+		// The values are all none, which isn't a vector of the option's
+		// inner type.
+		w.WriteKind(KindNone)
+		w.WriteCount(o.count)
+		return
+	}
+	w.Locate(o.values)
 }
 
 func (o *OptionEncoder) Stats(path field.Path, fn CollectStatsFunc) {

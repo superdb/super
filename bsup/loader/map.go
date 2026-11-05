@@ -8,55 +8,29 @@ import (
 	"github.com/superdb/super/vector"
 )
 
-type map_ struct {
-	mu     sync.Mutex
-	meta   *bsup.Map
-	len    uint32
-	offs   []uint32
-	keys   shadow
-	values shadow
+// Map is a map vector, whose locators are its kind, count, the segment of its
+// offsets, and the locators of its keys and values.
+type Map struct {
+	Node
+	Offsets bsup.Segment
+	Keys    Shadow
+	Values  Shadow
+	mu      sync.Mutex
+	offs    []uint32
 }
 
-func newMap(bctx *bsup.Context, meta *bsup.Map) *map_ {
-	return &map_{meta: meta, len: meta.Len(bctx)}
-}
-
-func (m *map_) length() uint32 {
-	return m.len
-}
-
-func (m *map_) unmarshal(bctx *bsup.Context, projection field.Projection) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.keys == nil {
-		m.keys = newShadow(bctx, m.meta.Keys)
-		m.values = newShadow(bctx, m.meta.Values)
-	}
-	m.keys.unmarshal(bctx, projection)
-	m.values.unmarshal(bctx, projection)
-}
-
-func (m *map_) project(loader *FrameLoader, projection field.Projection) vector.Any {
-	keys := m.keys.project(loader, nil)
-	vals := m.values.project(loader, nil)
+func (m *Map) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	keys := m.Keys.project(loader, nil)
+	vals := m.Values.project(loader, nil)
 	typ := loader.sctx.LookupTypeMap(keys.Type(), vals.Type())
-	offs := m.load(loader)
-	if len(offs) == 0 {
-		offs = []uint32{0}
-	}
-	return vector.NewMap(typ, offs, keys, vals)
+	return vector.NewMap(typ, m.load(loader), keys, vals)
 }
 
-func (m *map_) load(loader *FrameLoader) []uint32 {
+func (m *Map) load(loader *FrameLoader) []uint32 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.offs != nil {
-		return m.offs
+	if m.offs == nil {
+		m.offs = loadOffsets(loader, m.Offsets, m.Length, m.Keys.Len())
 	}
-	offs, err := bsup.ReadUint32s(m.meta.Lengths, loader.frame)
-	if err != nil {
-		panic(err)
-	}
-	m.offs = offs
-	return offs
+	return m.offs
 }

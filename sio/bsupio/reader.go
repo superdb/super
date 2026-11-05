@@ -208,7 +208,10 @@ func (r *reader) Pull(done bool) (vector.Any, error) {
 				MetaBytesLoaded:  int64(frame.MetaSize()),
 				TypesBytesLoaded: int64(frame.TypeSize()),
 			})
-			loader := loader.NewFrameLoader(r.sctx, frame)
+			loader, err := loader.NewFrameLoader(r.sctx, frame)
+			if err != nil {
+				return nil, err
+			}
 			if r.searchFilter != nil && !loader.Search(r.searchFilter) {
 				atomic.AddInt64(&r.progress.FramesSkippedSearchFilter, 1)
 				continue

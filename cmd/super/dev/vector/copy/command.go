@@ -73,7 +73,10 @@ func (c *Command) Run(args []string) error {
 		return errors.New("input not in BSUP column form")
 	}
 	sctx := super.NewContext()
-	loader := loader.NewFrameLoader(sctx, colFrame)
+	loader, err := loader.NewFrameLoader(sctx, colFrame)
+	if err != nil {
+		return err
+	}
 	writer, err := c.outputFlags.Open(ctx, sctx, local)
 	if err != nil {
 		return err

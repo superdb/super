@@ -37,17 +37,14 @@ func (b *BoolEncoder) Encode(group *errgroup.Group) {
 	})
 }
 
-func (b *BoolEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	loc := Segment{
-		Offset:            off,
+func (b *BoolEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.WriteCount(b.bits.Len())
+	w.Segment(Segment{
+		Offset:            w.Offset(),
 		Length:            uint64(len(b.out)),
 		MemLength:         b.bytesLen,
 		CompressionFormat: b.fmt,
-	}
-	off += loc.Length
-	return off, bctx.enter(&Bool{
-		Location: loc,
-		Count:    b.bits.Len(),
 	})
 }
 

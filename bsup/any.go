@@ -10,13 +10,13 @@ import (
 
 type AnyEncoder struct {
 	values   Encoder
-	subtypes Encoder
+	subtypes *TypeValueEncoder
 }
 
-func NewAnyEncoder(bctx *Context, vec *vector.Fusion) *AnyEncoder {
+func NewAnyEncoder(typedefs *TypeDefs, vec *vector.Fusion) *AnyEncoder {
 	return &AnyEncoder{
-		values:   NewPrimitiveEncoder(bctx, vec.Values, false),
-		subtypes: NewTypeValueEncoder(bctx, vec.Subtypes),
+		values:   NewPrimitiveEncoder(typedefs, vec.Values, false),
+		subtypes: NewTypeValueEncoder(typedefs, vec.Subtypes),
 	}
 }
 
@@ -32,13 +32,12 @@ func (a *AnyEncoder) Encode(group *errgroup.Group) {
 	a.subtypes.Encode(group)
 }
 
-func (a *AnyEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	off, values := a.values.Metadata(bctx, off)
-	off, subtypes := a.subtypes.Metadata(bctx, off)
-	return off, bctx.enter(&Any{
-		Values:   values,
-		Subtypes: subtypes,
-	})
+// Locate encodes the locators of a fusion(all) vector, which are those of any
+// fusion vector (see FusionEncoder.Locate).
+func (a *AnyEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.Locate(a.values)
+	a.subtypes.locateIDs(w)
 }
 
 func (*AnyEncoder) Stats(field.Path, CollectStatsFunc) {}

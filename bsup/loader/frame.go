@@ -22,19 +22,25 @@ import (
 type FrameLoader struct {
 	sctx  *super.Context
 	frame *bsup.ColFrame
-	root  shadow
+
+	// root is the frame's root shadow, which is a *Dynamic if there's more
+	// than one root vector.
+	root Shadow
 
 	// tmap maps the frame's typedefs to sctx for the loader and its type
 	// vectors.
 	tmapOnce sync.Once
 	tmap     *super.TypeIDMap
+	// vtmap maps the frame's vector typedefs to sctx.
+	vtmapOnce sync.Once
+	vtmap     *super.TypeIDMap
 }
 
 // typeIDMap returns the mapping of the frame's typedefs to sctx, loading the
 // typedefs on first use.
 func (f *FrameLoader) typeIDMap() *super.TypeIDMap {
 	f.tmapOnce.Do(func() {
-		f.tmap = super.NewTypeIDMap(f.sctx, f.frame.Context().LoadSubtypes())
+		f.tmap = super.NewTypeIDMap(f.sctx, f.frame.TypeDefs().LoadSubtypes())
 	})
 	return f.tmap
 }
@@ -42,7 +48,7 @@ func (f *FrameLoader) typeIDMap() *super.TypeIDMap {
 func (f *FrameLoader) lookupType(id uint32) super.Type {
 	local, ok := f.typeIDMap().LookupID(id)
 	if !ok {
-		panic(fmt.Errorf("bad type ID %d in BSUP metadata", id))
+		panic(fmt.Errorf("bad type ID %d in BSUP typedefs", id))
 	}
 	typ, err := f.sctx.LookupType(int(local))
 	if err != nil {
@@ -51,16 +57,41 @@ func (f *FrameLoader) lookupType(id uint32) super.Type {
 	return typ
 }
 
-func NewFrameLoader(sctx *super.Context, frame *bsup.ColFrame) *FrameLoader {
-	return &FrameLoader{
-		sctx:  sctx,
-		frame: frame,
-		root:  newShadow(frame.Context(), frame.Root()),
+// vectorType returns the type in sctx of the type with ID id in the frame's
+// vector typedefs table.
+func (f *FrameLoader) vectorType(id uint32) super.Type {
+	f.vtmapOnce.Do(func() {
+		f.vtmap = super.NewTypeIDMap(f.sctx, f.frame.VectorTypeDefs())
+	})
+	local, ok := f.vtmap.LookupID(id)
+	if !ok {
+		panic(fmt.Errorf("bad type ID %d in BSUP vector typedefs", id))
 	}
+	typ, err := f.sctx.LookupType(int(local))
+	if err != nil {
+		panic(err)
+	}
+	return typ
+}
+
+// NewFrameLoader returns a loader of frame, whose locators it unmarshals into
+// its shadows, or an error if the frame's locators or vector typedefs are
+// malformed.
+func NewFrameLoader(sctx *super.Context, frame *bsup.ColFrame) (*FrameLoader, error) {
+	root, err := unmarshal(frame.VectorTypeDefs(), frame.Locators())
+	if err != nil {
+		return nil, err
+	}
+	return &FrameLoader{sctx: sctx, frame: frame, root: root}, nil
+}
+
+// Root returns the frame's root shadow.
+func (f *FrameLoader) Root() Shadow {
+	return f.root
 }
 
 func (f *FrameLoader) Len() uint32 {
-	return f.root.length()
+	return f.Root().Len()
 }
 
 // Load returns the indicated projection of data in this BSUP object.
@@ -69,15 +100,13 @@ func (f *FrameLoader) Len() uint32 {
 // The vectors returned will have types from the provided sctx.  Multiple
 // Load calls to the same object may run concurrently.
 func (f *FrameLoader) Load(projection field.Projection) vector.Any {
-	f.root.unmarshal(f.frame.Context(), projection)
 	// Load all vector data into the in-memory shadow that is needed and not yet loaded
 	// and return a new vector.Any using the data vectors in cache.  This may be called
 	// concurrently on the same shadow and fine-grained locking insures that any given
 	// data vector is loaded just once and such loads may be executed concurrently (even
 	// when only one thread is calling load).  If paths is nil, then the entire value
-	// is loaded.  All of the projected paths in the shadow must have been properly
-	// unmarshaled before calling.
-	return f.root.project(f, projection)
+	// is loaded.
+	return f.Root().project(f, projection)
 }
 
 type Loader interface {
@@ -90,9 +119,9 @@ type Loader interface {
 // one loader per underlying values vector.
 func (f *FrameLoader) UnorderedLoaders() iter.Seq[Loader] {
 	return func(yield func(Loader) bool) {
-		if d, ok := f.root.(*dynamic); ok {
-			for _, shadow := range d.shadows(f.frame.Context()) {
-				if !yield(&shadowLoader{f, shadow}) {
+		if d, ok := f.Root().(*Dynamic); ok {
+			for _, value := range d.Values {
+				if !yield(&shadowLoader{f, value}) {
 					return
 				}
 			}
@@ -102,17 +131,17 @@ func (f *FrameLoader) UnorderedLoaders() iter.Seq[Loader] {
 	}
 }
 
+// shadowLoader loads a value of a dynamic root vector.
 type shadowLoader struct {
 	frameLoader *FrameLoader
-	shadow      shadow
+	shadow      Shadow
 }
 
 func (s *shadowLoader) Len() uint32 {
-	return s.shadow.length()
+	return s.shadow.Len()
 }
 
 func (s *shadowLoader) Load(projection field.Projection) vector.Any {
-	s.shadow.unmarshal(s.frameLoader.frame.Context(), projection)
 	return s.shadow.project(s.frameLoader, projection)
 }
 
@@ -121,9 +150,8 @@ func (s *shadowLoader) Load(projection field.Projection) vector.Any {
 // string data is read; other columns are not touched. Loaded tables are
 // cached in the shadow, so a later Load reuses them.
 func (f *FrameLoader) Strings() []string {
-	f.root.unmarshal(f.frame.Context(), nil)
 	c := &collector{loader: f}
-	f.root.strings(c)
+	f.Root().strings(c)
 	c.wg.Wait()
 	return c.strings
 }

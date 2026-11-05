@@ -16,10 +16,10 @@ type UnionEncoder struct {
 
 var _ Encoder = (*UnionEncoder)(nil)
 
-func NewUnionEncoder(bctx *Context, vec *vector.Union) *UnionEncoder {
+func NewUnionEncoder(typedefs *TypeDefs, vec *vector.Union) *UnionEncoder {
 	var values []Encoder
 	for _, val := range vec.Values() {
-		values = append(values, NewEncoder(bctx, val))
+		values = append(values, NewEncoder(typedefs, val))
 	}
 	var rleOrTags []uint32
 	if len(vec.Typ.Types) == 2 {
@@ -53,19 +53,14 @@ func (u *UnionEncoder) Encode(group *errgroup.Group) {
 	}
 }
 
-func (u *UnionEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	off, tags := u.rleOrTags.Segment(off)
-	values := make([]ID, 0, len(u.values))
+func (u *UnionEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.WriteCount(u.count)
+	_, tags := u.rleOrTags.Segment(w.Offset())
+	w.Segment(tags)
 	for _, val := range u.values {
-		var id ID
-		off, id = val.Metadata(bctx, off)
-		values = append(values, id)
+		w.Locate(val)
 	}
-	return off, bctx.enter(&Union{
-		Tags:   tags,
-		Values: values,
-		Length: u.count,
-	})
 }
 
 func (u *UnionEncoder) Stats(path field.Path, fn CollectStatsFunc) {

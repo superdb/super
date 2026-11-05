@@ -57,18 +57,19 @@ func (r *RawColFrame) Header() *ColumnHeader {
 	return r.header
 }
 
-func (r *RawColFrame) Metadata() ([]byte, error) {
-	off, size := r.header.MetadataSection()
+func (r *RawColFrame) VectorTypedefs() ([]byte, error) {
+	off, size := r.header.VectorTypedefsSection()
+	return io.ReadAll(io.NewSectionReader(r.readerAt, off, size))
+}
+
+func (r *RawColFrame) Locators() ([]byte, error) {
+	off, size := r.header.LocatorsSection()
 	return io.ReadAll(io.NewSectionReader(r.readerAt, off, size))
 }
 
 func (r *RawColFrame) Typedefs() ([]byte, error) {
 	off, size := r.header.TypedefsSection()
 	return io.ReadAll(io.NewSectionReader(r.readerAt, off, size))
-}
-
-func (c *RawColFrame) Root() ID {
-	return ID(c.header.Root)
 }
 
 func (c *RawColFrame) Size() uint64 {

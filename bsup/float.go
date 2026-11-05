@@ -37,18 +37,14 @@ func (f *FloatEncoder) Encode(group *errgroup.Group) {
 	}
 }
 
-func (f *FloatEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	loc := Segment{
-		Offset:            off,
+func (f *FloatEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.WriteCount(uint32(len(f.vals)))
+	w.Segment(Segment{
+		Offset:            w.Offset(),
 		MemLength:         uint64(len(f.vals)) * 8,
 		Length:            uint64(len(f.out)),
 		CompressionFormat: f.fmt,
-	}
-	off += loc.Length
-	return off, bctx.enter(&Float{
-		Typ:      f.typ,
-		Location: loc,
-		Count:    uint32(len(f.vals)),
 	})
 }
 

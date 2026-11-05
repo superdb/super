@@ -18,17 +18,19 @@ func (d *DictEncoder) Encode(group *errgroup.Group) {
 	d.counts.Encode(group)
 }
 
-func (d *DictEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	meta := &Dict{Length: uint32(len(d.index))}
-	off, meta.Values = d.values.Metadata(bctx, off)
-	off, meta.Counts = d.counts.Segment(off)
+// Locate encodes the locators of a dict, which are its values, the segment of
+// its counts, and the segment of its index, whose length is the dict's length.
+func (d *DictEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindDict)
+	w.Locate(d.values)
+	_, counts := d.counts.Segment(w.Offset())
+	w.Segment(counts)
 	len := uint64(len(d.index))
-	meta.Index = Segment{
-		Offset:    off,
+	w.Segment(Segment{
+		Offset:    w.Offset(),
 		Length:    len,
 		MemLength: len,
-	}
-	return off + len, bctx.enter(meta)
+	})
 }
 
 func (d *DictEncoder) Stats(path field.Path, fn CollectStatsFunc) {

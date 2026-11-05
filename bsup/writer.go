@@ -1,7 +1,6 @@
 package bsup
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -121,49 +120,35 @@ func (c *ColumnWriter) pushFrame() error {
 		return nil
 	}
 	enc := NewDynamicEncoder(vec)
-	bctx := enc.bctx
+	encoder := enc.typedefs.Encoder()
 	// Compute the fused type for just the ColumnFrame.  This type is fed into
 	// the SuperFrame fuser below so we have a type for each ColumnFrame and a type
 	// for the SuperFrame.  The ColumnFrame types will be useful for future frame pruning.
 	fusedType := c.fuser.fuseVecsStandalone(vec.Values)
-	fusedTypeID := bctx.TypeDefs().LookupType(fusedType)
-	root, dataSectionSize, err := enc.Encode()
+	fusedTypeID := encoder.LookupType(fusedType)
+	vtypes, locators, dataSectionSize, err := enc.Encode()
 	if err != nil {
-		return fmt.Errorf("system error: could not encode BSUP metadata: %w", err)
+		return fmt.Errorf("system error: could not encode BSUP vectors: %w", err)
 	}
-	var metaData bytes.Buffer
-	rowWriter := NewRowWriter(sio.NopCloser(&metaData))
-	m := super.NewMarshaler(bctx.local)
-	m.Decorate(super.StyleSimple)
-	for id := range len(bctx.metas) {
-		val, err := m.Marshal(bctx.Lookup(ID(id)))
-		if err != nil {
-			return fmt.Errorf("could not marshal BSUP metadata: %w", err)
-		}
-		if err := rowWriter.Write(val); err != nil {
-			return fmt.Errorf("could not write BSUP metadata: %w", err)
-		}
-	}
-	metaDataSize, err := rowWriter.EndSuperFrame()
-	if err != nil {
-		return err
-	}
-	typedefs := bctx.TypeDefs().Bytes()
+	typedefs := encoder.Bytes()
 	c.frameOffs = append(c.frameOffs, c.size)
 	c.frameStats = append(c.frameStats, enc.Stats())
-	header := newColumnHeader(root, fusedTypeID, uint64(metaDataSize), uint64(len(typedefs)), dataSectionSize)
+	header := newColumnHeader(fusedTypeID, uint64(len(vtypes)), uint64(len(locators)), uint64(len(typedefs)), dataSectionSize)
 	if _, err := c.writer.Write(header.Serialize()); err != nil {
 		return fmt.Errorf("system error: could not write BSUP header: %w", err)
 	}
-	if _, err := c.writer.Write(metaData.Bytes()); err != nil {
-		return fmt.Errorf("system error: could not write BSUP metadata section: %w", err)
+	for _, section := range [][]byte{vtypes, locators, typedefs} {
+		if _, err := c.writer.Write(section); err != nil {
+			return fmt.Errorf("system error: could not write BSUP column frame: %w", err)
+		}
 	}
-	if _, err := c.writer.Write(typedefs); err != nil {
-		return fmt.Errorf("system error: could not write BSUP typedefs: %w", err)
-	}
-	// Data section
-	if err := enc.Emit(c.writer); err != nil {
+	// Data section, whose segments must be where they were located.
+	w := &countingWriter{writer: c.writer}
+	if err := enc.Emit(w); err != nil {
 		return fmt.Errorf("system error: could not write BSUP data section: %w", err)
+	}
+	if w.n != dataSectionSize {
+		return fmt.Errorf("system error: BSUP data section is %d bytes but its segments were located in %d bytes", w.n, dataSectionSize)
 	}
 	// Update SuperFrame state a create new builder so we start fresh
 	// for the next ColumnFrame.
@@ -173,6 +158,18 @@ func (c *ColumnWriter) pushFrame() error {
 	}
 	c.dynamic = vbuild.NewDynamicBuilder()
 	return nil
+}
+
+// countingWriter counts the bytes written to writer.
+type countingWriter struct {
+	writer io.Writer
+	n      uint64
+}
+
+func (c *countingWriter) Write(b []byte) (int, error) {
+	n, err := c.writer.Write(b)
+	c.n += uint64(n)
+	return n, err
 }
 
 func writeFooter(w io.Writer, size uint64, fusedTypeBytes, statsBytes []byte) (uint64, error) {

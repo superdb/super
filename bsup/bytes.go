@@ -45,14 +45,10 @@ func (b *BytesEncoder) Encode(group *errgroup.Group) {
 	})
 }
 
-func (b *BytesEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	off, bytesLoc, offsLoc := b.bytes.Segment(off)
-	return off, bctx.enter(&Bytes{
-		Typ:     b.typ,
-		Bytes:   bytesLoc,
-		Offsets: offsLoc,
-		Count:   b.bytes.table.Len(),
-	})
+func (b *BytesEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.WriteCount(b.bytes.table.Len())
+	b.bytes.locate(w)
 }
 
 func (b *BytesEncoder) Stats(path field.Path, fn CollectStatsFunc) {
@@ -140,6 +136,13 @@ func (b *BytesTableEncoder) Segment(off uint64) (uint64, Segment, Segment) {
 	}
 	off, offsLoc := b.offsets.Segment(off + bytesLoc.Length)
 	return off, bytesLoc, offsLoc
+}
+
+// locate encodes the segments of the table's bytes and offsets.
+func (b *BytesTableEncoder) locate(w *LocatorWriter) {
+	_, bytesLoc, offsLoc := b.Segment(w.Offset())
+	w.Segment(bytesLoc)
+	w.Segment(offsLoc)
 }
 
 func (b *BytesTableEncoder) Emit(w io.Writer) error {

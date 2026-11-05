@@ -15,11 +15,12 @@ type MapEncoder struct {
 	count   uint32
 }
 
-func NewMapEncoder(bctx *Context, vec *vector.Map) *MapEncoder {
+func NewMapEncoder(typedefs *TypeDefs, vec *vector.Map) *MapEncoder {
 	return &MapEncoder{
-		keys:    NewEncoder(bctx, vec.Keys),
-		values:  NewEncoder(bctx, vec.Values),
+		keys:    NewEncoder(typedefs, vec.Keys),
+		values:  NewEncoder(typedefs, vec.Values),
 		offsets: NewUint32Encoder(vec.Offsets),
+		count:   vec.Len(),
 	}
 }
 
@@ -33,16 +34,13 @@ func (m *MapEncoder) Emit(w io.Writer) error {
 	return m.values.Emit(w)
 }
 
-func (m *MapEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	off, lens := m.offsets.Segment(off)
-	off, keys := m.keys.Metadata(bctx, off)
-	off, vals := m.values.Metadata(bctx, off)
-	return off, bctx.enter(&Map{
-		Lengths: lens,
-		Keys:    keys,
-		Values:  vals,
-		Length:  m.count,
-	})
+func (m *MapEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.WriteCount(m.count)
+	_, offsets := m.offsets.Segment(w.Offset())
+	w.Segment(offsets)
+	w.Locate(m.keys)
+	w.Locate(m.values)
 }
 
 func (*MapEncoder) Stats(field.Path, CollectStatsFunc) {} // Map stats are ignored for now.
