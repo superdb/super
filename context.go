@@ -1281,6 +1281,36 @@ func (t *TypeDefsBuilder) BindTypeDecimal(precision, scale int) uint32 {
 	return t.Lookup(at)
 }
 
+// unboundID is the inner type ID of a named type declared by
+// DeclareTypeNamed but not yet bound by BindTypeNamed.
+const unboundID = 0xdeadbeef
+
+// namedInner returns the ID of the inner type of the named type with ID id,
+// which is unboundID if it isn't bound yet.
+func (t *TypeDefs) namedInner(id uint32) uint32 {
+	b := t.Serialization(id)
+	if len(b) == 0 || b[0] != TypeDefNamed {
+		panic(id)
+	}
+	_, b = MustDecodeName(b[1:])
+	inner, b := DecodeFixedID(b)
+	if b == nil {
+		panic(id)
+	}
+	return inner
+}
+
+// checkBinding panics if the named type with ID id and name is bound to a
+// type other than the type with ID inner, i.e., the same name is bound to
+// different types in the tables or contexts being encoded or merged.  Since
+// typedefs are interned, the same type has the same ID.  A named type that's
+// declared but not yet bound can't be checked.
+func (t *TypeDefsBuilder) checkBinding(name string, id, inner uint32) {
+	if bound := t.namedInner(id); bound != unboundID && bound != inner {
+		panic(fmt.Errorf("type %q redefined", name))
+	}
+}
+
 // LookupName returns the ID of the named type with name.
 func (t *TypeDefsBuilder) LookupName(name string) (uint32, bool) {
 	scratch := make([]byte, 0, len(name)+1+binary.MaxVarintLen64)
@@ -1305,7 +1335,7 @@ func (t *TypeDefsBuilder) DeclareTypeNamed(name string) (uint32, int, bool) {
 	}
 	// Remember backfill position and leave space.
 	patch := len(t.bytes)
-	t.bytes = AppendFixedID(t.bytes, 0xdeadbeef)
+	t.bytes = AppendFixedID(t.bytes, unboundID)
 	return t.Lookup(at), patch, true
 }
 
@@ -1369,7 +1399,7 @@ func (t *TypeDefsEncoder) LookupType(typ Type) uint32 {
 	case *TypeError:
 		id = t.BindTypeWrapped(TypeDefError, t.LookupType(typ.Type))
 	case *TypeNamed:
-		id = t.lookupTypeNamed(typ.Name, typ.Type)
+		return t.lookupTypeNamed(typ)
 	case *TypeFusion:
 		id = t.BindTypeWrapped(TypeDefFusion, t.LookupType(typ.Type))
 	case *TypeOption:
@@ -1394,13 +1424,20 @@ func (t *TypeDefsEncoder) LookupTypeUnion(types []Type) uint32 {
 	return t.BindTypeUnion(ids)
 }
 
-func (t *TypeDefsEncoder) lookupTypeNamed(name string, inner Type) uint32 {
-	if id, ok := t.LookupName(name); ok {
+func (t *TypeDefsEncoder) lookupTypeNamed(typ *TypeNamed) uint32 {
+	// Remember the ID of typ before encoding its inner type, which may refer
+	// to typ.
+	if id, ok := t.LookupName(typ.Name); ok {
+		// The name is already bound (e.g., by a type from another context),
+		// so it must be bound to the same type here.
+		t.toID[typ] = id
+		t.checkBinding(typ.Name, id, t.LookupType(typ.Type))
 		return id
 	}
 	// Declare the name before encoding the inner type, which may refer to it.
-	id, patch, _ := t.DeclareTypeNamed(name)
-	t.BindTypeNamed(patch, t.LookupType(inner))
+	id, patch, _ := t.DeclareTypeNamed(typ.Name)
+	t.toID[typ] = id
+	t.BindTypeNamed(patch, t.LookupType(typ.Type))
 	return id
 }
 
@@ -1944,7 +1981,11 @@ func (t *TypeDefsMerger) LookupID(extID uint32) uint32 {
 			panic(typedef)
 		}
 		if id, ok := t.LookupName(name); ok {
+			// The name is already bound in the target, so it must be bound
+			// to the same type here.  Record its ID before merging the inner
+			// type, which may refer to it.
 			t.idmap[extID] = id
+			t.checkBinding(name, id, t.LookupID(inner))
 			return id
 		}
 		if !t.ext.namedChainOK(extID) {

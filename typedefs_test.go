@@ -262,3 +262,45 @@ func TestTypeDefsNamedCycle(t *testing.T) {
 	require.NoError(t, err)
 	assert.Same(t, foo, bar.Type)
 }
+
+func TestTypeDefsNamedBindingCheck(t *testing.T) {
+	// tree returns the recursive type tree={l:tree|null,v:int64} in sctx.
+	tree := func(sctx *super.Context) super.Type {
+		named, patch, err := sctx.DeclareTypeNamed("tree")
+		require.NoError(t, err)
+		rec := sctx.MustLookupTypeRecord([]super.Field{
+			super.NewField("l", sctx.MustLookupTypeUnion([]super.Type{named, super.TypeNull})),
+			super.NewField("v", super.TypeInt64),
+		})
+		require.NoError(t, sctx.BindTypeNamed(patch, named, rec))
+		return named
+	}
+	foo := func(inner super.Type) super.Type {
+		sctx := super.NewContext()
+		typ, err := sctx.LookupTypeNamed("foo", inner)
+		require.NoError(t, err)
+		return sctx.LookupTypeArray(typ)
+	}
+	// An encoder finds a named type from another context with the same
+	// binding, including a recursive one, and panics if the binding differs.
+	enc := super.NewTypeDefsEncoder()
+	fooID := enc.LookupType(foo(super.TypeInt64))
+	treeID := enc.LookupType(tree(super.NewContext()))
+	assert.Equal(t, fooID, enc.LookupType(foo(super.TypeInt64)))
+	assert.Equal(t, treeID, enc.LookupType(tree(super.NewContext())))
+	assert.PanicsWithError(t, `type "foo" redefined`, func() { enc.LookupType(foo(super.TypeString)) })
+	// Likewise, a merger finds a named type in the target with the same
+	// binding and panics if the binding differs.
+	merged := super.NewTypeDefsBuilder()
+	merger := super.NewTypeDefsMerger(merged, &enc.TypeDefs)
+	mergedFoo, mergedTree := merger.LookupID(fooID), merger.LookupID(treeID)
+	same := super.NewTypeDefsEncoder()
+	ids := []uint32{same.LookupType(tree(super.NewContext())), same.LookupType(foo(super.TypeInt64))}
+	merger = super.NewTypeDefsMerger(merged, &same.TypeDefs)
+	assert.Equal(t, mergedTree, merger.LookupID(ids[0]))
+	assert.Equal(t, mergedFoo, merger.LookupID(ids[1]))
+	other := super.NewTypeDefsEncoder()
+	id := other.LookupType(foo(super.TypeString))
+	merger = super.NewTypeDefsMerger(merged, &other.TypeDefs)
+	assert.PanicsWithError(t, `type "foo" redefined`, func() { merger.LookupID(id) })
+}
