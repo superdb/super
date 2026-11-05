@@ -18,8 +18,10 @@ type Context struct {
 	// The typedefs table is a merge of all the fusion vector subtypes.
 	// Only the typedefs needed are recorded in this table and different vectors
 	// are merged into this shared table by mapping each vector's IDs to the
-	// shared IDs.  This is used by both the read path and write path.
+	// shared IDs.  The write path builds the table with encoder and the read
+	// path loads it into typedefs.
 	smu      sync.Mutex
+	encoder  *super.TypeDefsEncoder
 	typedefs *super.TypeDefs
 	// The subtypesReader holds a pointer to a reader to load the typedefs
 	// bytes if they are ever needed.  If we do read them, we read them once
@@ -41,13 +43,14 @@ func (c *Context) enter(meta Metadata) ID {
 	return id
 }
 
-func (c *Context) TypeDefs() *super.TypeDefs {
+// TypeDefs returns the typedefs table being built on the write path.
+func (c *Context) TypeDefs() *super.TypeDefsEncoder {
 	c.smu.Lock()
 	defer c.smu.Unlock()
-	if c.typedefs == nil {
-		c.typedefs = super.NewTypeDefs()
+	if c.encoder == nil {
+		c.encoder = super.NewTypeDefsEncoder()
 	}
-	return c.typedefs
+	return c.encoder
 }
 
 func (c *Context) Lookup(id ID) Metadata {

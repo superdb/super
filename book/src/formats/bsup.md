@@ -157,8 +157,19 @@ are predefined with the IDs listed in the [Primitive Types](#3-primitive-types) 
 
 Each definition, or "typedef",
 consists of a typedef code followed by its type-specific encoding as described below.
-Each type must be decoded in sequence to find the start of the next type definition
-as there is no framing to separate the typedefs.
+A table of typedefs is encoded as the number of typedefs followed by two
+sections:
+```
+-----------------------------------------------------------
+|<ntypes>|<offset-1><offset-2>...|<typedef-1><typedef-2>...|
+-----------------------------------------------------------
+```
+The first section has the offset of each typedef in type ID order, where
+each offset is relative to the start of the second section, and the
+second section has the typedefs.  `<ntypes>` and each offset are encoded
+as a `uvarint`.  The offsets allow a typedef to be found by its type ID
+without decoding the typedefs that precede it.  An empty table is encoded
+as zero bytes.
 
 The typedefs are numbered in the order encountered starting at 30
 (as the largest primary type ID is 29).  Types refer to other types

@@ -148,7 +148,7 @@ func (c *ColumnWriter) pushFrame() error {
 	if err != nil {
 		return err
 	}
-	typedefs := bctx.typedefs.Bytes()
+	typedefs := bctx.TypeDefs().Bytes()
 	c.frameOffs = append(c.frameOffs, c.size)
 	c.frameStats = append(c.frameStats, enc.Stats())
 	header := newColumnHeader(root, fusedTypeID, uint64(metaDataSize), uint64(len(typedefs)), dataSectionSize)
@@ -201,7 +201,7 @@ func writeFooter(w io.Writer, size uint64, fusedTypeBytes, statsBytes []byte) (u
 // in rows format from a stream of vector.Any.
 type RowWriter struct {
 	writer     io.WriteCloser
-	typedefs   *super.TypeDefs
+	typedefs   *super.TypeDefsEncoder
 	sctx       *super.Context
 	fuser      fuser
 	superfuser fuser
@@ -218,7 +218,7 @@ func NewRowWriter(w io.WriteCloser) *RowWriter {
 	sctx := super.NewContext()
 	return &RowWriter{
 		writer:     w,
-		typedefs:   super.NewTypeDefs(),
+		typedefs:   super.NewTypeDefsEncoder(),
 		sctx:       sctx,
 		fuser:      newFuser(sctx),
 		superfuser: newFuser(sctx),
@@ -325,17 +325,17 @@ func (r *RowWriter) EndSuperFrame() (uint64, error) {
 type fuser struct {
 	sctx   *super.Context
 	fuser  *super.Fuser
-	defs   *super.TypeDefs
+	defs   *super.TypeDefsEncoder
 	mapper *super.TypeDefsMapper
 }
 
 func newFuser(sctx *super.Context) fuser {
-	defs := super.NewTypeDefs()
+	defs := super.NewTypeDefsEncoder()
 	return fuser{
 		sctx:   sctx,
 		fuser:  super.NewFuser(sctx),
 		defs:   defs,
-		mapper: super.NewTypeDefsMapper(sctx, defs),
+		mapper: super.NewTypeDefsMapper(sctx, &defs.TypeDefs),
 	}
 }
 

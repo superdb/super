@@ -23,11 +23,11 @@ func (o *Optionize) Call(args ...vector.Any) vector.Any {
 	}
 	if c, ok := vec.(*vector.Const); ok {
 		typ := o.sctx.OptionizeMissing(vector.TypeValueValue(c, 0))
-		return vector.NewConst(vector.NewTypeValue([]super.Type{typ}), c.Len())
+		return vector.NewConst(vector.NewTypeValue(o.sctx, []super.Type{typ}), c.Len())
 	}
 	types := make([]super.Type, vec.Len())
 	for i := range types {
 		types[i] = o.sctx.OptionizeMissing(vector.TypeValueValue(vec, uint32(i)))
 	}
-	return vector.NewTypeValue(types)
+	return vector.NewTypeValue(o.sctx, types)
 }

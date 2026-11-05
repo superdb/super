@@ -328,7 +328,7 @@ func (f *fusionValueBuilder) Build(sctx *super.Context) Any {
 		}
 		types = append(types, t)
 	}
-	return NewFusion(f.typ, f.values.Build(sctx), types)
+	return NewFusion(sctx, f.typ, f.values.Build(sctx), types)
 }
 
 type optionValueBuilder struct {
@@ -459,7 +459,7 @@ func (t *typeValueValueBuilder) Build(sctx *super.Context) Any {
 			panic("bad type value")
 		}
 	}
-	return NewTypeValue(types)
+	return NewTypeValue(sctx, types)
 }
 
 type bytesStringValueBuilder struct {

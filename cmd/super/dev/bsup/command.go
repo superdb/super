@@ -360,34 +360,36 @@ func (c *Command) superFooter(frame *bsup.RawSuperFooter) error {
 }
 
 func (c *Command) marshalTypeDefs(bytes []byte) error {
-	id := uint32(super.IDTypeComplex)
-	for len(bytes) > 0 {
-		var desc any
-		bytes, desc = decodeTypeDef(id, bytes)
-		if desc != nil {
-			val, err := c.marshaler.Marshal(desc)
-			if err != nil {
-				return err
-			}
-			if err := c.emit(val); err != nil {
-				return err
-			}
+	descs, err := DecodeTypeDefs(bytes, 0)
+	if err != nil {
+		return err
+	}
+	for _, desc := range descs {
+		val, err := c.marshaler.Marshal(desc)
+		if err != nil {
+			return err
 		}
-		id++
+		if err := c.emit(val); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
+// DecodeTypeDefs decodes the serialized typedefs table in bytes (see
+// super.TypeDefs) into a description of each typedef, where the first
+// typedef's ID is offset+super.IDTypeComplex.
 func DecodeTypeDefs(bytes []byte, offset int) ([]any, error) {
-	id := uint32(offset + super.IDTypeComplex)
+	defs, ok := super.NewTypeDefsFromBytes(bytes)
+	if !ok {
+		return nil, errors.New("malformed typedefs")
+	}
 	var out []any
-	for len(bytes) > 0 {
-		var desc any
-		bytes, desc = decodeTypeDef(id, bytes)
-		if desc != nil {
+	for k := range defs.NTypes() {
+		id := uint32(offset + k + super.IDTypeComplex)
+		if _, desc := decodeTypeDef(id, defs.Serialization(uint32(k+super.IDTypeComplex))); desc != nil {
 			out = append(out, desc)
 		}
-		id++
 	}
 	return out, nil
 }

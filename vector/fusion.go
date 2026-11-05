@@ -19,8 +19,8 @@ type Fusion struct {
 
 var _ Any = (*Fusion)(nil)
 
-func NewFusion(typ *super.TypeFusion, vals Any, subtypes []super.Type) *Fusion {
-	return &Fusion{Typ: typ, Values: vals, Subtypes: NewTypeValue(subtypes)}
+func NewFusion(sctx *super.Context, typ *super.TypeFusion, vals Any, subtypes []super.Type) *Fusion {
+	return &Fusion{Typ: typ, Values: vals, Subtypes: NewTypeValue(sctx, subtypes)}
 }
 
 func NewFusionWithLoader(sctx *super.Context, typ *super.TypeFusion, loader TypesLoader, vals Any) *Fusion {

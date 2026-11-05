@@ -16,4 +16,4 @@ outputs:
       1000
   - name: stderr
     data: |
-      {bytes_scanned:27970,values_scanned:1004,frames_scanned:5,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:0,values_skipped_data_filter:0,meta_bytes_loaded:830,data_bytes_loaded:26568,type_bytes_loaded:363}
+      {bytes_scanned:28012,values_scanned:1004,frames_scanned:5,frames_skipped_search_filter:0,frames_skipped_meta_filter:0,frames_skipped_data_filter:0,values_skipped_data_filter:0,meta_bytes_loaded:858,data_bytes_loaded:26568,type_bytes_loaded:377}

@@ -11,5 +11,5 @@ script: |
 outputs:
   - name: stdout
     regexp: |
-      [0-9a-f-]{36} 986B bytes 20 records
+      [0-9a-f-]{36} 1014B bytes 20 records
          min 0 max 9

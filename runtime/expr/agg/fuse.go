@@ -75,7 +75,7 @@ func (f *fuse) Result(sctx *super.Context) vector.Any {
 	} else {
 		typ = fuser.SuperType()
 	}
-	return vector.NewTypeValue([]super.Type{typ})
+	return vector.NewTypeValue(sctx, []super.Type{typ})
 }
 
 func (f *fuse) ConsumeAsPartial(partial vector.Any) {

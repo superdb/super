@@ -60,7 +60,6 @@ type typesLoader struct {
 
 var _ vector.TypesLoader = (*typesLoader)(nil)
 
-func (s *typesLoader) Load() (*super.TypeDefs, []uint32) {
-	return s.loader.frame.Context().LoadSubtypes(), s.type_.loadIDs(s.loader.frame)
-
+func (s *typesLoader) Load() (*super.TypeIDMap, []uint32) {
+	return s.loader.typeIDMap(), s.type_.loadIDs(s.loader.frame)
 }

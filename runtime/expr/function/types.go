@@ -188,7 +188,7 @@ func (t *TypeName) Call(args ...vector.Any) vector.Any {
 		return vector.NewWrappedError(t.sctx, "typename: argument must be a string", args[0])
 	}
 	var errs []uint32
-	out := vector.NewTypeValueEmpty()
+	out := vector.NewTypeValueEmpty(t.sctx)
 	for i := range vec.Len() {
 		s := vector.StringValue(vec, i)
 		if typ := t.sctx.LookupByName(s); typ == nil {

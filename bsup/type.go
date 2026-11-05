@@ -16,7 +16,7 @@ type TypeValueEncoder struct {
 
 func NewTypeValueEncoder(bctx *Context, vec *vector.TypeValue) Encoder {
 	defs, ids := vec.TypeIDs()
-	merger := super.NewTypeDefsMerger(bctx.TypeDefs(), defs)
+	merger := super.NewTypeDefsMerger(bctx.TypeDefs().TypeDefsBuilder, defs)
 	mapped := make([]uint32, 0, len(ids))
 	for _, localID := range ids {
 		mapped = append(mapped, merger.LookupID(localID))

@@ -149,7 +149,7 @@ func (d *DotExpr) noneOfField(vec *vector.Option) vector.Any {
 // See derefType.
 func (d *DotExpr) derefTypeValue(vec *vector.TypeValue) vector.Any {
 	var errs []uint32
-	typvals := vector.NewTypeValueEmpty()
+	typvals := vector.NewTypeValueEmpty(d.sctx)
 	for i := range vec.Len() {
 		if typ := derefType(d.sctx, vec.Value(i), d.key); typ != nil {
 			typvals.Append(typ)

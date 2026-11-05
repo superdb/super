@@ -24,19 +24,29 @@ type FrameLoader struct {
 	frame *bsup.ColFrame
 	root  shadow
 
-	mapperMu sync.Mutex
-	mapper   *super.TypeDefsMapper
+	// tmap maps the frame's typedefs to sctx for the loader and its type
+	// vectors.
+	tmapOnce sync.Once
+	tmap     *super.TypeIDMap
+}
+
+// typeIDMap returns the mapping of the frame's typedefs to sctx, loading the
+// typedefs on first use.
+func (f *FrameLoader) typeIDMap() *super.TypeIDMap {
+	f.tmapOnce.Do(func() {
+		f.tmap = super.NewTypeIDMap(f.sctx, f.frame.Context().LoadSubtypes())
+	})
+	return f.tmap
 }
 
 func (f *FrameLoader) lookupType(id uint32) super.Type {
-	f.mapperMu.Lock()
-	if f.mapper == nil {
-		f.mapper = super.NewTypeDefsMapper(f.sctx, f.frame.Context().LoadSubtypes())
-	}
-	typ := f.mapper.LookupType(id)
-	f.mapperMu.Unlock()
-	if typ == nil {
+	local, ok := f.typeIDMap().LookupID(id)
+	if !ok {
 		panic(fmt.Errorf("bad type ID %d in BSUP metadata", id))
+	}
+	typ, err := f.sctx.LookupType(int(local))
+	if err != nil {
+		panic(err)
 	}
 	return typ
 }

@@ -1,7 +1,6 @@
 package vector
 
 import (
-	"github.com/superdb/super"
 	"github.com/superdb/super/scode"
 )
 
@@ -50,12 +49,10 @@ func PushView(val Any) Any {
 		values, _ := pickList(val.Values, view.Index, val.Offsets)
 		return NewMap(val.Typ, offsets, keys, values)
 	case *Fusion:
-		types := val.Subtypes.Types()
-		outTypes := make([]super.Type, len(view.Index))
-		for i, slot := range view.Index {
-			outTypes[i] = types[slot]
-		}
-		return NewFusion(val.Typ, Pick(val.Values, view.Index), outTypes)
+		// The picked subtypes are mapped into the query context only if
+		// they're used.
+		subtypes := val.Subtypes.Pick(view.Index)
+		return &Fusion{Typ: val.Typ, Values: Pick(val.Values, view.Index), Subtypes: subtypes}
 	case *Option:
 		return Pick(val, view.Index)
 	default:
