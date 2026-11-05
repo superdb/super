@@ -1175,6 +1175,10 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 		// kindcase (which is the same is case kind(e) when the cases are const string)
 		var types, failed []super.Type
 		for _, t := range typ.Types {
+			if t == super.TypeNull {
+				types = append(types, t)
+				continue
+			}
 			c.pushErrs()
 			fieldType := c.deref(loc, t, field, noneish)
 			if len(c.popErrs()) == 0 {
