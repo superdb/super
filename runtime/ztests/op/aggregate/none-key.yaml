@@ -1,12 +1,20 @@
 # A plain none group key (e.g., from ok()) disappears from its output record,
 # including when the aggregate is split into partials (as for a file scan)
-# and for a nested key.
+# and for a nested key.  With a single unnamed key and no aggregate
+# functions, the none key is dropped.  An aggregate function's none result
+# isn't a key, so it isn't dropped (as for shapes, whose sample is from any).
 script: |
   super -s -c 'values {a:1},{b:2},{b:3} | count() by k:=ok(a) | sort count'
   echo ===
   super -s -c 'from test.sup | count() by k:=ok(a) | sort count'
   echo ===
   super -s -c 'from test.sup | count() by x.k:=ok(a) | sort count'
+  echo ===
+  super -s -c 'from test.sup | aggregate by ok(a)'
+  echo ===
+  super -s -c 'values {a:1},{b:2},{b:3} | aggregate by ok(a)'
+  echo ===
+  super -s -c 'values {a:1},{b:2} | shapes ok(a)'
 
 inputs:
   - name: test.sup
@@ -26,3 +34,9 @@ outputs:
       ===
       {x:{k:1},count:1}
       {x:{},count:2}
+      ===
+      1
+      ===
+      1
+      ===
+      1

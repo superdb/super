@@ -10,10 +10,10 @@ import (
 type RecordBuilder struct {
 	sctx *super.Context
 	base *rec
-	// DropNones causes a field whose value is a plain none (e.g., an
-	// aggregate's group key from ok() or ?.) to disappear from a record, as
-	// for a record expression.
-	DropNones bool
+	// NoneDrops is the number of leading leaf fields (e.g., an aggregate's
+	// group keys) that disappear from a record when their values are plain
+	// nones (e.g., from ok() or ?.), as in a record expression.
+	NoneDrops int
 }
 
 func NewRecordBuilder(sctx *super.Context, fields field.List) (*RecordBuilder, error) {
@@ -27,7 +27,11 @@ func NewRecordBuilder(sctx *super.Context, fields field.List) (*RecordBuilder, e
 }
 
 func (r *RecordBuilder) New(vecs []Any) *Record {
-	rec, _ := r.base.build(r.sctx, vecs, r.DropNones)
+	n := len(vecs)
+	rec, _ := r.base.build(r.sctx, vecs, func(left int) bool {
+		// The leaf's index is the number of leaves before it.
+		return n-left < r.NoneDrops
+	})
 	return rec
 }
 
@@ -61,19 +65,21 @@ func addPath(r *rec, path field.Path) error {
 }
 
 // build returns a record whose leaf fields are the leading values of leafs
-// and the rest of leafs.  If dropNones is true, a leaf field whose value is
-// a plain none disappears from the record.
-func (r *rec) build(sctx *super.Context, leafs []Any, dropNones bool) (*Record, []Any) {
+// and the rest of leafs.  A leaf field whose value is a plain none disappears
+// from the record if dropNone is true for it, where dropNone is called with
+// the number of leaves left including it.
+func (r *rec) build(sctx *super.Context, leafs []Any, dropNone func(int) bool) (*Record, []Any) {
 	n := leafs[0].Len()
 	var fields []super.Field
 	var out []Any
 	for i, name := range r.paths {
 		var vec Any
 		if r.recs[i] != nil {
-			vec, leafs = r.recs[i].build(sctx, leafs, dropNones)
+			vec, leafs = r.recs[i].build(sctx, leafs, dropNone)
 		} else {
+			drop := leafs[0].Type() == super.TypeNone && dropNone(len(leafs))
 			vec, leafs = leafs[0], leafs[1:]
-			if dropNones && vec.Type() == super.TypeNone {
+			if drop {
 				continue
 			}
 		}

@@ -1325,13 +1325,16 @@ func (t *translator) singletonKey(agg ast.Assignment, seq sem.Seq, inType super.
 	if !ok || len(this.Chain) != 1 {
 		return nil, nil
 	}
+	// The record for a plain none key has no field (see the aggregate
+	// operator), so ok() turns the missing field into none, which values
+	// drops.
 	return append(seq,
 		&sem.AggregateOp{
 			Node: out.Node,
 			Keys: []sem.Assignment{out},
 		},
-		sem.NewValues(out.Node, this),
-	), path.typ
+		sem.NewValues(out.Node, sem.NewCall(out.Node, "ok", []sem.Expr{this})),
+	), t.checker.values([]super.Type{path.typ})
 }
 
 // semDecls enters a block of declarations into the current scope.  We do late binding

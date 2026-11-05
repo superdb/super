@@ -1,6 +1,8 @@
 package op
 
 import (
+	"slices"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/vector"
 )
@@ -62,6 +64,11 @@ func plainNoneSlots(vec vector.Any) []uint32 {
 		}
 		return nones
 	case *vector.Union:
+		// Check the type first so the tags of a union without a none
+		// member aren't loaded.
+		if !hasPlainNoneMember(v.Typ) {
+			return nil
+		}
 		tags := v.Tags()
 		values := v.Values()
 		var nones []uint32
@@ -72,7 +79,14 @@ func plainNoneSlots(vec vector.Any) []uint32 {
 		}
 		return nones
 	case *vector.Fusion:
-		// A fusion value is a plain none if its subtype is none.
+		// A fusion value is a plain none if its subtype is none, which is
+		// possible only if the fusion's type has none.  Check the type first
+		// so the subtypes needn't be loaded.
+		if typ, ok := v.Typ.Type.(*super.TypeUnion); !ok || !hasPlainNoneMember(typ) {
+			if v.Typ.Type != super.TypeNone {
+				return nil
+			}
+		}
 		var nones []uint32
 		for slot, typ := range v.Subtypes.Types() {
 			if typ == super.TypeNone {
@@ -98,6 +112,11 @@ func plainNoneSlots(vec vector.Any) []uint32 {
 		return allSlots(vec.Len())
 	}
 	return nil
+}
+
+// hasPlainNoneMember reports whether typ has plain none as a member.
+func hasPlainNoneMember(typ *super.TypeUnion) bool {
+	return slices.ContainsFunc(typ.Types, func(t super.Type) bool { return t == super.TypeNone })
 }
 
 func allSlots(n uint32) []uint32 {
