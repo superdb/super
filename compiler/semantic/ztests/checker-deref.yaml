@@ -39,7 +39,7 @@ input: |
    {a:{b:1}::(null|{b:int64})}
 
 output: |
-  error("cannot access field 'b' of null")
+  null
   1
 
 ---
@@ -52,5 +52,5 @@ input: |
    {a:{b:1}::(null|{b:int64})}
 
 output: |
-  error("cannot access field 'b' of null")
+  null
   1

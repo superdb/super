@@ -41,6 +41,8 @@ func (i *Index) eval(args ...vector.Any) vector.Any {
 		return indexMap(i.sctx, container, index)
 	case vector.KindType:
 		return indexTypeValue(i.sctx, container, index, i.base1)
+	case vector.KindNull:
+		return container
 	case vector.KindOption:
 		return vector.NewWrappedError(i.sctx, "option value cannot be indexed (consider ??)", container)
 	default:

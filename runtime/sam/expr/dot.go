@@ -55,6 +55,8 @@ func (d *DotExpr) Eval(this super.Value) super.Value {
 		return indexMap(d.sctx, typ, val.Bytes(), super.NewString(d.field))
 	case *super.TypeOfType:
 		return d.evalTypeOfType(val.Bytes())
+	case *super.TypeOfNull:
+		return val
 	}
 	return super.Missing
 }

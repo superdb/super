@@ -55,9 +55,7 @@ func (d *DotExpr) eval(vecs ...vector.Any) vector.Any {
 	vec := vecs[0]
 	switch vec := vector.Under(vec).(type) {
 	case *vector.Null:
-		if d.nullish {
-			return vec
-		}
+		return vec
 	case *vector.Const:
 		return vector.NewConst(d.eval(vec.Any), vec.Len())
 	case *vector.Missing:

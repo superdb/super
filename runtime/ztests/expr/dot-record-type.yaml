@@ -15,5 +15,5 @@ output: |
   error({message:"no such field 'foo'",on:<int64>})
   <ip>
   error({message:"no such field 'bar'",on:<ip>})
-  error("cannot access field 'foo' of null")
-  error("cannot access field 'foo' of null")
+  null
+  null
