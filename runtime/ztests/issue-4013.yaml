@@ -1,15 +1,15 @@
-# Make sure "fork (=> ... => ...) | values this | head" with one leg that pulls
-# until EOS and one that does not works for an input containing multiple
-# batches. ("values this" prevents the optimizer from lifting "head" into the
-# legs.)
+# Make sure fork with one leg that pulls until EOS and one that does not
+# works for an input containing multiple vectors.
 script: |
-  seq 1000 | super -i sup -s -c 'fork ( count() ) ( pass ) | values this | head' -
+  seq 1000 | super -i sup -inputcap 1 -s -c 'fork ( head 1 ) ( tail 1 ) | sort' -
   echo ===
-  seq 1000 | super -i sup -s -c 'fork ( pass ) ( count() ) | values this | head' -
+  seq 1000 | super -i sup -inputcap 1 -s -c 'fork ( tail 1 ) ( head 1 ) | sort' -
 
 outputs:
   - name: stdout
     data: |
       1
+      1000
       ===
       1
+      1000
