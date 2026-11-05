@@ -39,7 +39,7 @@ output: |
   1
   null
   error({message:"index out of range",on:-5})
-  error({message:"value cannot be indexed",on:null})
+  null
   error({message:"index is not an integer",on:null})
   error({message:"index is not an integer",on:"hi"})
   error({message:"cannot cast to int64",on:9223372036854775808::uint64})

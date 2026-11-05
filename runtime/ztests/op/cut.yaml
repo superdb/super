@@ -16,4 +16,4 @@ output: |
   {foo:1::(int64|null)}
   {foo:null::(int64|null)}
   {foo:error("no such field foo")}
-  {foo:error("cannot access field 'foo' of null")}
+  {foo:null}
