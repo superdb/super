@@ -8,3 +8,49 @@ error: |
   no such field "a" at line 1, column 8:
   values a
          ~
+
+---
+
+spq: |
+  values null | values a
+
+error: |
+  no such field "a": . applied to null at line 1, column 22:
+  values null | values a
+                       ~
+
+---
+
+spq: |
+  values {a:null} | values a.b
+
+error: |
+  no such field "b": . applied to null at line 1, column 28:
+  values {a:null} | values a.b
+                             ~
+
+---
+
+spq: |
+  values a.b
+
+input: |
+   {a:null::(null|{b:int64})}
+   {a:{b:1}::(null|{b:int64})}
+
+output: |
+  error("cannot access field 'b' of null")
+  1
+
+---
+
+spq: |
+  values a['b']
+
+input: |
+   {a:null::(null|{b:int64})}
+   {a:{b:1}::(null|{b:int64})}
+
+output: |
+  error("cannot access field 'b' of null")
+  1

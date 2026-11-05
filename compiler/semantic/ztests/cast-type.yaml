@@ -1,10 +1,10 @@
 # The type of a cast is its target type so the checker sees the type of a cast
 # value downstream.
-spq: values {x:null::(null|{y:int64})} | values x.y
+spq: values {x:null::(null|{y:int64})} | values x.z
 
 error: |
-  no such field "y": . applied to null in null|{y:int64} at line 1, column 46:
-  values {x:null::(null|{y:int64})} | values x.y
+  no such field "z": . applied to {y:int64} in null|{y:int64} at line 1, column 46:
+  values {x:null::(null|{y:int64})} | values x.z
                                                ~
 
 ---
@@ -12,7 +12,7 @@ error: |
 spq: values {x:cast(null, <null|{y:int64}>)} | values x.z
 
 error: |
-  no such field "z": . applied to null|{y:int64} at line 1, column 52:
+  no such field "z": . applied to {y:int64} in null|{y:int64} at line 1, column 52:
   values {x:cast(null, <null|{y:int64}>)} | values x.z
                                                      ~
 
@@ -31,7 +31,7 @@ error: |
 spq: values {x:null::int64} | values x.y
 
 error: |
-  no such field "y": . applied to int64|null at line 1, column 35:
+  no such field "y": . applied to int64 in int64|null at line 1, column 35:
   values {x:null::int64} | values x.y
                                     ~
 
