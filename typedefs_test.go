@@ -147,17 +147,55 @@ func TestTypeDefsMalformed(t *testing.T) {
 }
 
 func TestContextForeignTypes(t *testing.T) {
-	// A Context encodes a type from another context by its structure.
+	// A Context translates a type from another context into itself.
 	other := super.NewContext()
 	other.MustLookupTypeRecord(nil) // shift other's IDs from sctx's
 	union := other.MustLookupTypeUnion([]super.Type{super.TypeInt64, super.TypeString})
 	sctx := super.NewContext()
 	rec := sctx.MustLookupTypeRecord([]super.Field{super.NewField("u", union), super.NewField("a", other.LookupTypeArray(union))})
+	// The record's field types are types of sctx.
+	for _, f := range rec.Fields {
+		local, err := sctx.LookupType(super.TypeID(f.Type))
+		require.NoError(t, err)
+		assert.Same(t, local, f.Type)
+	}
 	defs, ok := super.NewTypeDefsFromBytes(sctx.TypeDefs().Bytes())
 	require.True(t, ok)
 	out := super.NewTypeDefsMapper(super.NewContext(), defs).LookupType(uint32(super.TypeID(rec)))
 	require.NotNil(t, out)
 	assert.Equal(t, "{u:int64|string,a:[int64|string]}", sup.FormatType(out))
+}
+
+func TestContextForeignNamedTypes(t *testing.T) {
+	ext := super.NewContext()
+	ext.MustLookupTypeRecord(nil) // shift ext's IDs from sctx's
+	foo, err := ext.LookupTypeNamed("foo", super.TypeInt64)
+	require.NoError(t, err)
+	// A foreign named type is translated, binding its name in sctx, so the
+	// name can then be looked up and bound to the same type.
+	sctx := super.NewContext()
+	arr := sctx.LookupTypeArray(foo)
+	local := sctx.LookupByName("foo")
+	require.NotNil(t, local)
+	assert.Same(t, local, arr.Type)
+	same, err := sctx.LookupTypeNamed("foo", super.TypeInt64)
+	require.NoError(t, err)
+	assert.Same(t, local, same)
+	// A named type with a foreign inner type is bound to its translation.
+	rec := ext.MustLookupTypeRecord([]super.Field{super.NewField("f", foo)})
+	bar, err := sctx.LookupTypeNamed("bar", rec)
+	require.NoError(t, err)
+	assert.Same(t, sctx.MustLookupTypeRecord([]super.Field{super.NewField("f", local)}), bar.Type)
+	// A foreign named type whose name is bound to a different type in sctx
+	// can't be translated.
+	other := super.NewContext()
+	_, err = other.LookupTypeNamed("foo", super.TypeString)
+	require.NoError(t, err)
+	assert.Panics(t, func() { other.LookupTypeArray(foo) })
+	_, err = other.LookupTypeRecord([]super.Field{super.NewField("f", foo)})
+	assert.Error(t, err)
+	_, err = other.LookupTypeNamed("baz", foo)
+	assert.Error(t, err)
 }
 
 func TestTranslateType(t *testing.T) {
