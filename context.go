@@ -33,7 +33,7 @@ type TypeFetcher interface {
 type Context struct {
 	mu        sync.RWMutex
 	byID      map[uint32]Type
-	typedefs  *TypeDefsEncoder
+	typedefs  *TypeDefsBuilder
 	ids       []uint32 // scratch for type IDs (under mu)
 	named     map[string]*TypeNamed
 	stringErr atomic.Pointer[TypeError]
@@ -44,7 +44,7 @@ var _ TypeFetcher = (*Context)(nil)
 func NewContext() *Context {
 	return &Context{
 		byID:     make(map[uint32]Type),
-		typedefs: NewTypeDefsEncoder(),
+		typedefs: NewTypeDefsBuilder(),
 	}
 }
 
@@ -57,7 +57,7 @@ func (c *Context) Reset() {
 }
 
 func (c *Context) TypeDefs() *TypeDefsBuilder {
-	return c.typedefs.TypeDefsBuilder
+	return c.typedefs
 }
 
 // TypeDefsSnapshot returns a read-only TypeDefs table of the types of c so
@@ -69,15 +69,29 @@ func (c *Context) TypeDefsSnapshot() *TypeDefs {
 	return c.typedefs.Snapshot()
 }
 
-// typeID returns the ID in c.typedefs of typ, which should be from c, in
-// which case its ID is its type ID.  Some callers pass types from other
-// contexts (e.g., the field types of a record in another context) so such a
-// type is encoded in c.typedefs by structure.
-func (c *Context) typeID(typ Type) uint32 {
-	if id := TypeID(typ); id < IDTypeComplex || c.byID[uint32(id)] == typ {
-		return uint32(id)
+// localID returns the type ID of typ and true if typ is a type of c (or a
+// primitive type) and otherwise false.  It must be called with c.mu held.
+//
+// The type lookup methods (e.g., LookupTypeArray) accept types from other
+// contexts (e.g., the field types of a record in another context), which they
+// translate into c (see TranslateType) so that a type of c refers only to
+// types of c.  Since that's rare, they check the types they're given with
+// localID under c.mu and, if any is foreign, release c.mu, translate the
+// types, and try again.
+func (c *Context) localID(typ Type) (uint32, bool) {
+	id := TypeID(typ)
+	return uint32(id), id < IDTypeComplex || c.byID[uint32(id)] == typ
+}
+
+// mustTranslate returns TranslateType(typ) and panics if typ can't be
+// translated into c (i.e., it has a named type whose name is bound to a
+// different type in c).
+func (c *Context) mustTranslate(typ Type) Type {
+	typ, err := c.TranslateType(typ)
+	if err != nil {
+		panic(err)
 	}
-	return c.typedefs.LookupType(typ)
+	return typ
 }
 
 func (c *Context) LookupType(id int) (Type, error) {
@@ -112,13 +126,23 @@ func (d *DuplicateFieldError) Error() string {
 // use TranslateTypeRecord.
 func (c *Context) LookupTypeRecord(fields []Field) (*TypeRecord, error) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	// Compute the field type IDs first since encoding a type from another
-	// context would append to the typedef being encoded.
 	c.ids = c.ids[:0]
 	for _, f := range fields {
-		c.ids = append(c.ids, c.typeID(f.Type))
+		id, ok := c.localID(f.Type)
+		if !ok {
+			c.mu.Unlock()
+			fields = slices.Clone(fields)
+			for k := range fields {
+				var err error
+				if fields[k].Type, err = c.TranslateType(fields[k].Type); err != nil {
+					return nil, err
+				}
+			}
+			return c.LookupTypeRecord(fields)
+		}
+		c.ids = append(c.ids, id)
 	}
+	defer c.mu.Unlock()
 	b := c.typedefs
 	at := b.begin(TypeDefRecord)
 	b.appendUvarint(uint64(len(fields)))
@@ -178,8 +202,13 @@ func (c *Context) MustLookupTypeRecord(fields []Field) *TypeRecord {
 
 func (c *Context) LookupTypeArray(inner Type) *TypeArray {
 	c.mu.Lock()
+	innerID, ok := c.localID(inner)
+	if !ok {
+		c.mu.Unlock()
+		return c.LookupTypeArray(c.mustTranslate(inner))
+	}
 	defer c.mu.Unlock()
-	id := c.typedefs.BindTypeWrapped(TypeDefArray, c.typeID(inner))
+	id := c.typedefs.BindTypeWrapped(TypeDefArray, innerID)
 	if typ, ok := c.byID[id]; ok {
 		return typ.(*TypeArray)
 	}
@@ -190,8 +219,13 @@ func (c *Context) LookupTypeArray(inner Type) *TypeArray {
 
 func (c *Context) LookupTypeSet(inner Type) *TypeSet {
 	c.mu.Lock()
+	innerID, ok := c.localID(inner)
+	if !ok {
+		c.mu.Unlock()
+		return c.LookupTypeSet(c.mustTranslate(inner))
+	}
 	defer c.mu.Unlock()
-	id := c.typedefs.BindTypeWrapped(TypeDefSet, c.typeID(inner))
+	id := c.typedefs.BindTypeWrapped(TypeDefSet, innerID)
 	if typ, ok := c.byID[id]; ok {
 		return typ.(*TypeSet)
 	}
@@ -202,8 +236,14 @@ func (c *Context) LookupTypeSet(inner Type) *TypeSet {
 
 func (c *Context) LookupTypeMap(keyType, valType Type) *TypeMap {
 	c.mu.Lock()
+	keyID, keyOK := c.localID(keyType)
+	valID, valOK := c.localID(valType)
+	if !keyOK || !valOK {
+		c.mu.Unlock()
+		return c.LookupTypeMap(c.mustTranslate(keyType), c.mustTranslate(valType))
+	}
 	defer c.mu.Unlock()
-	id := c.typedefs.BindTypeMap(c.typeID(keyType), c.typeID(valType))
+	id := c.typedefs.BindTypeMap(keyID, valID)
 	if typ, ok := c.byID[id]; ok {
 		return typ.(*TypeMap)
 	}
@@ -220,12 +260,25 @@ func (c *Context) LookupTypeUnion(types []Type) (*TypeUnion, bool) {
 		return CompareTypes(types[i], types[j]) < 0
 	})
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	// See LookupTypeRecord.
 	c.ids = c.ids[:0]
 	for _, typ := range types {
-		c.ids = append(c.ids, c.typeID(typ))
+		id, ok := c.localID(typ)
+		if !ok {
+			c.mu.Unlock()
+			// See localID.  Clone types since they may be a foreign
+			// union's types.
+			types = slices.Clone(types)
+			for k, typ := range types {
+				var err error
+				if types[k], err = c.TranslateType(typ); err != nil {
+					return nil, false
+				}
+			}
+			return c.LookupTypeUnion(types)
+		}
+		c.ids = append(c.ids, id)
 	}
+	defer c.mu.Unlock()
 	id := c.typedefs.BindTypeUnion(c.ids)
 	if typ, ok := c.byID[id]; ok {
 		return typ.(*TypeUnion), true
@@ -312,8 +365,13 @@ func (c *Context) LookupByName(name string) *TypeNamed {
 // valid UTF-8 string or is a primitive type name.
 func (c *Context) LookupTypeNamed(name string, inner Type) (*TypeNamed, error) {
 	// Named types are types of the data model (values carry them) so any
-	// in the body of a named type is fusion(all).
-	inner = c.AnyToFusion(inner)
+	// in the body of a named type is fusion(all).  A type from another
+	// context is translated into c so it can be compared with an existing
+	// binding.
+	inner, err := c.TranslateType(c.AnyToFusion(inner))
+	if err != nil {
+		return nil, err
+	}
 	if !utf8.ValidString(name) {
 		return nil, fmt.Errorf("bad type name %q: invalid UTF-8", name)
 	}
@@ -420,8 +478,12 @@ func (c *Context) declareBlock(compIDs []compID) []patch {
 
 func (c *Context) BindTypeNamed(patch int, named *TypeNamed, inner Type) error {
 	// See LookupTypeNamed.  This is done before locking c as AnyToFusion
-	// looks up types in c.
-	inner = c.AnyToFusion(inner)
+	// and TranslateType look up types in c.
+	inner, err := c.TranslateType(c.AnyToFusion(inner))
+	if err != nil {
+		// Bind to missing so waiters are released and fail below.
+		inner = TypeMissing
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	named.mu.Lock()
@@ -434,11 +496,18 @@ func (c *Context) BindTypeNamed(patch int, named *TypeNamed, inner Type) error {
 		// Bind to missing so waiters are released and fail below.
 		inner = TypeMissing
 	}
+	innerID, ok := c.localID(inner)
+	if !ok {
+		panic("type binding protocol violation")
+	}
 	// Set the inner type, patch the named typedef, and signal
 	// any concurent threads waiting on this type's resolution.
 	named.Type = inner
-	c.typedefs.BindTypeNamed(patch, c.typeID(inner))
+	c.typedefs.BindTypeNamed(patch, innerID)
 	named.cond.Broadcast()
+	if err != nil {
+		return err
+	}
 	if cycle {
 		return fmt.Errorf("named type %q is bound to itself", named.Name)
 	}
@@ -472,8 +541,13 @@ func namedCycle(named *TypeNamed, inner Type) bool {
 
 func (c *Context) LookupTypeError(inner Type) *TypeError {
 	c.mu.Lock()
+	innerID, ok := c.localID(inner)
+	if !ok {
+		c.mu.Unlock()
+		return c.LookupTypeError(c.mustTranslate(inner))
+	}
 	defer c.mu.Unlock()
-	id := c.typedefs.BindTypeWrapped(TypeDefError, c.typeID(inner))
+	id := c.typedefs.BindTypeWrapped(TypeDefError, innerID)
 	if typ, ok := c.byID[id]; ok {
 		return typ.(*TypeError)
 	}
@@ -487,8 +561,17 @@ func (c *Context) LookupTypeError(inner Type) *TypeError {
 
 func (c *Context) LookupTypeFusion(inner Type) (*TypeFusion, error) {
 	c.mu.Lock()
+	innerID, ok := c.localID(inner)
+	if !ok {
+		c.mu.Unlock()
+		inner, err := c.TranslateType(inner)
+		if err != nil {
+			return nil, err
+		}
+		return c.LookupTypeFusion(inner)
+	}
 	defer c.mu.Unlock()
-	id := c.typedefs.BindTypeWrapped(TypeDefFusion, c.typeID(inner))
+	id := c.typedefs.BindTypeWrapped(TypeDefFusion, innerID)
 	if typ, ok := c.byID[id]; ok {
 		return typ.(*TypeFusion), nil
 	}
@@ -591,8 +674,13 @@ func (c *Context) LookupTypeOption(inner Type) *TypeOption {
 		panic(inner)
 	}
 	c.mu.Lock()
+	innerID, ok := c.localID(inner)
+	if !ok {
+		c.mu.Unlock()
+		return c.LookupTypeOption(c.mustTranslate(inner))
+	}
 	defer c.mu.Unlock()
-	id := c.typedefs.BindTypeWrapped(TypeDefOption, c.typeID(inner))
+	id := c.typedefs.BindTypeWrapped(TypeDefOption, innerID)
 	if typ, ok := c.byID[id]; ok {
 		return typ.(*TypeOption)
 	}
@@ -621,7 +709,13 @@ func (c *Context) TranslateType(ext Type) (Type, error) {
 	if c.isLocal(ext) {
 		return ext, nil
 	}
-	return c.LookupByValue(EncodeTypeValue(ext))
+	typ, err := c.LookupByValue(EncodeTypeValue(ext))
+	if err != nil {
+		// Since ext is a valid type, its encoding fails to decode in c
+		// when a named type in it is bound to a different type in c.
+		return nil, errors.New("cannot translate type: conflicting named type binding")
+	}
+	return typ, nil
 }
 
 // LocalTypeID returns the type ID of typ in c, translating typ into c if it's
@@ -1281,6 +1375,36 @@ func (t *TypeDefsBuilder) BindTypeDecimal(precision, scale int) uint32 {
 	return t.Lookup(at)
 }
 
+// unboundID is the inner type ID of a named type declared by
+// DeclareTypeNamed but not yet bound by BindTypeNamed.
+const unboundID = 0xdeadbeef
+
+// namedInner returns the ID of the inner type of the named type with ID id,
+// which is unboundID if it isn't bound yet.
+func (t *TypeDefs) namedInner(id uint32) uint32 {
+	b := t.Serialization(id)
+	if len(b) == 0 || b[0] != TypeDefNamed {
+		panic(id)
+	}
+	_, b = MustDecodeName(b[1:])
+	inner, b := DecodeFixedID(b)
+	if b == nil {
+		panic(id)
+	}
+	return inner
+}
+
+// checkBinding panics if the named type with ID id and name is bound to a
+// type other than the type with ID inner, i.e., the same name is bound to
+// different types in the tables or contexts being encoded or merged.  Since
+// typedefs are interned, the same type has the same ID.  A named type that's
+// declared but not yet bound can't be checked.
+func (t *TypeDefsBuilder) checkBinding(name string, id, inner uint32) {
+	if bound := t.namedInner(id); bound != unboundID && bound != inner {
+		panic(fmt.Errorf("type %q redefined", name))
+	}
+}
+
 // LookupName returns the ID of the named type with name.
 func (t *TypeDefsBuilder) LookupName(name string) (uint32, bool) {
 	scratch := make([]byte, 0, len(name)+1+binary.MaxVarintLen64)
@@ -1305,7 +1429,7 @@ func (t *TypeDefsBuilder) DeclareTypeNamed(name string) (uint32, int, bool) {
 	}
 	// Remember backfill position and leave space.
 	patch := len(t.bytes)
-	t.bytes = AppendFixedID(t.bytes, 0xdeadbeef)
+	t.bytes = AppendFixedID(t.bytes, unboundID)
 	return t.Lookup(at), patch, true
 }
 
@@ -1315,9 +1439,9 @@ func (t *TypeDefsBuilder) BindTypeNamed(patch int, id uint32) {
 
 // TypeDefsEncoder encodes types from a Context into a TypeDefsBuilder,
 // entering each type and the types it refers to in the builder and
-// remembering the ID of each type it encodes.  (A Context's own types needn't
-// be encoded since their type IDs are their IDs in its builder, so it uses
-// its encoder only for types from other contexts.)
+// remembering the ID of each type it encodes.  (A Context doesn't need an
+// encoder since its types' IDs are their IDs in its builder and it translates
+// types from other contexts into itself.)
 type TypeDefsEncoder struct {
 	*TypeDefsBuilder
 	toID map[Type]uint32
@@ -1369,7 +1493,7 @@ func (t *TypeDefsEncoder) LookupType(typ Type) uint32 {
 	case *TypeError:
 		id = t.BindTypeWrapped(TypeDefError, t.LookupType(typ.Type))
 	case *TypeNamed:
-		id = t.lookupTypeNamed(typ.Name, typ.Type)
+		return t.lookupTypeNamed(typ)
 	case *TypeFusion:
 		id = t.BindTypeWrapped(TypeDefFusion, t.LookupType(typ.Type))
 	case *TypeOption:
@@ -1394,13 +1518,20 @@ func (t *TypeDefsEncoder) LookupTypeUnion(types []Type) uint32 {
 	return t.BindTypeUnion(ids)
 }
 
-func (t *TypeDefsEncoder) lookupTypeNamed(name string, inner Type) uint32 {
-	if id, ok := t.LookupName(name); ok {
+func (t *TypeDefsEncoder) lookupTypeNamed(typ *TypeNamed) uint32 {
+	// Remember the ID of typ before encoding its inner type, which may refer
+	// to typ.
+	if id, ok := t.LookupName(typ.Name); ok {
+		// The name is already bound (e.g., by a type from another context),
+		// so it must be bound to the same type here.
+		t.toID[typ] = id
+		t.checkBinding(typ.Name, id, t.LookupType(typ.Type))
 		return id
 	}
 	// Declare the name before encoding the inner type, which may refer to it.
-	id, patch, _ := t.DeclareTypeNamed(name)
-	t.BindTypeNamed(patch, t.LookupType(inner))
+	id, patch, _ := t.DeclareTypeNamed(typ.Name)
+	t.toID[typ] = id
+	t.BindTypeNamed(patch, t.LookupType(typ.Type))
 	return id
 }
 
@@ -1944,7 +2075,11 @@ func (t *TypeDefsMerger) LookupID(extID uint32) uint32 {
 			panic(typedef)
 		}
 		if id, ok := t.LookupName(name); ok {
+			// The name is already bound in the target, so it must be bound
+			// to the same type here.  Record its ID before merging the inner
+			// type, which may refer to it.
 			t.idmap[extID] = id
+			t.checkBinding(name, id, t.LookupID(inner))
 			return id
 		}
 		if !t.ext.namedChainOK(extID) {
