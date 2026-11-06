@@ -15,7 +15,7 @@ but data is ingested by default in its natural form no matter how much heterogen
 it might have.  And unlike systems based on the document data model,
 every value in SuperDB is strongly and dynamically typed thus providing the
 best of both worlds: the flexibility of the document model and
-the efficiency and performance of the relational model.
+the performance and type soundness of the relational model.
 
 In SuperDB's SQL dialect, there are no "JSON columns" so there isn't a "relational
 way to do things" and a different "JSON way to do things".  Instead of having
@@ -47,7 +47,7 @@ FROM 'https://data.gharchive.org/2015-01-01-15.json.gz'
   LIMIT 5
 | FORK
   ( FROM f'https://api.github.com/users/{user}'
-    SELECT login AS user, created_at::time AS created_at )
+    SELECT login AS user, created_at::timestamp AS created_at )
   ( PASS )
 | JOIN USING (user)
 | VALUES {...left,repos:right.repos}
@@ -55,34 +55,34 @@ FROM 'https://data.gharchive.org/2015-01-01-15.json.gz'
 
 ## Super (SUP) Format
 
-Super-structured data is strongly typed and "polymorphic": any value can take on any type
-and sequences of data need not all conform to a predefined schema.  To this end,
-SuperDB extends the JSON format to support super-structured data in a format called
+Super-structured data is strongly typed even though any value can take on any type
+and sequences of data need not all conform to a predefined schema.  To achieve this,
+SuperDB extends the JSON format with explicit typing in a format called
 [Super (SUP)](https://superdb.org/formats/sup.html) where all JSON values
-are also SUP.  Similarly,
-the [Super Binary (BSUP)](https://superdb.org/formats/sup.html) format is an efficient
-binary representation of SUP (a bit like Avro) and the
-[Super Columnar (CSUP)](https://superdb.org/formats/csup.html) format is a columnar
-representation of SUP (a bit like Parquet).
+are also SUP.  The text-based SUP format is meant to be human-readable at
+small scale rather than fast, but the
+binary version of SUP called [Super Binary (BSUP)](https://superdb.org/formats/bsup.html)
+is highly efficient, supporting both a row and a column orientation.
+The BSUP row form is a bit like [Avro](https://avro.apache.org/) while the column form
+is a bit like [Parquet](https://parquet.apache.org/)
+or [Arrow](https://arrow.apache.org/).
 
 Even though SuperDB is based on these super-structured data formats, it can read and write
 most common data formats.
 
 ## Project Status
 
-Our long-term goal for SuperSQL is to be
+Our long-term goal for SuperDB is to provide a flexible foundation for
+databases that subsumes both the relational and document data models.
+While SuperSQL is intended to be (mostly)
 [Postgres-compatible](https://superdb.org/super-sql/sql/intro.html#sql-compatibility)
-and interoperate
-with existing SQL tooling. In the meantime, SuperSQL is a bit of a moving
-target and we would love [community engagement](#join-the-community) to evolve and fine tune its
-syntax and semantics.
+and interoperate with existing SQL tooling, we believe its type safety and
+algebraic expressiveness will cover a broader range of use cases compared to
+legacy SQL or document-based query languages.
 
-Our areas of active development include:
-* the SuperSQL query language,
-* the type-based query compiler and optimizer,
-* fast, vectorized ingest of common file formats,
-* a complete vectorized runtime, and
-* a database based on super-structured data.
+In the meantime, SuperDB is stabilizing but still a bit of a moving
+target.  We would love [your engagement](#join-the-community) to evolve and fine tune its
+syntax and semantics.
 
 ## Try It
 
@@ -101,14 +101,16 @@ we'd love to hear your feedback via our
 >files, HTTP endpoints, or S3 paths using the `super` command. While
 >earlier in its development, SuperDB can also run on a
 >[super-structured database](https://superdb.org/command/db)
->using the `super db` sub-commands.
+>using the `super db` sub-commands.  The database format is a bit like
+>[Iceberg](https://iceberg.apache.org/) but instead of rigid schemas, it supports
+>flexible table shapes based on super-structured types.
 
 ### SuperDB Desktop - Coming Soon
 
-[SuperDB Desktop](https://github.com/superdb/zui) is an Electron-based
+[SuperDB Desktop](https://github.com/superdb/zui) is a
 desktop app to explore, query, and shape data in a SuperDB database.
-It combines a search experience with a SQL query and has some really slick
-design for dealing with complex and large JSON data.
+It combines a search experience with SQL that is well suited
+for dealing with complex and large JSON data.
 
 Unlike most JSON browsing tools, it won't slow to a crawl --- or worse crash ---
 if you load it up with ginormous JSON values.
