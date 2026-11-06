@@ -1,0 +1,26 @@
+# A computed (f-string) URL accepts the same method, headers, and body options
+# as a constant URL and sends them with the request made for each input value.
+script: |
+  port=$((RANDOM + 1024))
+  python3 http-echo.py $port &> http.log &
+  trap "kill -9 $!" EXIT
+  i=0
+  while :; do
+      python3 -c "from urllib.request import urlopen; urlopen('http://127.0.0.1:$port')" 2>/dev/null &&
+          break
+      sleep 0.1
+      if ((i++ >= 50)); then
+          echo "timed out waiting for HTTP server"
+          cat http.log
+          exit 1
+      fi
+  done
+  super -s -c "values {u:'http://127.0.0.1:$port/x'} | from f\"{u}\" (method 'POST' headers {Authorization:'Bearer tok'} body 'hello')"
+
+inputs:
+  - name: http-echo.py
+
+outputs:
+  - name: stdout
+    data: |
+      {method:"POST",authorization:"Bearer tok",body:"hello"}

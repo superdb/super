@@ -1,6 +1,7 @@
 package op
 
 import (
+	"strings"
 	"uuid"
 
 	"github.com/superdb/super/runtime"
@@ -20,12 +21,16 @@ type Robot struct {
 	pushdown vio.Pushdown
 	progress *vio.Progress
 	format   string
+	method   string
+	headers  map[string][]string
+	body     string
+	plainGet bool
 	vec      vector.Any
 	off      uint32
 	src      vio.Puller
 }
 
-func NewRobot(rctx *runtime.Context, env *exec.Environment, parent vio.Puller, e expr.Evaluator, format string, p vio.Pushdown, progress *vio.Progress) *Robot {
+func NewRobot(rctx *runtime.Context, env *exec.Environment, parent vio.Puller, e expr.Evaluator, format, method string, headers map[string][]string, body string, plainGet bool, p vio.Pushdown, progress *vio.Progress) *Robot {
 	return &Robot{
 		parent:   parent,
 		rctx:     rctx,
@@ -34,6 +39,10 @@ func NewRobot(rctx *runtime.Context, env *exec.Environment, parent vio.Puller, e
 		pushdown: p,
 		progress: progress,
 		format:   format,
+		method:   method,
+		headers:  headers,
+		body:     body,
+		plainGet: plainGet,
 	}
 }
 
@@ -136,16 +145,19 @@ func (o *Robot) nextVec() (vector.Any, error) {
 }
 
 func (o *Robot) open(path string) (vio.Puller, error) {
+	format := o.format
+	if format == "" {
+		format = anyio.ReadFormatFromPath(path)
+	}
+	if !o.plainGet {
+		return o.env.OpenHTTP(o.rctx.Context, o.rctx.Sctx, path, format, o.method, o.headers, strings.NewReader(o.body), o.pushdown)
+	}
 	if o.env.IsAttached() {
 		// XXX we should support committish values
 		id, err := o.env.TableID(o.rctx, path)
 		if err == nil {
 			return o.openTable(id)
 		}
-	}
-	format := o.format
-	if format == "" {
-		format = anyio.ReadFormatFromPath(path)
 	}
 	return o.env.Open(o.rctx.Context, o.rctx.Sctx, path, format, o.pushdown, o.progress, 1)
 }

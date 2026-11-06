@@ -290,10 +290,13 @@ type (
 		Type   string    `json:"type"`
 	}
 	RobotScan struct {
-		Kind   string `json:"kind" unpack:""`
-		Expr   Expr   `json:"expr"`
-		Format string `json:"format"`
-		Filter Expr   `json:"filter"`
+		Kind    string              `json:"kind" unpack:""`
+		Expr    Expr                `json:"expr"`
+		Format  string              `json:"format"`
+		Filter  Expr                `json:"filter"`
+		Method  string              `json:"method"`
+		Headers map[string][]string `json:"headers"`
+		Body    string              `json:"body"`
 	}
 	TableMetaScan struct {
 		Kind string    `json:"kind" unpack:""`
@@ -449,4 +452,10 @@ func WalkTWithError[T any](v reflect.Value, post func(T) (T, error)) error {
 // body, which is read like any other input.
 func (h *HTTPScan) IsPlainGet() bool {
 	return (h.Method == "" || strings.EqualFold(h.Method, "GET")) && h.Headers == nil && h.Body == ""
+}
+
+// IsPlainGet reports whether the scan is an HTTP GET with no headers or
+// body, which is read like any other input.
+func (r *RobotScan) IsPlainGet() bool {
+	return (r.Method == "" || strings.EqualFold(r.Method, "GET")) && r.Headers == nil && r.Body == ""
 }
