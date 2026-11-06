@@ -15,8 +15,10 @@ type ConstEncoder struct {
 
 func (*ConstEncoder) Encode(group *errgroup.Group) {}
 
-func (c *ConstEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	return off, bctx.enter(&Const{bctx.TypeDefs().LookupType(c.val.Type()), c.val.Bytes(), c.len})
+func (c *ConstEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindConst)
+	w.WriteCount(c.len)
+	w.Value(c.val.Bytes())
 }
 
 func (c *ConstEncoder) Stats(path field.Path, fn CollectStatsFunc) {

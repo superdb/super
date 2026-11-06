@@ -14,10 +14,10 @@ type NamedEncoder struct {
 	typ     *super.TypeNamed
 }
 
-func NewNamedEncoder(bctx *Context, named *vector.Named) Encoder {
+func NewNamedEncoder(typedefs *TypeDefs, named *vector.Named) Encoder {
 	e := &NamedEncoder{typ: named.Typ}
 	if _, ok := named.Any.(*vector.Empty); !ok {
-		e.encoder = NewEncoder(bctx, named.Any)
+		e.encoder = NewEncoder(typedefs, named.Any)
 	}
 	return e
 }
@@ -28,12 +28,16 @@ func (n *NamedEncoder) Encode(group *errgroup.Group) {
 	}
 }
 
-func (n *NamedEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
+func (n *NamedEncoder) Locate(w *LocatorWriter) {
 	if n.encoder == nil {
-		return off, bctx.enter(&Empty{bctx.TypeDefs().LookupType(n.typ)})
+		// An empty named vector is an empty const.
+		w.WriteKind(KindConst)
+		w.WriteCount(0)
+		w.Value(nil)
+		return
 	}
-	off, id := n.encoder.Metadata(bctx, off)
-	return off, bctx.enter(&Named{n.typ.Name, id})
+	w.WriteKind(KindPlain)
+	w.Locate(n.encoder)
 }
 
 func (n *NamedEncoder) Stats(path field.Path, fn CollectStatsFunc) {

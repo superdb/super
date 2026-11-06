@@ -13,27 +13,36 @@ import (
 )
 
 type DynamicEncoder struct {
-	bctx   *Context
-	tags   *Uint32Encoder
-	values []Encoder
-	len    uint32
+	typedefs *TypeDefs
+	tags     *Uint32Encoder
+	types    []super.Type
+	values   []Encoder
+	len      uint32
 }
 
 func NewDynamicEncoder(vec *vector.Dynamic) *DynamicEncoder {
-	bctx := NewContext()
+	typedefs := NewTypeDefs()
 	values := make([]Encoder, len(vec.Values))
+	types := make([]super.Type, len(vec.Values))
 	for i, val := range vec.Values {
-		values[i] = NewEncoder(bctx, val)
+		values[i] = NewEncoder(typedefs, val)
+		types[i] = val.Type()
 	}
 	return &DynamicEncoder{
-		bctx:   bctx,
-		tags:   NewUint32Encoder(vec.Tags),
-		values: values,
-		len:    vec.Len(),
+		typedefs: typedefs,
+		tags:     NewUint32Encoder(vec.Tags),
+		types:    types,
+		values:   values,
+		len:      vec.Len(),
 	}
 }
 
-func (d *DynamicEncoder) Encode() (ID, uint64, error) {
+// Encode encodes the vectors and returns the frame's vector typedefs table and
+// locator section and the size of its data section.  The locator section is
+// the number of root vectors and the type ID of each in the vector typedefs
+// table, followed by the segment of the tags if there's more than one root
+// vector (i.e., a dynamic), then the locators of each root vector.
+func (d *DynamicEncoder) Encode() ([]byte, []byte, uint64, error) {
 	var group errgroup.Group
 	if len(d.values) > 1 {
 		d.tags.Encode(&group)
@@ -42,24 +51,25 @@ func (d *DynamicEncoder) Encode() (ID, uint64, error) {
 		val.Encode(&group)
 	}
 	if err := group.Wait(); err != nil {
-		return 0, 0, err
+		return nil, nil, 0, err
 	}
-	if len(d.values) == 1 {
-		off, id := d.values[0].Metadata(d.bctx, 0)
-		return id, off, nil
+	types := super.NewTypeDefsEncoder()
+	var w LocatorWriter
+	w.WriteCount(uint32(len(d.values)))
+	for _, typ := range d.types {
+		w.WriteUvarint(uint64(types.LookupType(typ)))
 	}
-	values := make([]ID, 0, len(d.values))
-	off, tags := d.tags.Segment(0)
+	if len(d.values) > 1 {
+		_, tags := d.tags.Segment(w.Offset())
+		w.Segment(tags)
+	}
 	for _, val := range d.values {
-		var id ID
-		off, id = val.Metadata(d.bctx, off)
-		values = append(values, id)
+		w.Locate(val)
 	}
-	return d.bctx.enter(&Dynamic{
-		Tags:   tags,
-		Values: values,
-		Length: d.len,
-	}), off, nil
+	if err := w.Err(); err != nil {
+		return nil, nil, 0, err
+	}
+	return types.Bytes(), w.Bytes(), w.Offset(), nil
 }
 
 func (d *DynamicEncoder) Stats() []ColumnStats {

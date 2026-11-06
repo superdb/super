@@ -18,55 +18,53 @@ type Encoder interface {
 	// Vectors may be encoded concurrently and errgroup.Group is used to sync
 	// and return errors.
 	Encode(*errgroup.Group)
-	// Metadata returns the data structure conforming to the BSUP specification
-	// describing the layout of vectors.  This is called after all data is
-	// written and encoded by the Encode with the result marshaled to build
-	// the header section of the BSUP object.  An offset is passed down into
-	// the traversal representing where in the data section the vector data
-	// will land.  This is called in a sequential fashion (no parallelism) so
-	// that the metadata can be computed and the BSUP header written before the
-	// vector data is written via Emit.
-	Metadata(*Context, uint64) (uint64, ID)
+	// Locate encodes the locators of the vector in the frame's locator
+	// section (see LocatorWriter) in DFS order by traversing the vector's
+	// type.  This is called after the vector is encoded by Encode and before
+	// the vector data is written by Emit, which must write the segments in
+	// the order they are located.  It is called sequentially (no
+	// parallelism).
+	Locate(*LocatorWriter)
 	Stats(field.Path, CollectStatsFunc)
 	Emit(w io.Writer) error
 }
 
-func NewEncoder(bctx *Context, vec vector.Any) Encoder {
+func NewEncoder(typedefs *TypeDefs, vec vector.Any) Encoder {
 	switch vec := vec.(type) {
 	case *vector.Record:
-		return NewRecordEncoder(bctx, vec)
+		return NewRecordEncoder(typedefs, vec)
 	case *vector.Array:
-		return NewArrayEncoder(bctx, vec)
+		return NewArrayEncoder(typedefs, vec)
 	case *vector.Set:
-		return NewSetEncoder(bctx, vec)
+		return NewSetEncoder(typedefs, vec)
 	case *vector.Map:
-		return NewMapEncoder(bctx, vec)
+		return NewMapEncoder(typedefs, vec)
 	case *vector.Union:
-		return NewUnionEncoder(bctx, vec)
+		return NewUnionEncoder(typedefs, vec)
 	case *vector.Enum:
 		return NewEnumEncoder(vec)
 	case *vector.Error:
-		return &ErrorEncoder{NewEncoder(bctx, vec.Vals)}
+		return &ErrorEncoder{NewEncoder(typedefs, vec.Vals)}
 	case *vector.Named:
-		return NewNamedEncoder(bctx, vec)
+		return NewNamedEncoder(typedefs, vec)
 	case *vector.Fusion:
 		if super.IsFusionAll(vec.Type()) {
-			return NewAnyEncoder(bctx, vec)
+			return NewAnyEncoder(typedefs, vec)
 		}
-		return NewFusionEncoder(bctx, vec)
+		return NewFusionEncoder(typedefs, vec)
 	case *vector.Option:
-		return NewOptionEncoder(bctx, vec)
+		return NewOptionEncoder(typedefs, vec)
 	default:
-		return NewPrimitiveEncoder(bctx, vec, true)
+		return NewPrimitiveEncoder(typedefs, vec, true)
 	}
 }
 
-func NewPrimitiveEncoder(bctx *Context, vec vector.Any, root bool) Encoder {
+func NewPrimitiveEncoder(typedefs *TypeDefs, vec vector.Any, root bool) Encoder {
 	switch vec := vec.(type) {
 	case *vector.Dict:
 		return &DictEncoder{
 			counts: NewUint32Encoder(vec.Counts),
-			values: NewPrimitiveEncoder(bctx, vec.Any, false),
+			values: NewPrimitiveEncoder(typedefs, vec.Any, false),
 			index:  vec.Index,
 		}
 	case *vector.Empty:
@@ -89,7 +87,7 @@ func NewPrimitiveEncoder(bctx *Context, vec vector.Any, root bool) Encoder {
 			out := maybeConvertToDictOrConst(vec.Values, func(vals []uint64) vector.Any {
 				return vector.NewUint(vec.Typ, vals)
 			})
-			return NewPrimitiveEncoder(bctx, out, false)
+			return NewPrimitiveEncoder(typedefs, out, false)
 		}
 		return &UintEncoder{typ: vec.Typ, vals: vec.Values}
 	case *vector.Int:
@@ -97,7 +95,7 @@ func NewPrimitiveEncoder(bctx *Context, vec vector.Any, root bool) Encoder {
 			out := maybeConvertToDictOrConst(vec.Values, func(vals []int64) vector.Any {
 				return vector.NewInt(vec.Typ, vals)
 			})
-			return NewPrimitiveEncoder(bctx, out, false)
+			return NewPrimitiveEncoder(typedefs, out, false)
 		}
 		return &IntEncoder{typ: vec.Typ, vals: vec.Values}
 	case *vector.Float:
@@ -105,7 +103,7 @@ func NewPrimitiveEncoder(bctx *Context, vec vector.Any, root bool) Encoder {
 			out := maybeConvertToDictOrConst(vec.Values, func(vals []float64) vector.Any {
 				return vector.NewFloat(vec.Typ, vals)
 			})
-			return NewPrimitiveEncoder(bctx, out, false)
+			return NewPrimitiveEncoder(typedefs, out, false)
 		}
 		return NewFloatEncoder(vec.Typ, vec.Values)
 	case *vector.Bool:
@@ -114,13 +112,13 @@ func NewPrimitiveEncoder(bctx *Context, vec vector.Any, root bool) Encoder {
 	case *vector.String:
 		if root {
 			out := maybeStringBytesDict(super.TypeString, vec.Table())
-			return NewPrimitiveEncoder(bctx, out, false)
+			return NewPrimitiveEncoder(typedefs, out, false)
 		}
 		return NewBytesEncoder(super.TypeString, vec.Table())
 	case *vector.Bytes:
 		if root {
 			out := maybeStringBytesDict(super.TypeBytes, vec.Table())
-			return NewPrimitiveEncoder(bctx, out, false)
+			return NewPrimitiveEncoder(typedefs, out, false)
 		}
 		return NewBytesEncoder(super.TypeBytes, vec.Table())
 	case *vector.UUID:
@@ -138,7 +136,7 @@ func NewPrimitiveEncoder(bctx *Context, vec vector.Any, root bool) Encoder {
 			out := maybeConvertToDictOrConst(vec.Values, func(vals []netip.Addr) vector.Any {
 				return vector.NewIP(vals)
 			})
-			return NewPrimitiveEncoder(bctx, out, false)
+			return NewPrimitiveEncoder(typedefs, out, false)
 		}
 		return NewIPEncoder(vec.Values)
 	case *vector.Net:
@@ -146,7 +144,7 @@ func NewPrimitiveEncoder(bctx *Context, vec vector.Any, root bool) Encoder {
 			out := maybeConvertToDictOrConst(vec.Values, func(vals []netip.Prefix) vector.Any {
 				return vector.NewNet(vals)
 			})
-			return NewPrimitiveEncoder(bctx, out, false)
+			return NewPrimitiveEncoder(typedefs, out, false)
 		}
 		return NewNetEncoder(vec.Values)
 	case *vector.TypeValue:
@@ -157,9 +155,9 @@ func NewPrimitiveEncoder(bctx *Context, vec vector.Any, root bool) Encoder {
 			out := maybeConvertToDictOrConst(ids, func(vals []uint32) vector.Any {
 				return vec.WithTypeIDs(vals)
 			})
-			return NewPrimitiveEncoder(bctx, out, false)
+			return NewPrimitiveEncoder(typedefs, out, false)
 		}
-		return NewTypeValueEncoder(bctx, vec)
+		return NewTypeValueEncoder(typedefs, vec)
 	case *vector.Null:
 		return NewNullEncoder(vec.Len())
 	case *vector.Missing:
@@ -213,7 +211,7 @@ type ErrorEncoder struct {
 	Encoder
 }
 
-func (e *ErrorEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	off, id := e.Encoder.Metadata(bctx, off)
-	return off, bctx.enter(&Error{id})
+func (e *ErrorEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.Locate(e.Encoder)
 }

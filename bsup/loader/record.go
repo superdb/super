@@ -2,88 +2,42 @@ package loader
 
 import (
 	"slices"
-	"sync"
 
 	"github.com/superdb/super"
-	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/vector"
 )
 
-type record struct {
-	mu     sync.Mutex
-	meta   *bsup.Record
-	len    uint32
-	fields []shadow
+// Record is a record vector, whose locators are its kind and those of each
+// of its fields (or its count if it has no fields).
+type Record struct {
+	Node
+	Names  []string
+	Fields []Shadow
 }
 
-func newRecord(bctx *bsup.Context, meta *bsup.Record) *record {
-	fields := make([]shadow, len(meta.Fields))
-	len := meta.Len(bctx)
-	return &record{
-		meta:   meta,
-		len:    len,
-		fields: fields,
-	}
-}
-
-func (r *record) length() uint32 {
-	return r.len
-}
-
-func (r *record) unmarshal(bctx *bsup.Context, projection field.Projection) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if len(projection) == 0 {
-		// Unmarshal all the fields of this record.  We're either loading all on demand (nil paths)
-		// or loading this record because it's referenced at the end of a projected path.
-		for k := range r.fields {
-			if r.fields[k] == nil {
-				r.fields[k] = newShadow(bctx, r.meta.Fields[k].Values)
-			}
-			r.fields[k].unmarshal(bctx, nil)
-		}
-		return
-	}
-	for _, node := range projection {
-		if k := indexOfField(node.Name, r.meta); k >= 0 {
-			if r.fields[k] == nil {
-				r.fields[k] = newShadow(bctx, r.meta.Fields[k].Values)
-			}
-			r.fields[k].unmarshal(bctx, node.Proj)
-		}
-	}
-}
-
-func (r *record) project(loader *FrameLoader, projection field.Projection) vector.Any {
-	valFields := make([]vector.Any, 0, len(r.fields))
-	types := make([]super.Field, 0, len(r.fields))
+func (r *Record) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	valFields := make([]vector.Any, 0, len(r.Fields))
+	types := make([]super.Field, 0, len(r.Fields))
 	if len(projection) == 0 {
 		// Build the whole record.  We're either loading all on demand (nil paths)
 		// or loading this record because it's referenced at the end of a projected path.
-		for k := range r.fields {
-			val := r.fields[k].project(loader, nil)
+		for k := range r.Fields {
+			val := r.Fields[k].project(loader, nil)
 			valFields = append(valFields, val)
-			types = append(types, super.NewField(r.meta.Fields[k].Name, val.Type()))
+			types = append(types, super.NewField(r.Names[k], val.Type()))
 		}
-		return vector.NewRecord(loader.sctx.MustLookupTypeRecord(types), valFields, r.length())
+		return vector.NewRecord(loader.sctx.MustLookupTypeRecord(types), valFields, r.Length)
 	}
-	fields := make([]super.Field, 0, len(r.fields))
 	for _, node := range projection {
 		var val vector.Any
-		if k := indexOfField(node.Name, r.meta); k >= 0 && r.fields[k] != nil {
-			val = r.fields[k].project(loader, node.Proj)
+		if k := slices.Index(r.Names, node.Name); k >= 0 {
+			val = r.Fields[k].project(loader, node.Proj)
 		} else {
-			val = vector.NewMissing(r.len)
+			val = vector.NewMissing(r.Length)
 		}
 		valFields = append(valFields, val)
-		fields = append(fields, super.NewField(node.Name, val.Type()))
+		types = append(types, super.NewField(node.Name, val.Type()))
 	}
-	return vector.NewRecord(loader.sctx.MustLookupTypeRecord(fields), valFields, r.length())
-}
-
-func indexOfField(name string, r *bsup.Record) int {
-	return slices.IndexFunc(r.Fields, func(f bsup.Field) bool {
-		return f.Name == name
-	})
+	return vector.NewRecord(loader.sctx.MustLookupTypeRecord(types), valFields, r.Length)
 }

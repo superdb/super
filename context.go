@@ -2020,7 +2020,11 @@ func (t *TypeDefsMapper) lookupType(id uint32) Type {
 			return nil
 		}
 		inner := child(cid)
-		if inner == nil {
+		switch inner.(type) {
+		case nil, *TypeOption:
+			return nil
+		}
+		if inner == TypeMissing || inner == TypeNone {
 			return nil
 		}
 		return t.sctx.LookupTypeOption(inner)

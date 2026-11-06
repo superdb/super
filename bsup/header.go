@@ -81,34 +81,35 @@ type Header interface {
 // S U P C (4 byte string)
 // Version (2 bytes) - 6-bit major and 10-bit minor (see Version)
 // Frame size (8 bytes) - entire frame including header to end of data section
-// Root ID (4 bytes)
-// Fused type ID (4 bytes) - in typedefs
-// Metadata section size (8 bytes)
-// Typedefs section size (8 bytes)
+// Fused type ID (4 bytes) - in the Fusion/TypeValue typedefs
+// Vector typedefs section size (8 bytes)
+// Locators section size (8 bytes)
+// Fusion/TypeValue typedefs section size (8 bytes)
 // [variable data]
-// Metadata (encoded as a rows SuperFrame)
-// Typedefs (encoded as bytes of typedefs serialization)
-// Data section (encoded as raw bytes with size = FrameSize - MetadataSize - TypedefsSize)
+// Vector typedefs (serialization of the typedefs of the vectors' types)
+// Locators (encoded as described in LocatorWriter)
+// Fusion/TypeValue (serialization of the typedefs of type values, e.g., subtypes)
+// Data section (encoded as raw bytes with the remaining size of the frame)
 type ColumnHeader struct {
-	Version      Version // off 4
-	FrameSize    uint64  // 6
-	Root         uint32  // 14
-	FusedType    uint32  // 18
-	MetadataSize uint64  // 22
-	TypedefsSize uint64  // 30
+	Version            Version // off 4
+	FrameSize          uint64  // 6
+	FusedType          uint32  // 14
+	VectorTypedefsSize uint64  // 18
+	LocatorsSize       uint64  // 26
+	TypedefsSize       uint64  // 34
 }
 
-const ColumnHeaderSize = 38
+const ColumnHeaderSize = 42
 
-func newColumnHeader(root ID, fusedType uint32, metadataSize, typedefsSize, dataSectionSize uint64) ColumnHeader {
-	frameSize := ColumnHeaderSize + metadataSize + typedefsSize + dataSectionSize
+func newColumnHeader(fusedType uint32, vectorTypedefsSize, locatorsSize, typedefsSize, dataSectionSize uint64) ColumnHeader {
+	frameSize := ColumnHeaderSize + vectorTypedefsSize + locatorsSize + typedefsSize + dataSectionSize
 	return ColumnHeader{
-		Version:      CurrentVersion,
-		FrameSize:    frameSize,
-		Root:         uint32(root),
-		FusedType:    fusedType,
-		MetadataSize: metadataSize,
-		TypedefsSize: typedefsSize,
+		Version:            CurrentVersion,
+		FrameSize:          frameSize,
+		FusedType:          fusedType,
+		VectorTypedefsSize: vectorTypedefsSize,
+		LocatorsSize:       locatorsSize,
+		TypedefsSize:       typedefsSize,
 	}
 }
 
@@ -121,32 +122,38 @@ func (c ColumnHeader) Serialize() []byte {
 	copy(bytes[0:4], []byte(ColumnMagic))
 	c.Version.Serialize(bytes[4:])
 	binary.LittleEndian.PutUint64(bytes[6:], c.FrameSize)
-	binary.LittleEndian.PutUint32(bytes[14:], c.Root)
-	binary.LittleEndian.PutUint32(bytes[18:], c.FusedType)
-	binary.LittleEndian.PutUint64(bytes[22:], c.MetadataSize)
-	binary.LittleEndian.PutUint64(bytes[30:], c.TypedefsSize)
+	binary.LittleEndian.PutUint32(bytes[14:], c.FusedType)
+	binary.LittleEndian.PutUint64(bytes[18:], c.VectorTypedefsSize)
+	binary.LittleEndian.PutUint64(bytes[26:], c.LocatorsSize)
+	binary.LittleEndian.PutUint64(bytes[34:], c.TypedefsSize)
 	return bytes[:]
 }
 
 func (c *ColumnHeader) Deserialize(bytes [ColumnHeaderSize]byte) {
 	c.Version.Deserialize(bytes[4:])
 	c.FrameSize = binary.LittleEndian.Uint64(bytes[6:])
-	c.Root = binary.LittleEndian.Uint32(bytes[14:])
-	c.FusedType = binary.LittleEndian.Uint32(bytes[18:])
-	c.MetadataSize = binary.LittleEndian.Uint64(bytes[22:])
-	c.TypedefsSize = binary.LittleEndian.Uint64(bytes[30:])
+	c.FusedType = binary.LittleEndian.Uint32(bytes[14:])
+	c.VectorTypedefsSize = binary.LittleEndian.Uint64(bytes[18:])
+	c.LocatorsSize = binary.LittleEndian.Uint64(bytes[26:])
+	c.TypedefsSize = binary.LittleEndian.Uint64(bytes[34:])
 }
 
-func (c ColumnHeader) MetadataSection() (int64, int64) {
-	return ColumnHeaderSize, int64(c.MetadataSize)
+func (c ColumnHeader) VectorTypedefsSection() (int64, int64) {
+	return ColumnHeaderSize, int64(c.VectorTypedefsSize)
+}
+
+func (c ColumnHeader) LocatorsSection() (int64, int64) {
+	return ColumnHeaderSize + int64(c.VectorTypedefsSize), int64(c.LocatorsSize)
 }
 
 func (c ColumnHeader) TypedefsSection() (int64, int64) {
-	return ColumnHeaderSize + int64(c.MetadataSize), int64(c.TypedefsSize)
+	off, size := c.LocatorsSection()
+	return off + size, int64(c.TypedefsSize)
 }
 
 func (c ColumnHeader) SegmentsSection() (int64, int64) {
-	off := ColumnHeaderSize + int64(c.MetadataSize) + int64(c.TypedefsSize)
+	off, size := c.TypedefsSection()
+	off += size
 	return off, int64(c.FrameSize) - off
 }
 
@@ -157,7 +164,10 @@ func (c ColumnHeader) check() error {
 	if err := checkSize("column frame", int(c.FrameSize), MaxFrameSize); err != nil {
 		return err
 	}
-	if err := checkSize("metadata section", int(c.MetadataSize), MaxMetaSize); err != nil {
+	if err := checkSize("vector typedefs section", int(c.VectorTypedefsSize), MaxMetaSize); err != nil {
+		return err
+	}
+	if err := checkSize("locators section", int(c.LocatorsSize), MaxMetaSize); err != nil {
 		return err
 	}
 	return checkSize("typedefs section", int(c.TypedefsSize), MaxMetaSize)

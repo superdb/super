@@ -12,15 +12,6 @@ type FieldEncoder struct {
 	values Encoder
 }
 
-func (f *FieldEncoder) Metadata(bctx *Context, off uint64) (uint64, Field) {
-	var id ID
-	off, id = f.values.Metadata(bctx, off)
-	return off, Field{
-		Name:   f.name,
-		Values: id,
-	}
-}
-
 func (f *FieldEncoder) Encode(group *errgroup.Group, count uint32) {
 	f.values.Encode(group)
 }

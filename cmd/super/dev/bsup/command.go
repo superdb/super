@@ -1,15 +1,19 @@
 package bsup
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"os"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
+	"github.com/superdb/super/bsup/loader"
 	"github.com/superdb/super/cli/outputflags"
 	"github.com/superdb/super/cmd/super/dev"
 	"github.com/superdb/super/sbuf"
@@ -37,9 +41,10 @@ type Command struct {
 	outputFlags outputflags.Flags
 	headers     bool
 	fused       bool
-	metas       bool
+	locators    bool
+	vtypedefs   bool
 	typedefs    bool
-	metabytes   bool
+	locbytes    bool
 	stats       bool
 	marshaler   *super.Marshaler
 	vals        []super.Value
@@ -56,8 +61,9 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	c := &Command{Command: parent.(*dev.Command)}
 	c.outputFlags.SetFlags(f)
 	f.BoolVar(&c.headers, "headers", true, "emit file's headers")
-	f.BoolVar(&c.metas, "metas", false, "emit BSUP columns metas")
-	f.BoolVar(&c.metabytes, "metabytes", false, "dump raw BSUP columns metas as BSUP row frames to stdout")
+	f.BoolVar(&c.locators, "locators", false, "emit a record for each vector in a column frame's locators section")
+	f.BoolVar(&c.locbytes, "locatorbytes", false, "dump the raw bytes of column frame locators sections to stdout")
+	f.BoolVar(&c.vtypedefs, "vectortypedefs", false, "emit column frame vector typedefs tables")
 	f.BoolVar(&c.typedefs, "typedefs", false, "emit file's typedefs table")
 	f.BoolVar(&c.fused, "fused", false, "emit the fused types")
 	f.BoolVar(&c.stats, "stats", false, "emit stats section")
@@ -86,8 +92,8 @@ func (c *Command) Run(args []string) error {
 	}
 	defer r.Close()
 	reader := bsup.NewRawReader(r)
-	if c.metabytes {
-		return c.dumpMetaBytes(ctx, reader)
+	if c.locbytes {
+		return c.dumpLocatorBytes(ctx, reader)
 	}
 	c.sctx = super.NewContext()
 	writer, err := c.outputFlags.Open(ctx, c.sctx, engine)
@@ -124,7 +130,7 @@ func (c *Command) dump(ctx context.Context, reader *bsup.RawReader) error {
 	return ctx.Err()
 }
 
-func (c *Command) dumpMetaBytes(ctx context.Context, reader *bsup.RawReader) error {
+func (c *Command) dumpLocatorBytes(ctx context.Context, reader *bsup.RawReader) error {
 	for !c.stop() && ctx.Err() == nil {
 		frame, err := reader.Next()
 		if err != nil {
@@ -135,11 +141,11 @@ func (c *Command) dumpMetaBytes(ctx context.Context, reader *bsup.RawReader) err
 		}
 		switch frame := frame.(type) {
 		case *bsup.RawColFrame:
-			metaBytes, err := frame.Metadata()
+			locBytes, err := frame.Locators()
 			if err != nil {
 				return err
 			}
-			if _, err = os.Stdout.Write(metaBytes); err != nil {
+			if _, err = os.Stdout.Write(locBytes); err != nil {
 				return err
 			}
 		case *bsup.RawRowFrame:
@@ -217,33 +223,18 @@ func (c *Command) columnFrame(frame *bsup.RawColFrame) error {
 			return err
 		}
 	}
-	if c.metas {
-		metaBytes, err := frame.Metadata()
+	if c.vtypedefs {
+		typedefsBytes, err := frame.VectorTypedefs()
 		if err != nil {
 			return err
 		}
-		fit := bsup.NewSeekable(c.sctx, bytes.NewReader(metaBytes))
-		for {
-			frame, err := fit.Next()
-			if err != nil {
-				return err
-			}
-			if frame == nil {
-				break
-			}
-			rowframe, ok := frame.(*bsup.RowFrame)
-			if !ok {
-				return errors.New("non-row data in column metadata")
-			}
-			vals, err := rowframe.DeserializeValues()
-			if err != nil {
-				return err
-			}
-			for _, val := range vals {
-				if err := c.emit(val.Copy()); err != nil {
-					return err
-				}
-			}
+		if err := c.marshalTypeDefs(typedefsBytes); err != nil {
+			return err
+		}
+	}
+	if c.locators {
+		if err := c.marshalLocators(frame); err != nil {
+			return err
 		}
 	}
 	if c.typedefs {
@@ -269,6 +260,200 @@ func (c *Command) columnFrame(frame *bsup.RawColFrame) error {
 		}
 	}
 	return nil
+}
+
+// Locator descriptions emitted for -locators, which are named by the encoding
+// of the vector (e.g., Int, Record, Dict, Const).
+type (
+	locatorNode struct {
+		Path   string
+		Type   super.Type
+		Length uint32
+	}
+	locatorSegments struct {
+		Path     string
+		Type     super.Type
+		Length   uint32
+		Segments []bsup.Segment
+	}
+	locatorConst struct {
+		Path   string
+		Type   super.Type
+		Length uint32
+		Bytes  []byte
+	}
+	locatorDynamic struct {
+		Length uint32
+		Tags   bsup.Segment
+	}
+)
+
+// marshalLocators emits a record for each vector in the frame's locator
+// section in DFS order, which it unmarshals into the frame's shadows.
+func (c *Command) marshalLocators(frame *bsup.RawColFrame) error {
+	typedefsBytes, err := frame.VectorTypedefs()
+	if err != nil {
+		return err
+	}
+	locBytes, err := frame.Locators()
+	if err != nil {
+		return err
+	}
+	defs, ok := super.NewTypeDefsFromBytes(typedefsBytes)
+	if !ok {
+		return errors.New("malformed vector typedefs")
+	}
+	_, dataSize := frame.Header().SegmentsSection()
+	root, err := loader.Unmarshal(defs, locBytes, uint64(dataSize))
+	if err != nil {
+		return err
+	}
+	m := &shadowMarshaler{c: c, mapper: super.NewTypeDefsMapper(c.sctx, defs)}
+	if dynamic, ok := root.(*loader.Dynamic); ok {
+		if err := c.marshalNamed("Dynamic", &locatorDynamic{dynamic.Length, dynamic.Tags}); err != nil {
+			return err
+		}
+		for k, value := range dynamic.Values {
+			if err := m.marshal([]string{strconv.Itoa(k)}, value); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return m.marshal(nil, root)
+}
+
+type shadowMarshaler struct {
+	c      *Command
+	mapper *super.TypeDefsMapper
+}
+
+// marshal emits a record for shadow, whose path is path, and then for each
+// of the vectors in shadow.
+func (m *shadowMarshaler) marshal(path []string, shadow loader.Shadow) error {
+	var node *loader.Node
+	var name string
+	var segs []bsup.Segment
+	type child struct {
+		label  string
+		shadow loader.Shadow
+	}
+	var children []child
+	switch s := shadow.(type) {
+	case *loader.Const:
+		typ, err := m.lookup(s.TypeID)
+		if err != nil {
+			return err
+		}
+		return m.c.marshalNamed("Const", &locatorConst{strings.Join(path, "."), typ, s.Length, s.Value})
+	case *loader.Dict:
+		node, name, segs = &s.Node, "Dict", []bsup.Segment{s.Counts, s.Index}
+		children = []child{{"values", s.Values}}
+	case *loader.Record:
+		node, name = &s.Node, "Record"
+		for k, field := range s.Fields {
+			children = append(children, child{s.Names[k], field})
+		}
+	case *loader.Set:
+		node, name, segs = &s.Node, "Set", []bsup.Segment{s.Offsets}
+		children = []child{{"values", s.Values}}
+	case *loader.Array:
+		node, name, segs = &s.Node, "Array", []bsup.Segment{s.Offsets}
+		children = []child{{"values", s.Values}}
+	case *loader.Map:
+		node, name, segs = &s.Node, "Map", []bsup.Segment{s.Offsets}
+		children = []child{{"keys", s.Keys}, {"values", s.Values}}
+	case *loader.Union:
+		node, name, segs = &s.Node, "Union", []bsup.Segment{s.Tags}
+		for k, value := range s.Values {
+			children = append(children, child{strconv.Itoa(k), value})
+		}
+	case *loader.Enum:
+		node, name, segs = &s.Node, "Enum", []bsup.Segment{s.Values.Values}
+	case *loader.Error:
+		node, name = &s.Node, "Error"
+		children = []child{{"", s.Values}}
+	case *loader.Named:
+		node, name = &s.Node, "Named"
+		children = []child{{"", s.Values}}
+	case *loader.FusionAll:
+		node, name, segs = &s.Node, "Fusion", []bsup.Segment{s.Subtypes.Values}
+		children = []child{{"values", s.Values}}
+	case *loader.Fusion:
+		node, name, segs = &s.Node, "Fusion", []bsup.Segment{s.Subtypes.Values}
+		children = []child{{"values", s.Values}}
+	case *loader.Option:
+		node, name, segs = &s.Node, "Option", []bsup.Segment{s.Tags}
+		children = []child{{"values", s.Values}}
+	case *loader.Int:
+		node, name, segs = &s.Node, "Int", []bsup.Segment{s.Values}
+	case *loader.Uint:
+		node, name, segs = &s.Node, "Uint", []bsup.Segment{s.Values}
+	case *loader.Float:
+		node, name, segs = &s.Node, "Float", []bsup.Segment{s.Values}
+	case *loader.Bool:
+		node, name, segs = &s.Node, "Bool", []bsup.Segment{s.Values}
+	case *loader.TypeValue:
+		node, name, segs = &s.Node, "TypeValue", []bsup.Segment{s.Values}
+	case *loader.Bytes:
+		node, name, segs = &s.Node, "Bytes", []bsup.Segment{s.Bytes, s.Offsets}
+	case *loader.IP:
+		node, name, segs = &s.Node, "IP", []bsup.Segment{s.Bytes, s.Offsets}
+	case *loader.Net:
+		node, name, segs = &s.Node, "Net", []bsup.Segment{s.Bytes, s.Offsets}
+	case *loader.Null:
+		node, name = &s.Node, "Null"
+	case *loader.None:
+		node, name = &s.Node, "None"
+	case *loader.Missing:
+		node, name = &s.Node, "Missing"
+	default:
+		return fmt.Errorf("unknown shadow %T", shadow)
+	}
+	typ, err := m.lookup(node.TypeID)
+	if err != nil {
+		return err
+	}
+	var desc any
+	if len(segs) != 0 {
+		desc = &locatorSegments{strings.Join(path, "."), typ, node.Length, segs}
+	} else {
+		desc = &locatorNode{strings.Join(path, "."), typ, node.Length}
+	}
+	if err := m.c.marshalNamed(name, desc); err != nil {
+		return err
+	}
+	for _, child := range children {
+		childPath := path
+		if child.label != "" {
+			childPath = append(slices.Clone(path), child.label)
+		}
+		if err := m.marshal(childPath, child.shadow); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *shadowMarshaler) lookup(id uint32) (super.Type, error) {
+	typ := m.mapper.LookupType(id)
+	if typ == nil {
+		return nil, fmt.Errorf("bad type ID %d in vector typedefs", id)
+	}
+	return typ, nil
+}
+
+// marshalNamed emits the marshaled desc with its type named name.
+func (c *Command) marshalNamed(name string, desc any) error {
+	val, err := c.marshaler.Marshal(desc)
+	if err != nil {
+		return err
+	}
+	typ, err := c.sctx.LookupTypeNamed(name, super.TypeUnder(val.Type()))
+	if err != nil {
+		return err
+	}
+	return c.emit(super.NewValue(typ, val.Bytes()))
 }
 
 func (c *Command) translateTypeID(typedefBytes []byte, id uint32) (super.Type, error) {
@@ -460,6 +645,29 @@ func decodeTypeDef(slot uint32, bytes []byte) ([]byte, any) {
 		bytes, out = wrapped(bytes, "TypeDefError", slot)
 	case super.TypeDefFusion:
 		bytes, out = wrapped(bytes, "TypeDefFusion", slot)
+	case super.TypeDefOption:
+		bytes, out = wrapped(bytes, "TypeDefOption", slot)
+	case super.TypeDefDecimal:
+		var precision, scale int
+		precision, bytes = super.DecodeLength(bytes)
+		if bytes == nil {
+			return nil, errInfo(slot, "TypeDefDecimal", "at precision field")
+		}
+		scale, bytes = super.DecodeLength(bytes)
+		if bytes == nil {
+			return nil, errInfo(slot, "TypeDefDecimal", "at scale field")
+		}
+		out = &struct {
+			Kind      string
+			Slot      uint32
+			Precision int
+			Scale     int
+		}{
+			Kind:      "TypeDefDecimal",
+			Slot:      slot,
+			Precision: precision,
+			Scale:     scale,
+		}
 	case super.TypeDefMap:
 		var keyID, valID uint32
 		keyID, bytes = super.DecodeID(bytes)

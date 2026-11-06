@@ -144,6 +144,21 @@ func TestTypeDefsMalformed(t *testing.T) {
 		mapper := super.NewTypeDefsMapper(super.NewContext(), defs)
 		assert.Nil(t, mapper.LookupType(super.IDTypeComplex), name)
 	}
+	// An option of an option, missing, or none isn't a type.
+	option := func(id uint32) []byte {
+		return binary.AppendUvarint([]byte{super.TypeDefOption}, uint64(id))
+	}
+	for name, inner := range map[string]uint32{
+		"option of option":  super.IDTypeComplex,
+		"option of missing": super.IDMissing,
+		"option of none":    super.IDNone,
+	} {
+		section := append(option(super.IDInt64), option(inner)...)
+		defs, ok := super.NewTypeDefsFromBytes(encode([]uint64{0, 2}, section))
+		require.True(t, ok, name)
+		mapper := super.NewTypeDefsMapper(super.NewContext(), defs)
+		assert.Nil(t, mapper.LookupType(super.IDTypeComplex+1), name)
+	}
 }
 
 func TestContextForeignTypes(t *testing.T) {

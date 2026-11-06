@@ -15,12 +15,12 @@ type RecordEncoder struct {
 
 var _ Encoder = (*RecordEncoder)(nil)
 
-func NewRecordEncoder(bctx *Context, vec *vector.Record) *RecordEncoder {
+func NewRecordEncoder(typedefs *TypeDefs, vec *vector.Record) *RecordEncoder {
 	fields := make([]*FieldEncoder, 0, len(vec.Fields))
 	for i, f := range vec.Fields {
 		fields = append(fields, &FieldEncoder{
 			name:   vec.Typ.Fields[i].Name,
-			values: NewEncoder(bctx, f),
+			values: NewEncoder(typedefs, f),
 		})
 	}
 	return &RecordEncoder{fields: fields, count: vec.Len()}
@@ -32,14 +32,16 @@ func (r *RecordEncoder) Encode(group *errgroup.Group) {
 	}
 }
 
-func (r *RecordEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	fields := make([]Field, 0, len(r.fields))
-	for _, field := range r.fields {
-		next, m := field.Metadata(bctx, off)
-		fields = append(fields, m)
-		off = next
+func (r *RecordEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	if len(r.fields) == 0 {
+		// A record with no fields has no field to get its length from.
+		w.WriteCount(r.count)
+		return
 	}
-	return off, bctx.enter(&Record{Length: r.count, Fields: fields})
+	for _, field := range r.fields {
+		w.Locate(field.values)
+	}
 }
 
 func (r *RecordEncoder) Stats(path field.Path, fn CollectStatsFunc) {

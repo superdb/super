@@ -15,8 +15,9 @@ func NewNoneEncoder(len uint32) *NoneEncoder {
 	return &NoneEncoder{len}
 }
 
-func (n *NoneEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	return off, bctx.enter(&None{n.len})
+func (n *NoneEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.WriteCount(n.len)
 }
 
 func (*NoneEncoder) Encode(group *errgroup.Group)       {}

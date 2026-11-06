@@ -15,8 +15,9 @@ func NewMissingEncoder(len uint32) *MissingEncoder {
 	return &MissingEncoder{len}
 }
 
-func (n *MissingEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	return off, bctx.enter(&Missing{n.len})
+func (n *MissingEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.WriteCount(n.len)
 }
 
 func (*MissingEncoder) Encode(group *errgroup.Group)       {}

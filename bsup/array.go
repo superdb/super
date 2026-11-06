@@ -16,10 +16,11 @@ type ArrayEncoder struct {
 
 var _ Encoder = (*ArrayEncoder)(nil)
 
-func NewArrayEncoder(bctx *Context, vec *vector.Array) *ArrayEncoder {
+func NewArrayEncoder(typedefs *TypeDefs, vec *vector.Array) *ArrayEncoder {
 	return &ArrayEncoder{
-		values:  NewEncoder(bctx, vec.Values),
+		values:  NewEncoder(typedefs, vec.Values),
 		offsets: NewUint32Encoder(vec.Offsets),
+		count:   vec.Len(),
 	}
 }
 
@@ -35,14 +36,12 @@ func (a *ArrayEncoder) Emit(w io.Writer) error {
 	return a.values.Emit(w)
 }
 
-func (a *ArrayEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	off, lens := a.offsets.Segment(off)
-	off, vals := a.values.Metadata(bctx, off)
-	return off, bctx.enter(&Array{
-		Length:  a.count,
-		Lengths: lens,
-		Values:  vals,
-	})
+func (a *ArrayEncoder) Locate(w *LocatorWriter) {
+	w.WriteKind(KindPlain)
+	w.WriteCount(a.count)
+	_, offsets := a.offsets.Segment(w.Offset())
+	w.Segment(offsets)
+	w.Locate(a.values)
 }
 
 func (a *ArrayEncoder) Stats(field.Path, CollectStatsFunc) {} // Array/Set stats are ignored for now.
@@ -51,21 +50,12 @@ type SetEncoder struct {
 	ArrayEncoder
 }
 
-func NewSetEncoder(bctx *Context, vec *vector.Set) *SetEncoder {
+func NewSetEncoder(typedefs *TypeDefs, vec *vector.Set) *SetEncoder {
 	return &SetEncoder{
 		ArrayEncoder{
-			values:  NewEncoder(bctx, vec.Values),
+			values:  NewEncoder(typedefs, vec.Values),
 			offsets: &Uint32Encoder{vals: vec.Offsets},
+			count:   vec.Len(),
 		},
 	}
-}
-
-func (s *SetEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	off, id := s.ArrayEncoder.Metadata(bctx, off)
-	array := bctx.Lookup(id).(*Array) // XXX this leaves a dummy node in the table
-	return off, bctx.enter(&Set{
-		Length:  array.Length,
-		Lengths: array.Lengths,
-		Values:  array.Values,
-	})
 }

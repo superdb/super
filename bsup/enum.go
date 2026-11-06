@@ -17,7 +17,4 @@ func NewEnumEncoder(vec *vector.Enum) *EnumEncoder {
 	}
 }
 
-func (e *EnumEncoder) Metadata(bctx *Context, off uint64) (uint64, ID) {
-	off, values := e.UintEncoder.Metadata(bctx, off)
-	return off, bctx.enter(&Enum{Symbols: e.typ.Symbols, Values: values})
-}
+// The locators of an enum are those of its uint values (see UintEncoder.Locate).

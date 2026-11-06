@@ -9,63 +9,44 @@ import (
 	"github.com/superdb/super/vector"
 )
 
-type union struct {
-	mu   sync.Mutex
-	meta *bsup.Union
-	len  uint32
+// Union is a union vector, whose locators are its kind, count, the segment of
+// its tags (run lengths if it has two member types), and the locators of the
+// values of each member type.
+type Union struct {
+	Node
+	Tags   bsup.Segment
+	Values []Shadow
+	mu     sync.Mutex
 	// XXX we should store TagMap here so it doesn't have to be recomputed
-	tags   []uint32
-	values []shadow
+	tags []uint32
 }
 
-func newUnion(bctx *bsup.Context, meta *bsup.Union) *union {
-	return &union{
-		meta:   meta,
-		len:    meta.Len(bctx),
-		values: make([]shadow, len(meta.Values)),
-	}
-}
-
-func (u *union) length() uint32 {
-	return u.len
-}
-
-func (u *union) unmarshal(bctx *bsup.Context, projection field.Projection) {
+func (u *Union) load(loader *FrameLoader) []uint32 {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	for k, id := range u.meta.Values {
-		if u.values[k] == nil {
-			u.values[k] = newShadow(bctx, id)
+	if u.tags == nil {
+		tags, err := bsup.ReadUint32s(u.Tags, loader.frame)
+		if err != nil {
+			panic(err)
 		}
-		u.values[k].unmarshal(bctx, projection)
+		u.tags = tags
 	}
+	return u.tags
 }
 
-func (u *union) load(loader *FrameLoader) []uint32 {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-	if u.tags != nil {
-		return u.tags
-	}
-	tags, err := bsup.ReadUint32s(u.meta.Tags, loader.frame)
-	if err != nil {
-		panic(err)
-	}
-	u.tags = tags
-	return tags
-}
-
-func (u *union) project(loader *FrameLoader, projection field.Projection) vector.Any {
-	vecs := make([]vector.Any, 0, len(u.values))
-	types := make([]super.Type, 0, len(u.values))
-	for _, shadow := range u.values {
+func (u *Union) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	vecs := make([]vector.Any, 0, len(u.Values))
+	types := make([]super.Type, 0, len(u.Values))
+	for _, shadow := range u.Values {
 		vec := shadow.project(loader, projection)
 		vecs = append(vecs, vec)
 		types = append(types, vec.Type())
 	}
 	utyp := loader.sctx.MustLookupTypeUnion(types)
 	tags := u.load(loader)
-	if len(utyp.Types) == 2 {
+	// The tags are run-length encoded if the union as written has two
+	// members (a projection may change the number of members of utyp).
+	if len(u.Values) == 2 {
 		return vector.NewUnionFromRLE(utyp, tags, vecs)
 	}
 	return vector.NewUnion(utyp, tags, vecs)

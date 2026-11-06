@@ -1,6 +1,6 @@
 script: |
   super -o out.bsup -
-  super dev bsup -headers -metas -fused -s out.bsup
+  super dev bsup -headers -locators -fused -s out.bsup
 
 inputs:
   - name: stdin
@@ -13,11 +13,11 @@ outputs:
   - name: stdout
     data: |
       type Version={Major:uint8,Minor:uint16}
-      type ColumnHeader={Version:Version,FrameSize:uint64,Root:uint32,FusedType:uint32,MetadataSize:uint64,TypedefsSize:uint64}
-      {Version:{Major:0,Minor:30},FrameSize:187,Root:0,FusedType:8,MetadataSize:149,TypedefsSize:0}::ColumnHeader
-      type Const={TypeID:uint32,Bytes:bytes,Count:uint32}
-      {TypeID:8,Bytes:0x02,Count:3}::Const
+      type ColumnHeader={Version:Version,FrameSize:uint64,FusedType:uint32,VectorTypedefsSize:uint64,LocatorsSize:uint64,TypedefsSize:uint64}
+      {Version:{Major:0,Minor:31},FrameSize:48,FusedType:8,VectorTypedefsSize:0,LocatorsSize:6,TypedefsSize:0}::ColumnHeader
+      type Const={Path:string,Type:type,Length:uint32,Bytes:bytes}
+      {Path:"",Type:<int64>,Length:3,Bytes:0x02}::Const
       {Kind:"ColumnFrameFusedType",Type:<int64>}
       type SuperFooter={Version:Version,FooterSize:uint64,FusedTypeSize:uint64,StatsSize:uint64,SuperFrameSize:uint64}
-      {Version:{Major:0,Minor:30},FooterSize:68,FusedTypeSize:1,StatsSize:21,SuperFrameSize:187}::SuperFooter
+      {Version:{Major:0,Minor:31},FooterSize:68,FusedTypeSize:1,StatsSize:21,SuperFrameSize:48}::SuperFooter
       {Kind:"SuperFrameFusedType",Type:<int64>}
