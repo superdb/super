@@ -69,6 +69,34 @@ func TestBSUPBatchBug(t *testing.T) {
 	require.Equal(t, "{a:[4,5]}", sup.String(val))
 }
 
+func TestColumnWriterControlFrames(t *testing.T) {
+	var b bytes.Buffer
+	w := bsup.NewColumnWriter(sio.NopCloser(&b))
+	sctx := super.NewContext()
+	for _, s := range []string{`{a:1}`, `{a:2}`} {
+		val, err := sup.ParseValue(sctx, s)
+		require.NoError(t, err)
+		require.NoError(t, w.Push(valToVec(sctx, val)))
+		// WriteControl ends the column frame and writes a control frame.
+		require.NoError(t, w.WriteControl(super.NewString("ctrl")))
+	}
+	require.NoError(t, w.Close())
+	// The super frame size must include the control frames so the
+	// super footer's back pointer leads to the start of the file.
+	seekable := bsup.NewSeekable(sctx, bytes.NewReader(b.Bytes()))
+	typ, err := seekable.FusedType(sctx)
+	require.NoError(t, err)
+	require.Equal(t, "{a:int64}", sup.FormatType(typ))
+	// The zone maps' frame offsets must locate the column frames.
+	offs, ok, err := seekable.FilterFrames(sctx, nil, func(super.Value) bool { return false })
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Len(t, offs, 2)
+	for _, off := range offs {
+		require.Equal(t, bsup.ColumnMagic, string(b.Bytes()[off:off+4]))
+	}
+}
+
 func valToVec(sctx *super.Context, val super.Value) vector.Any {
 	b := vector.NewDynamicValueBuilder()
 	b.Write(val)

@@ -82,7 +82,12 @@ func (c *ColumnWriter) WriteControl(val super.Value) error {
 	if c.ctrl == nil {
 		c.ctrl = NewRowWriter(sio.NopCloser(c.writer))
 	}
-	return c.ctrl.write(val, true)
+	// The control frame is part of the current super frame, so its size
+	// counts toward the super frame size and the offsets of later frames.
+	size := c.ctrl.size
+	err := c.ctrl.write(val, true)
+	c.size += c.ctrl.size - size
+	return err
 }
 
 // WriteSuperFrame writes the entire BSUP columns file from a single vector.
