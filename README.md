@@ -59,9 +59,8 @@ Super-structured data is strongly typed even though any value can take on any ty
 and sequences of data need not all conform to a predefined schema.  To achieve this,
 SuperDB extends the JSON format with explicit typing in a format called
 [Super (SUP)](https://superdb.org/formats/sup.html) where all JSON values
-are also SUP.  The text-based SUP format is not very performant as it is intended
-for use at small-scale as human-readable text, but the
-binary version of SUP called [Super Binary (BSUP)](https://superdb.org/formats/sup.html)
+are also SUP.  The text-based SUP format isn’t designed for performance; it’s meant to be human-readable at small scale, but the
+binary version of SUP called [Super Binary (BSUP)](https://superdb.org/formats/bsup.html)
 is highly efficient, supporting both a row and a column orientation.
 The BSUP row form is a bit like [Avro](https://avro.apache.org/) while the column form
 is a bit like [Parquet](https://parquet.apache.org/)
@@ -109,7 +108,7 @@ we'd love to hear your feedback via our
 
 [SuperDB Desktop](https://github.com/superdb/zui) is a
 desktop app to explore, query, and shape data in a SuperDB database.
-It combines a search experience with a SQL query that is well suited
+It combines a search experience with SQL that is well suited
 for dealing with complex and large JSON data.
 
 Unlike most JSON browsing tools, it won't slow to a crawl --- or worse crash ---
