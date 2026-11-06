@@ -39,18 +39,20 @@ func (s *sliceExpr) eval(vecs ...vector.Any) vector.Any {
 	if vec, ok := CatchFirst(s.sctx, CatchAll, vecs, "slice expression"); ok {
 		return vec
 	}
-	container := vecs[0]
+	// The result of slicing a value of a named type is a value of the
+	// underlying type.
+	container := vector.Under(vecs[0])
 	vecs = vecs[1:]
 	var from, to vector.Any
 	if s.fromEval != nil {
-		from = vecs[0]
+		from = vector.Under(vecs[0])
 		if !super.IsSigned(from.Type().ID()) {
 			return vector.NewStringError(s.sctx, "slice index is not a number", from.Len())
 		}
 		vecs = vecs[1:]
 	}
 	if s.toEval != nil {
-		to = vecs[0]
+		to = vector.Under(vecs[0])
 		if !super.IsSigned(to.Type().ID()) {
 			return vector.NewStringError(s.sctx, "slice index is not a number", to.Len())
 		}

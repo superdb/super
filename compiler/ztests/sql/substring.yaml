@@ -15,3 +15,14 @@ output: |
   error({message:"SUBSTRING: string value required",on:[1,2]})
   error({message:"SUBSTRING: string value required",on:[1,2]})
   error({message:"SUBSTRING: string value required",on:[1,2]})
+
+---
+
+spq: values SUBSTRING(this FROM 2 FOR 2)
+
+input: |
+  type name=string
+  "hello"::name
+
+output: |
+  "ll"
