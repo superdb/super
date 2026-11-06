@@ -73,3 +73,26 @@ input: |
 output: |
   <int64|string>
   <int64|string>
+
+---
+
+# A named union (e.g., a sum type of named types) is unwrapped one level, so
+# its values keep their member types until they're unwrapped again.
+spq: values under(this), under(under(this)), under(under(under(this)))
+
+input: |
+  type Bar={x:int64}
+  type Baz={y:string}
+  type Foo=(Bar|Baz)
+  {x:1}::Bar::Foo
+  {y:"a"}::Baz::Foo
+
+output: |
+  type Bar={x:int64}
+  type Baz={y:string}
+  {x:1}::Bar::(Bar|Baz)
+  {x:1}::Bar
+  {x:1}
+  {y:"a"}::Baz::(Bar|Baz)
+  {y:"a"}::Baz
+  {y:"a"}

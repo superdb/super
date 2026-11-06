@@ -216,3 +216,27 @@ error: |
   match: duplicate field name "x" at line 1, column 21:
   values match x with x when int64 1 else 0
                       ~
+
+---
+
+# The values of a named union type (e.g., a sum type of named types) match
+# its members, as do the values of the union under it, and a type assertion
+# to a member agrees.
+spq: |
+  values {
+    m:match this when Bar x when Baz y,
+    u:match under(this) when Bar "bar" when Baz "baz",
+    a:this.(Bar) ?? "not Bar"
+  }
+
+input: |
+  type Bar={x:int64}
+  type Baz={y:string}
+  type Foo=(Bar|Baz)
+  {x:1}::Bar::Foo
+  {y:"a"}::Baz::Foo
+
+output: |
+  type Bar={x:int64}
+  {m:1,u:"bar",a:{x:1}::Bar}
+  {m:"a",u:"baz",a:"not Bar"}

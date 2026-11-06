@@ -11,6 +11,11 @@ type Under struct {
 	sctx *super.Context
 }
 
+// ApplyOpt keeps unions from being ripped before Call, which handles them, so
+// under strips one level from a named union (e.g., a named sum type) rather
+// than from each of the union's values.
+func (*Under) ApplyOpt() vector.ApplyOpt { return vector.ApplyNone }
+
 func (u *Under) Call(args ...vector.Any) vector.Any {
 	vec := args[0]
 	if _, ok := expr.Catch(u.sctx, expr.CatchNone, args[0], "under"); ok {
@@ -35,7 +40,7 @@ func (u *Under) Call(args ...vector.Any) vector.Any {
 			return vecs[0].(*vector.Option).Any
 		}, vec)
 	case *vector.Union:
-		return vec.Dynamic()
+		out = vec.Dynamic()
 	case *vector.TypeValue:
 		b := vector.NewDynamicValueBuilder()
 		for i := range vec.Len() {
