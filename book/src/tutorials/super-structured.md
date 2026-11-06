@@ -276,14 +276,13 @@ providing a unified approach to row, columnar, and human-readable formats:
 
 * [Super (SUP)](../formats/sup.md) is a human-readable format for super-structured data.  All JSON
 documents are SUP values as the SUP format is a strict superset of the JSON syntax.
-* [Super Binary (BSUP)](../formats/bsup.md) is a row-based, binary representation somewhat like
-Avro but leveraging the super data model to represent a sequence of arbitrarily-typed
-values.
-* [Super Column (CSUP)](../formats/csup.md) is columnar like Parquet or ORC but also
-embodies the super data model for heterogeneous and self-describing schemas.
+* [Super Binary (BSUP)](../formats/bsup.md) is an efficient binary representation
+of a sequence of arbitrarily-typed values in either rows, somewhat like Avro, or
+columns, somewhat like Parquet or ORC, that embodies the super data model for
+heterogeneous and self-describing schemas.
 
 Because all of the formats conform to the same super data model, conversions between
-a human-readable form, a row-based binary form, and a row-based columnar form can
+a human-readable form and a binary row or columnar form can
 be trivially carried out with no loss of information.  This is the best of both worlds:
 the same data can be easily expressed in and converted between a human-friendly
 and easy-to-program text form alongside efficient row and columnar formats.

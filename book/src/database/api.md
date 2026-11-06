@@ -546,7 +546,6 @@ The following table shows the supported MIME types and where they can be used.
 | ---------------- | --------- | -------- | ------------------------------------- |
 | Arrow IPC Stream | yes       | yes      | `application/vnd.apache.arrow.stream` |
 | BSUP             | yes       | yes      | `application/x-bsup`                  |
-| CSUP             | yes       | yes      | `application/x-csup`                  |
 | CSV              | yes       | yes      | `text/csv`                            |
 | JSON             | yes       | yes      | `application/json`                    |
 | Line             | yes       | yes      | `application/x-line`                  |

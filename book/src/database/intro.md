@@ -150,8 +150,7 @@ replication easy to support and deploy.
 
 The cloud objects that comprise a database, e.g., data objects,
 commit history, transaction journals, partial aggregations, etc.,
-are stored as super-structured data, i.e., either as [row-based Super Binary (BSUP)](../formats/bsup.md)
-or [Super Columnar (CSUP)](../formats/csup.md).
+are stored as super-structured data in [Super Binary (BSUP)](../formats/bsup.md).
 This makes introspection of the database structure straightforward as many key
 database data structures can be queried with metadata queries and presented
 to a client for further processing by downstream tooling.
