@@ -63,51 +63,6 @@ func (b *Builder) EndContainer() {
 	}
 }
 
-func (b *Builder) EndContainerWithNones(nopts int, nones []int) {
-	if nopts == 0 {
-		b.EndContainer()
-		return
-	}
-	// Pop the container body offset off the stack.
-	bodyOff := b.containers[len(b.containers)-1]
-	b.containers = b.containers[:len(b.containers)-1]
-	bitLen := (nopts + 7) >> 3
-	bitSize := SizeOfUvarint(uint64(bitLen))
-	bodyLen := len(b.bytes) - bodyOff
-	tag := uint64(bodyLen + bitSize + bitLen)
-	tagSize := SizeOfUvarint(tag)
-	// BeginContainer allocated one byte for the container tag.
-	tagOff := bodyOff - 1
-	if tagSize+bitSize+bitLen <= 1 {
-		panic("bad tag/bit")
-	}
-	for range bitSize + bitLen {
-		// Always add bytes at the end to pad for the none bits so when we
-		// do the overlapping copy it works if the container body is smaller
-		// than the nones elem.
-		b.bytes = append(b.bytes, 0)
-	}
-	// Always need additional space for the tag and bits, so move body over.
-	b.bytes = append(b.bytes[:tagOff+tagSize+bitSize+bitLen], b.bytes[bodyOff:len(b.bytes)-(bitSize+bitLen)]...)
-	if binary.PutUvarint(b.bytes[tagOff:], tag) != tagSize {
-		panic("bad container tag size")
-	}
-	if binary.PutUvarint(b.bytes[tagOff+tagSize:], uint64(bitLen)) != bitSize {
-		panic("bad container bits tag size")
-	}
-	bitsOff := tagOff + tagSize + bitSize
-	bits := b.bytes[bitsOff : bitsOff+bitLen]
-	for k := range bits {
-		bits[k] = 0
-	}
-	for _, k := range nones {
-		if k>>3 >= bitLen {
-			panic(k)
-		}
-		bits[k>>3] |= 1 << (k & 7)
-	}
-}
-
 // TransformContainer calls transform, passing it the body of the most recently
 // opened container and replacing the original body with the return value.  It
 // panics if the receiver has no open container.
