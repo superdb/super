@@ -6,7 +6,6 @@ The supported [input](input.md) and [output](output.md) formats include the foll
 |-----------|------|-----------|------------------------------------------|
 | `arrows`  |  yes | `.arrows` | [Arrow IPC Stream Format](https://arrow.apache.org/docs/format/Columnar.html#ipc-streaming-format) |
 | `bsup`    |  yes | `.bsup` | [BSUP](../formats/bsup.md) |
-| `csup`    |  yes | `.csup` | [CSUP](../formats/csup.md) |
 | `csv`     |  yes | `.csv` | [Comma-Separated Values (RFC 4180)](https://www.rfc-editor.org/rfc/rfc4180.html) |
 | `json`    |  yes | `.json`, `.jsonl`, `.ndjson` | [JSON (RFC 8259)](https://www.rfc-editor.org/rfc/rfc8259.html) |
 | `line`    |  no  | `.text`, `.txt` | n/a | One text value per line |
@@ -17,6 +16,6 @@ The supported [input](input.md) and [output](output.md) formats include the foll
 
 >[!NOTE]
 > Best performance is typically achieved when operating on data in binary columnar formats
-> such as [CSUP](../formats/csup.md),
+> such as [BSUP](../formats/bsup.md),
 > [Parquet](https://github.com/apache/parquet-format), or
 > [Arrow](https://arrow.apache.org/docs/format/Columnar.html#ipc-streaming-format).

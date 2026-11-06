@@ -209,7 +209,6 @@
     - [Data Model](formats/model.md)
     - [Super (SUP)](formats/sup.md)
     - [Super Binary (BSUP)](formats/bsup.md)
-    - [Super Column (CSUP)](formats/csup.md)
 !!- [Database](database/intro.md)
 !!    - [API](database/api.md)
 !!    - [Format](database/format.md)

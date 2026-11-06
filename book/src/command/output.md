@@ -16,10 +16,6 @@ output format is [SUP](../formats/sup.md).
 Otherwise, the default format is [BSUP](../formats/bsup.md).
 These defaults may be overridden with `-f`, `-s`, or `-S`.
 
->[!NOTE]
-> While BSUP is currently default, a forthcoming release will change
-> CSUP to default after CSUP supports streaming.
-
 Since SUP is a common format choice for interactive use,
 the `-s` flag is shorthand for `-f sup`.
 Also, `-S` is a shortcut for `-f sup` with `-pretty 2` as
@@ -33,9 +29,9 @@ is a shortcut for `-f json` and `-J` is a shortcut for pretty-printing JSON.
 > causes an occasional surprise
 > (e.g., forgetting `-f` or `-s` in a scripted test that works fine on the
 > command line but fails in CI).  However, this avoids problematic performance where a
-> data pipeline deployed to production accidentally uses SUP instead of CSUP.
+> data pipeline deployed to production accidentally uses SUP instead of BSUP.
 > Since `super` gracefully handles any input, this would be hard to detect.
-> Alternatively, making CSUP always be default would cause much annoyance when
+> Alternatively, making BSUP always be default would cause much annoyance when
 > binary data is written to the terminal.
 
 If no query is specified with `-c`, the inputs are scanned without modification
@@ -89,10 +85,17 @@ produces
 When pretty printing, colorization is enabled by default when writing to a terminal,
 and can be disabled with `-color false`.
 
+## BSUP Output
+
+By default, [BSUP](../formats/bsup.md) output is written as column frames,
+which let a reader read only the columns it needs.  The `-rows` flag writes
+row frames instead.  The `-framecap` flag sets the target number of values
+in each frame (default 10000).
+
 ## Pipeline-friendly Formats
 
-Though they're compressed formats, CSUP and BSUP data are self-describing and
-stream-oriented and thus are pipeline friendly.
+Though it's a compressed format, BSUP data is self-describing and
+stream-oriented and thus is pipeline friendly.
 
 Since data is self-describing you can simply take super-structured output
 of one command and pipe it to the input of another.  It doesn't matter if the value

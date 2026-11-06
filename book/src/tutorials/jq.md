@@ -171,8 +171,8 @@ JSON when needed. Providing human-readability without losing detail is what
 [SUP](../formats/sup.md) is all about.
 
 SUP is nice because it has a comprehensive type system and you can
-go from SUP to an efficient binary row format ([Super Binary, BSUP](../formats/bsup.md))
-and columnar ([Super Columnar, CSUP](../formats/csup.md)) --- and vice versa ---
+go from SUP to an efficient binary format in row or columnar form
+([Super Binary, BSUP](../formats/bsup.md)) --- and vice versa ---
 with complete fidelity and no loss of information.  In this tour,
 we'll stick to SUP, though for large data sets
 [BSUP is much faster](../tutorials/performance.md).
