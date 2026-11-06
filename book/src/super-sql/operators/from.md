@@ -201,6 +201,10 @@ an array or set of strings.
 
 These options cannot be used with S3 URLs.
 
+When the URL is a computed [f-string](../expressions/f-strings.md) entity, these
+options are resolved once and sent with the HTTP request made for each input
+value.
+
 > [!NOTE]
 > Currently, the headers expression must evaluate to a compile-time constant though
 > this may change to allow run-time evaluation in a future version of SuperSQL.

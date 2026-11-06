@@ -356,7 +356,7 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		if o.Filter != nil {
 			dataFilter = &dagFilter{nil, o.Filter}
 		}
-		return op.NewRobot(b.rctx, b.env, parent, e, o.Format, b.newPushdown(nil, nil, nil, dataFilter, false), b.progress), nil
+		return op.NewRobot(b.rctx, b.env, parent, e, o.Format, o.Method, o.Headers, o.Body, o.IsPlainGet(), b.newPushdown(nil, nil, nil, dataFilter, false), b.progress), nil
 	case *dag.SeqScan:
 		table, err := b.lookupTable(o.Table)
 		if err != nil {

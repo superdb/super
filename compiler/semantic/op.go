@@ -219,16 +219,19 @@ func (t *translator) fromFString(entity *ast.FromEval, args []ast.OpArg, seq sem
 		}
 		return t.fromConst(val, entity, args)
 	}
-	format := t.asFormatArg(args)
+	format, method, body, headers := t.httpArgs(args)
 	if format == "" {
 		format = t.env.ReaderOpts.Format
 	}
 	// This is an expression so set up a robot scanner that pulls values from
 	// parent to decide what to scan.
 	return append(seq, &sem.RobotScan{
-		Node:   entity,
-		Expr:   expr,
-		Format: format,
+		Node:    entity,
+		Expr:    expr,
+		Format:  format,
+		Method:  method,
+		Headers: headers,
+		Body:    body,
 	}), ""
 }
 
@@ -356,25 +359,31 @@ func (t *translator) fromFileGlob(globLoc ast.Node, pattern string, args []ast.O
 	}
 }
 
-func (t *translator) fromURL(urlLoc ast.Node, u string, args []ast.OpArg) sem.Op {
-	_, err := url.ParseRequestURI(u)
-	if err != nil {
-		t.error(urlLoc, err)
-		return badOp
-	}
+// httpArgs resolves the HTTP options (format, method, body, headers) shared by
+// the constant-URL (HTTPScan) and computed-URL (RobotScan) forms of from.
+func (t *translator) httpArgs(args []ast.OpArg) (format, method, body string, headers map[string][]string) {
 	opArgs := t.opArgs(args, "format", "method", "body", "headers")
-	format, _ := t.textArg(opArgs, "format")
-	method, _ := t.textArg(opArgs, "method")
-	body, _ := t.textArg(opArgs, "body")
-	var headers map[string][]string
+	format, _ = t.textArg(opArgs, "format")
+	method, _ = t.textArg(opArgs, "method")
+	body, _ = t.textArg(opArgs, "body")
 	if e, loc := t.exprArg(opArgs, "headers"); e != nil {
 		if val, ok := t.mustEval(e); ok {
-			headers, err = unmarshalHeaders(val)
+			h, err := unmarshalHeaders(val)
 			if err != nil {
 				t.error(loc, err)
 			}
+			headers = h
 		}
 	}
+	return
+}
+
+func (t *translator) fromURL(urlLoc ast.Node, u string, args []ast.OpArg) sem.Op {
+	if _, err := url.ParseRequestURI(u); err != nil {
+		t.error(urlLoc, err)
+		return badOp
+	}
+	format, method, body, headers := t.httpArgs(args)
 	if format == "" {
 		format = anyio.ReadFormatFromPath(u)
 	}

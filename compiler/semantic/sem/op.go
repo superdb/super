@@ -61,8 +61,11 @@ type (
 	}
 	RobotScan struct {
 		ast.Node
-		Expr   Expr
-		Format string
+		Expr    Expr
+		Format  string
+		Method  string
+		Headers map[string][]string
+		Body    string
 	}
 	TableMetaScan struct {
 		ast.Node
@@ -334,9 +337,12 @@ func CopyOp(op Op) Op {
 		}
 	case *RobotScan:
 		return &RobotScan{
-			Node:   op.Node,
-			Expr:   CopyExpr(op.Expr),
-			Format: op.Format,
+			Node:    op.Node,
+			Expr:    CopyExpr(op.Expr),
+			Format:  op.Format,
+			Method:  op.Method,
+			Headers: maps.Clone(op.Headers),
+			Body:    op.Body,
 		}
 	case *TableMetaScan:
 		return &TableMetaScan{
