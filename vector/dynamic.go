@@ -36,11 +36,7 @@ func (*Dynamic) Type() super.Type {
 }
 
 func (d *Dynamic) TypeOf(slot uint32) super.Type {
-	vals := d.Values[d.Tags[slot]]
-	if v2, ok := vals.(*Dynamic); ok {
-		return v2.TypeOf(d.ForwardTagMap()[slot])
-	}
-	return vals.Type()
+	return d.Values[d.Tags[slot]].Type()
 }
 
 func (d *Dynamic) Len() uint32 {
