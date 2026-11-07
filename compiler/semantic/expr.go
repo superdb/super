@@ -569,9 +569,9 @@ func (t *translator) binaryExpr(e *ast.BinaryExpr, inType super.Type) (sem.Expr,
 	rhsInType := inType
 	if op == "and" {
 		// The right-hand side matters only when the left-hand side is
-		// true, so it's checked with the type narrowed by the left-hand
-		// side (see checker.narrow).
-		rhsInType = t.checker.narrow(inType, lhs)
+		// true or null, so it's checked with the type narrowed by the
+		// left-hand side (see checker.narrowAnd).
+		rhsInType = t.checker.narrowAnd(inType, lhs)
 	}
 	rhs, rhsType := t.expr(e.RHS, rhsInType)
 	if op == "like" || op == "not like" {

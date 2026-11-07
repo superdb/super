@@ -331,8 +331,8 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 		rhsIn := typ
 		if strings.ToLower(e.Op) == "and" {
 			// The right-hand side matters only when the left-hand
-			// side is true (see narrow).
-			rhsIn = c.narrow(typ, e.LHS)
+			// side is true or null (see narrowAnd).
+			rhsIn = c.narrowAnd(typ, e.LHS)
 		}
 		rhs := c.expr(rhsIn, e.RHS)
 		return c.binary(e.Op, e, e.LHS, e.RHS, lhs, rhs)

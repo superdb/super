@@ -11,9 +11,8 @@ import (
 
 // narrow returns typ, the type of the input of a filter with predicate e,
 // narrowed to the types of the values for which e may be true, so the
-// operators downstream of the filter (or the right-hand side of an "and"
-// whose left-hand side is e) are checked with a more precise type, e.g.,
-// after "where is_ok(a)", a field a that may be missing in typ is not
+// operators downstream of the filter are checked with a more precise type,
+// e.g., after "where is_ok(a)", a field a that may be missing in typ is not
 // missing.  Narrowing is like type narrowing in TypeScript and handles
 // predicates of these forms, where p is a field path (including a SQL
 // column reference):
@@ -21,18 +20,21 @@ import (
 //   - A and B, which narrows by A and then by B,
 //   - A or B, which fuses the types narrowed by A and by B,
 //   - is_ok(p), which removes the error, missing, none, and null types of p,
-//   - is_error(p), which narrows the type of p to its error types,
-//   - not is_error(p), which removes the error types of p,
+//   - is_error(p), which narrows the type of p to its error and missing types,
+//   - not is_error(p), which removes the error and missing types of p,
 //   - is(p, <T>), which narrows the type of p to T,
 //   - kind(p) == "<kind>", which removes the types of p whose kind
 //     (see the kind function) isn't <kind>,
-//   - p IS NOT NULL, which removes the null type of p,
+//   - p IS NOT NULL, which removes the error, missing, and null types of p,
 //   - a comparison of p (e.g., p > 1), which removes the error, missing, and
 //     null types of p since a comparison with such a value is an error
 //     or null and a filter drops values for which its predicate isn't true,
 //     and
 //   - p IN <expr>, which removes the error, missing, none, and null types of
 //     p for the same reason.
+//
+// A missing field is an error at runtime (or null for a SQL column
+// reference), so missing is treated as an error type.
 //
 // When the type of p is a union, these remove the union's member types.
 // When p is a field of a record that's a member of a union, a member for
@@ -46,24 +48,46 @@ import (
 // is_error(), however, applies to the value inside a union, so its negation
 // is safe.
 func (c *checker) narrow(typ super.Type, e sem.Expr) super.Type {
+	return c.narrowBy(typ, e, false)
+}
+
+// narrowAnd returns typ narrowed for the right-hand side of lhs and rhs.
+// When the and is a value rather than a filter, the right-hand side matters
+// when lhs is true or null (since null and error is an error), so a
+// predicate that's null for a null operand (a comparison or IN) can't remove
+// null.
+func (c *checker) narrowAnd(typ super.Type, lhs sem.Expr) super.Type {
+	return c.narrowBy(typ, lhs, true)
+}
+
+// narrowBy is narrow where orNull means e may be true or null.
+func (c *checker) narrowBy(typ super.Type, e sem.Expr, orNull bool) super.Type {
 	if typ == nil || hasUnknown(typ) {
 		return typ
+	}
+	cmpKeep, inKeep := isComparable, isPresent
+	if orNull {
+		cmpKeep, inKeep = notErrorLike, notErrorLike
 	}
 	switch e := e.(type) {
 	case *sem.BinaryExpr:
 		switch op := strings.ToLower(e.Op); op {
 		case "and":
-			return c.narrow(c.narrow(typ, e.LHS), e.RHS)
+			return c.narrowBy(c.narrowBy(typ, e.LHS, orNull), e.RHS, orNull)
 		case "or":
-			lhs := defuse(c.narrow(typ, e.LHS))
-			rhs := defuse(c.narrow(typ, e.RHS))
+			lhs := defuse(c.narrowBy(typ, e.LHS, orNull))
+			rhs := defuse(c.narrowBy(typ, e.RHS, orNull))
+			if lhs == defuse(typ) || rhs == defuse(typ) {
+				// One side doesn't narrow.
+				return typ
+			}
 			if lhs == rhs {
 				return lhs
 			}
 			return c.fuse([]super.Type{lhs, rhs})
 		case "in":
 			if ref, ok := plainPath(e.LHS); ok {
-				return c.narrowPath(typ, ref, isPresent)
+				return c.narrowPath(typ, ref, inKeep)
 			}
 		case "==":
 			if kind, ref, ok := kindTest(e); ok {
@@ -78,7 +102,7 @@ func (c *checker) narrow(typ super.Type, e sem.Expr) super.Type {
 			}
 			for _, operand := range []sem.Expr{e.LHS, e.RHS} {
 				if ref, ok := plainPath(operand); ok {
-					typ = c.narrowPath(typ, ref, isComparable)
+					typ = c.narrowPath(typ, ref, cmpKeep)
 				}
 			}
 		}
@@ -92,7 +116,7 @@ func (c *checker) narrow(typ super.Type, e sem.Expr) super.Type {
 			}
 		case e.Tag == "is_error" && len(e.Args) == 1:
 			if ref, ok := plainPath(e.Args[0]); ok {
-				return c.narrowPath(typ, ref, isErrorType)
+				return c.narrowPath(typ, ref, isErrorLike)
 			}
 		}
 	case *sem.UnaryExpr:
@@ -101,17 +125,16 @@ func (c *checker) narrow(typ super.Type, e sem.Expr) super.Type {
 		}
 		switch operand := e.Operand.(type) {
 		case *sem.IsNullExpr:
+			// IS NULL of an error is the error, so NOT of it is too.
 			if ref, ok := plainPath(operand.Expr); ok {
 				return c.narrowPath(typ, ref, func(t super.Type) bool {
-					return under(t) != super.TypeNull
+					return notErrorLike(t) && under(t) != super.TypeNull
 				})
 			}
 		case *sem.CallExpr:
 			if operand.Tag == "is_error" && len(operand.Args) == 1 {
 				if ref, ok := plainPath(operand.Args[0]); ok {
-					return c.narrowPath(typ, ref, func(t super.Type) bool {
-						return !isErrorType(t)
-					})
+					return c.narrowPath(typ, ref, notErrorLike)
 				}
 			}
 		}
@@ -120,14 +143,15 @@ func (c *checker) narrow(typ super.Type, e sem.Expr) super.Type {
 }
 
 // narrowCase returns typ, the type of the input of a case of a switch
-// operator or a case expression, narrowed by the case.  expr is the
-// expression of the switch or case expression (nil if each case is a
-// predicate) and val is the value or predicate of the case (nil for a
-// default case), e.g., the path of the case "record" of switch kind(this)
-// is checked only with the record types of typ.  The cases are tested in
-// order so a later case could be narrowed by the failure of the earlier
-// ones, but that would take narrowing by the negation of a predicate, which
-// generally isn't safe (see narrow).
+// operator, narrowed by the case.  expr is the expression of the switch (nil
+// if each case is a predicate) and val is the value or predicate of the case
+// (nil for a default case), e.g., the path of the case "record" of switch
+// kind(this) is checked only with the record types of typ.  A switch on an
+// expression matches a case by the bytes of the value without its type
+// (e.g., null matches case "") so only a switch on kind(p), whose values are
+// strings, narrows.  The cases are tested in order so a later case could be
+// narrowed by the failure of the earlier ones, but that would take narrowing
+// by the negation of a predicate, which generally isn't safe (see narrow).
 func (c *checker) narrowCase(typ super.Type, expr, val sem.Expr) super.Type {
 	if val == nil {
 		return typ
@@ -135,7 +159,11 @@ func (c *checker) narrowCase(typ super.Type, expr, val sem.Expr) super.Type {
 	if expr == nil {
 		return c.narrow(typ, val)
 	}
-	return c.narrow(typ, sem.NewBinaryExpr(nil, "==", expr, val))
+	test := sem.NewBinaryExpr(nil, "==", expr, val)
+	if _, _, ok := kindTest(test); ok {
+		return c.narrow(typ, test)
+	}
+	return typ
 }
 
 // narrowPath returns typ with the type of the value at path narrowed to the
@@ -159,9 +187,15 @@ func (c *checker) narrowAt(typ super.Type, path field.Chain, keep func(super.Typ
 	if named, ok := typ.(*super.TypeNamed); ok {
 		// A value of a named type keeps its type, so we can't narrow
 		// the named type's underlying type but we can tell if no value
-		// of it satisfies keep.
+		// of it satisfies keep.  Some predicates (e.g., is_error) apply
+		// to the value inside a named union, so check its members too.
 		if len(path) == 0 {
-			return typ, keep(typ)
+			if keep(typ) {
+				return typ, true
+			}
+			if _, ok := under(named).(*super.TypeUnion); !ok {
+				return typ, false
+			}
 		}
 		_, ok := c.narrowAt(named.Type, path, keep)
 		return typ, ok
@@ -194,15 +228,13 @@ func (c *checker) narrowAt(typ super.Type, path field.Chain, keep func(super.Typ
 	}
 	switch t := under(typ).(type) {
 	case *super.TypeRecord:
+		if path[0].Nullish {
+			// A missing value of a SQL column reference is null.
+			keep = missingAsNull(keep)
+		}
 		k, ok := t.IndexOfField(path[0].ID)
 		if !ok {
-			// The field is missing, which is null for a SQL column
-			// reference.
-			var absent super.Type = super.TypeMissing
-			if path[0].Nullish {
-				absent = super.TypeNull
-			}
-			_, ok := c.narrowAt(absent, path[1:], keep)
+			_, ok := c.narrowAt(super.TypeMissing, path[1:], keep)
 			return typ, ok
 		}
 		ftype, ok := c.narrowAt(t.Fields[k].Type, path[1:], keep)
@@ -236,8 +268,15 @@ func (c *checker) narrowIs(typ super.Type, path field.Chain, target super.Type) 
 	if out, ok := c.narrowWhole(defuse(typ), path, target); ok {
 		return out
 	}
+	if _, ok := target.(*super.TypeUnion); ok {
+		// narrowAt splits unions into their members, none of which is
+		// target, so we can't narrow.
+		return typ
+	}
+	// A missing value is error("missing") at runtime.
+	errMissing := c.t.sctx.LookupTypeError(super.TypeString)
 	return c.narrowPath(typ, path, func(t super.Type) bool {
-		return t == target
+		return t == target || isMissingType(t) && target == errMissing
 	})
 }
 
@@ -348,6 +387,10 @@ func hasKind(typ super.Type, kind string) bool {
 		// a union value's kind is "union", so we can't tell.
 		return true
 	}
+	if isMissingType(typ) {
+		// A missing value is an error at runtime.
+		return kind == "error"
+	}
 	if under(typ) == super.TypeType {
 		// The kind of a type value is the kind of its type.
 		return true
@@ -359,6 +402,26 @@ func hasKind(typ super.Type, kind string) bool {
 // it's not an error, missing, none, or null.
 func isPresent(typ super.Type) bool {
 	return !isErrorType(typ) && !isMissingType(typ) && !isNoneishType(typ)
+}
+
+// isErrorLike returns true if a value of type typ may be an error, which
+// includes a missing value.
+func isErrorLike(typ super.Type) bool {
+	return isErrorType(typ) || isMissingType(typ)
+}
+
+func notErrorLike(typ super.Type) bool {
+	return !isErrorLike(typ)
+}
+
+// missingAsNull returns keep for a value that's null when it's missing.
+func missingAsNull(keep func(super.Type) bool) func(super.Type) bool {
+	return func(t super.Type) bool {
+		if isMissingType(t) {
+			return keep(super.TypeNull)
+		}
+		return keep(t)
+	}
 }
 
 // isComparable returns true if a value of type typ may be true in a comparison,

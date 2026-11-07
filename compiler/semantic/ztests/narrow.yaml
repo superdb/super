@@ -13,8 +13,17 @@ script: |
   ! super -s -c 'values {a:1},1,"x" | values a' 2> /dev/null
   echo === is
   super -s -c 'values {a:1},{a:"x"} | where is(a, <int64>) | values a+1'
+  super -s -c 'values {x:{a:cast(1,<int64|string>)}},{x:error("bad")} | where is(x.a, <int64|string>) | values x.a'
+  echo === is_error
+  super -s -c 'values {a:1},{b:2} | where is_error(a) | values b'
+  echo === null
+  super -s -c 'values {a:{x:1}},{a:null} | where a is not null | values a.x'
+  super -s -c 'values {a:{x:1}},{a:null} | where a == {x:1} | values a.x'
+  super -s -c 'values {a:{x:1}},{a:null} | where a in [{x:1}] | values a.x'
+  ! super -s -c 'values {a:{x:1}},{a:null} | values a == {x:1} and a.x == 1' 2> /dev/null
   echo === or
   super -s -c 'values {a:1},{a:error("x")},{b:2} | where is_ok(a) or is_error(a) | values a'
+  ! super -s -c 'values {a:1},1 | where kind(this)=="record" or this==1 | values a' 2> /dev/null
   echo === agg
   super -s -c 'values {a:1},{b:2},{a:3} | sum(a) filter (where is_ok(a))'
   echo === sql
@@ -24,6 +33,7 @@ script: |
   super -s -c 'values {a:1},1,"x" | values kind(this)=="record" ? a : 0'
   super -s -c 'values {a:1},1,"x" | switch kind(this) case "record" (values a) default (values 0) | sort this'
   super -s -c 'values {a:1},1,"x" | switch case kind(this)=="record" (values a) default (values 0) | sort this'
+  ! super -s -c 'values {a:{x:1}},{a:null} | switch a case null (values a.x) default (values 0)' 2> /dev/null
 
 inputs:
   - name: test.sup
@@ -41,9 +51,17 @@ outputs:
       1
       === is
       2
+      1::(int64|string)
+      === is_error
+      2
+      === null
+      1
+      1
+      1
       === or
       1
       error("x")
+      error("no such field a")
       === agg
       4
       === sql
