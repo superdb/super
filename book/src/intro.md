@@ -3,8 +3,10 @@
 SuperDB<span class="tm">®</span> is an analytics database and command-line tool
 for querying data of any shape &mdash; relational tables, JSON, CSV, Parquet,
 logs, API responses &mdash; with SQL or with a simpler pipe syntax.
-Point it at your data and start querying: there are no schemas to define and
-no loading step.
+Instead of fitting data into tables with predefined schemas, SuperDB gives
+every value a type: a table is simply a sequence of records of the same type
+and a schema is simply a record type.  So you can point SuperDB at your data
+and start querying without defining schemas or loading anything first.
 
 ```sh
 $ super -c "SELECT 'hello, world' AS greeting"
@@ -53,45 +55,57 @@ rather than a silent `null`, so `null` and "not there" remain distinct.
 
 ## Why SuperDB?
 
-* **One model for tables and JSON.**
+* **One Data Model** &mdash;
   Relational systems handle JSON as a special column type with its own
-  operators and rules.  SuperDB instead treats tables and JSON as two cases of
-  a single, more general model called the
-  [Algebraic Data Model](adm.md), so the same queries work on both.
-* **Strongly typed without schemas.**
-  Data is [self-describing](formats/model.md), so it carries its types with it
-  and those types can vary from value to value, yet values are never coerced
-  or confused with one another.
-* **SQL compatible, plus pipes.**
-  [SuperSQL](super-sql/intro.md) is a
-  [Pipe SQL](https://research.google/pubs/sql-has-problems-we-can-fix-them-pipe-syntax-in-sql/)
-  that aims to be backward compatible with
-  [PostgreSQL](https://www.postgresql.org/) while adding pipe operators that
-  work on data of any type.
-* **Lossless formats.**
+  operators and rules.  SuperDB treats tables and JSON as two cases of
+  the [Algebraic Data Model](adm.md), so the same queries work on both.
+* **Types not Schemas** &mdash;
+  Data is [self-describing](formats/model.md) and carries its types with it.
+  Types may vary from value to value, but values are never coerced or
+  confused with one another.
+* **SQL Compatibility** &mdash;
+  [SuperSQL](super-sql/intro.md) aims to be backward compatible with
+  [PostgreSQL](https://www.postgresql.org/).
+* **Pipes** &mdash;
+  [Pipe syntax](https://research.google/pubs/sql-has-problems-we-can-fix-them-pipe-syntax-in-sql/)
+  composes a query as a sequence of simple steps that work on data of any type.
+* **Many Formats** &mdash;
   SuperDB reads and writes JSON, CSV, Parquet, Arrow, and
-  [other formats](command/formats.md), and its own
-  [super-structured formats](formats/intro.md) &mdash; a
-  [text format](formats/sup.md) and a
-  [binary format](formats/bsup.md) with both row and columnar layouts &mdash;
-  preserve every type in the data.
-* **A single binary.**
+  [other formats](command/formats.md) as well as its own
+  [super-structured formats](formats/intro.md), a
+  [text format](formats/sup.md) and a [binary format](formats/bsup.md)
+  with row and columnar layouts, which preserve every type in the data.
+* **One Binary** &mdash;
   `super` has no dependencies, so getting started is just a matter of
   [installing it](getting-started/install.md).
 
-## The `super` Command
+## Using `super`
 
-SuperDB is implemented as the standalone [super](command/super.md) command.
-`super` is a little like [DuckDB](https://duckdb.org/) and a little like
-[jq](https://stedolan.github.io/jq/), with strongly typed, dynamic data
-tying the two styles together.
+SuperDB is implemented as a single command called [super](command/super.md),
+which you use in three ways.
 
-Run `super` with a query given by `-c` to query files, streams, or URLs directly:
+**Without a database**, `super` runs queries directly on files, URLs, and
+streams like standard input:
 ```sh
 super -c "SELECT count(*) FROM 'events.json'"
+super -c "from https://api.github.com/repos/superdb/super | values name"
+cat events.json | super -c "where amount > 5" -
 ```
-or use its [db](command/db.md) subcommands to manage and query data in a
-persistent [SuperDB database](command/db.md), whose design rhymes with the
+In this mode, `super` is a little like [DuckDB](https://duckdb.org/) and a
+little like [jq](https://stedolan.github.io/jq/), with strongly typed,
+dynamic data tying the two styles together.
+
+**As a database client**, the [super db](command/db.md) subcommands create
+tables, load data, and run queries on a persistent SuperDB database, either
+directly on its storage, which may be a file system or an S3 object store, or
+through a SuperDB service.
+
+**As a database service**, [super db serve](command/db.md#super-db-serve)
+runs a service endpoint that clients reach over HTTP using `super db`,
+the [database API](database/api.md), or the
+[Python client](dev/libraries/python.md).
+
+The design of the database rhymes with the
 [lakehouse pattern](https://www.cidrdb.org/cidr2021/papers/cidr2021_paper17.pdf).
 
 >[!NOTE]
@@ -100,7 +114,8 @@ persistent [SuperDB database](command/db.md), whose design rhymes with the
 
 ## SuperSQL<span class="tm">®</span>
 
-SuperSQL works like SQL when data looks like a table:
+[SuperSQL](super-sql/intro.md) is a superset of SQL.  When its inputs are
+tables, it works like the SQL you already know:
 ```sh
 $ super -c "
 SELECT a+b AS x, a-b AS y FROM (
@@ -110,23 +125,27 @@ SELECT a+b AS x, a-b AS y FROM (
 {x:3,y:-1}
 {x:3,y:3}
 ```
-and its pipe operators extend SQL to data of any type.
-Pipes compose a query as a sequence of simple steps, which makes
-interactive exploration, data wrangling, and ETL easier, and
-[shortcuts](super-sql/operators/intro.md#shortcuts) and
-[keyword search](super-sql/operators/search.md) cut down on typing.
-
-SQL has well-known flaws, e.g., see
-[C.J. Date's critique](https://dl.acm.org/doi/pdf/10.1145/984549.984551),
-[Against SQL](https://www.scattered-thoughts.net/writing/against-sql/), and
-[Neumann and Leis](https://www.cidrdb.org/cidr2024/papers/p48-neumann.pdf),
-but it is also everywhere.  Rather than replace SQL, SuperSQL keeps full
-compatibility in its SQL clauses while its pipe operators modernize the
-language, e.g., they use simple [pipe scoping](super-sql/intro.md#pipe-scoping)
-instead of SQL's complex scoping rules, 0-based array indexing, and
-case-sensitive field names, and they can produce results that need not fit in a
-table.  This way, SuperSQL can run existing SQL while providing a gradual path
-to a more ergonomic language.
+But SuperSQL also has a rich [algebraic type system](super-sql/types/intro.md)
+like those of TypeScript and Rust, with records, arrays, sets, maps, enums,
+[unions](super-sql/types/union.md), [named types](super-sql/types/named.md),
+and first-class errors and types, along with
+[pipe operators](super-sql/operators/intro.md) and expressions that make
+data of complex types easy to work with.  For example, this query finds each
+user's best score in a nested array, which in SQL would require unnesting
+the arrays and regrouping the results:
+```sh
+$ super -c "
+values {user:'alice',scores:[3,1,2]}, {user:'bob',scores:[5,4]}
+| values {user, best:(unnest scores | max(this))}
+"
+{user:"alice",best:3}
+{user:"bob",best:5}
+```
+SuperSQL keeps backward compatibility in its SQL clauses while its pipe
+operators modernize the language, e.g., with simpler
+[scoping](super-sql/intro.md#pipe-scoping), 0-based array indexing, and
+case-sensitive field names, so it can run existing SQL while offering a
+gradual path to a more ergonomic language.
 
 ## Learn More
 
