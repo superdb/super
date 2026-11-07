@@ -116,7 +116,7 @@ func (c *checker) op(typ super.Type, op sem.Op) super.Type {
 		return c.dropPaths(typ, drops)
 	case *sem.FilterOp:
 		c.boolean(op.Expr, c.expr(typ, op.Expr))
-		return typ
+		return c.narrow(typ, op.Expr)
 	case *sem.ForkOp:
 		return c.fuse(c.fork(typ, op))
 	case *sem.FuseOp:
@@ -145,13 +145,7 @@ func (c *checker) op(typ super.Type, op sem.Op) super.Type {
 	case *sem.SortOp:
 		return typ
 	case *sem.SwitchOp:
-		var types []super.Type
-		exprType := c.expr(typ, op.Expr)
-		for _, cs := range op.Cases {
-			c.expr(exprType, cs.Expr)
-			types = append(types, c.seq(typ, cs.Path))
-		}
-		return c.fuse(types)
+		return c.fuse(c.swtch(typ, op))
 	case *sem.TailOp:
 		return typ
 	case *sem.TopOp:
@@ -181,7 +175,7 @@ func (c *checker) swtch(typ super.Type, op *sem.SwitchOp) []super.Type {
 	exprType := c.expr(typ, op.Expr)
 	for _, cs := range op.Cases {
 		c.expr(exprType, cs.Expr)
-		types = append(types, c.seq(typ, cs.Path))
+		types = append(types, c.seq(c.narrowCase(typ, op.Expr, cs.Expr), cs.Path))
 	}
 	return types
 }
@@ -309,11 +303,15 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 	case nil:
 		return c.unknown
 	case *sem.AggFunc:
-		if e.Expr != nil {
-			c.notMissing(e.Expr, c.expr(typ, e.Expr))
-		}
+		argType := typ
 		if e.Filter != nil {
 			c.notMissing(e.Filter, c.expr(typ, e.Filter))
+			// The argument is evaluated only for the values where
+			// the filter is true.
+			argType = c.narrow(typ, e.Filter)
+		}
+		if e.Expr != nil {
+			c.notMissing(e.Expr, c.expr(argType, e.Expr))
 		}
 		// XXX This will be handled in a subsequent PR where we add type signatures
 		// to the package containing the agg func implementatons.
@@ -330,7 +328,13 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 		return c.unknown
 	case *sem.BinaryExpr:
 		lhs := c.expr(typ, e.LHS)
-		rhs := c.expr(typ, e.RHS)
+		rhsIn := typ
+		if strings.ToLower(e.Op) == "and" {
+			// The right-hand side matters only when the left-hand
+			// side is true (see narrow).
+			rhsIn = c.narrow(typ, e.LHS)
+		}
+		rhs := c.expr(rhsIn, e.RHS)
 		return c.binary(e.Op, e, e.LHS, e.RHS, lhs, rhs)
 	case *sem.CallExpr:
 		if e.Tag == "ok" {
@@ -347,7 +351,7 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 	case *sem.CondExpr:
 		c.boolean(e.Cond, c.expr(typ, e.Cond))
 		c.pushErrs()
-		thenType := c.expr(typ, e.Then)
+		thenType := c.expr(c.narrow(typ, e.Cond), e.Then)
 		thenErrs := c.popErrs()
 		c.pushErrs()
 		elseType := c.expr(typ, e.Else)
@@ -1167,12 +1171,9 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 		// type in the union, so the query handles every case (e.g., with
 		// ok(), which turns the errors into none).  The result is the fused
 		// type of the field in the types where it checks, which is what's
-		// left for ok() when there are errors.
-		//
-		// XXX COOL IDEA: if we have a case on kind() then we can strip the relevant
-		// types out of the union and, e.g., precisely type check records under
-		// case type(x)="record" (...), or switch, this is like typecase but is
-		// kindcase (which is the same is case kind(e) when the cases are const string)
+		// left for ok() when there are errors.  A filter, a case of a switch,
+		// or a case or conditional expression can remove types from the
+		// union first, e.g., where kind(x) == "record" (see narrow).
 		var types, failed []super.Type
 		for _, t := range typ.Types {
 			c.pushErrs()

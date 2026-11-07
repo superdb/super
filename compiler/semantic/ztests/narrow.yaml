@@ -1,0 +1,63 @@
+# A filter (including a SQL WHERE clause) narrows the type of its input for
+# the operators downstream of it and for the right-hand side of an "and", an
+# aggregate function's filter narrows the type of its argument's input, and a
+# case of a switch or a case or conditional expression narrows the type of its
+# input (see checker.narrow).
+script: |
+  echo === is_ok
+  super -s -c 'values {a:1},{b:2},{a:error("x")} | where is_ok(a) | aggregate by a'
+  ! super -s -c 'values {a:1},{b:2} | aggregate by a' 2> /dev/null
+  echo === kind
+  super -s -c 'values {a:1},1,"x" | where kind(this)=="record" | values a'
+  super -s -c 'values {a:1},1,"x" | where kind(this)=="record" and a > 0 | values a'
+  ! super -s -c 'values {a:1},1,"x" | values a' 2> /dev/null
+  echo === is
+  super -s -c 'values {a:1},{a:"x"} | where is(a, <int64>) | values a+1'
+  echo === or
+  super -s -c 'values {a:1},{a:error("x")},{b:2} | where is_ok(a) or is_error(a) | values a'
+  echo === agg
+  super -s -c 'values {a:1},{b:2},{a:3} | sum(a) filter (where is_ok(a))'
+  echo === sql
+  super -s -c "select a.x from 'test.sup' where kind(a)=='record'"
+  echo === case
+  super -s -c 'values {a:1},1,"x" | values case kind(this) when "record" then a else 0 end'
+  super -s -c 'values {a:1},1,"x" | values kind(this)=="record" ? a : 0'
+  super -s -c 'values {a:1},1,"x" | switch kind(this) case "record" (values a) default (values 0) | sort this'
+  super -s -c 'values {a:1},1,"x" | switch case kind(this)=="record" (values a) default (values 0) | sort this'
+
+inputs:
+  - name: test.sup
+    data: |
+      {a:{x:1}}
+      {a:1}
+
+outputs:
+  - name: stdout
+    data: |
+      === is_ok
+      1
+      === kind
+      1
+      1
+      === is
+      2
+      === or
+      1
+      error("x")
+      === agg
+      4
+      === sql
+      {x:1}
+      === case
+      1
+      0
+      0
+      1
+      0
+      0
+      0
+      0
+      1
+      0
+      0
+      1

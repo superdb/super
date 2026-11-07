@@ -932,11 +932,11 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 	case *ast.SearchOp:
 		e, typ := t.expr(o.Expr, inType)
 		t.checker.boolean(o.Expr, typ)
-		return append(seq, &sem.FilterOp{Node: o, Expr: e}), inType
+		return append(seq, &sem.FilterOp{Node: o, Expr: e}), t.checker.narrow(inType, e)
 	case *ast.WhereOp:
 		e, typ := t.expr(o.Expr, inType)
 		t.checker.boolean(o.Expr, typ)
-		return append(seq, &sem.FilterOp{Node: o, Expr: e}), inType
+		return append(seq, &sem.FilterOp{Node: o, Expr: e}), t.checker.narrow(inType, e)
 	case *ast.TopOp:
 		limit := 1
 		if o.Limit != nil {
@@ -1285,7 +1285,7 @@ func (t *translator) switchOp(op *ast.SwitchOp, seq sem.Seq, inType super.Type) 
 		} else if op.Expr == nil {
 			e = sem.NewLiteral(op, super.True, t.defs)
 		}
-		path, typ := t.seq(c.Path, inType)
+		path, typ := t.seq(c.Path, t.checker.narrowCase(inType, expr, e))
 		types = append(types, typ)
 		cases = append(cases, sem.Case{Expr: e, Path: path})
 	}
@@ -1653,7 +1653,7 @@ func (t *translator) exprOp(e ast.Expr, seq sem.Seq, inType super.Type) (sem.Seq
 	}
 	out, typ := t.expr(e, inType)
 	if t.isBool(out) {
-		return append(seq, &sem.FilterOp{Node: e, Expr: out}), inType
+		return append(seq, &sem.FilterOp{Node: e, Expr: out}), t.checker.narrow(inType, out)
 	}
 	// As with the values operator, the value must not be missing or none.
 	t.checker.result(e, typ)
@@ -1725,7 +1725,7 @@ func (t *translator) maybeCallShortcut(call *ast.CallExpr, seq sem.Seq, inType s
 	expr, _ := t.semCall(call, inType)
 	// At some point, maybe we use this instead of HasBoolResult?
 	//t.checker.boolean(call, typ)
-	return append(seq, &sem.FilterOp{Node: call, Expr: expr}), inType
+	return append(seq, &sem.FilterOp{Node: call, Expr: expr}), t.checker.narrow(inType, expr)
 }
 
 func (t *translator) aggFuncShortcut(agg *ast.AggFuncExpr, seq sem.Seq, inType super.Type) (sem.Seq, super.Type) {
