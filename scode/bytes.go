@@ -1,16 +1,14 @@
 // Package scode implements serialization and deserialzation for BSUP values.
 //
-// Values of primitive type are represented by an unsigned integer tag and an
-// optional byte-sequence body.  A tag of zero indicates that the value is
-// null, and no body follows.  A nonzero tag indicates that the value is set,
-// and the value itself follows as a body of length tag-1.
+// A value is represented by an unsigned integer tag followed by a
+// byte-sequence body, where the tag is the length of the body.
 //
-// Values of union type are represented similarly, with the body
-// prefixed by an integer specifying the index determining the type of
-// the value in reference to the union type.
-//
-// Values of container type (record, set, or array) are represented similarly,
-// with the body containing a sequence of zero or more serialized values.
+// Values of container type (record, array, set, or map) are represented
+// similarly, with the body containing a sequence of zero or more serialized
+// values.  Values of union and option type are containers whose first value is
+// an integer tag (for a union, the index of the value's type in the union
+// type; for an option, 0 for some and 1 for none) followed by the value
+// (absent for an option's none).
 package scode
 
 import (
