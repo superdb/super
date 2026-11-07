@@ -416,8 +416,17 @@ func (c *canonDAG) op(o dag.Op) {
 		if o.Format != "" {
 			c.write(" format %s", o.Format)
 		}
-		if o.Method != "" {
-			c.write(" method %s", o.Method)
+		if o.Method != nil {
+			c.write(" method ")
+			c.expr(o.Method, "")
+		}
+		if o.Headers != nil {
+			c.write(" headers ")
+			c.expr(o.Headers, "")
+		}
+		if o.Body != nil {
+			c.write(" body ")
+			c.expr(o.Body, "")
 		}
 		if o.Filter != nil {
 			c.write(" filter (")

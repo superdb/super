@@ -1,5 +1,6 @@
 # A computed (f-string) URL accepts the same method, headers, and body options
-# as a constant URL and sends them with the request made for each input value.
+# as a constant URL and sends them with the request made for each input value,
+# evaluating the headers expression for each input value.
 script: |
   port=$((RANDOM + 1024))
   python3 http-echo.py $port &> http.log &
@@ -16,6 +17,13 @@ script: |
       fi
   done
   super -s -c "values {u:'http://127.0.0.1:$port/x'} | from f\"{u}\" (method 'POST' headers {Authorization:'Bearer tok'} body 'hello')"
+  # The headers expression is evaluated for each input value.
+  super -s -c "values {u:'http://127.0.0.1:$port/x',tok:'a'},{u:'http://127.0.0.1:$port/y',tok:'b'} | from f\"{u}\" (headers {Authorization:'Bearer ' || tok})"
+  # The method and body are evaluated for each input value.
+  super -s -c "values {u:'http://127.0.0.1:$port/x',m:'PUT',q:{a:1}} | from f\"{u}\" (method f'{m}' body json_stringify(q))"
+  # Options require an HTTP URL and headers must be a record.
+  super -s -c "values {u:'x.sup'} | from f\"{u}\" (method 'POST')"
+  super -s -c "values {u:'http://127.0.0.1:$port/x',tok:'a'} | from f\"{u}\" (headers tok)"
 
 inputs:
   - name: http-echo.py
@@ -24,3 +32,8 @@ outputs:
   - name: stdout
     data: |
       {method:"POST",authorization:"Bearer tok",body:"hello"}
+      {method:"GET",authorization:"Bearer a",body:""}
+      {method:"GET",authorization:"Bearer b",body:""}
+      {method:"PUT",authorization:"",body:"{\"a\":1}"}
+      error({message:"from: method, headers, and body require an http or https URL",on:"x.sup"})
+      error({message:"from: headers value must be a record",on:"a"})

@@ -977,6 +977,7 @@ UUID = [-0-9a-zA-Z]+
 
 OpArg
   = &ArgNameExpr key:ArgName _ e:Expr { return &ast.ArgExpr{Kind:"ArgExpr", Key: key.(string), Value: e.(ast.Expr), Loc: loc(c)}, nil }
+  / &ArgNameFString key:ArgName _ e:FString { return &ast.ArgExpr{Kind:"ArgExpr", Key: key.(string), Value: e.(ast.Expr), Loc: loc(c)}, nil }
   / key:ArgName _ t:Text { return &ast.ArgText{Kind:"ArgText", Key: key.(string), Value: t.(*ast.Text), Loc: loc(c)}, nil }
 
 OpArgs
@@ -986,8 +987,13 @@ OpArgs
 
 ArgName = UnicodeLetter+ { return string(c.text), nil }
 
+// Arguments whose values are expressions.
 ArgNameExpr
-  = "headers"i !UnicodeLetter
+  = ("headers"i / "body"i) !UnicodeLetter
+
+// Arguments whose values are text or an f-string.
+ArgNameFString
+  = "method"i !UnicodeLetter
 
 ColonName
   = ":" n:Name { return n, nil }

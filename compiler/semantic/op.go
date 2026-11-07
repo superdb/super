@@ -20,6 +20,7 @@ import (
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/pkg/plural"
 	"github.com/superdb/super/pkg/reglob"
+	"github.com/superdb/super/runtime/exec"
 	"github.com/superdb/super/runtime/expr/function"
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sbuf"
@@ -219,9 +220,38 @@ func (t *translator) fromFString(entity *ast.FromEval, args []ast.OpArg, seq sem
 		}
 		return t.fromConst(val, entity, args)
 	}
-	format, method, body, headers := t.httpArgs(args)
+	// The method, headers, and body expressions are evaluated with the URL
+	// for each input value so they may refer to the input value.  Constant
+	// expressions are checked now and others are checked for each input
+	// value at run time.
+	opArgs := t.opArgsIn(args, t.checker.unknown, "format", "method", "body", "headers")
+	format, _ := t.textArg(opArgs, "format")
 	if format == "" {
 		format = t.env.ReaderOpts.Format
+	}
+	method, loc := t.methodArg(opArgs)
+	if method != nil {
+		if val, ok := t.maybeEval(method); ok {
+			if _, err := exec.HTTPMethod(val); err != nil {
+				t.error(loc, err)
+			}
+		}
+	}
+	headers, loc := t.exprArg(opArgs, "headers")
+	if headers != nil {
+		if val, ok := t.maybeEval(headers); ok {
+			if _, err := exec.HTTPHeaders(val); err != nil {
+				t.error(loc, err)
+			}
+		}
+	}
+	body, loc := t.exprArg(opArgs, "body")
+	if body != nil {
+		if val, ok := t.maybeEval(body); ok {
+			if _, err := exec.HTTPBody(val); err != nil {
+				t.error(loc, err)
+			}
+		}
 	}
 	// This is an expression so set up a robot scanner that pulls values from
 	// parent to decide what to scan.
@@ -359,23 +389,55 @@ func (t *translator) fromFileGlob(globLoc ast.Node, pattern string, args []ast.O
 	}
 }
 
-// httpArgs resolves the HTTP options (format, method, body, headers) shared by
-// the constant-URL (HTTPScan) and computed-URL (RobotScan) forms of from.
+// httpArgs resolves the HTTP options (format, method, body, headers) of a
+// constant URL, whose method, headers, and body expressions must be
+// compile-time constants.
 func (t *translator) httpArgs(args []ast.OpArg) (format, method, body string, headers map[string][]string) {
 	opArgs := t.opArgs(args, "format", "method", "body", "headers")
 	format, _ = t.textArg(opArgs, "format")
-	method, _ = t.textArg(opArgs, "method")
-	body, _ = t.textArg(opArgs, "body")
+	if e, loc := t.methodArg(opArgs); e != nil {
+		if val, ok := t.mustEval(e); ok {
+			var err error
+			if method, err = exec.HTTPMethod(val); err != nil {
+				t.error(loc, err)
+			}
+		}
+	}
 	if e, loc := t.exprArg(opArgs, "headers"); e != nil {
 		if val, ok := t.mustEval(e); ok {
-			h, err := unmarshalHeaders(val)
+			h, err := exec.HTTPHeaders(val)
 			if err != nil {
 				t.error(loc, err)
 			}
 			headers = h
 		}
 	}
+	if e, loc := t.exprArg(opArgs, "body"); e != nil {
+		if val, ok := t.mustEval(e); ok {
+			b, err := exec.HTTPBody(val)
+			if err != nil {
+				t.error(loc, err)
+			}
+			body = string(b)
+		}
+	}
 	return
+}
+
+// methodArg returns the method argument as an expression or nil if it's absent
+// or GET.  The argument is either text (a bare word or a string) or an
+// f-string expression.
+func (t *translator) methodArg(o opArgs) (sem.Expr, ast.Loc) {
+	switch arg := o["method"].(type) {
+	case *ast.ArgText:
+		if strings.EqualFold(arg.Value.Text, "GET") {
+			return nil, arg.Loc
+		}
+		return sem.NewLiteral(arg, super.NewString(arg.Value.Text), t.defs), arg.Loc
+	case argExpr:
+		return arg.expr, arg.arg.Loc
+	}
+	return nil, ast.Loc{}
 }
 
 func (t *translator) fromURL(urlLoc ast.Node, u string, args []ast.OpArg) sem.Op {
@@ -406,43 +468,6 @@ func (t *translator) fromURL(urlLoc ast.Node, u string, args []ast.OpArg) sem.Op
 		scan.Type = typ
 	}
 	return scan
-}
-
-func unmarshalHeaders(val super.Value) (map[string][]string, error) {
-	if !super.IsRecordType(val.Type()) {
-		return nil, errors.New("headers value must be a record")
-	}
-	headers := map[string][]string{}
-	for i, f := range val.Fields() {
-		fieldVal := val.DerefByColumn(i)
-		if fieldVal.IsMissing() {
-			continue
-		}
-		headerStrings, err := decodeStrings(fieldVal)
-		if err != nil {
-			return nil, err
-		}
-		headers[f.Name] = append(headers[f.Name], headerStrings...)
-	}
-	return headers, nil
-}
-
-func decodeStrings(val *super.Value) ([]string, error) {
-	typ := super.TypeUnder(val.Type())
-	if inner := super.InnerType(typ); inner != nil {
-		if inner.ID() != super.IDString {
-			return nil, errors.New("array elements of header field must be strings")
-		}
-		var out []string
-		for it := val.ContainerIter(); !it.Done(); {
-			out = append(out, super.DecodeString(it.Next()))
-		}
-		return out, nil
-	}
-	if typ != super.TypeString {
-		return nil, errors.New("header field value must be a string or an array or set of strings")
-	}
-	return []string{val.AsString()}, nil
 }
 
 func (t *translator) fromTableRegexp(node ast.Node, re, orig, which string, args []ast.OpArg) sem.Seq {
@@ -1827,14 +1852,20 @@ func (t *translator) userOp(loc ast.Loc, decl *opDecl, args []ast.Expr, inType s
 }
 
 func (t *translator) opArgs(args []ast.OpArg, allowed ...string) opArgs {
+	return t.opArgsIn(args, super.TypeNull, allowed...)
+}
+
+// opArgsIn is like opArgs but translates expression arguments for input
+// values of type inType.
+func (t *translator) opArgsIn(args []ast.OpArg, inType super.Type, allowed ...string) opArgs {
 	guard := make(map[string]struct{})
 	for _, s := range allowed {
 		guard[s] = struct{}{}
 	}
-	return t.opArgsAny(args, guard)
+	return t.opArgsAny(args, inType, guard)
 }
 
-func (t *translator) opArgsAny(args []ast.OpArg, allowed map[string]struct{}) opArgs {
+func (t *translator) opArgsAny(args []ast.OpArg, inType super.Type, allowed map[string]struct{}) opArgs {
 	opArgs := make(opArgs)
 	for _, arg := range args {
 		switch arg := arg.(type) {
@@ -1859,7 +1890,7 @@ func (t *translator) opArgsAny(args []ast.OpArg, allowed map[string]struct{}) op
 				t.error(arg, fmt.Errorf("unknown argument %q", arg.Key))
 				continue
 			}
-			e, _ := t.expr(arg.Value, super.TypeNull)
+			e, _ := t.expr(arg.Value, inType)
 			opArgs[key] = argExpr{arg: arg, expr: e}
 		default:
 			panic(fmt.Sprintf("unknown arg type %T", arg))

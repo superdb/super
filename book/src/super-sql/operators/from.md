@@ -187,13 +187,16 @@ by a [local configuration](../../dev/integrations/s3.md).
 Named options for URL entities include `format`, `method`, `headers`,
 and `body` as in
 ```
-from <url> [ ( format <fmt> method <method> headers <expr> body <string> ) ]
+from <url> [ ( format <fmt> method <method> headers <headers> body <body> ) ]
 ```
 where
-* `<method>` is one of `GET`, `PUT`, `POST`, or `DELETE`,
-* `<expr>` is a [record expression](../types/record.md) that defines the names and values to be included as HTTP header options, and
-* `<body>` is a [text-entity](../queries.md#text-entity) string
-to be included as the body of the HTTP request.
+* `<method>` is one of `GET`, `PUT`, `POST`, or `DELETE` given as a
+[text entity](../queries.md#text-entity) or an
+[f-string](../expressions/f-strings.md),
+* `<headers>` is a [record expression](../types/record.md) that defines the names and values to be included as HTTP header options, and
+* `<body>` is an expression of type `string` or `bytes`
+to be included as the body of the HTTP request (e.g., use
+[json_stringify](../functions/strings/json_stringify.md) to send a record as JSON).
 
 Each field of the `headers` record must either be a string or (to specify a
 header option appearing multiple times with different values)
@@ -201,13 +204,16 @@ an array or set of strings.
 
 These options cannot be used with S3 URLs.
 
-When the URL is a computed [f-string](../expressions/f-strings.md) entity, these
-options are resolved once and sent with the HTTP request made for each input
-value.
-
-> [!NOTE]
-> Currently, the headers expression must evaluate to a compile-time constant though
-> this may change to allow run-time evaluation in a future version of SuperSQL.
+When the URL is a constant, the method, headers, and body must be
+compile-time constants.  When the URL is a computed
+[f-string](../expressions/f-strings.md) entity, these options are sent with the
+HTTP request made for each input value and are evaluated
+for each input value, so they may refer to the input value as in
+```
+values {url:"https://example.com/api",token:"abc",query:{q:"x"}}
+| from f"{url}" (method POST headers {Authorization:"Bearer " || token} body json_stringify(query))
+```
+In this case, the URL must begin with `http:` or `https:` or an error results.
 
 ### Combining Data
 
