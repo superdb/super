@@ -371,7 +371,7 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 		}
 		if e.For != nil {
 			to, toType := t.expr(e.For, inType)
-			t.checker.integer(e.From, toType)
+			t.checker.integer(e.For, toType)
 			if slice.From != nil {
 				slice.To = sem.NewBinaryExpr(e, "+", slice.From, to)
 			} else {

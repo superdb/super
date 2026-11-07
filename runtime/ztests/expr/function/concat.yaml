@@ -48,3 +48,15 @@ error: |
   too few arguments at line 1, column 1:
   concat()
   ~~~~~~~~
+
+---
+
+spq: values concat(this, "!"), this || "?"
+
+input: |
+  type name=string
+  "hello"::name
+
+output: |
+  "hello!"
+  "hello?"

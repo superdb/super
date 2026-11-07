@@ -47,3 +47,44 @@ output: |
   "ood"
   "oo"
   [2,3]
+
+---
+
+# Test slice on values of named types, which yields values of the
+# underlying types
+spq: values this[1:]
+
+flags: -dynamic
+
+input: |
+  type a=[int64]
+  type st=set[int64]
+  type b=bytes
+  type s=string
+  type s2=s
+  [1,2,3]::a
+  set[1,2,3]::st
+  0x0102::b
+  "food"::s
+  "food"::s2
+
+output: |
+  [2,3]
+  set[2,3]
+  0x02
+  "ood"
+  "ood"
+
+---
+
+# Test slice with indexes of a named type
+spq: values s[i:j]
+
+flags: -dynamic
+
+input: |
+  type idx=int64
+  {s:"food",i:1::idx,j:3::idx}
+
+output: |
+  "oo"

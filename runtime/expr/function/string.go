@@ -19,7 +19,7 @@ func (c *Concat) Call(args ...vector.Any) vector.Any {
 	for _, vec := range args {
 		switch vec.Kind() {
 		case vector.KindString:
-			vecs = append(vecs, vec)
+			vecs = append(vecs, vector.Under(vec))
 		case vector.KindNull:
 			// Ignored.
 		case vector.KindError:
