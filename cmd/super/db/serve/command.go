@@ -23,6 +23,7 @@ import (
 	"github.com/superdb/super/pkg/httpd"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/service"
+	"github.com/superdb/super/service/mcp"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -70,6 +71,7 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	f.StringVar(&c.listenAddr, "l", ":9867", "[addr]:port to listen on")
 	f.DurationVar(&c.manage, "manage", 0, "when positive, run database maintenance tasks at this interval")
 	f.BoolVar(&c.conf.MCP, "mcp", false, "serve the Model Context Protocol (MCP) for AI agents at /mcp")
+	f.StringVar(&c.conf.MCPInclude, "mcp.include", "", "directory of SuperSQL source files that /mcp queries may include (implies -mcp)")
 	f.BoolVar(&c.conf.MCPReadOnly, "mcp.readonly", false, "make the /mcp endpoint read-only (implies -mcp)")
 	f.StringVar(&c.portFile, "portfile", "", "write listen port to file")
 	f.StringVar(&c.rootContentFile, "rootcontentfile", "", "file to serve for GET /")
@@ -92,8 +94,11 @@ func (c *Command) Run(args []string) error {
 		return err
 	}
 	c.conf.Root = root
-	if c.conf.MCPReadOnly {
+	if c.conf.MCPReadOnly || c.conf.MCPInclude != "" {
 		c.conf.MCP = true
+	}
+	if err := mcp.CheckIncludeDir(c.conf.MCPInclude); err != nil {
+		return err
 	}
 	if api.IsRemote(c.conf.Root.String()) {
 		return errors.New("serve command available for local databases only")

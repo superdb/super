@@ -2,21 +2,28 @@ package mcp
 
 import (
 	"bytes"
+	"cmp"
 	"context"
-	"encoding/base64"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
+	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/srcfiles"
+	"github.com/superdb/super/db/tables"
+	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/anyio"
+	"github.com/superdb/super/sio/csvio"
 	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/vio"
@@ -65,17 +72,51 @@ CREATE TABLE, DROP TABLE, or the load operator) is rejected.`
 const loadInstructions = `
 
 To add data to a table, use the load tool rather than an INSERT INTO query.  It
-loads a file or inline data in any supported format (e.g., JSON, SUP, CSV, Parquet,
-or Arrow) directly, which is much faster for more than a few values.`
+loads a file or inline data in a text format (e.g., JSON, SUP, CSV, or TSV)
+directly, which is much faster for more than a few values.  To create
+or drop a table, use the create_table or drop_table tool.`
+
+const includeInstructions = `
+
+The query tool's include argument names SuperSQL source files on the server
+(e.g., shared declarations of constants, functions, and operators) whose text
+precedes the query, so the query may use what they declare.`
 
 func (s *Server) instructions() string {
-	if s.opts.ReadOnly {
-		return instructions + readOnlyInstructions
+	text := instructions
+	if s.opts.IncludeDir != "" {
+		text += includeInstructions
+		if files := s.includeFiles(); len(files) > 0 {
+			text += "  The include files are " + strings.Join(files, ", ") + "."
+		}
 	}
-	return instructions + loadInstructions
+	if s.opts.ReadOnly {
+		return text + readOnlyInstructions
+	}
+	return text + loadInstructions
 }
 
 const defaultLimit = 1000
+
+// queryFormats are the output formats of the query tool.  Format "table" is
+// CSV aligned in columns for reading (see renderTable).
+var queryFormats = []string{"json", "sup", "csv", "tsv", "line", "table"}
+
+// loadFormats are the input formats of the load tool.  Only text formats are
+// offered since tool arguments are JSON text.
+var loadFormats = []string{"auto", "json", "sup", "csv", "tsv", "line", "zeek"}
+
+// quotedList formats list as, e.g., "a", "b", or "c".
+func quotedList(list []string) string {
+	q := make([]string, len(list))
+	for k, s := range list {
+		q[k] = strconv.Quote(s)
+	}
+	if len(q) < 3 {
+		return strings.Join(q, " or ")
+	}
+	return strings.Join(q[:len(q)-1], ", ") + ", or " + q[len(q)-1]
+}
 
 type tool struct {
 	Name        string         `json:"name"`
@@ -89,6 +130,11 @@ func (s *Server) tools() []tool {
 	queryDescription := `Run a SuperSQL query on the database and return its results, one value per line.
 Format "json" (the default) returns JSON, which loses type information.  Format "sup"
 returns SUP, which preserves SuperDB's types exactly (see the server instructions).
+Format "csv" or "tsv" returns a header line and a line per record, and format "table"
+returns the same in columns aligned for reading; these require the results to be
+records with the same fields (nested records are flattened to dotted names), so for
+records with differing fields, append "| fuse" to the query.  Format "line" returns
+each string as is (e.g., a log line) and any other value in SUP.
 At most limit values are returned (default 1000).`
 	queryAnnotations := map[string]any{"readOnlyHint": true, "openWorldHint": false}
 	if s.opts.ReadOnly {
@@ -111,15 +157,24 @@ At most limit values are returned (default 1000).`
 					},
 					"format": map[string]any{
 						"type":        "string",
-						"enum":        []string{"json", "sup"},
+						"enum":        queryFormats,
 						"default":     "json",
-						"description": `Result format: "json" or "sup" (SUP preserves types).`,
+						"description": "Output format: " + quotedList(queryFormats) + `.  SUP preserves types.`,
 					},
 					"limit": map[string]any{
 						"type":        "integer",
 						"minimum":     1,
 						"default":     defaultLimit,
 						"description": "Maximum number of values to return.",
+					},
+					"structured": map[string]any{
+						"type":    "boolean",
+						"default": false,
+						"description": `With format "json", return the results as MCP structured content, i.e., an object
+{"values":[...],"count":N,"truncated":false} whose values are the results, which is
+also the result's text.  This is handy for a client that processes the results as
+data rather than text, but the results are held in memory and sent twice, so use a
+limit that keeps them small.`,
 					},
 				},
 				"required": []string{"query"},
@@ -160,8 +215,12 @@ explain how to read it.  Form "fused" returns the type without fusion types (e.g
 			Annotations: map[string]any{"readOnlyHint": true, "openWorldHint": false},
 		},
 	}
+	if s.opts.IncludeDir != "" {
+		tools[0].InputSchema["properties"].(map[string]any)["include"] = s.includeSchema()
+	}
+	tools = append(tools, healthToolDef)
 	if !s.opts.ReadOnly {
-		tools = append(tools, loadToolDef)
+		tools = append(tools, loadToolDef, createTableToolDef, dropTableToolDef)
 	}
 	return tools
 }
@@ -171,29 +230,73 @@ var loadToolDef = tool{
 	Title: "Load data into a table",
 	Description: `Load data into a table and commit it to a branch (default "main").  This is much
 faster than an INSERT INTO query, especially for more than a few values.  Give exactly
-one of: path, a file on the server's file system (or an S3 URI) in any supported format;
-data, inline text data (e.g., JSON, SUP, or CSV); or data_base64, inline binary data
-encoded as base64 (e.g., Parquet, Arrow IPC stream, or BSUP).  The format is detected
-automatically unless format is given.  If the table has a type, each value is cast to it.
+one of: path, a file on the server's file system (or an S3 URI), or data, inline text
+data.  The format is detected automatically unless format is given.  If the table has a type, each value is cast to it.
 Returns the commit ID and the number of values loaded.`,
 	InputSchema: map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"table":       map[string]any{"type": "string", "description": "The table's name or ID."},
-			"branch":      map[string]any{"type": "string", "default": "main", "description": "The branch to commit to."},
-			"path":        map[string]any{"type": "string", "description": "A file path (absolute is best) or S3 URI to load."},
-			"data":        map[string]any{"type": "string", "description": "Inline text data to load."},
-			"data_base64": map[string]any{"type": "string", "description": "Inline binary data to load, encoded as base64."},
+			"table":  map[string]any{"type": "string", "description": "The table's name or ID."},
+			"branch": map[string]any{"type": "string", "default": "main", "description": "The branch to commit to."},
+			"path":   map[string]any{"type": "string", "description": "A file path (absolute is best) or S3 URI to load."},
+			"data":   map[string]any{"type": "string", "description": "Inline text data to load."},
 			"format": map[string]any{
 				"type":        "string",
+				"enum":        loadFormats,
 				"default":     "auto",
-				"description": `The data's format (e.g., "json", "sup", "csv", "tsv", "parquet", "arrows", "bsup", or "csup") or "auto" to detect it.`,
+				"description": "Input format: " + quotedList(loadFormats) + `.  "auto" detects it.  Format "line" loads each line as a string.`,
 			},
 			"message": map[string]any{"type": "string", "description": "The commit message."},
 		},
 		"required": []string{"table"},
 	},
 	Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+}
+
+var healthToolDef = tool{
+	Name:  "health",
+	Title: "Check the server's health",
+	Description: `Check that the server is up and its database is readable.  Returns status "ok",
+the SuperDB version, whether the server is read-only, and the number of tables, or,
+if the database can't be read, status "error" and the error.`,
+	InputSchema: map[string]any{"type": "object", "properties": map[string]any{}},
+	Annotations: map[string]any{"readOnlyHint": true, "idempotentHint": true, "openWorldHint": false},
+}
+
+var createTableToolDef = tool{
+	Name:  "create_table",
+	Title: "Create a table",
+	Description: `Create a table.  By default, a table has no type and accepts values of any type.
+If type is given, each value loaded into the table is cast to it (e.g.,
+{ts:timestamp,status:int64,path:string}).  If orderby is given, the table's data is
+organized by that key (e.g., "ts" or "ts:desc").  Neither can be changed later.
+Returns the table's name and ID.`,
+	InputSchema: map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"table":         map[string]any{"type": "string", "description": "The new table's name."},
+			"type":          map[string]any{"type": "string", "description": "A SUP type to which all values loaded into the table are cast."},
+			"orderby":       map[string]any{"type": "string", "description": `A sort key with optional ":asc" or ":desc" suffix (e.g., "ts:desc").`},
+			"if_not_exists": map[string]any{"type": "boolean", "default": false, "description": "If true, succeed without change when the table already exists."},
+		},
+		"required": []string{"table"},
+	},
+	Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+}
+
+var dropTableToolDef = tool{
+	Name:        "drop_table",
+	Title:       "Drop a table",
+	Description: "Drop a table, permanently deleting all of its data and branches.",
+	InputSchema: map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"table":     map[string]any{"type": "string", "description": "The table's name or ID."},
+			"if_exists": map[string]any{"type": "boolean", "default": false, "description": "If true, succeed without change when the table doesn't exist."},
+		},
+		"required": []string{"table"},
+	},
+	Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": true, "openWorldHint": false},
 }
 
 type toolFunc func(context.Context, json.RawMessage) (*toolResult, error)
@@ -208,13 +311,22 @@ func (s *Server) toolFunc(name string) (toolFunc, bool) {
 		return s.describeTableTool, true
 	case "load":
 		return s.loadTool, true
+	case "health":
+		return s.healthTool, true
+	case "create_table":
+		return s.createTableTool, true
+	case "drop_table":
+		return s.dropTableTool, true
 	}
 	return nil, false
 }
 
 type toolResult struct {
 	Content []content `json:"content"`
-	IsError bool      `json:"isError,omitempty"`
+	// StructuredContent is the result as a JSON object (see the structured
+	// argument of the query tool).
+	StructuredContent any  `json:"structuredContent,omitempty"`
+	IsError           bool `json:"isError,omitempty"`
 }
 
 type content struct {
@@ -277,9 +389,11 @@ func jsonTypeName(typ reflect.Type) string {
 
 func (s *Server) queryTool(ctx context.Context, raw json.RawMessage) (*toolResult, error) {
 	var args struct {
-		Query  string `json:"query"`
-		Format string `json:"format"`
-		Limit  *int   `json:"limit"`
+		Query      string     `json:"query"`
+		Format     string     `json:"format"`
+		Limit      *int       `json:"limit"`
+		Structured bool       `json:"structured"`
+		Include    includeArg `json:"include"`
 	}
 	if err := unmarshalArgs(raw, &args); err != nil {
 		return nil, err
@@ -287,12 +401,19 @@ func (s *Server) queryTool(ctx context.Context, raw json.RawMessage) (*toolResul
 	if strings.TrimSpace(args.Query) == "" {
 		return nil, invalidArgs("query is required")
 	}
-	switch args.Format {
-	case "":
+	inputs, err := s.includeInputs(args.Include)
+	if err != nil {
+		return nil, err
+	}
+	inputs = append(inputs, &srcfiles.PlainInput{Text: args.Query})
+	if args.Format == "" {
 		args.Format = "json"
-	case "json", "sup":
-	default:
-		return nil, invalidArgs("format must be \"json\" or \"sup\"")
+	}
+	if !slices.Contains(queryFormats, args.Format) {
+		return nil, invalidArgs("format must be %s", quotedList(queryFormats))
+	}
+	if args.Structured && args.Format != "json" {
+		return nil, invalidArgs("structured requires format \"json\"")
 	}
 	limit := defaultLimit
 	if args.Limit != nil {
@@ -302,13 +423,37 @@ func (s *Server) queryTool(ctx context.Context, raw json.RawMessage) (*toolResul
 		limit = *args.Limit
 	}
 	if s.opts.ReadOnly {
-		if err := checkReadOnly(args.Query); err != nil {
+		// Check the included files too since they may modify the
+		// database (e.g., with an operator declaration that loads).
+		list, err := srcfiles.Concat(inputs)
+		if err != nil {
+			return nil, err
+		}
+		if err := checkReadOnly(list.Text); err != nil {
 			return nil, err
 		}
 	}
-	text, truncated, err := runQuery(ctx, s.db, args.Query, args.Format, limit)
+	writeFormat := args.Format
+	if writeFormat == "table" {
+		writeFormat = "csv"
+	}
+	text, truncated, err := runQuery(ctx, s.db, inputs, writeFormat, limit)
+	if errors.Is(err, csvio.ErrNotDataFrame) {
+		return nil, fmt.Errorf("format %q requires records with the same fields but the results' fields differ (append \"| fuse\" to the query to unify records)", args.Format)
+	}
 	if err != nil {
+		if strings.HasPrefix(err.Error(), "CSV output encountered non-record value") {
+			return nil, fmt.Errorf("format %q requires records but a result is %s", args.Format, strings.TrimPrefix(err.Error(), "CSV output encountered non-record value: "))
+		}
 		return nil, err
+	}
+	if args.Format == "table" && text != "" {
+		if text, err = renderTable(text); err != nil {
+			return nil, err
+		}
+	}
+	if args.Structured {
+		return structuredResult(text, truncated)
 	}
 	switch {
 	case truncated:
@@ -321,8 +466,8 @@ func (s *Server) queryTool(ctx context.Context, raw json.RawMessage) (*toolResul
 
 // runQuery runs query on database and returns at most limit of its values
 // in format and whether values were dropped to meet the limit.
-func runQuery(ctx context.Context, database runtime.Database, query, format string, limit int) (string, bool, error) {
-	q, err := database.Query(ctx, srcfiles.Plain(query))
+func runQuery(ctx context.Context, database runtime.Database, query []srcfiles.Input, format string, limit int) (string, bool, error) {
+	q, err := database.Query(ctx, query)
 	if err != nil {
 		return "", false, err
 	}
@@ -342,6 +487,68 @@ func runQuery(ctx context.Context, database runtime.Database, query, format stri
 		return "", false, err
 	}
 	return strings.TrimSuffix(buf.String(), "\n"), l.truncated, nil
+}
+
+// structuredResult returns a result whose structured content is an object
+// holding the JSON values in text, one per line, and whose text is the same
+// object, as MCP recommends for clients that don't support structured content.
+func structuredResult(text string, truncated bool) (*toolResult, error) {
+	result := struct {
+		Values    []json.RawMessage `json:"values"`
+		Count     int               `json:"count"`
+		Truncated bool              `json:"truncated"`
+	}{Values: []json.RawMessage{}, Truncated: truncated}
+	dec := json.NewDecoder(strings.NewReader(text))
+	for {
+		var v json.RawMessage
+		if err := dec.Decode(&v); err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		result.Values = append(result.Values, v)
+	}
+	result.Count = len(result.Values)
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(result); err != nil {
+		return nil, err
+	}
+	b := bytes.TrimSuffix(buf.Bytes(), []byte("\n"))
+	r := textResult(string(b))
+	r.StructuredContent = json.RawMessage(b)
+	return r, nil
+}
+
+// renderTable renders CSV text as a table whose columns are aligned with
+// spaces.  A newline or tab in a value is escaped so each record is a line.
+func renderTable(text string) (string, error) {
+	records, err := csv.NewReader(strings.NewReader(text)).ReadAll()
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	w := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
+	escaper := strings.NewReplacer("\n", `\n`, "\r", `\r`, "\t", `\t`)
+	for _, rec := range records {
+		for k, field := range rec {
+			if k > 0 {
+				io.WriteString(w, "\t")
+			}
+			io.WriteString(w, escaper.Replace(field))
+		}
+		io.WriteString(w, "\n")
+	}
+	if err := w.Flush(); err != nil {
+		return "", err
+	}
+	// Trailing spaces pad the last column, which only adds noise.
+	lines := strings.Split(strings.TrimSuffix(b.String(), "\n"), "\n")
+	for k, line := range lines {
+		lines[k] = strings.TrimRight(line, " ")
+	}
+	return strings.Join(lines, "\n"), nil
 }
 
 var errLimit = errors.New("limit reached")
@@ -397,6 +604,8 @@ func (s *Server) listTablesTool(ctx context.Context, raw json.RawMessage) (*tool
 		}
 		infos = append(infos, info)
 	}
+	// The table store's order varies so sort by name for stable results.
+	slices.SortFunc(infos, func(a, b tableInfo) int { return cmp.Compare(a.Name, b.Name) })
 	return jsonResult(infos)
 }
 
@@ -512,13 +721,12 @@ func (s *Server) loadTool(ctx context.Context, raw json.RawMessage) (*toolResult
 		return nil, errors.New("the server is read-only so loading is disabled")
 	}
 	var args struct {
-		Table      string `json:"table"`
-		Branch     string `json:"branch"`
-		Path       string `json:"path"`
-		Data       string `json:"data"`
-		DataBase64 string `json:"data_base64"`
-		Format     string `json:"format"`
-		Message    string `json:"message"`
+		Table   string `json:"table"`
+		Branch  string `json:"branch"`
+		Path    string `json:"path"`
+		Data    string `json:"data"`
+		Format  string `json:"format"`
+		Message string `json:"message"`
 	}
 	if err := unmarshalArgs(raw, &args); err != nil {
 		return nil, err
@@ -526,20 +734,17 @@ func (s *Server) loadTool(ctx context.Context, raw json.RawMessage) (*toolResult
 	if args.Table == "" {
 		return nil, invalidArgs("table is required")
 	}
-	var n int
-	for _, src := range []string{args.Path, args.Data, args.DataBase64} {
-		if src != "" {
-			n++
-		}
-	}
-	if n != 1 {
-		return nil, invalidArgs("exactly one of path, data, or data_base64 is required")
+	if (args.Path == "") == (args.Data == "") {
+		return nil, invalidArgs("exactly one of path or data is required")
 	}
 	if args.Branch == "" {
 		args.Branch = "main"
 	}
 	if args.Format == "" {
 		args.Format = "auto"
+	}
+	if !slices.Contains(loadFormats, args.Format) {
+		return nil, invalidArgs("format must be %s", quotedList(loadFormats))
 	}
 	tableID, err := s.db.TableID(ctx, args.Table)
 	if err != nil {
@@ -556,16 +761,8 @@ func (s *Server) loadTool(ctx context.Context, raw json.RawMessage) (*toolResult
 		}
 		defer f.Close()
 		r = f
-	case args.Data != "":
-		if r, err = anyio.NewReader(ctx, sctx, strings.NewReader(args.Data), opts); err != nil {
-			return nil, err
-		}
 	default:
-		b, err := base64.StdEncoding.DecodeString(args.DataBase64)
-		if err != nil {
-			return nil, invalidArgs("data_base64: %s", err)
-		}
-		if r, err = anyio.NewReader(ctx, sctx, bytes.NewReader(b), opts); err != nil {
+		if r, err = anyio.NewReader(ctx, sctx, strings.NewReader(args.Data), opts); err != nil {
 			return nil, err
 		}
 	}
@@ -589,6 +786,102 @@ func (s *Server) loadTool(ctx context.Context, raw json.RawMessage) (*toolResult
 		Commit string `json:"commit"`
 		Values int    `json:"values"`
 	}{commit.String(), counter.n})
+}
+
+func (s *Server) healthTool(ctx context.Context, raw json.RawMessage) (*toolResult, error) {
+	type health struct {
+		Status   string `json:"status"`
+		Version  string `json:"version"`
+		ReadOnly bool   `json:"read_only"`
+		Tables   *int   `json:"tables,omitempty"`
+		Error    string `json:"error,omitempty"`
+	}
+	h := health{Status: "ok", Version: s.version, ReadOnly: s.opts.ReadOnly}
+	tables, err := s.root.ListTables(ctx)
+	if err != nil {
+		h.Status, h.Error = "error", err.Error()
+		r, err := jsonResult(h)
+		if err != nil {
+			return nil, err
+		}
+		r.IsError = true
+		return r, nil
+	}
+	n := len(tables)
+	h.Tables = &n
+	return jsonResult(h)
+}
+
+type tableResult struct {
+	Table   string `json:"table"`
+	ID      string `json:"id,omitempty"`
+	Created bool   `json:"created,omitempty"`
+	Dropped bool   `json:"dropped,omitempty"`
+}
+
+func (s *Server) createTableTool(ctx context.Context, raw json.RawMessage) (*toolResult, error) {
+	if s.opts.ReadOnly {
+		return nil, errors.New("the server is read-only so creating tables is disabled")
+	}
+	var args struct {
+		Table       string `json:"table"`
+		Type        string `json:"type"`
+		OrderBy     string `json:"orderby"`
+		IfNotExists bool   `json:"if_not_exists"`
+	}
+	if err := unmarshalArgs(raw, &args); err != nil {
+		return nil, err
+	}
+	if args.Table == "" {
+		return nil, invalidArgs("table is required")
+	}
+	sortKeys, err := order.ParseSortKeys(args.OrderBy)
+	if err != nil {
+		return nil, invalidArgs("orderby: %s", err)
+	}
+	var typ super.Type
+	if args.Type != "" {
+		if typ, err = sup.ParseType(super.NewContext(), args.Type); err != nil {
+			return nil, invalidArgs("type %q: %s", args.Type, err)
+		}
+	}
+	id, err := s.db.CreateTable(ctx, args.Table, sortKeys, 0, 0, typ, false)
+	if errors.Is(err, tables.ErrExists) && args.IfNotExists {
+		if id, err = s.root.TableID(ctx, args.Table); err == nil {
+			return jsonResult(tableResult{Table: args.Table, ID: id.String()})
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return jsonResult(tableResult{Table: args.Table, ID: id.String(), Created: true})
+}
+
+func (s *Server) dropTableTool(ctx context.Context, raw json.RawMessage) (*toolResult, error) {
+	if s.opts.ReadOnly {
+		return nil, errors.New("the server is read-only so dropping tables is disabled")
+	}
+	var args struct {
+		Table    string `json:"table"`
+		IfExists bool   `json:"if_exists"`
+	}
+	if err := unmarshalArgs(raw, &args); err != nil {
+		return nil, err
+	}
+	if args.Table == "" {
+		return nil, invalidArgs("table is required")
+	}
+	id, err := s.db.TableID(ctx, args.Table)
+	if errors.Is(err, tables.ErrNotFound) && args.IfExists {
+		return jsonResult(tableResult{Table: args.Table})
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := s.db.RemoveTable(ctx, id); err != nil {
+		return nil, err
+	}
+	return jsonResult(tableResult{Table: args.Table, ID: id.String(), Dropped: true})
 }
 
 // countingPuller counts the values it pulls.

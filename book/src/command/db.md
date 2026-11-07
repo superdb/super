@@ -658,6 +658,7 @@ tasks run at the specified interval by the service process.
 ```
 super db mcp [options] <path>
 ```
+* `-include` directory of SuperSQL source files that queries may include
 * `-log.devmode` development mode (if enabled dpanic level logs will cause a panic)
 * `-log.filemode` logger file write mode (values: append, truncate, rotate)
 * `-log.level` logging level
@@ -700,21 +701,67 @@ The server provides these tools:
 * `query` runs a SuperSQL query and returns up to `limit` values (default 1000)
 in JSON or, with format `sup`, in [SUP](../formats/sup.md), which preserves
 SuperDB's types (e.g., timestamps, durations, IP addresses, and named types)
-that JSON loses,
-* `list_tables` lists the database's tables,
+that JSON loses, in `csv` or `tsv` with a header line, in `table`, i.e., columns
+aligned for reading (these three require records with the same fields, e.g., by
+appending `| fuse` to the query), or in `line`, i.e., each string as is,
+and, with `structured` and format `json`, returns the results as MCP structured
+content, i.e., an object `{"values":[...],"count":N,"truncated":false}`, for
+clients that process results as data (since the results are held in memory and
+sent twice, a small limit is best),
+* `list_tables` lists the database's tables sorted by name,
 * `describe_table` returns a table's declared type or, if it has none,
 the superfused type of its data computed from the types of its data
 objects, which shows where the data's types vary (e.g.,
 `{a:int64,b:fusion(string|missing)}` means `b` is absent from some values),
-or, with form `fused`, the type without fusion types, and
-* `load` loads a file (by path or S3 URI) or inline data (text or base64-encoded
-binary) in any supported format, e.g., JSON, CSV, Parquet, or Arrow, into a table
-and commits it, which is much faster than formatting the data as an `INSERT INTO`
-query.
+or, with form `fused`, the type without fusion types,
+* `health` checks that the database is readable and returns the status, the
+SuperDB version, whether the server is read-only, and the number of tables,
+* `load` loads a file (by path or S3 URI) or inline text data in format `json`,
+`sup`, `csv`, `tsv`, `line` (a string per line), or `zeek`, or detected with `auto`
+(the default), into a table and commits it, which is much faster than formatting the data as an `INSERT INTO`
+query,
+* `create_table` creates a table, optionally with a type to which loaded values
+are cast and a sort key (like [create](#super-db-create)), and
+* `drop_table` drops a table and deletes all of its data.
 
 A query may modify the database (e.g., with `INSERT INTO` or `CREATE TABLE`)
 unless `-readonly` is given, in which case such a query is rejected and the
-`load` tool is not available.
+`load`, `create_table`, and `drop_table` tools are not available.
+
+The `-include` option names a directory of SuperSQL source files, e.g., shared
+[constant](../super-sql/declarations/constants.md),
+[function](../super-sql/declarations/functions.md), and
+[operator](../super-sql/declarations/operators.md) declarations, that the
+`include` argument of the `query` tool may name, like the [`-I`](options.md#query) option of
+[super](super.md) but on the server.  The text of the included files, in the
+order given, precedes the query so the query may use what they declare.  For
+example, with a file `lib/common.spq` containing
+```
+fn greet(name): "hello " || name
+```
+the server started with
+```
+super db mcp -include lib /path/to/db
+```
+runs a `query` with arguments
+```
+{"query": "values greet(\"world\")", "include": ["common.spq"]}
+```
+whose result is `"hello world"`.  For clients whose forms make arrays awkward,
+`include` may also be a string of names separated by commas.  A name is relative
+to the include directory and may name a file in a subdirectory (e.g.,
+`autotask/extract.spq`), but a name that is absolute, contains `..`, or resolves
+outside the directory through a symbolic link is rejected, so a client can't read
+other files on the server.  The server's instructions and the `include`
+argument's description list the directory's `.spq` files, which the argument's
+schema also gives as the allowed values of its items (an `enum`), so a client
+may offer them as choices.  (The list is a snapshot, so a client sees a file
+added later when it lists the tools again.  When there are more than 50 files,
+they aren't listed.)  The included files
+are subject to `-readonly` like the query, so a file that modifies the database
+(e.g., with the `load` operator) is rejected.  Keeping shared declarations on the
+server also keeps any secrets they hold (e.g., API credentials in HTTP headers)
+out of the clients' queries.
 
 ### super db merge
 
@@ -801,6 +848,7 @@ super db serve [options] <path>
 * `-log.path` path to send logs (values: stderr, stdout, path in file system)
 * `-manage duration` when positive, run database maintenance tasks at this interval
 * `-mcp` serve the Model Context Protocol (MCP) for AI agents at `/mcp`
+* `-mcp.include` directory of SuperSQL source files that `/mcp` queries may include (implies `-mcp`)
 * `-mcp.readonly` make the `/mcp` endpoint read-only (implies `-mcp`)
 * `-rootcontentfile` file to serve for GET /
 * [Global](options.md#global)
@@ -827,7 +875,10 @@ The `-mcp` option adds a [Model Context Protocol](https://modelcontextprotocol.i
 use the service's database alongside other API clients.  It provides the same
 tools as [mcp](#super-db-mcp) and requires the same authentication as the rest of
 the API.  With `-mcp.readonly`, the endpoint rejects queries that modify the
-database and has no `load` tool while the rest of the API is unaffected.  To
+database and has no `load`, `create_table`, or `drop_table` tool while the rest
+of the API is unaffected.  With `-mcp.include`, the `query` tool's `include`
+argument may name SuperSQL source files in the given directory (see
+[mcp](#super-db-mcp)).  To
 prevent DNS rebinding attacks, a request from a web page (i.e., with an `Origin`
 header) is accepted only from an origin allowed by `-cors.origin`.  For example,
 to add the endpoint to Claude Code:

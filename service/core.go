@@ -56,6 +56,8 @@ type Config struct {
 	MCP bool
 	// MCPReadOnly makes the MCP endpoint read-only (see mcp.Options).
 	MCPReadOnly bool
+	// MCPInclude is the MCP endpoint's include directory (see mcp.Options).
+	MCPInclude string
 }
 
 type Core struct {

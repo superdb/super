@@ -17,8 +17,9 @@ import (
 func newMCPServer(root *db.Root, conf Config) *mcp.Server {
 	origins := cors.New(cors.Options{AllowedOrigins: conf.CORSAllowedOrigins})
 	return mcp.NewServer(root, conf.Version, mcp.Options{
-		ReadOnly: conf.MCPReadOnly,
-		Commit:   api.CommitMessage{Author: "mcp"},
+		ReadOnly:   conf.MCPReadOnly,
+		IncludeDir: conf.MCPInclude,
+		Commit:     api.CommitMessage{Author: "mcp"},
 		AllowOrigin: func(r *http.Request) bool {
 			return len(conf.CORSAllowedOrigins) > 0 && origins.OriginAllowed(r)
 		},

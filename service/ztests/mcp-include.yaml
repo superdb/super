@@ -1,0 +1,21 @@
+# With -mcp.include (which implies -mcp), a query on the /mcp endpoint may
+# include SuperSQL source files from the include directory.
+script: |
+  mkdir lib
+  mv common.spq lib
+  DB_EXTRA_FLAGS='-mcp.include lib' source service.sh
+  curl -s -H 'Content-Type: application/json' -d @request.json $DB_URL/mcp
+
+inputs:
+  - name: service.sh
+  - name: common.spq
+    data: |
+      fn greet(name): "hello " || name
+  - name: request.json
+    data: |
+      {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query","arguments":{"query":"values greet(\"serve\")","include":["common.spq"]}}}
+
+outputs:
+  - name: stdout
+    data: |
+      {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"\"hello serve\""}]}}

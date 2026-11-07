@@ -51,6 +51,11 @@ type Options struct {
 	// are rejected.  Requests without an Origin header (e.g., from an
 	// agent) are always accepted.
 	AllowOrigin func(*http.Request) bool
+	// IncludeDir is a directory of SuperSQL source files (e.g., shared
+	// function and constant declarations) that the include argument of
+	// the query tool may name.  A query may include only files in this
+	// directory.  If empty, the include argument isn't available.
+	IncludeDir string
 }
 
 // Server is an MCP server for a database.  It is safe for concurrent use

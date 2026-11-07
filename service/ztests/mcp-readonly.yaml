@@ -1,4 +1,5 @@
-# With -mcp.readonly, the /mcp endpoint is read-only (and so has no load tool)
+# With -mcp.readonly, the /mcp endpoint is read-only (and so has no load,
+# create_table, or drop_table tool)
 # while the service's API isn't.  An origin allowed by -cors.origin may reach
 # /mcp but others may not.
 script: |
@@ -30,6 +31,7 @@ outputs:
       "name":"query"
       "name":"list_tables"
       "name":"describe_table"
+      "name":"health"
       === insert
       {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"the server is read-only but the query modifies the database (INSERT INTO)"}],"isError":true}}
       [200]

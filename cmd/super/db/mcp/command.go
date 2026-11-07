@@ -31,7 +31,9 @@ responses to standard output, so an AI agent typically runs it as a
 subprocess.  It provides tools to list and describe tables, to run SuperSQL
 queries with results in JSON or SUP, and to load data into tables.  With
 -readonly, queries that modify the database are rejected and loading is
-disabled.
+disabled.  With -include, the query tool's include argument may name
+SuperSQL source files in the given directory (e.g., shared function
+declarations) to precede a query.
 
 See https://superdb.org/command/db.html#super-db-mcp
 `,
@@ -54,6 +56,7 @@ func New(parent charm.Command, f *flag.FlagSet) (charm.Command, error) {
 	c.commitFlags.SetFlags(f)
 	c.logflags.SetFlags(f)
 	f.BoolVar(&c.opts.ReadOnly, "readonly", false, "reject queries that modify the database and disable loading")
+	f.StringVar(&c.opts.IncludeDir, "include", "", "directory of SuperSQL source files that queries may include")
 	return c, nil
 }
 
@@ -75,6 +78,9 @@ func (c *Command) Run(args []string) error {
 	}
 	if c.logflags.Config.Path == "stdout" {
 		return errors.New("mcp: logs cannot go to stdout, which carries the MCP protocol")
+	}
+	if err := mcp.CheckIncludeDir(c.opts.IncludeDir); err != nil {
+		return err
 	}
 	logger, err := c.logflags.Open()
 	if err != nil {
