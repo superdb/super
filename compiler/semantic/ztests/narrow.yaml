@@ -15,7 +15,8 @@ script: |
   super -s -c 'values {a:1},{a:"x"} | where is(a, <int64>) | values a+1'
   super -s -c 'values {x:{a:cast(1,<int64|string>)}},{x:error("bad")} | where is(x.a, <int64|string>) | values x.a'
   echo === is_error
-  super -s -c 'values {a:1},{b:2} | where is_error(a) | values b'
+  super -s -c 'values {a:1},{b:2} | where is_error(a) | values a'
+  super -s -c 'values {a:1},{b:2} | where not is_error(a) | values a+1'
   echo === null
   super -s -c 'values {a:{x:1}},{a:null} | where a is not null | values a.x'
   super -s -c 'values {a:{x:1}},{a:null} | where a == {x:1} | values a.x'
@@ -53,6 +54,7 @@ outputs:
       2
       1::(int64|string)
       === is_error
+      error("no such field a")
       2
       === null
       1
