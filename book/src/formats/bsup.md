@@ -2,188 +2,115 @@
 
 ## 1. Introduction
 
-Super Binary (BSUP) is an efficient, sequence-oriented serialization format for
-[super-structured data](model.md).
+Super Binary (BSUP) is an efficient binary serialization format for
+[super-structured data](model.md).  It holds data in either of two
+orientations, and a single BSUP file may mix them:
 
-BSUP is "row oriented" and
-analogous to [Apache Avro](https://avro.apache.org) but does not
-require schema definitions as it instead utilizes the fine-grained type system
-of the super data model.
-This binary format is based on machine-readable data types with an
-encoding methodology inspired by Avro,
-[Parquet](https://en.wikipedia.org/wiki/Apache_Parquet),
-[Protocol Buffers](https://developers.google.com/protocol-buffers), and
-[Apache Arrow](https://arrow.apache.org/docs/format/Columnar.html).
+* _row frames_ encode a sequence of values one after another, a bit like
+  [Apache Avro](https://avro.apache.org), and
+* _column frames_ encode a sequence of values as vectors, a bit like
+  [Apache Parquet](https://parquet.apache.org/) or
+  [Apache Arrow](https://arrow.apache.org/docs/format/Columnar.html).
 
-To this end, BSUP embeds all type information
-in the stream itself while having a binary serialization format that
-allows "lazy parsing" of fields such that
-only the fields of interest in a stream need to be deserialized and interpreted.
-Unlike Avro, BSUP embeds its "schemas" in the data stream as types and thereby admits
-an efficient multiplexing of heterogeneous data types by prepending to each
-data value a simple integer identifier to reference its type.
+Unlike Avro and Parquet, BSUP has no external schema.  Each frame carries
+the definitions of the types of its values in a compact _typedefs table_,
+so values of many different types may be freely intermixed in a single
+sequence and each frame can be decoded on its own.
 
-Since no external schema definitions exist in BSUP, a "type context" is constructed
-on the fly by composing dynamic type definitions embedded in the format.
-BSUP can be readily adapted to systems like
-[Apache Kafka](https://kafka.apache.org/) which utilize schema registries,
-by having a connector translate the schemas implied in the
-BSUP stream into registered schemas and vice versa.  Better still, Kafka could
-be used natively with BSUP obviating the need for the schema registry.
+A BSUP file is organized into _super frames_, each a sequence of frames
+followed by a _super footer_ that summarizes the super frame.  The super
+footer holds the _fused type_ of the super frame's values (a single type to
+which all of its values conform) and, for column frames,
+[zone maps](#86-zone-maps) of the minimum and maximum value of each
+column of each frame.  This allows a reader to determine the type of an
+entire file and to skip frames that can't match a query without reading
+the frames themselves.
 
-Multiple BSUP streams with different type contexts are easily merged because the
-serialization of values does not depend on the details of
-the type context.  One or more streams can be merged by simply merging the
-input contexts into an output context and adjusting the type reference of
-each value in the output sequence.  The values need not be traversed
-or otherwise rewritten to be merged in this fashion.
+Since each frame is self-contained and each super frame ends with a footer
+that records its size, BSUP files may simply be concatenated to form a
+larger, valid BSUP file, which can be traversed either forward from its
+start or backward from its end.
 
-## 2. The BSUP Format
+This specification describes BSUP version 0.31.
 
-A BSUP stream comprises a sequence of frames where
-each frame contains one of three types of data:
-_types_, _values_, or externally-defined _control_.
+## 2. Conventions
 
-A stream is punctuated by the end-of-stream value `0xff`.
+All fixed-size integers in headers, footers, and data are encoded in
+little-endian byte order unless stated otherwise.
 
-Each frame header includes a length field
-allowing an implementation to easily skip from frame to frame.
+A `uvarint` is an unsigned, variable-length integer as defined by
+[Protocol Buffers](https://protobuf.dev/programming-guides/encoding/#varints):
+a sequence of bytes with bit 7 set in each byte except the last, whose value
+is the base-128 number composed of the lower 7 bits of each byte from
+least-significant digit (byte 0) to most-significant digit.
 
-Each frame begins with a single-byte version number followed by
-a single byte "frame code":
+A _counted string_ is a `uvarint` length followed by that many bytes of
+UTF-8 text.
+
+The byte layouts below show fixed-size fields with their size in bytes
+(e.g., `<frame-size:8>`) and variable-size fields without one.
+
+## 3. File Structure
+
+A BSUP file is a sequence of super frames.  A super frame is a sequence of
+one or more frames followed by a super footer:
 ```
-    7 6 5 4 3 2 1 0
-   +-+-+-+-+-+-+-+-+
-   |1|  VERSION    |
-   +-+-+-+-+-+-+-+-+
-   |X|C|  T|      L|
-   +-+-+-+-+-+-+-+-+
-
-   VERSION: 7 bits
-
-     The BSUP version number.  The upper bit of the version byte must be 1.
-
-   X: 1 bit
-
-     Unused.
-
-   C: 1 bit
-
-     Indicates compressed frame data.
-
-   T: 2 bits
-
-     Type of frame data.
-
-       00: Types
-       01: Values
-       10: Control
-       11: undefined
-
-   L: 4 bits
-
-     Low-order bits of frame length.
+| frame | frame | ... | super footer | frame | frame | ... | super footer | ...
 ```
+Each frame and each super footer begins with a 4-byte magic string that
+identifies it:
 
-Following the frame code is its encoded length followed by a "frame payload"
-of bytes of said length:
+| Magic  | Section                                        |
+|--------|------------------------------------------------|
+| `SUPR` | [row frame](#7-row-frames)                     |
+| `SUPX` | [control frame](#74-control-frames)            |
+| `SUPC` | [column frame](#8-column-frames)               |
+| `SUPS` | [super footer](#9-super-footer)                |
+
+The frames of a super frame are either all row frames or all column frames,
+except that control frames may appear in either.  Row super frames and
+column super frames may be intermixed in a file.
+
+The magic is followed by a 2-byte version number, which encodes a
+major version in its upper 6 bits and a minor version in its lower 10 bits.
+Implementations may read data with the same major version as their own,
+though an implementation might not understand types added by a later minor
+version.  Major version 0 is reserved for development and there is no
+compatibility between its minor versions.  The current version is 0.31.
+
+Each frame header and super footer holds its own size, so a reader can
+traverse a file forward from its start, skipping over any frame
+it doesn't need.  Each super footer also ends with a copy of its size and
+holds the size of its super frame, so a reader can also traverse a
+file backward from its end, e.g., to read the fused types and zone maps
+of a file's super frames without reading any frames.
+
+An implementation may bound the sizes of these sections.  The reference
+implementation limits a frame to 2 GiB, a super frame to 512 GiB, and the
+typedefs, locator, and zone map sections and the super footer to 100 MiB.
+
+## 4. Typedefs Tables
+
+A typedefs table defines a set of complex types and assigns each a
+_type ID_.  Each frame has its own typedefs tables (a row frame has one and a
+column frame two) and a type ID is meaningful only with respect to its table.
+
+The primitive types have predefined type IDs less than 48 as listed in the
+[Primitive Types](#5-primitive-types) table.  The typedefs in a table are
+numbered in order starting at 48, so the type ID of a typedef is implied by
+its position and isn't encoded.
+
+A typedefs table is encoded as the number of typedefs, the offset of each
+typedef, and the typedefs:
 ```
-<frame code><uvarint><frame payload>
-```
-The length encoding utilizes a variable-length unsigned integer called herein a `uvarint`:
-
->[!NOTE]
-> Inspired by Protocol Buffers,
-> a `uvarint` is an unsigned, variable-length integer encoded as a sequence of
-> bytes consisting of N-1 bytes with bit 7 clear and the Nth byte with bit 7 set,
-> whose value is the base-128 number composed of the digits defined by the lower
-> 7 bits of each byte from least-significant digit (byte 0) to
-> most-significant digit (byte N-1).
-
-The frame payload's length is equal to the value of the `uvarint` following the
-frame code times 16 plus the low 4-bit integer value `L` field in the frame code.
-
-If the `C` bit is set in the frame code, then the frame payload following the
-frame length is compressed and has the form:
-```
-<format><size><compressed payload>
-```
-where
-* `<format>` is a single byte indicating the compression format of the compressed payload,
-* `<size>` is a `uvarint` encoding the size of the uncompressed payload, and
-* `<compressed payload>` is a bytes sequence whose length equals
-the outer frame length less 1 byte for the compression format and the encoded length
-of the `uvarint` size field.
-
-The `compressed payload` is compressed according to the compression algorithm
-specified by the `format` byte.  Each frame is compressed independently
-such that the compression algorithm's state is not carried from frame to frame
-(thereby enabling parallel decoding).
-
-The `<size>` value is redundant with the compressed payload
-but is useful to an implementation to deterministically
-size decompression buffers in advance of decoding.
-
-Of the 256 possible values for the `<format>` byte, only type `0` is currently
-defined and specifies that `<compressed payload>` contains an
-[LZ4 block](https://github.com/lz4/lz4/blob/master/doc/lz4_Block_format.md).
-
->[!NOTE]
-> This arrangement of frames separating types and values allows
-> for efficient scanning and parallelization.  In general, values depend
-> on type definitions but as long as all of the types are known when
-> values are used, decoding can be done in parallel.  Likewise, since
-> each block is independently compressed, the blocks can be decompressed
-> in parallel.  Moreover, efficient filtering can be carried out over
-> uncompressed data before it is deserialized into native data structures,
-> e.g., allowing entire frames to be discarded based on
-> heuristics, e.g., knowing a filtering predicate can't be true based on a
-> quick scan of the data perhaps using the Boyer-Moore algorithm to determine
-> that a comparison with a string constant would not work for any
-> value in the buffer.
-
-Whether the payload was originally uncompressed or was decompressed, it is
-then interpreted according to the `T` bits of the frame code as a
-* [types frame](#21-types-frame),
-* [values frame](#22-values-frame), or
-* [control frame](#23-control-frame).
-
-### 2.1 Types Frame
-
-A _types frame_ encodes a sequence of type definitions for complex types
-and establishes a "type ID" for each such definition.
-Type IDs for the "primitive types"
-are predefined with the IDs listed in the [Primitive Types](#3-primitive-types) table.
-
-Each definition, or "typedef",
-consists of a typedef code followed by its type-specific encoding as described below.
-A table of typedefs is encoded as the number of typedefs followed by two
-sections:
-```
------------------------------------------------------------
 |<ntypes>|<offset-1><offset-2>...|<typedef-1><typedef-2>...|
------------------------------------------------------------
 ```
-The first section has the offset of each typedef in type ID order, where
-each offset is relative to the start of the second section, and the
-second section has the typedefs.  `<ntypes>` and each offset are encoded
-as a `uvarint`.  The offsets allow a typedef to be found by its type ID
-without decoding the typedefs that precede it.  An empty table is encoded
-as zero bytes.
+where `<ntypes>` and each offset are `uvarint`s and each offset is relative
+to the start of the first typedef, so the first offset is always 0.  The
+offsets allow a typedef to be found by its type ID without decoding the
+typedefs that precede it.  An empty table is encoded as zero bytes.
 
-The typedefs are numbered in the order encountered starting at 30
-(as the largest primary type ID is 29).  Types refer to other types
-by their type ID.  Note that the type ID of a typedef is implied by its
-position in the sequence and is not explicitly encoded.
-
-A typedef other than a named type may refer only to types with smaller
-type IDs, i.e., to primitive types and to typedefs that precede it.
-A named type's inner type may refer to any type, which allows recursive
-types, but a cycle of references must include a type that is not named,
-e.g., a named type may not refer to itself directly or through other
-named types alone.  A table that breaks these rules is malformed.
-
-The typedef codes are defined as follows:
+Each typedef is a 1-byte typedef code followed by its type-specific encoding:
 
 | Code | Complex Type |
 |------|--------------|
@@ -195,518 +122,579 @@ The typedef codes are defined as follows:
 |   5  |  enum        |
 |   6  |  error       |
 |   7  |  named type  |
-|   8  |  fusion type |
+|   8  |  fusion      |
+|   9  |  option      |
+|  10  |  decimal     |
 
-Any references to a type ID in the body of a typedef are encoded as a `uvarint`.
+Within a typedef, a reference to another type is that type's ID encoded as a
+`uvarint`, except for the inner type of a named type (see below).
 
-#### 2.1.1 Record Typedef
+A typedef other than a named type may refer only to types with smaller
+type IDs, i.e., to primitive types and to typedefs that precede it.
+A named type may refer to any type, which allows recursive
+types, but a cycle of references must include a type that is not named,
+i.e., a named type may not refer to itself directly or through other
+named types alone.  A table that breaks these rules is malformed.
 
-A record typedef creates a new type ID equal to the next stream type ID
-with the following structure:
+An encoder writes at most one typedef for any type in a table.
+
+### 4.1 Record Typedef
+
 ```
-----------------------------------------------------------------------
-|0x00|<nfields>|<name1><opt-1><type-id-1><name2><opt-2><type-id-2>...|
-----------------------------------------------------------------------
+|0x00|<nfields>|<name-1><type-id-1><name-2><type-id-2>...|
 ```
-Record types consist of an ordered set of fields where each field consists of
-a name and its type.  Unlike JSON, the ordering of the fields is significant
-and must be preserved through any APIs that consume, process, and emit BSUP records.
+A record type is an ordered list of fields, each a name and a type.
+`<nfields>` is a `uvarint`, each name is a counted string, and the
+names of a record's fields must be unique.  Unlike JSON, the order of the
+fields is significant.
 
-A record type is encoded as a count of fields, i.e., `<nfields>` from above,
-followed by the field definitions,
-where a field definition is a field name, followed by its optionality coded
-as a single byte, followed by a type ID, i.e.,
-`<name1>` followed by `<type-id-1>` etc. as indicated above.
+A field that may be absent from a value has an [option](#410-option-typedef)
+type.
 
-The field names in a record must be unique.
+### 4.2 Array Typedef
 
-The `<nfields>` value is encoded as a `uvarint`.
-
-The field name is encoded as a UTF-8 string defining a "BSUP identifier".
-The UTF-8 string
-is further encoded as a "counted string", which is the `uvarint` encoding
-of the length of the string followed by that many bytes of UTF-8 encoded
-string data.
-
->[!NOTE]
-> As defined by [Super (SUP)](sup.md), a field name can be any valid UTF-8 string much like JSON
-> objects can be indexed with arbitrary string keys (via index operator)
-> even if the field names available to the dot operator are restricted
-> by language syntax for identifiers.
-
-The optionality byte indicates "optional" for the value 1 and mandatory for
-the value 0.
-
-The type ID follows the field name and is encoded as a `uvarint`.
-
-#### 2.1.2 Array Typedef
-
-An array type is encoded as simply the type code of the elements of
-the array encoded as a `uvarint`:
 ```
-----------------
 |0x01|<type-id>|
-----------------
 ```
+where `<type-id>` is the type of the array's elements.
 
-#### 2.1.3 Set Typedef
+### 4.3 Set Typedef
 
-A set type is encoded as the type ID of the
-elements of the set, encoded as a `uvarint`:
 ```
-----------------
 |0x02|<type-id>|
-----------------
+```
+where `<type-id>` is the type of the set's elements.
+
+### 4.4 Map Typedef
+
+```
+|0x03|<key-type-id>|<value-type-id>|
 ```
 
-#### 2.1.4 Map Typedef
+### 4.5 Union Typedef
 
-A map type is encoded as the type code of the key
-followed by the type code of the value.
 ```
---------------------------
-|0x03|<type-id>|<type-id>|
---------------------------
-```
-Each `<type-id>` is encoded as `uvarint`.
-
-#### 2.1.5 Union Typedef
-
-A union typedef creates a new type ID equal to the next stream type ID
-with the following structure:
-```
------------------------------------------
 |0x04|<ntypes>|<type-id-1><type-id-2>...|
------------------------------------------
 ```
-A union type consists of an ordered set of types
-encoded as a count of the number of types, i.e., `<ntypes>` from above,
-followed by the type IDs comprising the types of the union.
-The type IDs of a union must be unique.
+where `<ntypes>` is a `uvarint` and the type IDs are those of the union's
+member types, which must be distinct, may not themselves be unions, and are
+sorted in the canonical order of types.  The position of a member type
+in this list is its _tag_.
 
-The `<ntypes>` and the type IDs are all encoded as `uvarint`.
+### 4.6 Enum Typedef
 
-`<ntypes>` cannot be 0.
-
-#### 2.1.6 Enum Typedef
-
-An enum type is encoded as a `uvarint` representing the number of symbols
-in the enumeration followed by the names of each symbol.
 ```
---------------------------------
-|0x05|<nelem>|<name1><name2>...|
---------------------------------
+|0x05|<nsymbols>|<symbol-1><symbol-2>...|
 ```
-`<nelem>` is encoded as `uvarint`.
-The names have the same UTF-8 format as record field names and are encoded
-as counted strings following the same convention as record field names.
+where `<nsymbols>` is a `uvarint` and each symbol is a counted string.
 
-#### 2.1.7 Error Typedef
+### 4.7 Error Typedef
 
-An error type is encoded as follows:
 ```
-----------------
 |0x06|<type-id>|
-----------------
 ```
-which defines a new error type for error values that have the underlying type
-indicated by `<type-id>`.
+where `<type-id>` is the type of the error's value.
 
-#### 2.1.8 Named Type Typedef
+### 4.8 Named Type Typedef
 
-A named type defines a new type ID that binds a name to a previously existing type ID.
-
-A named type is encoded as follows:
 ```
-----------------------
-|0x07|<name><type-id>|
-----------------------
+|0x07|<name>|<type-id:4>|
 ```
-where `<name>` is an identifier representing the new type name with a new type ID
-allocated as the next available type ID in the stream that refers to the
-existing type ID `<type-id>`.  `<type-id>` is encoded as a `uvarint` and `<name>`
-is encoded as a `uvarint` representing the length of the name in bytes,
-followed by that many bytes of UTF-8 string.
+where `<name>` is a counted string and `<type-id:4>` is the ID of the named
+type's underlying type encoded as a 4-byte, _big-endian_ integer.
+(The fixed size allows an encoder to define a recursive type by writing
+the named typedef before its underlying type is known and filling in its
+type ID later.)
 
-As indicated in the [data model](model.md),
-it is an error to define a type name that has the same name as a primitive type,
-and it is permissible to redefine a previously defined type name with a
-type that differs from the previous definition.
+A name may be bound to only one type in a typedefs table.  It is an error
+to name a type with the name of a primitive type.
 
-#### 2.1.8 Fusion Typedef
+### 4.9 Fusion Typedef
 
-A fusion type is encoded as follows:
 ```
-----------------
 |0x08|<type-id>|
-----------------
 ```
-which defines a new fusion type for fusion values that have the underlying type
-indicated by `<type-id>`.
+where `<type-id>` is the fusion's supertype.
 
-### 2.2 Values Frame
+### 4.10 Option Typedef
 
-A _values frame_ is a sequence of values each encoded as the value's type ID,
-encoded as a `uvarint`, followed by its tag-encoded serialization as described below.
-
-Since a single type ID encodes the entire value's structure, no additional
-type information is needed.  Also, the value encoding follows the structure
-of the type explicitly so the type is not needed to parse the structure of the
-value, but rather only its semantics.
-
-It is an error for a value to reference a type ID that has not been
-previously defined by a typedef scoped to the stream in which the value
-appears.
-
-The value is encoded using a "tag-encoding" scheme
-that captures the structure of both primitive types and the recursive
-nature of complex types.  This structure is encoded
-explicitly in every value and the boundaries of each value and its
-recursive nesting can be parsed without knowledge of the type or types of
-the underlying values.  This admits an efficient implementation
-for traversing the values, inclusive of recursive traversal of complex values,
-whereby the inner loop need not consult and interpret the type ID of each element.
-
-#### 2.2.1 Tag-Encoding of Values
-
-Each value is prefixed with a length "tag" indicating its encoded length in bytes.
-
-Zero-length values are possible as many data types
-have a meaningful empty interpretation, for example, an
-empty array, the empty record, etc.
-
-The tag itself is encoded as a `uvarint`.
-
-#### 2.2.2 Tag-Encoded Body of Primitive Values
-
-Following the tag encoding is the value encoded in N bytes as described above.
-A typed value with a `value` of length `N` is interpreted as described in the
-[Primitive Types](#3-primitive-types) table.  The type information needed to
-interpret all of the value elements of a complex type are all implied by the
-top-level type ID of the values frame.  For example, the type ID could indicate
-a particular record type, which recursively provides the type information
-for all of the elements within that record, including other complex types
-embedded within the top-level record.
-
-Note that because the tag indicates the length of the value, there is no need
-to use varint encoding of integer values.  Instead, an integer value is encoded
-using the full 8 bits of each byte in little-endian order.  Signed values,
-before encoding, are shifted left one bit, and the sign bit stored as bit 0.
-For negative numbers, the remaining bits are negated so that the upper bytes
-tend to be zero-filled for small integers.
-
-#### 2.2.3 Tag-Encoded Body of Complex Values
-
-The body of a length-N container for a complex value
-comprises zero or more tag-encoded values,
-where the values are encoded as follows:
-
-| Type     |          Value                            |
-|----------|-------------------------------------------|
-| `array`  | concatenation of elements                 |
-| `set`    | normalized concatenation of elements      |
-| `record` | option bits and concatenation of elements |
-| `map`    | concatenation of key and value elements   |
-| `union`  | concatenation of tag and value            |
-| `enum`   | position of enum element                  |
-| `error`  | wrapped element                           |
-| `fusion` | element followed by subtype value         |
-
-Since N, the byte length of any of these container values, is known,
-there is no need to encode a count of the
-elements present.  Also, since the type ID is implied by the typedef
-of any complex type, each value is encoded without its type ID.
-
-For sets, the concatenation of elements must be normalized so that the
-sequence of bytes encoding each element's tag-counted value is
-lexicographically greater than that of the preceding element.
-
-For records, when its type has optional fields,
-a bit vector of length NF is encoded as a tag-encoded value of
-floor((NF+7)/8) bytes to indicate the omission of an optional value
-where NF is the number of optional fields in the record.
-The field order of optional fields determines their position
-in the bit vector with bit numbers 0-7 (least significant to most significant)
-in the first byte, number 8-15 in the second byte, and so forth.
-Following the option bits is a concatenation
-of elements comprising the mandatory values and the optional values that are present
-all in field order.
-
-A union value is encoded as a container with two elements. The first
-element, called the tag, is the `uvarint` encoding of the
-positional index determining the type of the value in reference to the
-union's list of defined types, and the second element is the value
-encoded according to that type.
-
-An enum value is represented as the `uvarint` encoding of the
-positional index of that value's symbol in reference to the enum's
-list of defined symbols.
-
-A map value is encoded as a container whose elements are alternating
-tag-encoded keys and values, with keys and values encoded according to
-the map's key type and value type, respectively.
-
-The concatenation of elements must be normalized so that the
-sequence of bytes encoding each tag-counted key (of the key/value pair) is
-lexicographically greater than that of the preceding key (of the preceding
-key/value pair).
-
-### 2.3 Control Frame
-
-A _control frame_ contains an application-defined control message.
-
-Control frames are available to higher-layer protocols and are carried
-in BSUP as a convenient signaling mechanism.  A BSUP implementation
-may skip over all control frames and is guaranteed by
-this specification to decode all of the data as described herein even if such
-frames provide additional semantics on top of the base BSUP format.
-
-The body of a control frame is a control message and may be JSON,
-SUP, BSUP, arbitrary binary, or UTF-8 text.  The serialization of the control
-frame body is independent of the stream containing the control frame.
-
-Any control message not known by a BSUP data receiver shall be ignored.
-
-The delivery order of control messages with respect to the delivery
-order of values of the BSUP stream should be preserved by an API implementing
-BSUP serialization and deserialization.
-In this way, system endpoints that communicate using BSUP can embed
-protocol directives directly into the stream as control payloads
-in an order-preserving semantics rather than defining additional
-layers of encapsulation and synchronization between such layers.
-
-A control frame has the following form:
 ```
--------------------------
-|<encoding>|<len>|<body>|
--------------------------
+|0x09|<type-id>|
 ```
-where
-* `<encoding>` is a single byte indicating whether the body is encoded
-as BSUP (0), JSON (1), SUP (2), an arbitrary UTF-8 string (3), or arbitrary binary data (4),
-* `<len>` is a `uvarint` encoding the length in bytes of the body
-(exclusive of the length 1 encoding byte), and
-* `<body>` is a control message whose semantics are outside the scope of
-the base BSUP specification.
+where `<type-id>` is the type of an option's value when it has one.  The
+underlying type may not be an option, `missing`, or `none`.
 
-If the encoding type is BSUP, the embedded BSUP data
-starts and ends a single BSUP stream independent of the outer BSUP stream.
+### 4.11 Decimal Typedef
 
-### 2.4 End of Stream
-
-A BSUP stream must be terminated by an end-of-stream marker.
-A new BSUP stream may begin immediately after an end-of-stream marker.
-Each such stream has its own, independent type context.
-
-In this way, the concatenation of BSUP streams (or BSUP files containing
-BSUP streams) results in a valid BSUP data sequence.
-
-For example, a large BSUP file can be arranged into multiple, smaller streams
-to facilitate random access at stream boundaries.
-This benefit comes at the cost of some additional overhead --
-the space consumed by stream boundary markers and repeated type definitions.
-Choosing an appropriate stream size that balances this overhead with the
-benefit of enabling random access is left up to implementations.
-
-End-of-stream markers are also useful in the context of sending BSUP over Kafka,
-as a receiver can easily resynchronize with a live Kafka topic by
-discarding incomplete frames until a frame is found that is terminated
-by an end-of-stream marker (presuming the sender implementation aligns
-the BSUP frames on Kafka message boundaries).
-
-A end-of-stream marker is encoded as follows:
 ```
-------
-|0xff|
-------
+|0x0a|<precision>|<scale>|
+```
+where `<precision>` and `<scale>` are `uvarint`s.  Decimal values are
+reserved and not yet defined.
+
+## 5. Primitive Types
+
+The primitive types have the following type IDs.  The table also describes the
+_body_ of a value of each type (see [Values](#73-values)).
+
+| Type               | ID | Body                                                       |
+|--------------------|---:|------------------------------------------------------------|
+| `uint8`            |  0 | unsigned integer as a variable-length integer (see below)  |
+| `uint16`           |  1 | "                                                          |
+| `uint32`           |  2 | "                                                          |
+| `uint64`           |  3 | "                                                          |
+| `uint128`          |  4 | reserved                                                   |
+| `int8`             |  5 | signed integer as a variable-length integer (see below)    |
+| `int16`            |  6 | "                                                          |
+| `int32`            |  7 | "                                                          |
+| `int64`            |  8 | "                                                          |
+| `int128`           |  9 | reserved                                                   |
+| `duration`         | 10 | signed integer count of nanoseconds                        |
+| `timestamp(0)`     | 11 | reserved                                                   |
+| `timestamp(3)`     | 12 | reserved                                                   |
+| `timestamp(6)`     | 13 | reserved                                                   |
+| `timestamp`        | 14 | signed integer count of nanoseconds since the Unix epoch   |
+| `timestamp_ntz(0)` | 15 | reserved                                                   |
+| `timestamp_ntz(3)` | 16 | reserved                                                   |
+| `timestamp_ntz(6)` | 17 | reserved                                                   |
+| `timestamp_ntz`    | 18 | reserved                                                   |
+| `date`             | 19 | reserved                                                   |
+| `time(0)`          | 20 | reserved                                                   |
+| `time(3)`          | 21 | reserved                                                   |
+| `time(6)`          | 22 | reserved                                                   |
+| `time`             | 23 | reserved                                                   |
+| `float16`          | 24 | 2 bytes of IEEE 754 binary16                               |
+| `float32`          | 25 | 4 bytes of IEEE 754 binary32                               |
+| `float64`          | 26 | 8 bytes of IEEE 754 binary64                               |
+| `bool`             | 27 | 1 byte, 0 (false) or 1 (true)                              |
+| `bytes`            | 28 | the bytes                                                  |
+| `string`           | 29 | UTF-8 text                                                 |
+| `ip`               | 30 | 4 or 16 bytes of IPv4 or IPv6 address in network byte order |
+| `net`              | 31 | address followed by mask, each 4 or 16 bytes as for `ip`   |
+| `interval`         | 32 | reserved                                                   |
+| `uuid`             | 33 | 16 bytes                                                   |
+| `geometry`         | 34 | reserved                                                   |
+| `geography`        | 35 | reserved                                                   |
+| `type`             | 36 | [type value](#6-type-values)                              |
+| `null`             | 37 | empty                                                      |
+| `missing`          | 38 | empty                                                      |
+| `none`             | 39 | empty                                                      |
+| `all`              | 40 | a value of any type (see [Fusion Values](#733-complex-values)) |
+| `any`              | 41 | none: no value has type `any`, the top type of the type system |
+
+IDs 42 through 47 are reserved for future primitive types.  A type whose
+body is "reserved" has a type ID, so it may appear in a type, but its values
+are not yet defined.
+
+An unsigned integer is encoded as the minimum number of bytes needed to hold
+it in little-endian order, so zero has an empty body.
+A signed integer `i` is first mapped to an unsigned integer
+as `i<<1` when `i` is nonnegative and as `(-i)<<1 | 1` when `i` is negative,
+which is then encoded as an unsigned integer.  (The unsigned integer 1
+represents the minimum 64-bit signed integer.)
+Since the length of a body is always known, these variable-length integers
+need no further delimiters.
+
+A `net` value's address is masked by its mask, whose leading one bits give
+the prefix length.
+
+## 6. Type Values
+
+A type value (a value of type `type`, the fused type of a super frame, or the
+subtype of a fusion value) does not depend on any typedefs table, so it is the
+same in every frame.  The body of a type value is the type's encoding as
+follows.  A primitive type is its type ID encoded as a single byte.  A complex type is
+encoded recursively as a 1-byte code followed by:
+
+| Code | Type         | Encoding                                                             |
+|------|--------------|----------------------------------------------------------------------|
+|  48  | record       | `uvarint` number of fields, then each field's name and type value    |
+|  49  | array        | element type value                                                   |
+|  50  | set          | element type value                                                   |
+|  51  | map          | key type value, value type value                                     |
+|  52  | union        | `uvarint` number of types, then each type value in canonical order   |
+|  53  | enum         | `uvarint` number of symbols, then each symbol                        |
+|  54  | error        | value type value                                                     |
+|  55  | named (definition) | name, underlying type value                                    |
+|  56  | named (reference)  | name                                                           |
+|  57  | fusion       | supertype type value                                                 |
+|  58  | option       | value type value                                                     |
+|  59  | decimal      | `uvarint` precision, `uvarint` scale                                 |
+
+where names and symbols are counted strings.
+
+The first occurrence of a named type in a type value, in a left-to-right
+depth-first traversal, is a definition and later occurrences are references,
+which allows recursive types.  The name binding is local to the type
+value.
+
+## 7. Row Frames
+
+A row frame encodes a sequence of values, each with its type ID in the
+frame's typedefs table.
+
+### 7.1 Row Frame Header
+
+A row frame begins with a 26-byte header:
+
+| Offset | Size | Field                                                       |
+|-------:|-----:|-------------------------------------------------------------|
+|      0 |    4 | magic, `SUPR` (or `SUPX` for a control frame)                |
+|      4 |    2 | version                                                     |
+|      6 |    8 | frame size, which includes the header                       |
+|     14 |    4 | type ID of the frame's fused type in its typedefs table     |
+|     18 |    8 | size of the typedefs section                                |
+
+### 7.2 Row Frame Sections
+
+The header is followed by a typedefs section, which is the frame's
+[typedefs table](#4-typedefs-tables), and the values section, which fills
+the rest of the frame:
+```
+|<header:26>|<typedefs>|<values>|
+```
+The values section is a sequence of values, each encoded as its type ID
+followed by its length-prefixed body:
+```
+|<type-id><length><body>|<type-id><length><body>|...
+```
+where `<type-id>` and `<length>` are `uvarint`s.
+
+### 7.3 Values
+
+A value is encoded as a _body_ whose length is known from its context.
+Where values are concatenated, each value is _length-prefixed_, i.e.,
+encoded as the `uvarint` length of its body followed by its body:
+```
+|<length><body>|
+```
+The body of a value of a complex type is a _container_, which is the
+concatenation of the length-prefixed values described below.  This structure is
+explicit in every value so the boundaries of each value and its nested
+values can be found without knowledge of their types, which allows
+values to be traversed efficiently and only the parts of interest to be
+interpreted.
+
+#### 7.3.1 Primitive Values
+
+The body of a primitive value is described in the
+[Primitive Types](#5-primitive-types) table.
+
+#### 7.3.2 Type Values
+
+The body of a value of type `type` encodes the entire type canonically as
+described in [Type Values](#6-type-values).
+
+#### 7.3.3 Complex Values
+
+The body of a value of a complex type is:
+
+| Type     | Body                                                              |
+|----------|-------------------------------------------------------------------|
+| record   | container of the values of its fields in field order              |
+| array    | container of its elements                                         |
+| set      | container of its elements, normalized (see below)                 |
+| map      | container of its keys and values alternating, normalized          |
+| union    | container of its tag as an unsigned integer and its value         |
+| enum     | the position of its symbol as an unsigned integer                 |
+| error    | the body of its value                                             |
+| named    | the body of its value as its underlying type                      |
+| option   | container of 0 and its value if it has one, else container of 1  |
+| fusion   | container of its value and the [type value](#6-type-values) of its subtype |
+
+The integers in these bodies (e.g., a union's tag) are encoded as
+in [Primitive Types](#5-primitive-types), so a union value of tag 0 begins
+with a length-prefixed value of length 0.
+
+A set's elements are normalized by sorting them by their length-prefixed
+bytes and removing duplicates.  Likewise, a map's entries are normalized
+by sorting them by the length-prefixed bytes of their keys and removing entries
+with duplicate keys.
+
+A fusion value is its value encoded as a value of the fusion's supertype
+followed by the type value of the value's actual type.  A value of type
+`fusion(all)` holds the body of a value of any type, which is
+interpreted according to the subtype.
+
+### 7.4 Control Frames
+
+A control frame has the same format as a row frame but the magic `SUPX`.
+Its values are application-defined control messages, which are delivered
+in order with the values of the file (e.g., to signal the end of a
+logical stream to a receiver).  A reader that doesn't understand a
+control message may ignore it.
+
+## 8. Column Frames
+
+A column frame encodes a sequence of values as one or more vectors.
+A vector holds a sequence of values of a single type, which is described by
+the type's _locators_: its length and the location in the
+frame's data section of each _segment_ of the data that encodes its
+values.  For example, a vector of `int64` values has one segment of
+integers and a vector of records has a vector for each of its fields.
+If the frame's values have more than one type, its values are a _dynamic_
+of several vectors, each of a different type, with a tag for each value that
+indicates its vector.
+
+A reader that needs only some of the values of a frame (e.g., the
+values of some record fields) reads the locators and then only the
+segments it needs.
+
+### 8.1 Column Frame Header
+
+A column frame begins with a 42-byte header:
+
+| Offset | Size | Field                                                       |
+|-------:|-----:|-------------------------------------------------------------|
+|      0 |    4 | magic, `SUPC`                                               |
+|      4 |    2 | version                                                     |
+|      6 |    8 | frame size, which includes the header                       |
+|     14 |    4 | type ID of the frame's fused type in its type values table  |
+|     18 |    8 | size of the vector typedefs section                         |
+|     26 |    8 | size of the locators section                                |
+|     34 |    8 | size of the type values section                             |
+
+### 8.2 Column Frame Sections
+
+The header is followed by four sections:
+```
+|<header:42>|<vector typedefs>|<locators>|<type values>|<data>|
 ```
 
-After this marker, all previously read
-typedefs are invalidated and the "next available type ID" is reset to
-the initial value of 30.  To represent subsequent values that use a
-previously defined type, the appropriate typedef control code must
-be re-emitted
-(and note that the typedef may now be assigned a different ID).
+* The _vector typedefs_ section is a [typedefs table](#4-typedefs-tables) of
+  the types of the frame's vectors.
+* The _locators_ section holds the [locators](#83-locators) of the frame's
+  vectors, which refer to types in the vector typedefs table.
+* The _type values_ section is a [typedefs table](#4-typedefs-tables) of
+  the types of the frame's type values and the subtypes of its fusion
+  values, and the frame's fused type.  These types are held apart from
+  the vector types since a reader typically needs them only for the
+  vectors it reads.
+* The _data_ section fills the rest of the frame and holds the
+  segments of the frame's vectors.
 
-## 3. Primitive Types
+### 8.3 Locators
 
-For each BSUP primitive type, the following table describes:
-* its type ID, and
-* the interpretation of a length `N` [value frame](#22-values-frame).
-
-All fixed-size multi-byte sequences representing machine words
-are serialized in little-endian format.
-
-| Type         | ID |    N     |           BSUP Value Interpretation            |
-|--------------|---:|:--------:|------------------------------------------------|
-| `uint8`      |  0 | variable | unsigned int of length N                       |
-| `uint16`     |  1 | variable | unsigned int of length N                       |
-| `uint32`     |  2 | variable | unsigned int of length N                       |
-| `uint64`     |  3 | variable | unsigned int of length N                       |
-| `uint128`    |  4 | variable | unsigned int of length N                       |
-| `uint256`    |  5 | variable | unsigned int of length N                       |
-| `int8`       |  6 | variable | signed int of length N                         |
-| `int16`      |  7 | variable | signed int of length N                         |
-| `int32`      |  8 | variable | signed int of length N                         |
-| `int64`      |  9 | variable | signed int of length N                         |
-| `int128`     | 10 | variable | signed int of length N                         |
-| `int256`     | 11 | variable | signed int of length N                         |
-| `duration`   | 12 | variable | signed int of length N as ns                   |
-| `time`       | 13 | variable | signed int of length N as ns since epoch       |
-| `float16`    | 14 |     2    | 2 bytes of IEEE 64-bit format                  |
-| `float32`    | 15 |     4    | 4 bytes of IEEE 64-bit format                  |
-| `float64`    | 16 |     8    | 8 bytes of IEEE 64-bit format                  |
-| `float128`   | 17 |    16    | 16 bytes of IEEE 64-bit format                 |
-| `float256`   | 18 |    32    | 32 bytes of IEEE 64-bit format                 |
-| `decimal32`  | 19 |     4    | 4 bytes of IEEE decimal format                 |
-| `decimal64`  | 20 |     8    | 8 bytes of IEEE decimal format                 |
-| `decimal128` | 21 |    16    | 16 bytes of IEEE decimal format                |
-| `decimal256` | 22 |    32    | 32 bytes of IEEE decimal format                |
-| `bool`       | 23 |     1    | one byte 0 (false) or 1 (true)                 |
-| `bytes`      | 24 | variable | N bytes of value                               |
-| `string`     | 25 | variable | UTF-8 byte sequence                            |
-| `ip`         | 26 | 4 or 16  | 4 or 16 bytes of IP address                    |
-| `net`        | 27 | 8 or 32  | 8 or 32 bytes of IP prefix and subnet mask     |
-| `type`       | 28 | variable | type value byte sequence [as defined below](#4-type-values) |
-| `null`       | 29 |    0     | no value, always represents an undefined value |
-| `none`       | 30 |    0     | appears in empty sets/arrays/maps              |
-
-## 4. Type Values
-
-As the super data model supports first-class types and because the BSUP design goals
-require that value serializations cannot change across type contexts, type values
-must be encoded in a fashion that is independent of the type context.
-Thus, a serialized type value encodes the entire type in a canonical form
-according to the recursive definition in this section.
-
-The type value of a primitive type (include type `type`) is its primitive ID,
-serialized as a single byte.
-
-The type value of a complex type is serialized recursively according to the
-complex type it represents as described below.
-
-### 4.1 Record Type Value
-
-A record type value has the form:
+The locators section begins with the number of root vectors and the type ID
+of each:
 ```
----------------------------------------------------------
-|30|<nfields>|<opts>|<name1><typeval><name2><typeval>...|
----------------------------------------------------------
+|<nroots>|<type-id-1><type-id-2>...|<tags>|<vector-1><vector-2>...|
 ```
-where `<nfields>` is the number of fields in the record encoded as a `uvarint`,
-`<opts>` is a bit vector of length `<nfields>` indicating which fields are optional,
-`<name1>` etc. are the field names encoded as in the
-record typedef, and each `<typeval>` is a recursive encoding of a type value.
+where `<nroots>` and each type ID are `uvarint`s.  If there is more than one
+root vector, the values of the frame form a dynamic and `<tags>` is a
+[segment](#84-segments) of [unsigned 32-bit integers](#85-segment-data),
+one for each value, whose value is the index of the root vector that holds
+the value, so the frame's length is the sum of the lengths of the root
+vectors.  Otherwise, `<tags>` is absent and the single root vector holds the
+frame's values.  Each `<vector>` is the locators of a root vector.
 
-### 4.2 Array Type Value
+The locators of a vector are encoded by traversing its type in depth-first
+order.  The locators of a vector begin with a 1-byte _kind_:
 
-An array type value has the form:
+| Kind | Name  | Description                                                 |
+|------|-------|-------------------------------------------------------------|
+|  0   | plain | a vector whose values are encoded by type as described below |
+|  1   | const | a vector whose values are all the same value                |
+|  2   | dict  | a vector of a primitive type encoded as a dictionary        |
+|  3   | none  | the values of an option vector whose values are all none    |
+
+In the descriptions below, `<count>` is a `uvarint` length of a vector and
+each `<segment>` is a [segment](#84-segments).
+
+A _const_ vector is
 ```
---------------
-|31|<typeval>|
---------------
+|0x01|<count>|<value>|
 ```
-where `<typeval>` is a recursive encoding of a type value.
+where `<value>` is a `uvarint` that is 0 for no value or the body length
+plus 1 followed by the body of the vector's value
+(see [Values](#73-values)).  A const vector of
+count 0 is an empty vector.  A const vector may have any type, including
+the reserved primitive types and decimal types, which have no plain encoding.
 
-### 4.3 Set Type Value
-
-A set type value has the form:
+A _dict_ vector is
 ```
---------------
-|32|<typeval>|
---------------
+|0x02|<values>|<counts>|<index>|
 ```
-where `<typeval>` is a recursive encoding of a type value.
+where `<values>` is the locators of a plain vector of the dict's distinct
+values (at most 256), `<counts>` is a segment of unsigned 32-bit integers
+whose `k`th integer is the number of occurrences of the `k`th distinct value,
+and `<index>` is an uncompressed segment of one byte for each value of the
+vector whose byte is the position of its value among the distinct values.
+The vector's length is the length of `<index>`.  Only a vector of a primitive
+type may be a dict vector.
 
-### 4.4 Map Type Value
-
-A map type value has the form:
+A _none_ vector is
 ```
---------------------------
-|33|<key-type>|<val-type>|
---------------------------
+|0x03|<count>|
 ```
-where `<key-type>` and `<val-type>` are recursive encodings of type values.
+which may appear only as the values of an option vector (see below).
 
-### 4.5 Union Type Value
+A _plain_ vector is encoded according to its type:
 
-A union type value has the form:
+| Type | Locators after the kind byte |
+|------|------------------------------|
+| `uint8`...`uint64`, `int8`...`int64`, `duration`, `timestamp` | `<count><values>`: a segment of 64-bit integers |
+| `float16`, `float32`, `float64` | `<count><values>`: a segment of 8-byte IEEE 754 binary64 values |
+| `bool` | `<count><values>`: a segment of bits |
+| `bytes`, `string`, `uuid`, `all` | `<count><bytes><offsets>`: a [bytes table](#85-segment-data) of the values' bodies |
+| `ip`, `net` | `<count><bytes><offsets>`: a bytes table of the values' bodies |
+| `type` | `<count><ids>`: a segment of unsigned 32-bit type IDs in the type values table |
+| `null`, `missing`, `none` | `<count>` |
+| record | the locators of each field's vector in field order, or `<count>` if the record has no fields |
+| array, set | `<count><offsets><values>` |
+| map | `<count><offsets><keys><values>` |
+| union | `<count><tags><member-1><member-2>...` |
+| enum | `<count><values>`: a segment of 64-bit unsigned integers, each the position of a symbol |
+| error | `<values>` |
+| named | `<values>` |
+| fusion | `<values><subtypes>` |
+| option | `<count><tags><values>` |
+
+where:
+* the vector of a record's field has the record's length;
+* `<offsets>` of an array, set, or map is a segment of `<count>+1` unsigned
+  32-bit integers, starting with 0, where the elements of the `k`th value
+  are the elements of `<values>` (or the entries of `<keys>` and `<values>`)
+  from offset `k` up to offset `k+1`;
+* `<tags>` of a union is a segment of unsigned 32-bit integers that gives
+  each value's union tag and `<member-k>` is the locators of the vector of the
+  values whose tag is `k-1`, in order.  If the union has two member types,
+  `<tags>` instead holds the lengths of alternating runs of values with
+  tag 1 and tag 0, starting with a run of tag 1 (which may be 0), and is
+  empty if all values have tag 0;
+* `<values>` of an error or named vector is the locators of the vector of
+  its values, which has its length;
+* `<values>` of a fusion vector is the locators of the vector of its values
+  as values of the fusion's supertype (or of type `all`, for `fusion(all)`),
+  which has its length, and `<subtypes>` is a segment of unsigned 32-bit
+  integers, one for each value, that is the ID of its subtype in the type
+  values table; and
+* `<tags>` of an option vector is a segment of unsigned 32-bit integers,
+  one for each value, that is 0 if the value has a value and 1 if
+  not, and `<values>` is the locators of the vector of the values that
+  are present, in order.  If all the values are present or none are,
+  `<tags>` is empty, and if none are, `<values>` is a none vector of the
+  option's length.
+
+A vector's length is encoded only where it can't be derived from its
+children's lengths, e.g., a record's length is the length of its first
+field.
+
+Vectors may be nested no more than 10,000 deep, counting each
+vector (e.g., an array of records of `int64` values is three vectors deep).
+
+### 8.4 Segments
+
+A segment is a contiguous range of the frame's data section.  It is encoded
+in the locators as its compression format, the length of its data
+when uncompressed, and, if it's compressed, its length in the data section:
 ```
------------------------------------
-|34|<ntypes>|<typeval><typeval>...|
------------------------------------
+|<format:1>|<length>|[<compressed-length>]|
 ```
-where `<ntypes>` is the number of types in the union encoded as a `uvarint`
-and each `<typeval>` is a recursive definition of a type value.
+where the lengths are `uvarint`s and `<compressed-length>` is present only if
+`<format>` is not 0.  The compression formats are:
 
-### 4.6 Enum Type Value
+| Format | Compression                                                                       |
+|--------|-----------------------------------------------------------------------------------|
+|   0    | none                                                                              |
+|   1    | [LZ4 block](https://github.com/lz4/lz4/blob/master/doc/lz4_Block_format.md)       |
 
-An enum type value has the form:
+The offset of a segment isn't encoded.  Instead, the segments of a frame are
+written to its data section in the order in which they appear in the locators
+section with no gaps between them, so each segment begins where the
+previous one ends and the first begins at the start of the data section.
+The segments must fill the data section exactly.
+
+A dynamic occurs only at the root of a column frame.  Values of a union
+type, by contrast, are encoded as union vectors, which retain the union type.
+
+### 8.5 Segment Data
+
+The data of the segments (after any decompression) are encoded as follows:
+
+* A segment of 64-bit integers (signed or unsigned) or of unsigned 32-bit
+  integers holds them compressed with the bit-packing integer codec of
+  [`github.com/ronanh/intcomp`](https://github.com/ronanh/intcomp)
+  (`CompressInt64`, `CompressUint64`, or `CompressUint32`) as that codec's
+  little-endian 64-bit or 32-bit words.  Such a segment's compression format
+  is always 0.
+* A segment of 8-byte binary64 values holds the values in order.
+  Values of `float16` and `float32` vectors are widened to binary64.
+* A segment of bits holds bit `k` of the vector in bit `k%8` of byte `k/8`,
+  padded to a multiple of 8 bytes.
+* A _bytes table_ is two segments: the concatenation of the values' bodies
+  and a segment of `<count>+1` unsigned 32-bit offsets, starting with 0, where
+  the body of the `k`th value is the bytes from offset `k` up to offset `k+1`.
+  The offsets segment may be empty when `<count>` is 0.
+
+The encoder decides whether to compress a segment of binary64
+values, bits, or bytes with LZ4, e.g., only when compression saves space.
+
+### 8.6 Zone Maps
+
+The zone maps section of the [super footer](#9-super-footer) of a column
+super frame holds, for each column frame of the super frame, the minimum
+and maximum values of the frame's _columns_, i.e., of its vectors of
+primitive values, which a reader can use to skip frames that can't contain
+values that match a query.
+
+The section is the concatenation of a
+[length-prefixed](#73-values) container
+for each column frame in order.  A frame's container holds the
+length-prefixed offset of the frame from the start of its super frame, as an
+8-byte integer, followed by a zone map for each of its columns, sorted by
+column path:
 ```
-------------------------------
-|35|<nelem>|<name1><name2>...|
-------------------------------
+|<offset:8>|<zone-map-1><zone-map-2>...|
 ```
-where `<nelem>` and each symbol name is encoded as in an enum typedef.
-
-### 4.7 Error Type Value
-
-An error type value has the form:
+where each value is length-prefixed and each zone map is
 ```
------------
-|36|<type>|
------------
+|<path>|<min-type:2>|<min>|<max-type:2>|<max>|
 ```
-where `<type>` is the type value of the error.
+where `<path>` is a container of the column's path, the
+names of the record fields that lead to the column from the root of the
+frame's values, as length-prefixed strings, and `<min-type:2>` and
+`<max-type:2>` are the 2-byte primitive type IDs of the bodies of
+the minimum value `<min>` and maximum value `<max>`.
 
-### 4.8 Named Type Type Value
+A column's zone map summarizes the values of all the vectors at its path,
+including the values of const and dict vectors.  Only values of integer,
+float, `duration`, `timestamp`, `bytes`, `string`, `uuid`, `ip`, and `net`
+types are summarized, along with enum values as the `uint64` positions of
+their symbols.  The values of named, error, option, union, and fusion vectors
+(other than `fusion(all)`) are summarized at the path of the vector, and the
+values of other complex types (e.g., the elements of arrays) are not
+summarized.  Since the values at a path may have different types (e.g., the
+members of a union), a zone map's minimum and maximum may have different
+types, which are compared by the order of super-structured values.
 
-A named type type value may appear either as a definition or a reference.
-When a named type is referenced, it must have been previously
-defined in the type value in accordance with a left-to-right depth-first-search (DFS)
-traversal of the type.
+A frame whose root values are not records summarizes them at the empty path.
 
-A named type definition has the form:
-```
---------------------
-|37|<name><typeval>|
---------------------
-```
-where `<name>` is encoded as in a named type typedef
-and `<typeval>` is a recursive encoding of a type value.  This creates
-a binding between the given name and the indicated type value only within the
-scope of the encoded value and does not affect the type context.
-This binding may be changed by another named type definition
-of the same name in the same type value according to the DFS order.
+## 9. Super Footer
 
-An named type reference has the form:
-```
------------
-|38|<name>|
------------
-```
-It is an error for a named type reference to appear in a type value with a name
-that has not been previously defined according to the DFS order.
+A super footer ends each super frame:
 
-### 4.9 Fusion Type Value
+| Offset | Size | Field                                                            |
+|-------:|-----:|------------------------------------------------------------------|
+|      0 |    4 | magic, `SUPS`                                                    |
+|      4 |    2 | version                                                          |
+|      6 |    8 | footer size, which includes the whole footer and its trailer     |
+|     14 |    8 | size of the fused type section                                   |
+|     22 |    8 | size of the zone maps section                                    |
+|     30 |    8 | super frame size, the total size of the frames of the super frame |
+|     38 |      | fused type section                                               |
+|        |      | zone maps section                                                |
+|        |    8 | footer size again (the trailer)                                  |
 
-A fusion type value has the form:
-```
------------
-|39|<type>|
------------
-```
-where `<type>` is the type value of the fusion supertype.
+The fused type section is the [type value](#6-type-values) of the fused type
+of all the values of the super frame.  A reader can determine the type of a
+file without reading its frames by traversing the super footers backward
+from the end of the file, fusing their fused types.  Starting at the end of
+a super footer, its trailer gives the footer's start, and the
+super frame size gives the start of its super frame, which is the end of the
+previous super footer, if there is one.
 
-## 5. Compression Types
+The zone maps section holds the [zone maps](#86-zone-maps) of a super frame
+of column frames and is empty for a super frame of row frames.
 
-This section specifies values for the `<format>` byte of a
-[compressed value message block](#2-the-bsup-format)
-and the corresponding algorithms for the `<compressed payload>` byte sequence.
-
-As new compression algorithms are specified, they will be documented
-here without any need to change the other sections of the BSUP specification.
-
-Of the 256 possible values for the `<format>` byte, only type `0` is currently
-defined and specifies that `<compressed payload>` contains an
-[LZ4 block](https://github.com/lz4/lz4/blob/master/doc/lz4_Block_format.md).
+An empty super frame (one with no frames) has no super footer.

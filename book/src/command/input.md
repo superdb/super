@@ -96,7 +96,7 @@ Note that the `line` format cannot be automatically detected and
 requires `-i` or `(format line)` for reading.
 
 >[!NOTE]
-> Parquet and CSUP require a seekable input and cannot be operated upon
+> Parquet requires a seekable input and cannot be operated upon
 > when read on standard input.
 
 ## Type Checking
