@@ -81,6 +81,9 @@ func (t *translator) scanType(seq sem.Seq) super.Type {
 func (t *translator) fromSource(entity ast.FromSource, args []ast.OpArg, seq sem.Seq) (sem.Seq, super.Type, string) {
 	switch entity := entity.(type) {
 	case *ast.GlobExpr:
+		if bad := t.hasCommandLineParent(entity, seq); bad != nil {
+			return bad, badType, ""
+		}
 		if t.env.IsAttached() {
 			seq := t.fromTableRegexp(entity, reglob.Reglob(entity.Pattern), entity.Pattern, "glob", args)
 			return seq, t.scanType(seq), ""
@@ -99,6 +102,13 @@ func (t *translator) fromSource(entity ast.FromSource, args []ast.OpArg, seq sem
 		seq := t.fromTableRegexp(entity, entity.Pattern, entity.Pattern, "regexp", args)
 		return seq, t.scanType(seq), ""
 	case *ast.Text:
+		// A URL with HTTP options may send a request for each command-line
+		// input value (e.g., to POST each value).
+		if !isURL(entity.Text) || !hasHTTPOptions(args) {
+			if bad := t.hasCommandLineParent(entity, seq); bad != nil {
+				return bad, badType, ""
+			}
+		}
 		if seq, typ := t.scope.lookupQuery(t, entity.Text); seq != nil {
 			return seq, typ, entity.Text
 		}
@@ -240,11 +250,61 @@ func (t *translator) hasError(val super.Value) bool {
 }
 
 func (t *translator) hasFromParent(loc ast.Node, seq sem.Seq) sem.Seq {
+	if bad := t.hasCommandLineParent(loc, seq); bad != nil {
+		return bad
+	}
 	if len(seq) > 0 {
 		t.error(loc, errors.New("from operator cannot have parent unless its argument is a non-constant f-string"))
 		return append(seq, badOp)
 	}
 	return nil
+}
+
+// hasCommandLineParent reports an error if seq is the scan of the inputs given
+// on the command line (or standard input), which the command line places in
+// front of the query, so a from operator with a constant source doesn't scan
+// its source once for each input value, which is almost certainly a mistake,
+// e.g., when "super -c 'from file.json | ...' file.json" was intended to scan
+// file.json once.  A from operator whose source is computed from each input
+// value (i.e., a non-constant f-string) may read command-line inputs.
+func (t *translator) hasCommandLineParent(loc ast.Node, seq sem.Seq) sem.Seq {
+	if isCommandLineInput(seq) {
+		t.error(loc, errors.New("from operator with a constant source cannot read command-line inputs (remove the inputs from the command line)"))
+		return append(seq, badOp)
+	}
+	return nil
+}
+
+// hasHTTPOptions returns true if args include an HTTP method, headers, or body.
+func hasHTTPOptions(args []ast.OpArg) bool {
+	for _, arg := range args {
+		var key string
+		switch arg := arg.(type) {
+		case *ast.ArgText:
+			key = arg.Key
+		case *ast.ArgExpr:
+			key = arg.Key
+		}
+		switch strings.ToLower(key) {
+		case "method", "headers", "body":
+			return true
+		}
+	}
+	return false
+}
+
+// isCommandLineInput returns true if seq is the scan of the inputs given on the
+// command line, which is the only source of an ast.FileScan.
+func isCommandLineInput(seq sem.Seq) bool {
+	if len(seq) != 1 {
+		return false
+	}
+	scan, ok := seq[0].(*sem.FileScan)
+	if !ok {
+		return false
+	}
+	_, ok = scan.Node.(*ast.FileScan)
+	return ok
 }
 
 func (t *translator) fromConst(val super.Value, entity *ast.FromEval, args []ast.OpArg) (sem.Seq, string) {

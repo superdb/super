@@ -1,0 +1,28 @@
+# A from operator with a constant source can't read the inputs given on the
+# command line since it would scan its source once per input value.
+script: |
+  ! super -s -c 'from a.sup | count()' a.sup
+  ! super -s -c 'from *.sup' a.sup
+  ! super -s -c 'select * from a.sup' a.sup
+  # A from operator in the query may have a parent, and a computed source may
+  # read the command-line inputs.
+  super -s -c 'values 1,2 | from a.sup' a.sup
+  super -s -c 'from f"{this}"' names.sup
+
+inputs:
+  - name: a.sup
+    data: |
+      {a:1}
+  - name: names.sup
+    data: |
+      "a.sup"
+
+outputs:
+  - name: stdout
+    data: |
+      {a:1}
+      {a:1}
+      {a:1}
+  - name: stderr
+    regexp: |
+      from operator with a constant source cannot read command-line inputs.*
