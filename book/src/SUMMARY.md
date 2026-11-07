@@ -2,6 +2,7 @@
 # Summary
 
 - [Introduction](intro.md)
+- [Algebraic Data Model](adm.md)
 - [Getting Started](getting-started/intro.md)
     - [TL;DR](getting-started/tldr.md)
     - [Installation](getting-started/install.md)
