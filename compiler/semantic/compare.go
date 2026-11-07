@@ -48,7 +48,7 @@ func eqOp(aop, bop sem.Op) bool {
 		return ok
 	case *sem.RobotScan:
 		b, ok := bop.(*sem.RobotScan)
-		return ok && a.Format == b.Format && eqExpr(a.Expr, b.Expr)
+		return ok && a.Format == b.Format && eqExpr(a.Method, b.Method) && eqExpr(a.Headers, b.Headers) && eqExpr(a.Body, b.Body) && eqExpr(a.Expr, b.Expr)
 	case *sem.TableMetaScan:
 		b, ok := bop.(*sem.TableMetaScan)
 		return ok && a.ID == b.ID && a.Meta == b.Meta

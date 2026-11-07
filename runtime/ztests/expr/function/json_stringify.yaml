@@ -1,0 +1,17 @@
+spq: values json_stringify(this)
+
+input: |
+  {a:1,b:[true,"x"],c:null,d:1::uint8}
+  [1,"a"]
+  "hello"
+  1.5
+  null
+  error("x")
+
+output: |
+  "{\"a\":1,\"b\":[true,\"x\"],\"c\":null,\"d\":1}"
+  "[1,\"a\"]"
+  "\"hello\""
+  "1.5"
+  "null"
+  error({message:"json_stringify: error value encountered",on:error("x")})

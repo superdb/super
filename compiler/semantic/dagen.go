@@ -112,9 +112,12 @@ func (d *dagen) op(op sem.Op) dag.Op {
 		}
 	case *sem.RobotScan:
 		return &dag.RobotScan{
-			Kind:   "RobotScan",
-			Expr:   d.expr(op.Expr),
-			Format: op.Format,
+			Kind:    "RobotScan",
+			Expr:    d.expr(op.Expr),
+			Format:  op.Format,
+			Method:  d.expr(op.Method),
+			Headers: d.expr(op.Headers),
+			Body:    d.expr(op.Body),
 		}
 	case *sem.TableMetaScan:
 		return &dag.TableMetaScan{

@@ -290,10 +290,13 @@ type (
 		Type   string    `json:"type"`
 	}
 	RobotScan struct {
-		Kind   string `json:"kind" unpack:""`
-		Expr   Expr   `json:"expr"`
-		Format string `json:"format"`
-		Filter Expr   `json:"filter"`
+		Kind    string `json:"kind" unpack:""`
+		Expr    Expr   `json:"expr"`
+		Format  string `json:"format"`
+		Filter  Expr   `json:"filter"`
+		Method  Expr   `json:"method"`
+		Headers Expr   `json:"headers"`
+		Body    Expr   `json:"body"`
 	}
 	TableMetaScan struct {
 		Kind string    `json:"kind" unpack:""`

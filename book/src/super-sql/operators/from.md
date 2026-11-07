@@ -187,13 +187,16 @@ by a [local configuration](../../dev/integrations/s3.md).
 Named options for URL entities include `format`, `method`, `headers`,
 and `body` as in
 ```
-from <url> [ ( format <fmt> method <method> headers <expr> body <string> ) ]
+from <url> [ ( format <fmt> method <method> headers <headers> body <body> ) ]
 ```
 where
-* `<method>` is one of `GET`, `PUT`, `POST`, or `DELETE`,
-* `<expr>` is a [record expression](../types/record.md) that defines the names and values to be included as HTTP header options, and
-* `<body>` is a [text-entity](../queries.md#text-entity) string
-to be included as the body of the HTTP request.
+* `<method>` is one of `GET`, `PUT`, `POST`, or `DELETE` given as a
+[text entity](../queries.md#text-entity) or an
+[f-string](../expressions/f-strings.md),
+* `<headers>` is a [record expression](../types/record.md) that defines the names and values to be included as HTTP header options, and
+* `<body>` is an expression of type `string` or `bytes`
+to be included as the body of the HTTP request (e.g., use
+[json_stringify](../functions/strings/json_stringify.md) to send a record as JSON).
 
 Each field of the `headers` record must either be a string or (to specify a
 header option appearing multiple times with different values)
@@ -201,9 +204,22 @@ an array or set of strings.
 
 These options cannot be used with S3 URLs.
 
-> [!NOTE]
-> Currently, the headers expression must evaluate to a compile-time constant though
-> this may change to allow run-time evaluation in a future version of SuperSQL.
+When `from` has no parent, the method, headers, and body must be
+compile-time constants.  When `from` has a parent, the URL, which may be
+a constant or a computed [f-string](../expressions/f-strings.md) entity,
+is fetched for each input value and the options are evaluated
+for each input value, so they may refer to the input value as in
+```
+values {token:"abc",query:{q:"x"}}
+| from "https://example.com/api" (method POST headers {Authorization:"Bearer " || token} body json_stringify(query))
+```
+In this case, a computed URL must begin with `http:` or `https:` when
+any of these options are present or an error results.
+
+A null, missing, or none value for an option, a header field, or an element
+of a header field's array is ignored.
+
+A response with an HTTP status other than 2xx is an error.
 
 ### Combining Data
 

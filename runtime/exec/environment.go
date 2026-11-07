@@ -140,6 +140,10 @@ func (e *Environment) OpenHTTP(ctx context.Context, sctx *super.Context, url, fo
 	if err != nil {
 		return nil, err
 	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		resp.Body.Close()
+		return nil, fmt.Errorf("%s: %s", url, resp.Status)
+	}
 	file, err := anyio.NewFile(ctx, sctx, resp.Body, url, e.readerOpts(p, nil, format, 1))
 	if err != nil {
 		resp.Body.Close()
