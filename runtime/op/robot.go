@@ -134,7 +134,7 @@ func (o *Robot) nextPuller() (vio.Puller, error) {
 	var b scode.Builder
 	val := vector.ValueAt(&b, vec, off)
 	if !val.IsString() {
-		return o.errOnVal("from encountered non-string input", vector.Pick(vec, []uint32{off})), nil
+		return o.errOnVal("from: non-string input", vector.Pick(vec, []uint32{off})), nil
 	}
 	return o.open(val.AsString(), off)
 }
@@ -234,7 +234,9 @@ func (o *Robot) openHTTP(path, format string, slot uint32) (vio.Puller, error) {
 		if err != nil {
 			return o.errOnVal("from: "+err.Error(), vector.Pick(vec, []uint32{slot})), nil
 		}
-		body = bytes.NewReader(bodyBytes)
+		if bodyBytes != nil {
+			body = bytes.NewReader(bodyBytes)
+		}
 	}
 	return o.env.OpenHTTP(o.rctx.Context, o.rctx.Sctx, path, format, method, headers, body, o.pushdown)
 }

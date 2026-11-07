@@ -453,9 +453,3 @@ func WalkTWithError[T any](v reflect.Value, post func(T) (T, error)) error {
 func (h *HTTPScan) IsPlainGet() bool {
 	return (h.Method == "" || strings.EqualFold(h.Method, "GET")) && h.Headers == nil && h.Body == ""
 }
-
-// IsPlainGet reports whether the scan has no method (i.e., GET), headers, or
-// body, so it reads its inputs like any other input.
-func (r *RobotScan) IsPlainGet() bool {
-	return r.Method == nil && r.Headers == nil && r.Body == nil
-}

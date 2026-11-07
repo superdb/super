@@ -204,16 +204,22 @@ an array or set of strings.
 
 These options cannot be used with S3 URLs.
 
-When the URL is a constant, the method, headers, and body must be
-compile-time constants.  When the URL is a computed
-[f-string](../expressions/f-strings.md) entity, these options are sent with the
-HTTP request made for each input value and are evaluated
+When `from` has no parent, the method, headers, and body must be
+compile-time constants.  When `from` has a parent, the URL, which may be
+a constant or a computed [f-string](../expressions/f-strings.md) entity,
+is fetched for each input value and the options are evaluated
 for each input value, so they may refer to the input value as in
 ```
-values {url:"https://example.com/api",token:"abc",query:{q:"x"}}
-| from f"{url}" (method POST headers {Authorization:"Bearer " || token} body json_stringify(query))
+values {token:"abc",query:{q:"x"}}
+| from "https://example.com/api" (method POST headers {Authorization:"Bearer " || token} body json_stringify(query))
 ```
-In this case, the URL must begin with `http:` or `https:` or an error results.
+In this case, a computed URL must begin with `http:` or `https:` when
+any of these options are present or an error results.
+
+A null, missing, or none value for an option, a header field, or an element
+of a header field's array is ignored.
+
+A response with an HTTP status other than 2xx is an error.
 
 ### Combining Data
 

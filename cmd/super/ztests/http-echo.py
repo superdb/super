@@ -7,6 +7,11 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 # request back as a JSON object, used to check that from sends HTTP options.
 class handler(BaseHTTPRequestHandler):
     def echo(self):
+        if self.path.startswith("/404"):
+            self.send_response(404)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         n = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(n).decode() if n else ""
         out = json.dumps({

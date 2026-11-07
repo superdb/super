@@ -103,6 +103,16 @@ func (t *translator) fromSource(entity ast.FromSource, args []ast.OpArg, seq sem
 		if seq, typ := t.scope.lookupQuery(t, entity.Text); seq != nil {
 			return seq, typ, entity.Text
 		}
+		if len(seq) > 0 && isURL(entity.Text) {
+			// A URL with a parent is fetched for each input value so
+			// its HTTP options may refer to the value.
+			if _, err := url.ParseRequestURI(entity.Text); err != nil {
+				t.error(entity, err)
+				return append(seq, badOp), badType, ""
+			}
+			e := sem.NewLiteral(entity, super.NewString(entity.Text), t.defs)
+			return t.robotScan(entity, e, args, seq), t.checker.unknown, ""
+		}
 		op, def := t.fromName(entity, entity.Text, args)
 		if op, ok := op.(*sem.FileScan); ok {
 			typ := op.Type
@@ -215,11 +225,22 @@ func (t *translator) fromFString(entity *ast.FromEval, args []ast.OpArg, seq sem
 	expr, _ := t.fstringExpr(entity.Expr, t.checker.unknown)
 	val, ok := t.maybeEval(expr)
 	if ok && !t.hasError(val) {
+		if len(seq) > 0 && val.IsString() && isURL(val.AsString()) {
+			// A URL with a parent is fetched for each input value so
+			// its HTTP options may refer to the value.
+			return t.robotScan(entity, expr, args, seq), ""
+		}
 		if bad := t.hasFromParent(entity, seq); bad != nil {
 			return bad, ""
 		}
 		return t.fromConst(val, entity, args)
 	}
+	return t.robotScan(entity, expr, args, seq), ""
+}
+
+// robotScan appends to seq a robot scan that computes a path or URL from each
+// value from seq with expr and reads it.
+func (t *translator) robotScan(node ast.Node, expr sem.Expr, args []ast.OpArg, seq sem.Seq) sem.Seq {
 	// The method, headers, and body expressions are evaluated with the URL
 	// for each input value so they may refer to the input value.  Constant
 	// expressions are checked now and others are checked for each input
@@ -254,16 +275,14 @@ func (t *translator) fromFString(entity *ast.FromEval, args []ast.OpArg, seq sem
 			}
 		}
 	}
-	// This is an expression so set up a robot scanner that pulls values from
-	// parent to decide what to scan.
 	return append(seq, &sem.RobotScan{
-		Node:    entity,
+		Node:    node,
 		Expr:    expr,
 		Format:  format,
 		Method:  method,
 		Headers: headers,
 		Body:    body,
-	}), ""
+	})
 }
 
 func (t *translator) hasError(val super.Value) bool {
