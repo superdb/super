@@ -223,7 +223,8 @@ func (t *translator) fromFString(entity *ast.FromEval, args []ast.OpArg, seq sem
 	// The method, headers, and body expressions are evaluated with the URL
 	// for each input value so they may refer to the input value.  Constant
 	// expressions are checked now and others are checked for each input
-	// value at run time.
+	// value at run time.  (As for the URL, an expression that refers to the
+	// input value evaluates to an error here so it isn't checked.)
 	opArgs := t.opArgsIn(args, t.checker.unknown, "format", "method", "body", "headers")
 	format, _ := t.textArg(opArgs, "format")
 	if format == "" {
@@ -231,7 +232,7 @@ func (t *translator) fromFString(entity *ast.FromEval, args []ast.OpArg, seq sem
 	}
 	method, loc := t.methodArg(opArgs)
 	if method != nil {
-		if val, ok := t.maybeEval(method); ok {
+		if val, ok := t.maybeEval(method); ok && !t.hasError(val) {
 			if _, err := exec.HTTPMethod(val); err != nil {
 				t.error(loc, err)
 			}
@@ -239,7 +240,7 @@ func (t *translator) fromFString(entity *ast.FromEval, args []ast.OpArg, seq sem
 	}
 	headers, loc := t.exprArg(opArgs, "headers")
 	if headers != nil {
-		if val, ok := t.maybeEval(headers); ok {
+		if val, ok := t.maybeEval(headers); ok && !t.hasError(val) {
 			if _, err := exec.HTTPHeaders(val); err != nil {
 				t.error(loc, err)
 			}
@@ -247,7 +248,7 @@ func (t *translator) fromFString(entity *ast.FromEval, args []ast.OpArg, seq sem
 	}
 	body, loc := t.exprArg(opArgs, "body")
 	if body != nil {
-		if val, ok := t.maybeEval(body); ok {
+		if val, ok := t.maybeEval(body); ok && !t.hasError(val) {
 			if _, err := exec.HTTPBody(val); err != nil {
 				t.error(loc, err)
 			}

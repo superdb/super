@@ -14,4 +14,4 @@ output: |
   "\"hello\""
   "1.5"
   "null"
-  error("x")
+  error({message:"json_stringify: error value encountered",on:error("x")})

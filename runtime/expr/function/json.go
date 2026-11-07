@@ -25,7 +25,8 @@ func newJSONStringify(sctx *super.Context) *JSONStringify {
 }
 
 func (j *JSONStringify) Call(args ...vector.Any) vector.Any {
-	if vec, ok := expr.CatchFirst(j.sctx, expr.CatchAll, args, "json_stringify"); ok {
+	// A null is formatted as JSON null so it isn't caught.
+	if vec, ok := expr.CatchFirst(j.sctx, expr.CatchAll&^expr.CatchNull, args, "json_stringify"); ok {
 		return vec
 	}
 	vec := args[0]
