@@ -56,6 +56,11 @@ func (t *translator) sqlSelect(sel *ast.SQLSelect, demand []ast.Expr, seq sem.Se
 		var typ super.Type
 		where, typ = t.expr(sel.Where, inType)
 		t.checker.boolean(sel.Where, typ)
+		// The rest of the SELECT operates on the values where the
+		// WHERE clause is true.
+		if rec, ok := t.checker.narrow(inType, where).(*super.TypeRecord); ok {
+			inType = rec
+		}
 	}
 	scope.lateral = true
 	scope.groupings = t.groupBy(scope, sel.GroupBy, inType)

@@ -76,7 +76,7 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 		cond, condType := t.expr(e.Cond, inType)
 		t.checker.boolean(e.Cond, condType)
 		t.checker.pushErrs()
-		thenExpr, thenType := t.expr(e.Then, inType)
+		thenExpr, thenType := t.expr(e.Then, t.checker.narrow(inType, cond))
 		if errs := t.checker.popErrs(); len(errs) != 0 {
 			errlocs = append(errlocs, errs)
 		}
@@ -566,7 +566,14 @@ func (t *translator) binaryExpr(e *ast.BinaryExpr, inType super.Type) (sem.Expr,
 		return t.dot(e, op == "?.", inType)
 	}
 	lhs, lhsType := t.expr(e.LHS, inType)
-	rhs, rhsType := t.expr(e.RHS, inType)
+	rhsInType := inType
+	if op == "and" {
+		// The right-hand side matters only when the left-hand side is
+		// true, so it's checked with the type narrowed by the left-hand
+		// side (see checker.narrow).
+		rhsInType = t.checker.narrow(inType, lhs)
+	}
+	rhs, rhsType := t.expr(e.RHS, rhsInType)
 	if op == "like" || op == "not like" {
 		s, ok := t.mustEvalString(rhs)
 		if !ok {
@@ -676,7 +683,8 @@ func (t *translator) semCaseExpr(c *ast.CaseExpr, inType super.Type) (sem.Expr, 
 			t.checker.boolean(when.Cond, condType)
 		}
 		t.checker.pushErrs()
-		then, thenType := t.expr(when.Then, inType)
+		// The then expression is evaluated only when cond is true.
+		then, thenType := t.expr(when.Then, t.checker.narrow(inType, cond))
 		out = &sem.CondExpr{
 			Node: c,
 			Cond: cond,
@@ -1167,8 +1175,14 @@ func (t *translator) aggFunc(n ast.Node, name string, arg ast.Expr, filter ast.E
 		}()
 		scope.out = nil
 	}
-	argExpr, argType := t.exprNullable(arg, inType)
 	filterExpr, filterType := t.exprNullable(filter, inType)
+	argInType := inType
+	if filterExpr != nil {
+		// The argument is evaluated only for the values where the
+		// filter is true.
+		argInType = t.checker.narrow(inType, filterExpr)
+	}
+	argExpr, argType := t.exprNullable(arg, argInType)
 	f := &sem.AggFunc{
 		Node:     n,
 		Name:     name,
