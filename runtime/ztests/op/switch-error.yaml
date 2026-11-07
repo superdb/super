@@ -13,3 +13,43 @@ output: |
   {a:1,s:"a",v:"one"}
   error("divide by zero")
   error("divide by zero")
+
+---
+
+# Matches and errors reach a branch in input order.
+spq: switch case this ( values this )
+
+input: |
+  true
+  error("x")
+  false
+  true
+  error("y")
+  error(1)
+  true
+
+output: |
+  true
+  error("x")
+  true
+  error("y")
+  error(1)
+  true
+
+---
+
+# Matches with different types can share a branch with errors.
+spq: |
+  switch
+    case a ( values this )
+  | sort this
+
+input: |
+  {a:true,b:1}
+  {a:error("x"),b:"x"}
+  {a:true,b:"y"}
+
+output: |
+  {a:true,b:1}
+  {a:true,b:"y"}
+  error("x")
