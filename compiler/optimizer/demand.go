@@ -150,7 +150,7 @@ func (a *demandAnalyzer) demandForSimpleOp(op dag.Op, downstream demand.Demand) 
 	case *dag.HTTPScan, *dag.ListerScan, *dag.NullScan, *dag.TableMetaScan, *dag.TableScan:
 		return demand.None()
 	case *dag.RobotScan:
-		return a.demandForExpr(op.Expr)
+		return demand.Union(a.demandForExpr(op.Expr), a.demandForExpr(op.Method), a.demandForExpr(op.Headers), a.demandForExpr(op.Body))
 	case *dag.SeqScan:
 		a.demandForExpr(op.Filter)
 		a.demandForExpr(op.KeyPruner)

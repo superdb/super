@@ -22,6 +22,7 @@ class handler(BaseHTTPRequestHandler):
 
     do_GET = echo
     do_POST = echo
+    do_PUT = echo
 
     def log_message(self, *args):
         pass

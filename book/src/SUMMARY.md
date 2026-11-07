@@ -145,6 +145,7 @@
         - [Strings](super-sql/functions/strings/intro.md)
             - [grep](super-sql/functions/strings/grep.md)
             - [join](super-sql/functions/strings/join.md)
+            - [json_stringify](super-sql/functions/strings/json_stringify.md)
             - [levenshtein](super-sql/functions/strings/levenshtein.md)
             - [lower](super-sql/functions/strings/lower.md)
             - [position](super-sql/functions/strings/position.md)
