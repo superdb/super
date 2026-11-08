@@ -51,6 +51,12 @@ type Options struct {
 	// are rejected.  Requests without an Origin header (e.g., from an
 	// agent) are always accepted.
 	AllowOrigin func(*http.Request) bool
+	// LocalFiles allows the path argument of the load tool to name a file
+	// on the server's file system.  Set it only when the client is trusted
+	// with the server's files, e.g., for the stdio transport, where the
+	// client runs the server as itself.  Otherwise, as for queries, a path
+	// must be an HTTP, HTTPS, or S3 URL.
+	LocalFiles bool
 	// IncludeDir is a directory of SuperSQL source files (e.g., shared
 	// function and constant declarations) that the include argument of
 	// the query tool may name.  A query may include only files in this

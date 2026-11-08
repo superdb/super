@@ -220,37 +220,47 @@ explain how to read it.  Form "fused" returns the type without fusion types (e.g
 	}
 	tools = append(tools, healthToolDef)
 	if !s.opts.ReadOnly {
-		tools = append(tools, loadToolDef, createTableToolDef, dropTableToolDef)
+		tools = append(tools, loadToolDef(s.opts.LocalFiles), createTableToolDef, dropTableToolDef)
 	}
 	return tools
 }
 
-var loadToolDef = tool{
-	Name:  "load",
-	Title: "Load data into a table",
-	Description: `Load data into a table and commit it to a branch (default "main").  This is much
+// loadToolDef returns the definition of the load tool, whose path argument
+// may name a file on the server's file system if localFiles is true.
+func loadToolDef(localFiles bool) tool {
+	pathDesc := "An HTTP, HTTPS, or S3 URL to load."
+	pathArg := "path, an HTTP, HTTPS, or S3 URL"
+	if localFiles {
+		pathDesc = "A file path (absolute is best) or an HTTP, HTTPS, or S3 URL to load."
+		pathArg = "path, a file on the server's file system or an HTTP, HTTPS, or S3 URL"
+	}
+	return tool{
+		Name:  "load",
+		Title: "Load data into a table",
+		Description: `Load data into a table and commit it to a branch (default "main").  This is much
 faster than an INSERT INTO query, especially for more than a few values.  Give exactly
-one of: path, a file on the server's file system (or an S3 URI), or data, inline text
+one of: ` + pathArg + `, or data, inline text
 data.  The format is detected automatically unless format is given.  If the table has a type, each value is cast to it.
 Returns the commit ID and the number of values loaded.`,
-	InputSchema: map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"table":  map[string]any{"type": "string", "description": "The table's name or ID."},
-			"branch": map[string]any{"type": "string", "default": "main", "description": "The branch to commit to."},
-			"path":   map[string]any{"type": "string", "description": "A file path (absolute is best) or S3 URI to load."},
-			"data":   map[string]any{"type": "string", "description": "Inline text data to load."},
-			"format": map[string]any{
-				"type":        "string",
-				"enum":        loadFormats,
-				"default":     "auto",
-				"description": "Input format: " + quotedList(loadFormats) + `.  "auto" detects it.  Format "line" loads each line as a string.`,
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"table":  map[string]any{"type": "string", "description": "The table's name or ID."},
+				"branch": map[string]any{"type": "string", "default": "main", "description": "The branch to commit to."},
+				"path":   map[string]any{"type": "string", "description": pathDesc},
+				"data":   map[string]any{"type": "string", "description": "Inline text data to load."},
+				"format": map[string]any{
+					"type":        "string",
+					"enum":        loadFormats,
+					"default":     "auto",
+					"description": "Input format: " + quotedList(loadFormats) + `.  "auto" detects it.  Format "line" loads each line as a string.`,
+				},
+				"message": map[string]any{"type": "string", "description": "The commit message."},
 			},
-			"message": map[string]any{"type": "string", "description": "The commit message."},
+			"required": []string{"table"},
 		},
-		"required": []string{"table"},
-	},
-	Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		Annotations: map[string]any{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+	}
 }
 
 var healthToolDef = tool{
@@ -756,7 +766,7 @@ func (s *Server) loadTool(ctx context.Context, raw json.RawMessage) (*toolResult
 	var r vio.Puller
 	switch {
 	case args.Path != "":
-		f, err := anyio.Open(ctx, sctx, storage.NewLocalEngine(), args.Path, opts)
+		f, err := anyio.Open(ctx, sctx, s.loadEngine(), args.Path, opts)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", args.Path, err)
 		}
@@ -787,6 +797,18 @@ func (s *Server) loadTool(ctx context.Context, raw json.RawMessage) (*toolResult
 		Commit string `json:"commit"`
 		Values int    `json:"values"`
 	}{commit.String(), counter.n})
+}
+
+// loadEngine returns the storage engine for the path argument of the load
+// tool.  As for queries (see compiler.NewCompilerForDB), it can't read the
+// server's files unless Options.LocalFiles is set, and it never reads the
+// server's standard input, which carries the stdio transport.
+func (s *Server) loadEngine() storage.Engine {
+	engine := storage.NewRemoteEngine()
+	if s.opts.LocalFiles {
+		engine.Enable(storage.FileScheme)
+	}
+	return engine
 }
 
 func (s *Server) healthTool(ctx context.Context, raw json.RawMessage) (*toolResult, error) {

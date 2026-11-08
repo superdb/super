@@ -97,5 +97,8 @@ func (c *Command) Run(args []string) error {
 	// The -user, -message, and -meta flags are the defaults for the commit
 	// message of a load.
 	c.opts.Commit = c.commitFlags.CommitMessage()
+	// The client runs this process as itself, so it may load the files
+	// that it could read anyway.
+	c.opts.LocalFiles = true
 	return mcp.NewServer(database, cli.Version(), c.opts).Serve(ctx, os.Stdin, os.Stdout)
 }

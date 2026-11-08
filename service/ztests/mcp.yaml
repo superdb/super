@@ -22,6 +22,10 @@ script: |
   post -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"load","arguments":{"table":"t","data":"{a:2}"}}}'
   super db -s -c 'from t | sort a'
   super db -s -c 'from t:log | values {author} | where !is_error(author) | head 1'
+  echo === load path is not a local file
+  post -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"load","arguments":{"table":"t","path":"secret.sup"}}}'
+  post -d '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"load","arguments":{"table":"t","path":"-"}}}'
+  super db -s -c 'from t | count()'
   echo === batch
   post -d '[{"jsonrpc":"2.0","id":4,"method":"ping"}]'
   echo === limit 0
@@ -43,6 +47,9 @@ script: |
 
 inputs:
   - name: service.sh
+  - name: secret.sup
+    data: |
+      {secret:"x"}
 
 outputs:
   - name: stdout
@@ -61,6 +68,12 @@ outputs:
       {a:1,ip:10.0.0.1}
       {a:2}
       {author:"mcp"}
+      === load path is not a local file
+      {"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"secret.sup: scheme \"file\" not allowed"}],"isError":true}}
+      [200]
+      {"jsonrpc":"2.0","id":6,"result":{"content":[{"type":"text","text":"-: scheme \"stdio\" not allowed"}],"isError":true}}
+      [200]
+      2
       === batch
       {"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"batches are not supported"}}
       [200]

@@ -75,6 +75,7 @@ inputs:
       {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query","arguments":{"query":"from mixed | sort a","format":"sup"}}}
       {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed"}}}
       {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed","path":"nosuch.json"}}}
+      {"jsonrpc":"2.0","id":51,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed","path":"-"}}}
       {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed","data":"{a:1","format":"sup"}}}
       {"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"create_table","arguments":{"table":"people"}}}
       {"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"load","arguments":{"table":"people","data":"id,name\n1,alice\n2,\"Doe, John\"\n","format":"csv"}}}
@@ -161,6 +162,7 @@ outputs:
       {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{a:1}\n{a:2}\n{a:3,b:false}\n{a:4}\n{a:5}\n{a:\"x\",b:true}"}]}}
       {"jsonrpc":"2.0","id":4,"error":{"code":-32602,"message":"invalid arguments: exactly one of path or data is required"}}
       {"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"nosuch.json: file does not exist"}],"isError":true}}
+      {"jsonrpc":"2.0","id":51,"result":{"content":[{"type":"text","text":"-: scheme \"stdio\" not allowed"}],"isError":true}}
       {"jsonrpc":"2.0","id":6,"result":{"content":[{"type":"text","text":"load: unexpected end of data after 0 values (is the data truncated or not in format \"sup\"?)"}],"isError":true}}
       {"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"{\n  \"table\": \"people\",\n  \"id\": \"ID\",\n  \"created\": true\n}"}]}}
       {"jsonrpc":"2.0","id":8,"result":{"content":[{"type":"text","text":"{\n  \"commit\": \"ID\",\n  \"values\": 2\n}"}]}}
