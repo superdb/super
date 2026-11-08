@@ -30,6 +30,10 @@ func clrOp(op sem.Op) {
 		op.Node = nil
 	case *sem.RobotScan:
 		op.Node = nil
+		clrExpr(op.Expr)
+		clrExpr(op.Method)
+		clrExpr(op.Headers)
+		clrExpr(op.Body)
 	case *sem.DBMetaScan:
 		op.Node = nil
 	case *sem.TableMetaScan:

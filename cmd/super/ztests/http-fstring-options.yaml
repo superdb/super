@@ -1,0 +1,52 @@
+# A URL with a parent (computed or constant) accepts the same method, headers,
+# and body options as a URL without one and sends them with the request made
+# for each input value, evaluating the options for each input value.
+script: |
+  port=$((RANDOM + 1024))
+  python3 http-echo.py $port &> http.log &
+  trap "kill -9 $!" EXIT
+  i=0
+  while :; do
+      python3 -c "from urllib.request import urlopen; urlopen('http://127.0.0.1:$port')" 2>/dev/null &&
+          break
+      sleep 0.1
+      if ((i++ >= 50)); then
+          echo "timed out waiting for HTTP server"
+          cat http.log
+          exit 1
+      fi
+  done
+  super -s -c "values {u:'http://127.0.0.1:$port/x'} | from f\"{u}\" (method 'POST' headers {Authorization:'Bearer tok'} body 'hello')"
+  # The headers expression is evaluated for each input value.
+  super -s -c "values {u:'http://127.0.0.1:$port/x',tok:'a'},{u:'http://127.0.0.1:$port/y',tok:'b'} | from f\"{u}\" (headers {Authorization:'Bearer ' || tok})"
+  # The method and body are evaluated for each input value.
+  super -s -c "values {u:'http://127.0.0.1:$port/x',m:'PUT',q:{a:1}} | from f\"{u}\" (method f'{m}' body json_stringify(q))"
+  # A constant URL with a parent is fetched for each input value.
+  super -s -c "values {tok:'a'},{tok:'b'} | from 'http://127.0.0.1:$port/x' (method POST headers {Authorization:tok} body json_stringify(this))"
+  super -s -c "values 'c' | from f'http://127.0.0.1:$port/x' (body this)"
+  # Absent (null or none) options and header fields are ignored.
+  super -s -c "values {u:'http://127.0.0.1:$port/x',tok:null::(string|null)},{u:'http://127.0.0.1:$port/x',tok:'Bearer d'::(string|null)} | from f\"{u}\" (headers {Authorization:tok} body null)"
+  # A response with an error status is an error.
+  super -s -c "values {u:'http://127.0.0.1:$port/404'} | from f\"{u}\" (method POST)" 2>&1 | sed "s/$port/PORT/" || true
+  # Options require an HTTP URL and headers must be a record.
+  super -s -c "values {u:'x.sup'} | from f\"{u}\" (method 'POST')"
+  super -s -c "values {u:'http://127.0.0.1:$port/x',tok:'a'} | from f\"{u}\" (headers tok)"
+
+inputs:
+  - name: http-echo.py
+
+outputs:
+  - name: stdout
+    data: |
+      {method:"POST",authorization:"Bearer tok",body:"hello"}
+      {method:"GET",authorization:"Bearer a",body:""}
+      {method:"GET",authorization:"Bearer b",body:""}
+      {method:"PUT",authorization:"",body:"{\"a\":1}"}
+      {method:"POST",authorization:"a",body:"{\"tok\":\"a\"}"}
+      {method:"POST",authorization:"b",body:"{\"tok\":\"b\"}"}
+      {method:"GET",authorization:"",body:"c"}
+      {method:"GET",authorization:"",body:""}
+      {method:"GET",authorization:"Bearer d",body:""}
+      http://127.0.0.1:PORT/404: 404 Not Found
+      error({message:"from: method, headers, and body require an http or https URL",on:"x.sup"})
+      error({message:"from: headers value must be a record",on:"a"})

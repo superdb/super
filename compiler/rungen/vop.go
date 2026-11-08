@@ -356,7 +356,15 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		if o.Filter != nil {
 			dataFilter = &dagFilter{nil, o.Filter}
 		}
-		return op.NewRobot(b.rctx, b.env, parent, e, o.Format, b.newPushdown(nil, nil, nil, dataFilter, false), b.progress), nil
+		var opts [3]expr.Evaluator
+		for k, opt := range []dag.Expr{o.Method, o.Headers, o.Body} {
+			if opt != nil {
+				if opts[k], err = b.compileVamExpr(opt); err != nil {
+					return nil, err
+				}
+			}
+		}
+		return op.NewRobot(b.rctx, b.env, parent, e, o.Format, opts[0], opts[1], opts[2], b.newPushdown(nil, nil, nil, dataFilter, false), b.progress), nil
 	case *dag.SeqScan:
 		table, err := b.lookupTable(o.Table)
 		if err != nil {

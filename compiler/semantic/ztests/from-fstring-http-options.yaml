@@ -1,0 +1,12 @@
+# A computed (f-string) URL accepts the same method, headers, and body options
+# as a constant URL.  They are evaluated for each input value.
+script: |
+  super compile -C -dag 'values {u:"https://host/api",auth:"Bearer x"} | from f"{u}" (method "POST" headers {Authorization:auth} body "q")'
+
+outputs:
+  - name: stdout
+    data: |
+      null
+      | values {u:"https://host/api",auth:"Bearer x"}
+      | robot cast(u, <string>) method "POST" headers {Authorization:auth} body "q"
+      | output main

@@ -93,6 +93,8 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 	case "join":
 		argmax = 2
 		f = &Join{sctx: sctx}
+	case "json_stringify":
+		f = newJSONStringify(sctx)
 	case "keys":
 		f = newKeys(sctx)
 	case "kind":

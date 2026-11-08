@@ -37,17 +37,21 @@ type Writer struct {
 	// the only way to turn off HTML escaping.
 	primEnc *json.Encoder
 	primBuf bytes.Buffer
+	noColor bool
 }
 
 type WriterOpts struct {
 	Pretty int
+	// NoColor disables terminal colors even if they're enabled.
+	NoColor bool
 }
 
 func NewWriter(writer io.WriteCloser, opts WriterOpts) *Writer {
 	w := &Writer{
-		Closer: writer,
-		writer: bufio.NewWriter(writer),
-		tab:    opts.Pretty,
+		Closer:  writer,
+		writer:  bufio.NewWriter(writer),
+		tab:     opts.Pretty,
+		noColor: opts.NoColor,
 	}
 	w.primEnc = json.NewEncoder(&w.primBuf)
 	w.primEnc.SetEscapeHTML(false)
@@ -266,7 +270,7 @@ func (w *Writer) punc(b byte) {
 }
 
 func (w *Writer) writeColor(b []byte, code []byte) {
-	if color.Enabled {
+	if color.Enabled && !w.noColor {
 		w.writer.Write(code)
 		defer w.writer.WriteString(color.Reset.String())
 	}
