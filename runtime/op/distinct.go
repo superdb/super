@@ -50,7 +50,7 @@ func (d *Distinct) Pull(done bool) (vector.Any, error) {
 			if !slices.IsSorted(d.index) {
 				slices.Sort(d.index)
 			}
-			return vector.Pick(vec, d.index), nil
+			return vector.Pick(vec, slices.Clone(d.index)), nil
 		}
 	}
 }

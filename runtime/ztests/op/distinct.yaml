@@ -59,3 +59,20 @@ output: |
   {x:0.,inv:+Inf}
   {x:0.,inv:-Inf}
   {x:1.5,inv:0.6666666666666666}
+
+---
+
+# tail holds the vectors from distinct while it pulls the next one.
+spq: fork (values {x:a}) (values {x:b}) | distinct x | tail 10 | sort x
+
+input: |
+  {a:1,b:3}
+  {a:1,b:4}
+  {a:2,b:5}
+
+output: |
+  {x:1}
+  {x:2}
+  {x:3}
+  {x:4}
+  {x:5}

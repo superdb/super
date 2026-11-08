@@ -6,7 +6,8 @@ import (
 )
 
 // Pick takes any vector vec and an index and returns a new vector consisting of the
-// elements in the index.
+// elements in the index.  The new vector may keep index, so the caller must not
+// change it.
 func Pick(val Any, index []uint32) Any {
 	switch val := val.(type) {
 	case *Bool:
