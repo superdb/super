@@ -467,14 +467,15 @@ func (s *Server) queryTool(ctx context.Context, raw json.RawMessage) (*toolResul
 // runQuery runs query on database and returns at most limit of its values
 // in format and whether values were dropped to meet the limit.
 func runQuery(ctx context.Context, database runtime.Database, query []srcfiles.Input, format string, limit int) (string, bool, error) {
-	q, err := database.Query(ctx, query)
+	sctx := super.NewContext()
+	q, err := database.Query(ctx, sctx, query)
 	if err != nil {
 		return "", false, err
 	}
 	defer q.Close()
 	defer q.Pull(true)
 	var buf bytes.Buffer
-	w, err := anyio.NewWriter(sio.NopCloser(&buf), anyio.WriterOpts{Format: format})
+	w, err := anyio.NewWriter(sctx, sio.NopCloser(&buf), anyio.WriterOpts{Format: format})
 	if err != nil {
 		return "", false, err
 	}
