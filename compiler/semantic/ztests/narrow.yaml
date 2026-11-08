@@ -18,7 +18,7 @@ script: |
   echo === typeof
   super -s -c 'values {x:1},{y:1},{x:"s"} | where typeof(this)==<{x:int64}> | values x+1'
   super -s -c 'values {x:1},{y:1},{x:"s"} | where <{y:int64}>==typeof(this) | values y+1'
-  super -s -c 'values {x:1},{y:1},{x:"s"} | where typeof(x)==<string> | values x+"t"'
+  super -s -c 'values {x:1},{y:1},{x:"s"} | where typeof(x)==<string> | values upper(x)'
   echo === is_error
   super -s -c 'values {a:1},{b:2} | where is_error(a) | values a'
   super -s -c 'values {a:1},{b:2} | where not is_error(a) | values a+1'
@@ -62,7 +62,7 @@ outputs:
       === typeof
       2
       2
-      "st"
+      "S"
       === is_error
       error("no such field a")
       2
