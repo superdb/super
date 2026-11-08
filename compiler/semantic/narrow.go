@@ -22,7 +22,9 @@ import (
 //   - is_ok(p), which removes the error, missing, none, and null types of p,
 //   - is_error(p), which narrows the type of p to its error and missing types,
 //   - not is_error(p), which removes the error and missing types of p,
-//   - is(p, <T>), which narrows the type of p to T,
+//   - is(p, <T>) and typeof(p) == <T>, which narrow the type of p to T
+//     (including when T is one of the types fused in the type of p, e.g.,
+//     <{x:int64}> for a record type {x:int64|missing,y:int64|missing}),
 //   - kind(p) == "<kind>", which removes the types of p whose kind
 //     (see the kind function) isn't <kind>,
 //   - p IS NOT NULL, which removes the error, missing, and null types of p,
@@ -90,6 +92,9 @@ func (c *checker) narrowBy(typ super.Type, e sem.Expr, orNull bool) super.Type {
 				return c.narrowPath(typ, ref, inKeep)
 			}
 		case "==":
+			if ref, target, ok := c.typeofTest(e); ok {
+				return c.narrowIs(typ, ref, target)
+			}
 			if kind, ref, ok := kindTest(e); ok {
 				return c.narrowPath(typ, ref, func(t super.Type) bool {
 					return hasKind(t, kind)
@@ -171,15 +176,29 @@ func (c *checker) narrowCase(typ super.Type, expr, val sem.Expr) super.Type {
 // value at path for which keep is true, it returns typ unchanged since
 // the filter drops every value.
 func (c *checker) narrowPath(typ super.Type, path field.Chain, keep func(super.Type) bool) super.Type {
-	if out, ok := c.narrowAt(defuse(typ), path, keep); ok {
+	return c.refinePath(typ, path, func(t super.Type) (super.Type, bool) {
+		return t, keep(t)
+	})
+}
+
+// refinePath is like narrowPath but the type of the value at path is
+// replaced by the type returned by refine, which returns false if no value
+// of the type satisfies the predicate.
+func (c *checker) refinePath(typ super.Type, path field.Chain, refine refiner) super.Type {
+	if out, ok := c.narrowAt(defuse(typ), path, refine); ok {
 		return out
 	}
 	return typ
 }
 
-// narrowAt is narrowPath without the fallback and returns false if no value
-// of typ can satisfy keep at path.
-func (c *checker) narrowAt(typ super.Type, path field.Chain, keep func(super.Type) bool) (super.Type, bool) {
+// A refiner returns the type of the values of typ that may satisfy a
+// predicate (typ itself for a predicate that only removes types) and false if
+// none do.
+type refiner func(typ super.Type) (super.Type, bool)
+
+// narrowAt is refinePath without the fallback and returns false if no value
+// of typ can satisfy refine at path.
+func (c *checker) narrowAt(typ super.Type, path field.Chain, keep refiner) (super.Type, bool) {
 	typ = defuse(typ)
 	if hasUnknown(typ) {
 		return typ, true
@@ -190,7 +209,7 @@ func (c *checker) narrowAt(typ super.Type, path field.Chain, keep func(super.Typ
 		// of it satisfies keep.  Some predicates (e.g., is_error) apply
 		// to the value inside a named union, so check its members too.
 		if len(path) == 0 {
-			if keep(typ) {
+			if _, ok := keep(typ); ok {
 				return typ, true
 			}
 			if _, ok := under(named).(*super.TypeUnion); !ok {
@@ -224,7 +243,7 @@ func (c *checker) narrowAt(typ super.Type, path field.Chain, keep func(super.Typ
 		return c.unionOf(super.Flatten(types)), true
 	}
 	if len(path) == 0 {
-		return typ, keep(typ)
+		return keep(typ)
 	}
 	switch t := under(typ).(type) {
 	case *super.TypeRecord:
@@ -253,7 +272,8 @@ func (c *checker) narrowAt(typ super.Type, path field.Chain, keep func(super.Typ
 		return rec, true
 	case *super.TypeOfMissing:
 		// A field of a missing value is missing.
-		return typ, keep(typ)
+		_, ok := keep(typ)
+		return typ, ok
 	}
 	// We don't know the type of the value at path (e.g., a field of a map
 	// or an error), so leave typ as is.
@@ -275,9 +295,65 @@ func (c *checker) narrowIs(typ super.Type, path field.Chain, target super.Type) 
 	}
 	// A missing value is error("missing") at runtime.
 	errMissing := c.t.sctx.LookupTypeError(super.TypeString)
-	return c.narrowPath(typ, path, func(t super.Type) bool {
-		return t == target || isMissingType(t) && target == errMissing
+	return c.refinePath(typ, path, func(t super.Type) (super.Type, bool) {
+		switch {
+		case t == target || isMissingType(t) && target == errMissing:
+			return t, true
+		case fits(target, t):
+			// t is a fused type (e.g., a record with fields that
+			// may be missing) of which target may be a member.
+			return target, true
+		}
+		return nil, false
 	})
+}
+
+// fits returns true if a value of type typ, which may be a fused type (whose
+// unions are the types of its values and whose missing fields are absent
+// from them), may have type target.
+func fits(target, typ super.Type) bool {
+	typ = defuse(typ)
+	if typ == target || hasUnknown(typ) {
+		return true
+	}
+	if u, ok := typ.(*super.TypeUnion); ok {
+		for _, t := range u.Types {
+			if fits(target, t) {
+				return true
+			}
+		}
+		return false
+	}
+	switch typ := typ.(type) {
+	case *super.TypeRecord:
+		rec, ok := target.(*super.TypeRecord)
+		if !ok {
+			return false
+		}
+		for _, f := range rec.Fields {
+			k, ok := typ.IndexOfField(f.Name)
+			if !ok || !fits(f.Type, typ.Fields[k].Type) {
+				return false
+			}
+		}
+		// A field of typ that's not in target must be missing.
+		for _, f := range typ.Fields {
+			if _, ok := rec.IndexOfField(f.Name); !ok && !fits(super.TypeMissing, f.Type) {
+				return false
+			}
+		}
+		return true
+	case *super.TypeArray:
+		arr, ok := target.(*super.TypeArray)
+		return ok && fits(arr.Type, typ.Type)
+	case *super.TypeSet:
+		set, ok := target.(*super.TypeSet)
+		return ok && fits(set.Type, typ.Type)
+	case *super.TypeMap:
+		m, ok := target.(*super.TypeMap)
+		return ok && fits(m.KeyType, typ.KeyType) && fits(m.ValType, typ.ValType)
+	}
+	return false
 }
 
 // narrowWhole returns typ unchanged and true if the type of the value at path
@@ -356,6 +432,25 @@ func isNoneLiteral(e sem.Expr) bool {
 	return ok && p.Value == "none"
 }
 
+// typeofTest returns path p and type T if e is typeof(p) == <T> or
+// <T> == typeof(p), which is is(p, <T>).
+func (c *checker) typeofTest(e *sem.BinaryExpr) (field.Chain, super.Type, bool) {
+	call, lit := e.LHS, e.RHS
+	if _, ok := lit.(*sem.CallExpr); ok {
+		call, lit = lit, call
+	}
+	typeofCall, ok := call.(*sem.CallExpr)
+	if !ok || typeofCall.Tag != "typeof" || len(typeofCall.Args) != 1 {
+		return nil, nil, false
+	}
+	path, ok := plainPath(typeofCall.Args[0])
+	if !ok {
+		return nil, nil, false
+	}
+	target := c.typeOfTypeLiteral(lit)
+	return path, target, target != nil
+}
+
 // kindTest returns the kind and path p if e is kind(p) == "<kind>" or
 // "<kind>" == kind(p).
 func kindTest(e *sem.BinaryExpr) (string, field.Chain, bool) {
@@ -415,10 +510,11 @@ func notErrorLike(typ super.Type) bool {
 }
 
 // missingAsNull returns keep for a value that's null when it's missing.
-func missingAsNull(keep func(super.Type) bool) func(super.Type) bool {
-	return func(t super.Type) bool {
+func missingAsNull(keep refiner) refiner {
+	return func(t super.Type) (super.Type, bool) {
 		if isMissingType(t) {
-			return keep(super.TypeNull)
+			_, ok := keep(super.TypeNull)
+			return t, ok
 		}
 		return keep(t)
 	}
