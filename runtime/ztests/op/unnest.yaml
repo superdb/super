@@ -73,7 +73,7 @@ input: |
   {x:"foo",y:[1,2]}
 
 error: |
-  unnest value must be an array at line 1, column 8:
+  unnest value must be an array or set at line 1, column 8:
   unnest this
          ~~~~
 
@@ -155,3 +155,21 @@ output: |
   {x:1,y:2}
   {x:2,y:2}
   {x:3,y:4}
+
+---
+
+# The type of an unnested value excludes plain none, which is dropped.
+spq: |
+  values [1::(int64|none), none::(int64|none)] | unnest this | values this+1
+
+output: |
+  2
+
+---
+
+spq: |
+  values {s:set[1,2],y:3} | unnest s with y | values this
+
+output: |
+  {s:1,y:3}
+  {s:2,y:3}

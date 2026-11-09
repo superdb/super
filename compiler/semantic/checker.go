@@ -214,6 +214,16 @@ func (c *checker) unnest(loc ast.Node, typ super.Type, field string) super.Type 
 	return typ
 }
 
+// unnestElem returns the type of the values unnested from an array or set
+// with element type typ (or nil if there are none), which are those of typ
+// without plain none since unnest drops plain nones as values does.
+func (c *checker) unnestElem(typ super.Type) super.Type {
+	if out, ok := c.withoutPlainNone(typ); ok {
+		return out
+	}
+	return nil
+}
+
 func (c *checker) unnestCheck(loc ast.Node, typ super.Type) (super.Type, bool) {
 	if isUnknown(typ) {
 		return c.unknown, true
@@ -242,9 +252,11 @@ func (c *checker) unnestCheck(loc ast.Node, typ super.Type) (super.Type, bool) {
 	case *super.TypeOption:
 		return c.unnestCheck(loc, typ.Type)
 	case *super.TypeArray:
-		return typ.Type, true
+		return c.unnestElem(typ.Type), true
+	case *super.TypeSet:
+		return c.unnestElem(typ.Type), true
 	default:
-		c.error(loc, errors.New("unnest value must be an array"))
+		c.error(loc, errors.New("unnest value must be an array or set"))
 		return c.unknown, false
 	}
 }
@@ -565,8 +577,10 @@ func isMissingType(typ super.Type) bool {
 	return under(typ) == super.TypeMissing
 }
 
+// isNoneType reports whether typ is the type of a plain none, which
+// disappears from a record or array.  A none of a named type is a value.
 func isNoneType(typ super.Type) bool {
-	return under(typ) == super.TypeNone
+	return defuse(typ) == super.TypeNone
 }
 
 // isNoneishType reports whether typ is a type whose values ?? replaces with
@@ -883,10 +897,6 @@ func (c *checker) noneAsMissing(typ super.Type) super.Type {
 	return out
 }
 
-func isPlainNone(typ super.Type) bool {
-	return defuse(typ) == super.TypeNone
-}
-
 // unionOf returns the single type in types or else the union of types.
 func (c *checker) unionOf(types []super.Type) super.Type {
 	if len(types) == 1 {
@@ -1077,7 +1087,7 @@ func (c *checker) putPaths(inType super.Type, puts []pathType) super.Type {
 		// A field whose value is a plain none disappears from the record
 		// (e.g., an aggregate's group key), so it may be missing.
 		leaf := c.noneAsMissing(put.typ)
-		if isPlainNone(leaf) {
+		if isNoneType(leaf) {
 			leaf = super.TypeMissing
 		}
 		typ := c.putInto(recType, put.elems, leaf)
