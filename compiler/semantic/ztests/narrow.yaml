@@ -26,7 +26,7 @@ script: |
   super -s -c 'values {a:{x:1}},{a:null} | where a is not null | values a.x'
   super -s -c 'values {a:{x:1}},{a:null} | where a == {x:1} | values a.x'
   super -s -c 'values {a:{x:1}},{a:null} | where a in [{x:1}] | values a.x'
-  ! super -s -c 'values {a:{x:1}},{a:null} | values a == {x:1} and a.x == 1' 2> /dev/null
+  super -s -c 'values {a:{x:1}},{a:null} | values a == {x:1} and a.x == 1'
   echo === or
   super -s -c 'values {a:1},{a:error("x")},{b:2} | where is_ok(a) or is_error(a) | values a'
   ! super -s -c 'values {a:1},1 | where kind(this)=="record" or this==1 | values a' 2> /dev/null
@@ -39,7 +39,7 @@ script: |
   super -s -c 'values {a:1},1,"x" | values kind(this)=="record" ? a : 0'
   super -s -c 'values {a:1},1,"x" | switch kind(this) case "record" (values a) default (values 0) | sort this'
   super -s -c 'values {a:1},1,"x" | switch case kind(this)=="record" (values a) default (values 0) | sort this'
-  ! super -s -c 'values {a:{x:1}},{a:null} | switch a case null (values a.x) default (values 0)' 2> /dev/null
+  super -s -c 'values {a:{x:1}},{a:null} | switch a case null (values a.x) default (values 0) | sort this'
 
 inputs:
   - name: test.sup
@@ -70,6 +70,8 @@ outputs:
       1
       1
       1
+      true
+      null
       === or
       1
       error("x")
@@ -91,3 +93,5 @@ outputs:
       0
       0
       1
+      0
+      null
