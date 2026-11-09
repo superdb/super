@@ -20,11 +20,11 @@ output: |
   1
   1
   1
-  error("cannot access field 'b' of null")
+  null
   none::option(int64|string)
   error("cannot access field 'b' of int64")
   error("no such field a")
-  error("cannot access field 'a' of null")
+  null
 
 ---
 
