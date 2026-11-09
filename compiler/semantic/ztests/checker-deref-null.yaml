@@ -1,7 +1,0 @@
-spq: |
-  values null | values a
-
-error: |
-  no such field "a": . applied to null at line 1, column 22:
-  values null | values a
-                       ~
