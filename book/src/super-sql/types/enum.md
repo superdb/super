@@ -24,7 +24,8 @@ and this is a value of that type:
 
 Enum serialization in the SUP format is fairly verbose as the set of
 symbols must be enumerated anywhere the type appears.  In the binary
-BSUP format, the enum symbols are encoded efficiently just once.
+[BSUP](../../formats/bsup.md) format,
+the enum symbols are encoded efficiently just once.
 
 ## Examples
 

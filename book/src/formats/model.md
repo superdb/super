@@ -103,7 +103,7 @@ Complex types are composed of primitive types and/or other complex types.
 The categories of complex types include:
 * _record_ - an ordered collection of zero or more named values called fields,
 * _array_ - an ordered sequence of zero or more values called elements,
-* _set_ - a set of zero or more unique values called elements,
+* _set_ - an unordered collection of zero or more unique values called elements,
 * _map_ - a collection of zero or more key/value pairs where the keys are of a
 uniform type called the key type and the values are of a uniform type called
 the value type,
