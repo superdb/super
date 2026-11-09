@@ -17,6 +17,19 @@ import (
 	"github.com/superdb/super/ztest"
 )
 
+func BenchmarkParse(b *testing.B) {
+	queries, err := searchForSuperSQL()
+	require.NoError(b, err)
+	b.ResetTimer()
+	var buf []byte
+	for b.Loop() {
+		for _, q := range queries {
+			buf = append(buf[:0], q...)
+			parser.Parse("", buf)
+		}
+	}
+}
+
 func searchForSuperSQL() ([]string, error) {
 	var queries []string
 	pattern := fmt.Sprintf(`.*ztests\%c.*\.yaml$`, filepath.Separator)
