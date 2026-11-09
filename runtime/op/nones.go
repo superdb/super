@@ -14,6 +14,9 @@ import (
 // dropped.  A none of a named type and an option's none are values and
 // are kept.
 func dropPlainNones(vec vector.Any) vector.Any {
+	if vec == nil {
+		return nil
+	}
 	nones, all := plainNoneSlots(vec)
 	n := vec.Len()
 	if all || len(nones) == int(n) {
