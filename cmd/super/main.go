@@ -18,6 +18,7 @@ import (
 	_ "github.com/superdb/super/cmd/super/db/log"
 	_ "github.com/superdb/super/cmd/super/db/ls"
 	_ "github.com/superdb/super/cmd/super/db/manage"
+	_ "github.com/superdb/super/cmd/super/db/mcp"
 	_ "github.com/superdb/super/cmd/super/db/merge"
 	_ "github.com/superdb/super/cmd/super/db/rename"
 	_ "github.com/superdb/super/cmd/super/db/revert"

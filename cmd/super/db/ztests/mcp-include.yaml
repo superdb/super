@@ -1,0 +1,89 @@
+# With -include, the query tool's include argument names SuperSQL source files
+# in the include directory whose text precedes the query.  A name outside the
+# directory (including via a symbolic link) is rejected, and with -readonly,
+# an included file that modifies the database is rejected too.
+script: |
+  super db init -q test
+  super db -attach test create -q t
+  mkdir -p lib/sub
+  mv common.spq bad.spq writes.spq lib
+  mv math.spq lib/sub
+  ln -s ../outside.spq lib/link.spq
+  super db mcp -include lib test < requests.jsonl |
+    sed -E 's/0x[0-9a-f]{32}/COMMIT/'
+  echo === no include directory
+  head -1 requests.jsonl | super db mcp test
+  echo === readonly
+  super db mcp -readonly -include lib test < readonly.jsonl
+  echo === schema
+  echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' |
+    super db mcp -include lib test | grep -o 'The include files are [a-z/., ]*spq'
+  echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' |
+    super db mcp -include lib test | grep -o '"items":{"enum":\[[^]]*\],"type":"string"}'
+  echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' |
+    super db mcp test | grep -q '"include"' || echo no include argument
+  echo === bad include directory
+  ! super db mcp -include nosuch test < /dev/null 2>&1
+  ! super db mcp -include outside.spq test < /dev/null 2>&1
+
+inputs:
+  - name: common.spq
+    data: |
+      const GREETING = "hello"
+      fn greet(name): GREETING || " " || name
+  - name: math.spq
+    data: |
+      fn double(x): x*2
+  - name: bad.spq
+    data: |
+      fn broken(: 1
+  - name: writes.spq
+    data: |
+      op save: ( load t )
+  - name: outside.spq
+    data: |
+      const SECRET = "x"
+  - name: requests.jsonl
+    data: |
+      {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query","arguments":{"query":"values greet(\"world\"), double(21)","include":["common.spq","sub/math.spq"]}}}
+      {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query","arguments":{"query":"values greet(\"n8n\")","include":"common.spq, sub/math.spq"}}}
+      {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query","arguments":{"query":"values 1","include":["bad.spq"]}}}
+      {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"query","arguments":{"query":"values 1","include":["../outside.spq"]}}}
+      {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"query","arguments":{"query":"values 1","include":["/etc/passwd"]}}}
+      {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"query","arguments":{"query":"values 1","include":["link.spq"]}}}
+      {"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"query","arguments":{"query":"values 1","include":["nosuch.spq"]}}}
+      {"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"query","arguments":{"query":"values 1","include":[1]}}}
+      {"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"query","arguments":{"query":"values 1","include":["sub"]}}}
+      {"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"query","arguments":{"query":"values {a:1} | save","include":["writes.spq"]}}}
+      {"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"query","arguments":{"query":"from t","format":"sup"}}}
+  - name: readonly.jsonl
+    data: |
+      {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query","arguments":{"query":"values {a:2} | save","include":["writes.spq"]}}}
+      {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query","arguments":{"query":"values greet(\"ro\")","include":["common.spq"]}}}
+
+outputs:
+  - name: stdout
+    data: |
+      {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"\"hello world\"\n42"}]}}
+      {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"\"hello n8n\""}]}}
+      {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"parse error in bad.spq at line 1, column 11:\nfn broken(: 1\n      === ^ ==="}],"isError":true}}
+      {"jsonrpc":"2.0","id":4,"error":{"code":-32602,"message":"invalid arguments: include \"../outside.spq\" must be a relative path within the include directory"}}
+      {"jsonrpc":"2.0","id":5,"error":{"code":-32602,"message":"invalid arguments: include \"/etc/passwd\" must be a relative path within the include directory"}}
+      {"jsonrpc":"2.0","id":6,"error":{"code":-32602,"message":"invalid arguments: include \"link.spq\": file can't be read from the include directory"}}
+      {"jsonrpc":"2.0","id":7,"error":{"code":-32602,"message":"invalid arguments: include \"nosuch.spq\": no such file in the include directory"}}
+      {"jsonrpc":"2.0","id":8,"error":{"code":-32602,"message":"invalid arguments: include must be an array of strings or a string"}}
+      {"jsonrpc":"2.0","id":9,"error":{"code":-32602,"message":"invalid arguments: include \"sub\": file can't be read from the include directory"}}
+      {"jsonrpc":"2.0","id":10,"result":{"content":[{"type":"text","text":"\"COMMIT\""}]}}
+      {"jsonrpc":"2.0","id":11,"result":{"content":[{"type":"text","text":"{a:1}"}]}}
+      === no include directory
+      {"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"invalid arguments: include is not available since the server has no include directory"}}
+      === readonly
+      {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"the server is read-only but the query modifies the database (load)"}],"isError":true}}
+      {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"\"hello ro\""}]}}
+      === schema
+      The include files are bad.spq, common.spq, sub/math.spq, writes.spq
+      "items":{"enum":["bad.spq","common.spq","sub/math.spq","writes.spq"],"type":"string"}
+      no include argument
+      === bad include directory
+      include directory: stat nosuch: no such file or directory
+      include directory outside.spq is not a directory

@@ -1,0 +1,183 @@
+# super db mcp is an MCP server on stdio: requests are JSON-RPC messages, one
+# per line, on stdin and responses are written one per line to stdout.  The
+# version and table IDs vary so they're masked.
+script: |
+  super db init -q test
+  super db -attach test create -q logs
+  super db -attach test load -q -use logs logs.sup
+  super db -attach test create -q mixed
+  echo '{a:1}' | super db -attach test load -q -use mixed -
+  echo '{a:"x",b:true}' | super db -attach test load -q -use mixed -
+  super db mcp test < requests.jsonl |
+    sed -E -e 's/"version":"[^"]*"/"version":"VERSION"/' \
+           -e 's/"instructions":"[^"]*(\\"[^"]*)*"/"instructions":"INSTRUCTIONS"/' \
+           -e 's/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/ID/g'
+  echo === readonly
+  super db mcp -readonly test < readonly.jsonl |
+    sed -E -e 's/\\"version\\": \\"[^\\]*\\"/\\"version\\": \\"VERSION\\"/'
+  echo === tools
+  echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' |
+    super db mcp test | grep -o '"name":"[a-z_]*"'
+  echo === readonly tools
+  echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' |
+    super db mcp -readonly test | grep -o '"name":"[a-z_]*"'
+  echo === load
+  super db mcp -user tester test < load.jsonl |
+    sed -E -e 's/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/ID/g'
+  super db -attach test -s -c 'from mixed:log | values {author,message} | where !is_error(author) | head 1'
+  echo === tables
+  super db mcp test < tables.jsonl |
+    sed -E -e 's/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/ID/g' -e 's/\\"version\\": \\"[^\\]*\\"/\\"version\\": \\"VERSION\\"/'
+
+inputs:
+  - name: logs.sup
+    data: |
+      {ts:2025-01-01T00:00:00Z,status:200,path:"/a",ip:10.0.0.1,dur:15ms}
+      {ts:2025-01-01T00:01:00Z,status:500,path:"/b",ip:10.0.0.2,dur:1.5s}
+      {ts:2025-01-01T00:02:00Z,status:200,path:"/a",ip:10.0.0.1,dur:30ms,user:"bob"}
+  - name: requests.jsonl
+    data: |
+      {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}
+      {"jsonrpc":"2.0","method":"notifications/initialized"}
+      {"jsonrpc":"2.0","id":2,"method":"ping"}
+      {"jsonrpc":"2.0","id":3,"method":"nosuch"}
+      not json
+      {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"nosuch"}}
+      {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"list_tables"}}
+      {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"describe_table","arguments":{"table":"logs"}}}
+      {"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"describe_table","arguments":{"table":"logs","form":"fused"}}}
+      {"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"describe_table","arguments":{"table":"mixed"}}}
+      {"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | sort ts"}}}
+      {"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | sort ts","format":"sup","limit":2}}}
+      {"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | count() by status | sort status"}}}
+      {"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"query","arguments":{"query":"from nosuch"}}}
+      {"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs","format":"csv"}}}
+      {"jsonrpc":"2.0","id":15,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | fuse | sort ts","format":"csv"}}}
+      {"jsonrpc":"2.0","id":16,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | count() by path | sort path","format":"tsv"}}}
+      {"jsonrpc":"2.0","id":17,"method":"tools/call","params":{"name":"query","arguments":{"query":"values 1","format":"csv"}}}
+      {"jsonrpc":"2.0","id":18,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs","format":"xml"}}}
+      {"jsonrpc":"2.0","id":19,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | values {ts,path,user:ok(user)} | fuse | sort ts","format":"table"}}}
+      {"jsonrpc":"2.0","id":20,"method":"tools/call","params":{"name":"query","arguments":{"query":"values {a:\"x\\ny\",b:{c:1}}","format":"table"}}}
+      {"jsonrpc":"2.0","id":21,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | sort ts | values path, status","format":"line"}}}
+      {"jsonrpc":"2.0","id":22,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | sort ts | values {path,status}","structured":true,"limit":2}}}
+      {"jsonrpc":"2.0","id":23,"method":"tools/call","params":{"name":"query","arguments":{"query":"values 1, \"<x>\"","structured":true}}}
+      {"jsonrpc":"2.0","id":24,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | where false","structured":true}}}
+      {"jsonrpc":"2.0","id":25,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs","format":"sup","structured":true}}}
+      {"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | where false"}}}
+  - name: more.json
+    data: |
+      {"a":2}
+      {"a":3,"b":false}
+  - name: load.jsonl
+    data: |
+      {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed","path":"more.json"}}}
+      {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed","data":"{a:4} {a:5}","format":"sup","message":"from mcp"}}}
+      {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query","arguments":{"query":"from mixed | sort a","format":"sup"}}}
+      {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed"}}}
+      {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed","path":"nosuch.json"}}}
+      {"jsonrpc":"2.0","id":51,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed","path":"-"}}}
+      {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"load","arguments":{"table":"mixed","data":"{a:1","format":"sup"}}}
+      {"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"create_table","arguments":{"table":"people"}}}
+      {"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"load","arguments":{"table":"people","data":"id,name\n1,alice\n2,\"Doe, John\"\n","format":"csv"}}}
+      {"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"query","arguments":{"query":"from people | sort id","format":"csv"}}}
+      {"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"load","arguments":{"table":"people","data":"x","format":"xml"}}}
+  - name: tables.jsonl
+    data: |
+      {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"create_table","arguments":{"table":"typed","type":"{ts:timestamp,n:int64}","orderby":"ts:desc"}}}
+      {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"describe_table","arguments":{"table":"typed"}}}
+      {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"create_table","arguments":{"table":"typed"}}}
+      {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"create_table","arguments":{"table":"typed","if_not_exists":true}}}
+      {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"create_table","arguments":{"table":"bad","type":"{a:nosuch"}}}
+      {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"create_table","arguments":{}}}
+      {"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"drop_table","arguments":{"table":"typed"}}}
+      {"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"drop_table","arguments":{"table":"typed"}}}
+      {"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"drop_table","arguments":{"table":"typed","if_exists":true}}}
+      {"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"list_tables"}}
+      {"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"health"}}
+  - name: readonly.jsonl
+    data: |
+      {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query","arguments":{"query":"from logs | count()"}}}
+      {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query","arguments":{"query":"create table t (a int)"}}}
+      {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query","arguments":{"query":"insert into logs values {a:1}"}}}
+      {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"query","arguments":{"query":"drop table logs"}}}
+      {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"query","arguments":{"query":"op w: ( load logs ) values {a:1} | w()"}}}
+      {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"create_table","arguments":{"table":"t"}}}
+      {"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"drop_table","arguments":{"table":"logs"}}}
+      {"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"health"}}
+
+outputs:
+  - name: stdout
+    data: |
+      {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"superdb","title":"SuperDB","version":"VERSION"},"instructions":"INSTRUCTIONS"}}
+      {"jsonrpc":"2.0","id":2,"result":{}}
+      {"jsonrpc":"2.0","id":3,"error":{"code":-32601,"message":"method not found: nosuch"}}
+      {"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"parse error: invalid character 'o' in literal null (expecting 'u')"}}
+      {"jsonrpc":"2.0","id":4,"error":{"code":-32602,"message":"unknown tool: nosuch"}}
+      {"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"[\n  {\n    \"name\": \"logs\",\n    \"id\": \"ID\"\n  },\n  {\n    \"name\": \"mixed\",\n    \"id\": \"ID\"\n  }\n]"}]}}
+      {"jsonrpc":"2.0","id":6,"result":{"content":[{"type":"text","text":"{\n  \"name\": \"logs\",\n  \"id\": \"ID\",\n  \"type\": \"{ts:timestamp,status:int64,path:string,ip:ip,dur:duration,user:fusion(string|missing)}\",\n  \"declared\": false,\n  \"notes\": \"Reading types from describe_table: a superfused type summarizes heterogeneous\\ndata in one type.  fusion(T1|T2|...) at a position means the values there vary\\nacross these types in the data.  missing in a fusion means the value is absent:\\na record field that some values lack, or, inside an array, no element (an empty\\narray).  For example, tags:fusion(string|missing|[fusion(string|missing)]) means\\ntags is sometimes a string, sometimes absent, and sometimes an array of strings\\nthat may be empty.  When data is defused, an empty array with no other type\\nbecomes [none].  Use form \\\"fused\\\" to get a plain union type instead.\\nSee https://superdb.org/super-sql/operators/superfuse.html.\"\n}"}]}}
+      {"jsonrpc":"2.0","id":13,"result":{"content":[{"type":"text","text":"{\n  \"name\": \"logs\",\n  \"id\": \"ID\",\n  \"type\": \"{ts:timestamp,status:int64,path:string,ip:ip,dur:duration,user:string|missing}\",\n  \"declared\": false\n}"}]}}
+      {"jsonrpc":"2.0","id":14,"result":{"content":[{"type":"text","text":"{\n  \"name\": \"mixed\",\n  \"id\": \"ID\",\n  \"type\": \"{a:fusion(int64|string),b:fusion(bool|missing)}\",\n  \"declared\": false,\n  \"notes\": \"Reading types from describe_table: a superfused type summarizes heterogeneous\\ndata in one type.  fusion(T1|T2|...) at a position means the values there vary\\nacross these types in the data.  missing in a fusion means the value is absent:\\na record field that some values lack, or, inside an array, no element (an empty\\narray).  For example, tags:fusion(string|missing|[fusion(string|missing)]) means\\ntags is sometimes a string, sometimes absent, and sometimes an array of strings\\nthat may be empty.  When data is defused, an empty array with no other type\\nbecomes [none].  Use form \\\"fused\\\" to get a plain union type instead.\\nSee https://superdb.org/super-sql/operators/superfuse.html.\"\n}"}]}}
+      {"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"{\"ts\":\"2025-01-01T00:00:00Z\",\"status\":200,\"path\":\"/a\",\"ip\":\"10.0.0.1\",\"dur\":\"15ms\"}\n{\"ts\":\"2025-01-01T00:01:00Z\",\"status\":500,\"path\":\"/b\",\"ip\":\"10.0.0.2\",\"dur\":\"1.5s\"}\n{\"ts\":\"2025-01-01T00:02:00Z\",\"status\":200,\"path\":\"/a\",\"ip\":\"10.0.0.1\",\"dur\":\"30ms\",\"user\":\"bob\"}"}]}}
+      {"jsonrpc":"2.0","id":8,"result":{"content":[{"type":"text","text":"{ts:2025-01-01T00:00:00Z,status:200,path:\"/a\",ip:10.0.0.1,dur:15ms}\n{ts:2025-01-01T00:01:00Z,status:500,path:\"/b\",ip:10.0.0.2,dur:1.5s}"},{"type":"text","text":"(results truncated to 2 values; refine the query or raise limit)"}]}}
+      {"jsonrpc":"2.0","id":9,"result":{"content":[{"type":"text","text":"{\"status\":200,\"count\":2}\n{\"status\":500,\"count\":1}"}]}}
+      {"jsonrpc":"2.0","id":10,"result":{"content":[{"type":"text","text":"nosuch: table not found at line 1, column 6:\nfrom nosuch\n     ~~~~~~"}],"isError":true}}
+      {"jsonrpc":"2.0","id":11,"result":{"content":[{"type":"text","text":"format \"csv\" requires records with the same fields but the results' fields differ (append \"| fuse\" to the query to unify records)"}],"isError":true}}
+      {"jsonrpc":"2.0","id":15,"result":{"content":[{"type":"text","text":"ts,status,path,ip,dur,user\n2025-01-01T00:00:00Z,200,/a,10.0.0.1,15ms,\n2025-01-01T00:01:00Z,500,/b,10.0.0.2,1.5s,\n2025-01-01T00:02:00Z,200,/a,10.0.0.1,30ms,bob"}]}}
+      {"jsonrpc":"2.0","id":16,"result":{"content":[{"type":"text","text":"path\tcount\n/a\t2\n/b\t1"}]}}
+      {"jsonrpc":"2.0","id":17,"result":{"content":[{"type":"text","text":"format \"csv\" requires records but a result is 1"}],"isError":true}}
+      {"jsonrpc":"2.0","id":18,"error":{"code":-32602,"message":"invalid arguments: format must be \"json\", \"sup\", \"csv\", \"tsv\", \"line\", or \"table\""}}
+      {"jsonrpc":"2.0","id":19,"result":{"content":[{"type":"text","text":"ts                    path  user\n2025-01-01T00:00:00Z  /a\n2025-01-01T00:01:00Z  /b\n2025-01-01T00:02:00Z  /a    bob"}]}}
+      {"jsonrpc":"2.0","id":20,"result":{"content":[{"type":"text","text":"a     b.c\nx\\ny  1"}]}}
+      {"jsonrpc":"2.0","id":21,"result":{"content":[{"type":"text","text":"/a\n200\n/b\n500\n/a\n200"}]}}
+      {"jsonrpc":"2.0","id":22,"result":{"content":[{"type":"text","text":"{\"values\":[{\"path\":\"/a\",\"status\":200},{\"path\":\"/b\",\"status\":500}],\"count\":2,\"truncated\":true}"}],"structuredContent":{"values":[{"path":"/a","status":200},{"path":"/b","status":500}],"count":2,"truncated":true}}}
+      {"jsonrpc":"2.0","id":23,"result":{"content":[{"type":"text","text":"{\"values\":[1,\"<x>\"],\"count\":2,\"truncated\":false}"}],"structuredContent":{"values":[1,"<x>"],"count":2,"truncated":false}}}
+      {"jsonrpc":"2.0","id":24,"result":{"content":[{"type":"text","text":"{\"values\":[],\"count\":0,\"truncated\":false}"}],"structuredContent":{"values":[],"count":0,"truncated":false}}}
+      {"jsonrpc":"2.0","id":25,"error":{"code":-32602,"message":"invalid arguments: structured requires format \"json\""}}
+      {"jsonrpc":"2.0","id":12,"result":{"content":[{"type":"text","text":"(query produced no values)"}]}}
+      === readonly
+      {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"3"}]}}
+      {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"the server is read-only but the query modifies the database (CREATE TABLE)"}],"isError":true}}
+      {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"the server is read-only but the query modifies the database (INSERT INTO)"}],"isError":true}}
+      {"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"the server is read-only but the query modifies the database (DROP TABLE)"}],"isError":true}}
+      {"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"the server is read-only but the query modifies the database (load)"}],"isError":true}}
+      {"jsonrpc":"2.0","id":6,"result":{"content":[{"type":"text","text":"the server is read-only so creating tables is disabled"}],"isError":true}}
+      {"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"the server is read-only so dropping tables is disabled"}],"isError":true}}
+      {"jsonrpc":"2.0","id":8,"result":{"content":[{"type":"text","text":"{\n  \"status\": \"ok\",\n  \"version\": \"VERSION\",\n  \"read_only\": true,\n  \"tables\": 2\n}"}]}}
+      === tools
+      "name":"query"
+      "name":"list_tables"
+      "name":"describe_table"
+      "name":"health"
+      "name":"load"
+      "name":"create_table"
+      "name":"drop_table"
+      === readonly tools
+      "name":"query"
+      "name":"list_tables"
+      "name":"describe_table"
+      "name":"health"
+      === load
+      {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"{\n  \"commit\": \"ID\",\n  \"values\": 2\n}"}]}}
+      {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\n  \"commit\": \"ID\",\n  \"values\": 2\n}"}]}}
+      {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{a:1}\n{a:2}\n{a:3,b:false}\n{a:4}\n{a:5}\n{a:\"x\",b:true}"}]}}
+      {"jsonrpc":"2.0","id":4,"error":{"code":-32602,"message":"invalid arguments: exactly one of path or data is required"}}
+      {"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"nosuch.json: file does not exist"}],"isError":true}}
+      {"jsonrpc":"2.0","id":51,"result":{"content":[{"type":"text","text":"-: scheme \"stdio\" not allowed"}],"isError":true}}
+      {"jsonrpc":"2.0","id":6,"result":{"content":[{"type":"text","text":"load: unexpected end of data after 0 values (is the data truncated or not in format \"sup\"?)"}],"isError":true}}
+      {"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"{\n  \"table\": \"people\",\n  \"id\": \"ID\",\n  \"created\": true\n}"}]}}
+      {"jsonrpc":"2.0","id":8,"result":{"content":[{"type":"text","text":"{\n  \"commit\": \"ID\",\n  \"values\": 2\n}"}]}}
+      {"jsonrpc":"2.0","id":9,"result":{"content":[{"type":"text","text":"id,name\n1,alice\n2,\"Doe, John\""}]}}
+      {"jsonrpc":"2.0","id":10,"error":{"code":-32602,"message":"invalid arguments: format must be \"auto\", \"json\", \"sup\", \"csv\", \"tsv\", \"line\", or \"zeek\""}}
+      {author:"tester",message:"from mcp"}
+      === tables
+      {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"{\n  \"table\": \"typed\",\n  \"id\": \"ID\",\n  \"created\": true\n}"}]}}
+      {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\n  \"name\": \"typed\",\n  \"id\": \"ID\",\n  \"type\": \"{ts:timestamp,n:int64}\",\n  \"declared\": true\n}"}]}}
+      {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"typed: table already exists"}],"isError":true}}
+      {"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"{\n  \"table\": \"typed\",\n  \"id\": \"ID\"\n}"}]}}
+      {"jsonrpc":"2.0","id":5,"error":{"code":-32602,"message":"invalid arguments: type \"{a:nosuch\": EOF"}}
+      {"jsonrpc":"2.0","id":6,"error":{"code":-32602,"message":"invalid arguments: table is required"}}
+      {"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"{\n  \"table\": \"typed\",\n  \"id\": \"ID\",\n  \"dropped\": true\n}"}]}}
+      {"jsonrpc":"2.0","id":8,"result":{"content":[{"type":"text","text":"typed: table not found"}],"isError":true}}
+      {"jsonrpc":"2.0","id":9,"result":{"content":[{"type":"text","text":"{\n  \"table\": \"typed\"\n}"}]}}
+      {"jsonrpc":"2.0","id":10,"result":{"content":[{"type":"text","text":"[\n  {\n    \"name\": \"logs\",\n    \"id\": \"ID\"\n  },\n  {\n    \"name\": \"mixed\",\n    \"id\": \"ID\"\n  },\n  {\n    \"name\": \"people\",\n    \"id\": \"ID\"\n  }\n]"}]}}
+      {"jsonrpc":"2.0","id":11,"result":{"content":[{"type":"text","text":"{\n  \"status\": \"ok\",\n  \"version\": \"VERSION\",\n  \"read_only\": false,\n  \"tables\": 3\n}"}]}}

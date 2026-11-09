@@ -1,0 +1,46 @@
+# With -mcp.readonly, the /mcp endpoint is read-only (and so has no load,
+# create_table, or drop_table tool)
+# while the service's API isn't.  An origin allowed by -cors.origin may reach
+# /mcp but others may not.
+script: |
+  DB_EXTRA_FLAGS='-mcp.readonly -cors.origin=http://ok.example' source service.sh
+  super db create -q t
+  echo '{a:1}' | super db load -q -use t -
+  post() {
+    curl -s -w '[%{http_code}]\n' -H 'Content-Type: application/json' "$@" $DB_URL/mcp
+  }
+  echo === tools
+  post -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | grep -o '"name":"[a-z_]*"'
+  echo === insert
+  post -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"query","arguments":{"query":"insert into t values {a:2}"}}}'
+  echo === allowed origin
+  post -H 'Origin: http://ok.example' -d '{"jsonrpc":"2.0","id":3,"method":"ping"}'
+  echo === other origin
+  post -H 'Origin: http://other.example' -d '{"jsonrpc":"2.0","id":4,"method":"ping"}'
+  echo === API load
+  echo '{a:3}' | super db load -q -use t -
+  super db -s -c 'from t | sort a'
+
+inputs:
+  - name: service.sh
+
+outputs:
+  - name: stdout
+    data: |
+      === tools
+      "name":"query"
+      "name":"list_tables"
+      "name":"describe_table"
+      "name":"health"
+      === insert
+      {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"the server is read-only but the query modifies the database (INSERT INTO)"}],"isError":true}}
+      [200]
+      === allowed origin
+      {"jsonrpc":"2.0","id":3,"result":{}}
+      [200]
+      === other origin
+      origin not allowed
+      [403]
+      === API load
+      {a:1}
+      {a:3}

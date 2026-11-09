@@ -36,18 +36,7 @@ type Request struct {
 }
 
 func newRequest(w http.ResponseWriter, r *http.Request, c *Core) (*ResponseWriter, *Request, bool) {
-	req := &Request{Request: r}
-	req.Logger = c.logger.With(zap.String("request_id", req.ID()))
-	sctx := super.NewContext()
-	m := super.NewMarshaler(sctx)
-	m.Decorate(super.StylePackage)
-	res := &ResponseWriter{
-		ResponseWriter: w,
-		Logger:         req.Logger,
-		sctx:           sctx,
-		marshaler:      m,
-		request:        req,
-	}
+	res, req := newRequestNoAccept(w, r, c)
 	ss := strings.Split(r.Header.Get("Accept"), ",")
 	if len(ss) == 0 {
 		ss = []string{""}
@@ -62,6 +51,23 @@ func newRequest(w http.ResponseWriter, r *http.Request, c *Core) (*ResponseWrite
 	}
 	res.Error(srverr.ErrInvalid("could not find supported MIME type in Accept header"))
 	return nil, nil, false
+}
+
+// newRequestNoAccept is like newRequest but ignores the Accept header.
+func newRequestNoAccept(w http.ResponseWriter, r *http.Request, c *Core) (*ResponseWriter, *Request) {
+	req := &Request{Request: r}
+	req.Logger = c.logger.With(zap.String("request_id", req.ID()))
+	sctx := super.NewContext()
+	m := super.NewMarshaler(sctx)
+	m.Decorate(super.StylePackage)
+	res := &ResponseWriter{
+		ResponseWriter: w,
+		Logger:         req.Logger,
+		sctx:           sctx,
+		marshaler:      m,
+		request:        req,
+	}
+	return res, req
 }
 
 func (r *Request) openTable(w *ResponseWriter, root *db.Root) (*db.Table, bool) {

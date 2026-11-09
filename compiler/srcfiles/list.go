@@ -11,7 +11,10 @@ type Input interface {
 	Load() (string, error)
 }
 
+// PlainInput is source text.  Name, if not empty, names its source (e.g.,
+// a file that was read by the caller) in error messages.
 type PlainInput struct {
+	Name string
 	Text string
 }
 
@@ -63,6 +66,7 @@ func Concat(inputs []Input) (*List, error) {
 		var bytes []byte
 		switch input := input.(type) {
 		case *PlainInput:
+			name = input.Name
 			bytes = []byte(input.Text)
 		case *FileInput:
 			name = input.Name
@@ -87,5 +91,5 @@ func Concat(inputs []Input) (*List, error) {
 }
 
 func Plain(src string) []Input {
-	return []Input{&PlainInput{src}}
+	return []Input{&PlainInput{Text: src}}
 }
