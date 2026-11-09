@@ -1,0 +1,93 @@
+# A filter (including a SQL WHERE clause) narrows the type of its input for
+# the operators downstream of it and for the right-hand side of an "and", an
+# aggregate function's filter narrows the type of its argument's input, and a
+# case of a switch or a case or conditional expression narrows the type of its
+# input (see checker.narrow).
+script: |
+  echo === is_ok
+  super -s -c 'values {a:1},{b:2},{a:error("x")} | where is_ok(a) | aggregate by a'
+  ! super -s -c 'values {a:1},{b:2} | aggregate by a' 2> /dev/null
+  echo === kind
+  super -s -c 'values {a:1},1,"x" | where kind(this)=="record" | values a'
+  super -s -c 'values {a:1},1,"x" | where kind(this)=="record" and a > 0 | values a'
+  ! super -s -c 'values {a:1},1,"x" | values a' 2> /dev/null
+  echo === is
+  super -s -c 'values {a:1},{a:"x"} | where is(a, <int64>) | values a+1'
+  super -s -c 'values {x:{a:cast(1,<int64|string>)}},{x:error("bad")} | where is(x.a, <int64|string>) | values x.a'
+  super -s -c 'values {x:1},{y:1},{x:2,y:3} | where is(this, <{x:int64}>) | values x+1'
+  echo === typeof
+  super -s -c 'values {x:1},{y:1},{x:"s"} | where typeof(this)==<{x:int64}> | values x+1'
+  super -s -c 'values {x:1},{y:1},{x:"s"} | where <{y:int64}>==typeof(this) | values y+1'
+  super -s -c 'values {x:1},{y:1},{x:"s"} | where typeof(x)==<string> | values upper(x)'
+  echo === is_error
+  super -s -c 'values {a:1},{b:2} | where is_error(a) | values a'
+  super -s -c 'values {a:1},{b:2} | where not is_error(a) | values a+1'
+  echo === null
+  super -s -c 'values {a:{x:1}},{a:null} | where a is not null | values a.x'
+  super -s -c 'values {a:{x:1}},{a:null} | where a == {x:1} | values a.x'
+  super -s -c 'values {a:{x:1}},{a:null} | where a in [{x:1}] | values a.x'
+  ! super -s -c 'values {a:{x:1}},{a:null} | values a == {x:1} and a.x == 1' 2> /dev/null
+  echo === or
+  super -s -c 'values {a:1},{a:error("x")},{b:2} | where is_ok(a) or is_error(a) | values a'
+  ! super -s -c 'values {a:1},1 | where kind(this)=="record" or this==1 | values a' 2> /dev/null
+  echo === agg
+  super -s -c 'values {a:1},{b:2},{a:3} | sum(a) filter (where is_ok(a))'
+  echo === sql
+  super -s -c "select a.x from 'test.sup' where kind(a)=='record'"
+  echo === case
+  super -s -c 'values {a:1},1,"x" | values case kind(this) when "record" then a else 0 end'
+  super -s -c 'values {a:1},1,"x" | values kind(this)=="record" ? a : 0'
+  super -s -c 'values {a:1},1,"x" | switch kind(this) case "record" (values a) default (values 0) | sort this'
+  super -s -c 'values {a:1},1,"x" | switch case kind(this)=="record" (values a) default (values 0) | sort this'
+  ! super -s -c 'values {a:{x:1}},{a:null} | switch a case null (values a.x) default (values 0)' 2> /dev/null
+
+inputs:
+  - name: test.sup
+    data: |
+      {a:{x:1}}
+      {a:1}
+
+outputs:
+  - name: stdout
+    data: |
+      === is_ok
+      1
+      === kind
+      1
+      1
+      === is
+      2
+      1::(int64|string)
+      2
+      === typeof
+      2
+      2
+      "S"
+      === is_error
+      error("no such field a")
+      2
+      === null
+      1
+      1
+      1
+      === or
+      1
+      error("x")
+      error("no such field a")
+      === agg
+      4
+      === sql
+      {x:1}
+      === case
+      1
+      0
+      0
+      1
+      0
+      0
+      0
+      0
+      1
+      0
+      0
+      1
