@@ -1,0 +1,71 @@
+# A null case result doesn't match, alongside values that do.
+spq: |
+  switch
+    case this==1 ( values {val:this,word:"one"} )
+    case this==2 ( values {val:this,word:"two"} )
+    default ( values {val:this,word:"other"} )
+  | sort val
+
+input: |
+  1
+  null
+  2
+
+output: |
+  {val:1,word:"one"}
+  {val:2,word:"two"}
+  {val:null,word:"other"}
+
+---
+
+# A null case result doesn't match when every value is null.
+spq: |
+  switch
+    case this==1 ( values {val:this,word:"one"} )
+    default ( values {val:this,word:"other"} )
+
+input: |
+  null
+  null
+
+output: |
+  {val:null,word:"other"}
+  {val:null,word:"other"}
+
+---
+
+# A null in a union doesn't match.
+spq: |
+  switch
+    case this==1 ( values {val:this,word:"one"} )
+    default ( values {val:this,word:"other"} )
+  | sort val
+
+input: |
+  1::(int64|null)
+  null::(int64|null)
+
+output: |
+  {val:1::(int64|null),word:"one"}
+  {val:null::(int64|null),word:"other"}
+
+---
+
+# A case result that isn't Boolean doesn't match.
+spq: |
+  switch
+    case this ( values {hit:this} )
+    default ( values {miss:this} )
+  | sort this
+
+input: |
+  "a"
+  true
+  7
+  false
+
+output: |
+  {hit:true}
+  {miss:7}
+  {miss:false}
+  {miss:"a"}

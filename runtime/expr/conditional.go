@@ -73,35 +73,36 @@ func (c *conditional) eval(vecs ...vector.Any) vector.Any {
 	return vector.Combine(thenVec, elseIndex, elseVec)
 }
 
+// BoolMask returns the slots of mask that are true and the slots that are errors.
 func BoolMask(mask vector.Any) (*roaring.Bitmap, *roaring.Bitmap) {
 	mask = vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, func(vecs ...vector.Any) vector.Any {
 		return vecs[0]
 	}, mask)
 	bools := roaring.New()
-	other := roaring.New()
+	errs := roaring.New()
 	if dynamic, ok := mask.(*vector.Dynamic); ok {
 		reverse := dynamic.ReverseTagMap()
 		for i, val := range dynamic.Values {
-			boolMaskRidx(reverse[i], bools, other, val)
+			boolMaskRidx(reverse[i], bools, errs, val)
 		}
 	} else {
-		boolMaskRidx(nil, bools, other, mask)
+		boolMaskRidx(nil, bools, errs, mask)
 	}
-	return bools, other
+	return bools, errs
 }
 
-func boolMaskRidx(ridx []uint32, bools, other *roaring.Bitmap, vec vector.Any) {
+func boolMaskRidx(ridx []uint32, bools, errs *roaring.Bitmap, vec vector.Any) {
+	if vec.Kind() == vector.KindError {
+		if ridx != nil {
+			errs.AddMany(ridx)
+		} else {
+			errs.AddRange(0, uint64(vec.Len()))
+		}
+		return
+	}
 	switch vec := vec.(type) {
 	case *vector.Const:
-		if vec.Type().ID() != super.IDBool {
-			if ridx != nil {
-				other.AddMany(ridx)
-			} else {
-				other.AddRange(0, uint64(vec.Len()))
-			}
-			return
-		}
-		if !vector.BoolValue(vec, 0) {
+		if vec.Type().ID() != super.IDBool || !vector.BoolValue(vec, 0) {
 			return
 		}
 		if ridx != nil {
@@ -119,12 +120,6 @@ func boolMaskRidx(ridx []uint32, bools, other *roaring.Bitmap, vec vector.Any) {
 			}
 		} else {
 			bools.Or(roaring.FromDense(trues.GetBits(), true))
-		}
-	default:
-		if ridx != nil {
-			other.AddMany(ridx)
-		} else {
-			other.AddRange(0, uint64(vec.Len()))
 		}
 	}
 }

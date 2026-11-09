@@ -33,15 +33,6 @@ func (s *Switch) forward(vec vector.Any) bool {
 		boolMap.AndNot(doneMap)
 		errMap.AndNot(doneMap)
 		doneMap.Or(boolMap)
-		if !errMap.IsEmpty() {
-			// Clone because iteration results are undefined if the bitmap is modified.
-			for it := errMap.Clone().Iterator(); it.HasNext(); {
-				i := it.Next()
-				if isMissing(maskVec, i) {
-					errMap.Remove(i)
-				}
-			}
-		}
 		var vec2 vector.Any
 		if errMap.IsEmpty() {
 			if boolMap.IsEmpty() {
@@ -54,33 +45,29 @@ func (s *Switch) forward(vec vector.Any) bool {
 			valIndex := boolMap.ToArray()
 			errIndex := errMap.ToArray()
 			tags := make([]uint32, 0, len(valIndex)+len(errIndex))
-			for len(valIndex) > 0 && len(errIndex) > 0 {
-				if valIndex[0] < errIndex[0] {
-					valIndex = valIndex[1:]
+			var j, k int
+			for j < len(valIndex) && k < len(errIndex) {
+				if valIndex[j] < errIndex[k] {
+					j++
 					tags = append(tags, 0)
 				} else {
-					errIndex = errIndex[1:]
+					k++
 					tags = append(tags, 1)
 				}
 			}
-			tags = append(tags, valIndex...)
-			tags = append(tags, errIndex...)
+			for ; j < len(valIndex); j++ {
+				tags = append(tags, 0)
+			}
+			for ; k < len(errIndex); k++ {
+				tags = append(tags, 1)
+			}
 			valVec := vector.Pick(vec, valIndex)
 			errVec := vector.Pick(maskVec, errIndex)
-			vec2 = vector.NewDynamic(tags, []vector.Any{valVec, errVec})
+			vec2 = vector.Stitch(vector.NewDynamic(tags, []vector.Any{valVec, errVec}))
 		}
 		if !s.router.routes[i].send(vec2, nil) {
 			return false
 		}
 	}
 	return true
-}
-
-func isMissing(vec vector.Any, i uint32) bool {
-	vec = vector.Under(vec)
-	if dynVec, ok := vec.(*vector.Dynamic); ok {
-		vec = dynVec.Values[dynVec.Tags[i]]
-	}
-	_, ok := vec.(*vector.Missing)
-	return ok
 }
