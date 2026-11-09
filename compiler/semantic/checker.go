@@ -156,7 +156,7 @@ func (c *checker) op(typ super.Type, op sem.Op) super.Type {
 	case *sem.UnnestOp:
 		return c.seq(c.unnest(op.Expr, c.expr(typ, op.Expr), op.Field), op.Body)
 	case *sem.ValuesOp:
-		return c.fuse(c.exprs(typ, op.Exprs))
+		return c.values(c.exprs(typ, op.Exprs))
 	default:
 		panic(op)
 	}
@@ -207,12 +207,30 @@ func (c *checker) unnest(loc ast.Node, typ super.Type, field string) super.Type 
 	if !ok {
 		c.keepErrs(errs)
 	}
+	if typ == nil {
+		// The value is always a plain none, so there are no values.
+		return c.unknown
+	}
 	return typ
+}
+
+// unnestElem returns the type of the values unnested from an array or set
+// with element type typ (or nil if there are none), which are those of typ
+// without plain none since unnest drops plain nones as values does.
+func (c *checker) unnestElem(typ super.Type) super.Type {
+	if out, ok := c.withoutPlainNone(typ); ok {
+		return out
+	}
+	return nil
 }
 
 func (c *checker) unnestCheck(loc ast.Node, typ super.Type) (super.Type, bool) {
 	if isUnknown(typ) {
 		return c.unknown, true
+	}
+	if typ == super.TypeNone {
+		// A plain none produces no values.
+		return nil, true
 	}
 	switch typ := under(typ).(type) {
 	case *super.TypeError:
@@ -224,7 +242,9 @@ func (c *checker) unnestCheck(loc ast.Node, typ super.Type) (super.Type, bool) {
 		for _, t := range typ.Types {
 			typ, tok := c.unnestCheck(loc, t)
 			if tok {
-				types = append(types, typ)
+				if typ != nil {
+					types = append(types, typ)
+				}
 				ok = true
 			}
 		}
@@ -232,9 +252,11 @@ func (c *checker) unnestCheck(loc ast.Node, typ super.Type) (super.Type, bool) {
 	case *super.TypeOption:
 		return c.unnestCheck(loc, typ.Type)
 	case *super.TypeArray:
-		return typ.Type, true
+		return c.unnestElem(typ.Type), true
+	case *super.TypeSet:
+		return c.unnestElem(typ.Type), true
 	default:
-		c.error(loc, errors.New("unnest value must be an array"))
+		c.error(loc, errors.New("unnest value must be an array or set"))
 		return c.unknown, false
 	}
 }
@@ -252,6 +274,9 @@ func (c *checker) unnestField(loc ast.Node, typ super.Type, field string) (super
 		return c.unknown, true
 	}
 	elemType, ok := c.unnestCheck(loc, rec.Fields[k].Type)
+	if elemType == nil {
+		return nil, ok
+	}
 	fields := slices.Clone(rec.Fields)
 	fields[k].Type = elemType
 	out, err := c.t.sctx.LookupTypeRecord(fields)
@@ -441,11 +466,7 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 		c.sliceable(e.Expr, container)
 		return container
 	case *sem.SubqueryExpr:
-		typ = c.seq(typ, e.Body)
-		if e.Array {
-			typ = c.t.sctx.LookupTypeArray(typ)
-		}
-		return typ
+		return c.subquery(e, c.seq(typ, e.Body))
 	case *sem.ThisExpr:
 		return c.this(e.Node, e, typ)
 	case *sem.TypeExpr:
@@ -465,6 +486,22 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 	default:
 		panic(e)
 	}
+}
+
+// subquery returns the type of subquery e whose body's output has type typ.
+// A pipe subquery whose body may produce no values is none (see mayBeEmpty).
+// (A SQL subquery is null.)
+func (c *checker) subquery(e *sem.SubqueryExpr, typ super.Type) super.Type {
+	if e.Array {
+		return c.t.sctx.LookupTypeArray(typ)
+	}
+	if e.SQL || !mayBeEmpty(e) {
+		return typ
+	}
+	if typ == nil {
+		return super.TypeNone
+	}
+	return c.orNone(typ)
 }
 
 func (c *checker) ok(typ super.Type, call *sem.CallExpr) super.Type {
@@ -540,8 +577,10 @@ func isMissingType(typ super.Type) bool {
 	return under(typ) == super.TypeMissing
 }
 
+// isNoneType reports whether typ is the type of a plain none, which
+// disappears from a record or array.  A none of a named type is a value.
 func isNoneType(typ super.Type) bool {
-	return under(typ) == super.TypeNone
+	return defuse(typ) == super.TypeNone
 }
 
 // isNoneishType reports whether typ is a type whose values ?? replaces with
@@ -813,6 +852,8 @@ func (c *checker) formRecordElems(elems []sem.RecordElem, types []super.Type) su
 				}
 				continue
 			}
+			// A field whose value may be none may be absent.
+			typ = c.noneAsMissing(typ)
 			if k, ok := order[elem.Name]; ok {
 				// As in the runtime, a field of the same name as an earlier
 				// field (e.g., from a spread) replaces it in place.
@@ -826,6 +867,34 @@ func (c *checker) formRecordElems(elems []sem.RecordElem, types []super.Type) su
 		}
 	}
 	return c.t.sctx.MustLookupTypeRecord(fields)
+}
+
+// noneAsMissing returns typ with plain none replaced by missing if typ is a
+// union (or the fusion of a union) with plain none as a member, i.e., the type
+// of a field whose value may be none, which disappears from a record, so the
+// field may be missing.  A named type is a value and is returned as is.
+func (c *checker) noneAsMissing(typ super.Type) super.Type {
+	if typ == nil || hasUnknown(typ) {
+		return typ
+	}
+	u, ok := defuse(typ).(*super.TypeUnion)
+	if !ok || !slices.Contains(u.Types, super.Type(super.TypeNone)) {
+		return typ
+	}
+	var types []super.Type
+	for _, t := range u.Types {
+		if t == super.TypeNone {
+			t = super.TypeMissing
+		}
+		types = append(types, t)
+	}
+	out := c.unionOf(super.Flatten(types))
+	if _, isFusion := typ.(*super.TypeFusion); isFusion {
+		if _, isUnion := out.(*super.TypeUnion); isUnion {
+			return c.t.sctx.MustLookupTypeFusion(out)
+		}
+	}
+	return out
 }
 
 // unionOf returns the single type in types or else the union of types.
@@ -1015,7 +1084,13 @@ func (c *checker) putPaths(inType super.Type, puts []pathType) super.Type {
 		return c.unknown
 	}
 	for _, put := range puts {
-		typ := c.putInto(recType, put.elems, put.typ)
+		// A field whose value is a plain none disappears from the record
+		// (e.g., an aggregate's group key), so it may be missing.
+		leaf := c.noneAsMissing(put.typ)
+		if isNoneType(leaf) {
+			leaf = super.TypeMissing
+		}
+		typ := c.putInto(recType, put.elems, leaf)
 		var ok bool
 		recType, ok = typ.(*super.TypeRecord)
 		if !ok {
@@ -1739,23 +1814,44 @@ func (c *checker) result(loc ast.Node, typ super.Type) {
 	}
 }
 
-// output reports an error at loc if typ, the type of an output value, may
-// be a plain none.  (An option none or a none of a named type is a value
-// and is allowed.)
-func (c *checker) output(loc ast.Node, typ super.Type) {
-	typ = defuse(typ)
-	if typ != nil && !hasUnknown(typ) && hasPlainNone(typ) {
-		c.error(loc, errNone)
+// values returns the type of the output of a values operator whose
+// expressions have types.  The operator drops plain nones, so none is removed
+// from each type and an expression that's always a plain none produces no
+// values.  (An option none or a none of a named type is a value and is kept.)
+func (c *checker) values(types []super.Type) super.Type {
+	var out []super.Type
+	for _, typ := range types {
+		if typ, ok := c.withoutPlainNone(typ); ok {
+			out = append(out, typ)
+		}
 	}
+	return c.fuse(out)
 }
 
-// hasPlainNone reports whether typ is none or a union with none as one of
-// its types.  Unlike hasNone, a named type whose type is none isn't none.
-func hasPlainNone(typ super.Type) bool {
-	if u, ok := typ.(*super.TypeUnion); ok {
-		return slices.ContainsFunc(u.Types, hasPlainNone)
+// withoutPlainNone returns typ with plain none removed from it (from its
+// members if it's a union).  It returns false if nothing is left.
+func (c *checker) withoutPlainNone(typ super.Type) (super.Type, bool) {
+	if typ == nil || hasUnknown(typ) {
+		return typ, true
 	}
-	return typ == super.TypeNone
+	if _, ok := defuse(typ).(*super.TypeNamed); ok {
+		// A none of a named type (including a named union) is a value.
+		return typ, true
+	}
+	fusion, isFusion := typ.(*super.TypeFusion)
+	out, ok := c.withoutTypes(defuse(typ), func(typ super.Type) bool {
+		return typ == super.TypeNone
+	})
+	if !ok {
+		return nil, false
+	}
+	if isFusion && out != fusion.Type {
+		if _, isUnion := out.(*super.TypeUnion); isUnion {
+			// The values are still those of a fusion.
+			return c.t.sctx.MustLookupTypeFusion(out), true
+		}
+	}
+	return out, true
 }
 
 // notMissing reports an error at loc if typ may be missing.

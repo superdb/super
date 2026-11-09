@@ -73,7 +73,7 @@ input: |
   {x:"foo",y:[1,2]}
 
 error: |
-  unnest value must be an array at line 1, column 8:
+  unnest value must be an array or set at line 1, column 8:
   unnest this
          ~~~~
 
@@ -92,7 +92,7 @@ output: |
 
 ---
 
-# A plain none to unnest is an error as for an unnamed unnest.
+# A plain none to unnest produces no values as for an unnamed unnest.
 spq: unnest x:=o?.a with s
 
 flags: -dynamic
@@ -102,5 +102,74 @@ input: |
   {o:some({a:[5]}),s:2}
 
 output: |
-  error({message:"unnest: encountered non-array value",on:none})
   {x:5,s:2}
+
+---
+
+# A plain none to unnest (e.g., from ok()) produces no values.
+spq: unnest ok(a)
+
+input: |
+  {a:[1,2]}
+  {b:3}
+  {a:[4]}
+
+output: |
+  1
+  2
+  4
+
+---
+
+# Statically, a plain none to unnest isn't an error.
+spq: values {a:[1,2]},{b:3} | unnest ok(a) | values typeof(this)
+
+output: |
+  <int64>
+  <int64>
+
+---
+
+# A plain none element or a null or plain none array produces no values,
+# including for an unnest with a with clause.
+spq: |
+  values [1::(int64|none), none::(int64|none)], none::([int64]|none)
+  | unnest this
+  | values typeof(this)
+
+output: |
+  <int64>
+
+---
+
+spq: |
+  values
+    {x:null::([int64]|null),y:1},
+    {x:[1,2]::([int64]|null),y:2},
+    {x:none::([int64]|none),y:3},
+    {x:[3]::([int64]|none),y:4}
+  | unnest x with y
+  | values this
+
+output: |
+  {x:1,y:2}
+  {x:2,y:2}
+  {x:3,y:4}
+
+---
+
+# The type of an unnested value excludes plain none, which is dropped.
+spq: |
+  values [1::(int64|none), none::(int64|none)] | unnest this | values this+1
+
+output: |
+  2
+
+---
+
+spq: |
+  values {s:set[1,2],y:3} | unnest s with y | values this
+
+output: |
+  {s:1,y:3}
+  {s:2,y:3}

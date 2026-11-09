@@ -1,0 +1,89 @@
+spq: values has(this,"a")
+
+input: |
+  {a:1}
+  {b:1}
+  {a:null}
+  {a:error("x")}
+  {a?:none::int64}
+  1
+  null
+  error("x")
+
+output: |
+  true
+  false
+  true
+  true
+  true
+  false
+  false
+  false
+
+---
+
+# A named type or union is tested by its underlying record type.
+spq: |
+  type r={a:int64}
+  values {a:1}::r, cast({a:1},<{a:int64}|int64>), cast(1,<{a:int64}|int64>)
+  | values has(this,"a")
+
+output: |
+  true
+  true
+  false
+
+---
+
+spq: values has(this,f)
+
+input: |
+  {a:1,f:"a"}
+  {a:1,f:"b"}
+  {a:1,f:1}
+  {a:1,f:error("x")}
+
+output: |
+  true
+  false
+  error({message:"has: field name must be a string",on:1})
+  error("x")
+
+---
+
+# A type value is tested by its record type.
+spq: |
+  type r={a:int64}
+  values <{a:int64}>, <{b:int64}>, <r>, <int64>
+  | values has(this,"a"), has(this,1)
+
+output: |
+  true
+  false
+  false
+  false
+  true
+  false
+  false
+  false
+
+---
+
+# A map is tested for a key of any type.
+spq: values has(this,"a"), has(this,1)
+
+input: |
+  map{"a":1,"b":2}
+  map{"b":2}
+  map{1:"x"}
+  map{1::(int64|string):"x","a"::(int64|string):"y"}
+
+output: |
+  true
+  false
+  false
+  false
+  false
+  true
+  true
+  true

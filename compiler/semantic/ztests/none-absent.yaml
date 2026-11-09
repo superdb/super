@@ -1,0 +1,39 @@
+# Since plain nones are dropped, the type checker must still catch a none that
+# can reach an expression that doesn't handle it:
+#   - a pipe subquery that may produce no values is none,
+#   - a record field or aggregate key whose value may be none may be absent,
+#   - and a none of a named type is a value that's kept.
+script: |
+  echo === subquery
+  ! super -s -c 'values {a:1},{b:1} | values {c:(values a.ok())} | values c+1' 2> /dev/null
+  ! super -s -c 'values 1 | values (values 2 | where false) + 1' 2> /dev/null
+  super -s -c 'values 1 | values (values 2) + 1, (values this | sum(this)) + 1, (values [this][0]) + 1'
+  super -s -c 'values 1 | values ((values 2 | where false) ?? 0) + 1'
+  echo === absent
+  ! super -s -c 'values {a:1},{b:2} | count() by k:=a.ok() | values k' 2> /dev/null
+  super -s -c 'values {a:1},{b:2} | count() by k:=a.ok() | values ok(k) ?? 0 | sort this'
+  ! super -s -c 'values {a:1},{b:2} | values {k:a.ok()} | values k' 2> /dev/null
+  super -s -c 'values {a:1},{b:2} | values {k:a.ok()} | values ok(k)'
+  echo === named
+  ! super -s -c 'type u=int64|none values {a:1},{b:2} | values ok(a)::u | values this+1' 2> /dev/null
+  super -s -c 'type u=int64|none values {a:1},{b:2} | values ok(a)::u'
+  super -s -c 'type n=none values {a:none::n,b:1} | values a'
+
+outputs:
+  - name: stdout
+    data: |
+      === subquery
+      3
+      2
+      2
+      1
+      === absent
+      0
+      1
+      1
+      === named
+      type u=int64|none
+      1::u
+      none::u
+      type n=none
+      none::n

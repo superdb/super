@@ -19,6 +19,9 @@ results in the value `{s:"HELLO, WORLD"}`.
 Except for subqueries appearing as the right-hand side of
 an [in](containment.md) operator, the result of a subquery must be a single value.
 When multiple values are generated, an [error](../types/error.md) is produced.
+When no values are generated, the result is `none`, which disappears from a
+record, array, or map and is dropped from the output of the
+[values](../operators/values.md) operator, or, in a SQL expression, `null`.
 
 For the [in](containment.md) operator, any subquery on the right-hand side is
 always treated as an [array subquery](#array-subqueries), thus
@@ -277,4 +280,21 @@ values walk(this, &addOne)
 2
 [2,3,4]
 [{x:[2,"foo"]},{y:3}]
+```
+
+---
+
+_A subquery that produces no values is none_
+
+```mdtest-spq
+# spq
+values {s:(unnest a | where this > 1)}, (unnest a | where this > 1) ?? 0
+# input
+{a:[1,2]}
+{a:[1]}
+# expected output
+{s:2}
+2
+{}
+0
 ```

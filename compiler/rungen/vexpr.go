@@ -313,11 +313,11 @@ func (b *Builder) compileVamSubquery(query *dag.SubqueryExpr) (expr.Evaluator, e
 			return nil, err
 		}
 		body := b.combineVam(exits)
-		return op.NewCachedSubquery(b.sctx(), body), nil
+		return op.NewCachedSubquery(b.sctx(), body, query.SQL), nil
 	}
 	var create func() *op.Subquery
 	create = func() *op.Subquery {
-		subquery := op.NewSubquery(b.rctx.Context, b.sctx(), func() *op.Subquery {
+		subquery := op.NewSubquery(b.rctx.Context, b.sctx(), query.SQL, func() *op.Subquery {
 			b.mu.Lock()
 			defer b.mu.Unlock()
 			return create()

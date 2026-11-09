@@ -56,7 +56,8 @@ func (d *Debug) Pull(done bool) (vector.Any, error) {
 	if d.filter != nil {
 		filtered, _ = applyMask(val, d.filter.Eval(filtered))
 	}
-	if e := d.expr.Eval(filtered); e.Len() != 0 {
+	// A plain none is dropped, as for the values operator.
+	if e := dropPlainNones(d.expr.Eval(filtered)); e != nil && e.Len() != 0 {
 		select {
 		case local <- e:
 		case <-d.ctx.Done():

@@ -373,7 +373,7 @@ func NewFilterOp(e Expr) *FilterOp {
 }
 
 func NewValuesOp(exprs ...Expr) *ValuesOp {
-	return &ValuesOp{"ValuesOp", exprs}
+	return &ValuesOp{Kind: "ValuesOp", Exprs: exprs}
 }
 
 func CopySeq(seq Seq) Seq {

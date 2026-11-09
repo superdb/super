@@ -137,6 +137,7 @@
             - [regexp_replace](super-sql/functions/parsing/regexp_replace.md)
         - [Records](super-sql/functions/records/intro.md)
             - [flatten](super-sql/functions/records/flatten.md)
+            - [has](super-sql/functions/records/has.md)
             - [keys](super-sql/functions/records/keys.md)
             - [nest_dotted](super-sql/functions/records/nest_dotted.md)
             - [paths](super-sql/functions/records/paths.md)

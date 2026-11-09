@@ -1,0 +1,11 @@
+# A plain none debug value is dropped, as for the values operator.
+script: |
+  super -s -c 'values {a:1},{b:2} | debug ok(a) | count()'
+
+outputs:
+  - name: stdout
+    data: |
+      2
+  - name: stderr
+    data: |
+      1
