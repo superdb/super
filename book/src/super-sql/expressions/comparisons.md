@@ -103,11 +103,9 @@ values {isNull:this is null,isNotNull:this is not null}
 1
 null
 2
-missing
 # expected output
 {isNull:false,isNotNull:true}
 {isNull:true,isNotNull:false}
-{isNull:false,isNotNull:true}
 {isNull:false,isNotNull:true}
 ```
 

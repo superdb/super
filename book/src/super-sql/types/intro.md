@@ -8,6 +8,7 @@ comprising
 [sum types](union.md),
 [named types](named.md),
 the [null type](null.md),
+the [none and missing types](none.md),
 and first-class
 [errors](error.md) and [types](type.md).
 
