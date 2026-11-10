@@ -76,20 +76,16 @@ Since the object's name is globally unique and the
 resulting object is immutable, there is no possible write concurrency to manage
 with respect to a given object.
 
-A data object is composed of the primary data object stored as one or two objects
-(for sequence and/or vector layout).
-
-Data objects may be either in sequence form (i.e., BSUP) or vector form (i.e., CSUP),
-or both forms may be present as a query optimizer may choose to use whatever
-representation is more efficient.
-When both sequence and vector data objects are present, they must contain the same
-underlying Super data.
+A data object is stored as a single [BSUP](../formats/bsup.md) object,
+whose column frames hold the data in vector form and whose
+[zone maps](../formats/bsup.md#86-zone-maps) allow a query to skip frames
+that can't contain matching values.
 
 Immutable objects are named as follows:
 
 |object type|name|
 |-----------|----|
-|sequence data|`<table-id>/data/<id>.bsup`|
+|data|`<table-id>/data/<id>.bsup`|
 
 `<id>` is the KSUID of the data object.
 

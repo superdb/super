@@ -23,7 +23,7 @@ interacts with the database via the REST API provided by
 >
 > The full benefits of super-structured data (including improved performance)
 > are expected when there is a native Python library implementation of
-> [CSUP](../../formats/csup.md).  Stay tuned.
+> [BSUP](../../formats/bsup.md).  Stay tuned.
 
 ## Installation
 
@@ -185,17 +185,16 @@ by inspecting the beginning of the uploaded stream. This works for most formats:
 | Zeek | `application/x-zeek` |
 | Arrow IPC stream | `application/vnd.apache.arrow.stream` |
 
-Three formats cannot be auto-detected over the API and **require an explicit
+Two formats cannot be auto-detected over the API and **require an explicit
 `mime_type`**:
 
 | Format | MIME type | Reason |
 |---|---|---|
-| CSUP | `application/x-csup` | Detection requires seekable input |
 | Parquet | `application/x-parquet` | Detection requires seekable input |
 | Line | `application/x-line` | Auto-detection not supported |
 
-CSUP and Parquet store identifying metadata outside the stream header (Parquet's
-footer is at the end of the file), so the server cannot detect them from an HTTP
+Parquet stores identifying metadata outside the stream header (its
+footer is at the end of the file), so the server cannot detect it from an HTTP
 request body. Line format is plain text with no identifying structure and is
 intentionally excluded from auto-detection.
 

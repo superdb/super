@@ -5,7 +5,7 @@
 Super (SUP) is the human-readable, text-based serialization format for
 [super-structured data](model.md).
 
-SUP builds upon the elegant simplicity of JSON with [type decorators](#22-type-decorators)
+SUP builds upon the elegant simplicity of JSON with [type decorators](#22-type-decorators).
 Where the type of a value is not implied by its syntax, a type decorator
 is appended to the value interposed with double colons
 to establish a concrete type for every value expressed in source text.
@@ -18,7 +18,8 @@ SUP values.
 A SUP text is a sequence of UTF-8 characters organized either as a bounded input
 or an unbounded stream.
 
-The input text is organized as a sequence of one or more values optionally
+The input text is organized as a sequence of one or more values and
+[type declarations](#27-type-declarations) optionally
 separated by and interspersed with whitespace.
 Single-line (`//`) and multi-line (`/* ... */`) comments are
 treated as whitespace and ignored.
@@ -34,8 +35,7 @@ A name is either an _identifier_ or a [quoted string](#231-strings).
 Names are referred to as `<name>` below.
 
 An _identifier_ is case-sensitive and can contain Unicode letters, `$`, `_`,
-and digits `[0-9]`, but may not start with a digit.  An identifier cannot be
-`true`, `false`, or `null`.
+and digits `[0-9]`, but may not start with a digit.
 
 ### 2.2 Type Decorators
 
@@ -62,26 +62,17 @@ The syntax of a union value decorator is
 where the rightmost type must be a union type if more than one decorator
 is present.
 
-A decorator may also define a [named type](#258-named-type):
+A decorator of a complex value applies to the values within it, e.g.,
 ```
-<value>::=<name>
+{p:80}::{p:uint16}
 ```
-which declares a new type with the indicated type name using the
-implied type of the value.  Type names may not be numeric, where a
-numeric is a sequence of one or more characters in the set `[0-9]`.
-
-A decorator may also define a temporary numeric reference of the form:
-```
-<value>::=<numeric>
-```
-Once defined, this numeric reference may then be used anywhere a named type
-is used but a named type is not created.
+is the same as `{p:80::uint16}`.  A record decorator matches the fields of
+the record value by name, and a field of the decorator that is
+[optional](#249-option-value) and absent from the record value is none,
+e.g., `{a:1}::{a:int64,b?:string}` is the same as
+`{a:1,b?:none::string}`.
 
 It is an error for the decorator to be type incompatible with its referenced value.
-
-Note that the `=` sigil here disambiguates between the case that a new
-type is defined, which may override a previous definition of a different type with the
-same name, from the case that an existing named type is merely decorating the value.
 
 ### 2.3 Primitive Values
 
@@ -94,32 +85,29 @@ The type names and format for
 | `uint16`   | decimal string representation of any unsigned, 16-bit integer |
 | `uint32`   | decimal string representation of any unsigned, 32-bit integer |
 | `uint64`   | decimal string representation of any unsigned, 64-bit integer |
-| `uint128`   | decimal string representation of any unsigned, 128-bit integer |
-| `uint256`   | decimal string representation of any unsigned, 256-bit integer |
 | `int8`     | decimal string representation of any signed, 8-bit integer    |
 | `int16`    | decimal string representation of any signed, 16-bit integer   |
 | `int32`    | decimal string representation of any signed, 32-bit integer   |
 | `int64`    | decimal string representation of any signed, 64-bit integer   |
-| `int128`    | decimal string representation of any signed, 128-bit integer   |
-| `int256`    | decimal string representation of any signed, 256-bit integer   |
 | `duration` | a _duration string_ representing signed 64-bit nanoseconds |
-| `time`     | an RFC 3339 UTC date/time string representing signed 64-bit nanoseconds from epoch |
+| `timestamp` | an RFC 3339 date/time string representing signed 64-bit nanoseconds from epoch |
 | `float16`  | a _non-integer string_ representing an IEEE-754 binary16 value |
 | `float32`  | a _non-integer string_ representing an IEEE-754 binary32 value |
 | `float64`  | a _non-integer string_ representing an IEEE-754 binary64 value |
-| `float128`  | a _non-integer string_ representing an IEEE-754 binary128 value |
-| `float256`  | a _non-integer string_ representing an IEEE-754 binary256 value |
-| `decimal32`  | a _non-integer string_ representing an IEEE-754 decimal32 value |
-| `decimal64`  | a _non-integer string_ representing an IEEE-754 decimal64 value |
-| `decimal128`  | a _non-integer string_ representing an IEEE-754 decimal128 value |
-| `decimal256`  | a _non-integer string_ representing an IEEE-754 decimal256 value |
 | `bool`     | the string `true` or `false` |
 | `bytes`    | a sequence of bytes encoded as a hexadecimal string prefixed with `0x` |
 | `string`   | a double-quoted UTF-8 string |
 | `ip`       | a string representing an IP address in [IPv4 or IPv6 format](https://tools.ietf.org/html/draft-main-ipaddr-text-rep-02#section-3) |
 | `net`      | a string in CIDR notation representing an IP address and prefix length as defined in RFC 4632 and RFC 4291. |
-| `type`     | a string in canonical form as described in [Section 2.5](#25-types) |
+| `uuid`     | a string of 32 hexadecimal digits in five groups separated by hyphens (8-4-4-4-12) as defined in RFC 9562 |
+| `type`     | a type in canonical form as described in [Section 2.5](#25-types) enclosed in angle brackets |
 | `null`     | the string `null` |
+| `missing`  | the string `missing` |
+| `none`     | the string `none` |
+
+The [reserved primitive types](model.md#1-primitive-types)
+(e.g., `uint128`, `timestamp(3)`, and `date`) have no value format
+as their values are not yet defined.  Their names may appear in types.
 
 The format of a _duration string_
 is an optionally-signed concatenation of decimal numbers,
@@ -149,16 +137,16 @@ also be one of:
 A floating point value may be expressed with an integer string provided
 a type decorator is applied, e.g., `123::float64`.
 
-Decimal values require type decorators.
-
-Of the 30 primitive types, eleven of them represent _implied-type_ values:
-`int64`, `time`, `duration`, `float64`, `bool`, `bytes`, `string`, `ip`, `net`, `type`, and `null`.
+The following primitive types represent _implied-type_ values:
+`int64`, `uint64`, `duration`, `timestamp`, `float64`, `bool`, `bytes`,
+`string`, `ip`, `net`, `uuid`, `type`, `null`, `missing`, and `none`.
 Values for these types are determined by the format of the value and
 thus do not need decorators to clarify the underlying type, e.g.,
 ```
 123::int64
 ```
-is the same as `123`.
+is the same as `123`.  An integer string is implied to be an `int64` unless
+it is too large, in which case it is implied to be a `uint64`.
 
 Values that do not have implied types must include a type decorator to clarify
 its type or appear in a context for which its type is defined (i.e., as a field
@@ -170,7 +158,7 @@ and thus always a primitive type.  A `type` value is encoded as:
 * a type as [encoded below](#25-types), followed by
 * a right angle bracket `>`.
 
-A `time` value corresponds to 64-bit Unix epoch nanoseconds and thus
+A `timestamp` value corresponds to 64-bit Unix epoch nanoseconds and thus
 not all possible RFC 3339 date/time strings are valid.  In addition,
 nanosecond epoch times overflow on April 11, 2262.
 
@@ -203,7 +191,7 @@ is not a valid escape sequence.  The behavior of an implementation
 that encounters such invalid sequences in a `string` type is undefined.
 
 These escaping rules apply also to quoted field names in record values and
-record types as well as enum symbols.
+record types, enum symbols, and type names.
 
 ### 2.4 Complex Values
 
@@ -214,8 +202,10 @@ and conform to the super data model's complex types:
 [set](model.md#23-set),
 [map](model.md#24-map),
 [union](model.md#25-union),
-[enum](model.md#26-enum), and
-[error](model.md#27-error).
+[enum](model.md#26-enum),
+[error](model.md#27-error),
+[option](model.md#29-option), and
+[fusion](model.md#28-fusion).
 
 Complex values have an implied type when their constituent values all have
 implied types.
@@ -231,6 +221,11 @@ any optionally-decorated value inclusive of other records.
 Each name/value pair is called a _field_.
 There may be zero or more fields.
 
+An [optional field](#249-option-value) has the form
+```
+<name> ?: <value>
+```
+
 #### 2.4.2 Array Value
 
 An array value has the form:
@@ -241,27 +236,27 @@ If the elements of the array are not of uniform type, then the implied type of
 the array elements is a union of the types present.
 
 An array value may be empty.  An empty array value without a type decorator is
-presumed to be an empty array of type `null`.
+presumed to be an empty array of type `[none]`.
 
 #### 2.4.3 Set Value
 
 A set value has the form:
 ```
-|[ <value>, <value>, ... ]|
+set[ <value>, <value>, ... ]
 ```
-where the indicated values must be distinct.
+where duplicate values are removed.
 
 If the elements of the set are not of uniform type, then the implied type of
 the set elements is a union of the types present.
 
 A set value may be empty.  An empty set value without a type decorator is
-presumed to be an empty set of type `null`.
+presumed to be an empty set of type `set[none]`.
 
 #### 2.4.4 Map Value
 
 A map value has the form:
 ```
-|{ <key> : <value>, <key> : <value>, ... }|
+map{ <key> : <value>, <key> : <value>, ... }
 ```
 where zero or more comma-separated, key/value pairs are present.
 
@@ -270,7 +265,7 @@ avoid ambiguity, whitespace must separate an IPv6 key from the colon
 that follows it.
 
 An empty map value without a type decorator is
-presumed to be an empty map of type `|{null: null}|`.
+presumed to be an empty map of type `map{none:none}`.
 
 #### 2.4.5 Union Value
 
@@ -296,7 +291,8 @@ contained enum type is defined by the complex type's decorator.
 
 A sequence of enum values might look like this:
 ```
-"HEADS"::(flip=(enum(HEADS,TAILS)))
+type flip=enum(HEADS,TAILS)
+"HEADS"::flip
 "TAILS"::flip
 "HEADS"::flip
 ```
@@ -309,10 +305,56 @@ error(<value>)
 ```
 where `<value>` is any value.
 
+#### 2.4.8 Fusion Value
+
+A fusion value has the form:
+```
+fusion(<value>, <type-value>)
+```
+where `<value>` is a value of the fusion's supertype and `<type-value>`
+is a [type value](#23-primitive-values) of its subtype, e.g.,
+```
+fusion(1::(int64|string), <int64>)
+```
+
+A value of type `fusion(all)` has the form:
+```
+<value>::any
+```
+where the value's subtype is the type of `<value>`.
+
+#### 2.4.9 Option Value
+
+An option value whose value is present has the form:
+```
+some(<value>)
+```
+where `<value>` may not be an option value,
+and an option value whose value is absent has the form:
+```
+none::<type>
+```
+where `<type>` is the type of the option's value or the option type itself,
+e.g., `none::int64` and `none::option(int64)` are the same value.
+A value whose type is not an option type
+may also be decorated with an option type, e.g., `1::option(int64)` is
+the same as `some(1)`.
+
+In a record value, an optional field `<name>?:<value>` is a field whose
+value is an option value, where a `<value>` that is not an option value
+is the same as `some(<value>)`, e.g.,
+```
+{a?:1,b?:none::string}
+```
+is the same as `{a:some(1),b:none::string}`.
+
 ### 2.5 Types
 
 A primitive type is simply the name of the primitive type, i.e., `string`,
-`uint16`, etc.  Complex types are defined as follows.
+`uint16`, etc.  The `timestamp`, `timestamp_ntz`, and `time` types
+may include a precision of 0, 3, 6, or 9 fractional digits, e.g.,
+`timestamp(3)`, where `timestamp` is the same as `timestamp(9)`.
+Complex types are defined as follows.
 
 #### 2.5.1 Record Type
 
@@ -326,6 +368,9 @@ where `<name>` is a [SUP name](#21-names) and
 The order of the record fields is significant,
 e.g., type `{a:int32,b:int32}` is distinct from type `{b:int32,a:int32}`.
 
+An optional field has the form `<name> ?: <type>`, which is the same as
+`<name> : option(<type>)`.
+
 #### 2.5.2 Array Type
 
 An _array type_ has the form:
@@ -337,14 +382,14 @@ An _array type_ has the form:
 
 A _set type_ has the form:
 ```
-|[ <type> ]|
+set[ <type> ]
 ```
 
 #### 2.5.4 Map Type
 
 A _map type_ has the form:
 ```
-|{ <key-type>: <value-type> }|
+map{ <key-type> : <value-type> }
 ```
 where `<key-type>` is the type of the keys and `<value-type>` is the
 type of the values.
@@ -353,9 +398,17 @@ type of the values.
 
 A _union type_ has the form:
 ```
-( <type>, <type>, ... )
+<type> | <type> | ...
 ```
-where there are at least two types in the list.
+where there are at least two types in the list and
+none is itself a union type.
+A union type may be enclosed in parentheses, which are needed
+where a union type would otherwise be ambiguous, e.g., when a decorator
+is a union type as in `1::(int64|string)`.
+
+Since a union type is an ordered set of types in the type system's order,
+the order of the types in the list is not significant, e.g.,
+`string|int64` is the same type as `int64|string`.
 
 #### 2.5.6 Enum Type
 
@@ -377,35 +430,89 @@ where `<type>` is the type of the underlying values wrapped as an error.
 
 #### 2.5.8 Named Type
 
-A named type has the form:
-```
-<name> = <type>
-```
-where a new type is defined with the given name and type.
+A named type is referenced by its name, which is a [SUP name](#21-names),
+and is defined by a [type declaration](#27-type-declarations).
 
-When a named type appears in a complex value, the new type name may be
-referenced by any subsequent value in left-to-right depth-first order.
+#### 2.5.9 Fusion Type
 
-For example,
+A _fusion type_ has the form:
 ```
-{p1:80::(port=uint16), p2: 8080::port}
+fusion( <type> )
 ```
-is valid but
+where `<type>` is the fusion's supertype.
+
+#### 2.5.10 Option Type
+
+An _option type_ has the form:
 ```
-{p1:80::port, p2: 8080::(port=uint16)}
+option( <type> )
 ```
-is invalid.
+where `<type>` is the type of the option's value.
 
-Named types may be redefined, in which case subsequent references
-resolve to the most recent definition according to
-* sequence order across values, or
-* left-to-right depth-first order within a complex value.
+#### 2.5.11 Decimal Type
 
-### 2.6 Null Value
+A _decimal type_ has the form:
+```
+decimal( <precision> [, <scale>] )
+```
+where `<precision>` and `<scale>` are integers and the scale defaults to 0.
 
-The null value is represented by the string `null`.
+### 2.6 Null, Missing, and None Values
 
-A value of any type can be null.
+The [null value](model.md#11-null-missing-and-none) is represented by
+the string `null` and has type `null`.  A null value may be decorated
+with `null` or with a union type that includes `null`, e.g.,
+```
+null::(int64|null)
+```
+
+The missing value is represented by the string `missing` and
+has type `missing`.
+
+The none value is represented by the string `none` and
+has type `none`.  When decorated with a type that is not `none`,
+it is an [option value](#249-option-value).
+
+### 2.7 Type Declarations
+
+A _type declaration_ binds a name to a type and has the form
+```
+type <name> = <type>
+```
+where `<name>` is a [SUP name](#21-names) and `<type>` is any type.
+A type name may be any name other than the name of a
+[primitive type](#23-primitive-values) (including `all` and `any`).
+
+Type declarations appear in the sequence of values before or between values
+but never inside a value, e.g., `{a:type x=int64 1}` is invalid.
+A declaration binds the name for the value that follows it and for
+all subsequent values in the sequence, so a type is declared once
+and then referenced by name in any number of values, e.g.,
+```
+type port=uint16
+{src:80::port,dst:8080::port}
+{src:443::port,dst:9000::port}
+```
+
+A type name may be bound to only one type in a sequence of values.
+A name may be declared again with the same type, but it is an error to
+declare a name with a different type.
+
+The declarations preceding a value are bound together, so they may refer to
+each other in any order and to themselves, which allows recursive and
+mutually recursive types, e.g.,
+```
+type tree={value:int64,children:forest}
+type forest=[tree]
+{value:1,children:[{value:2,children:[]}]}::tree
+```
+A declaration may not refer to a name that is declared only after a
+subsequent value.  Declarations at the end of the input that are not followed
+by a value have no effect.
+
+When an implementation formats values as SUP, it emits the declaration of
+each named type in a value's type (including the types of its type values)
+before the first value in which the named type appears.
 
 ## 3. Examples
 
@@ -417,15 +524,13 @@ There's no need for a type declaration here.  It's explicitly a string.
 
 A relational table might look like this:
 ```
-{ city: "Berkeley", state: "CA", population: 121643::uint32 }::=city_schema
-{ city: "Broad Cove", state: "ME", population: 806::uint32 }::=city_schema
-{ city: "Sioux Falls", state: "SD", population: 192517::uint32 }::=city_schema
+type city_schema={city:string,state:string,population:uint32}
+{city:"Berkeley",state:"CA",population:121643}::city_schema
+{city:"Broad Cove",state:"ME",population:806}::city_schema
+{city:"Sioux Falls",state:"SD",population:192517}::city_schema
 ```
-The text here depicts three record values.  It defines a type called `city_schema`
-and the inferred type of the `city_schema` has the signature:
-```
-{ city:string, state:string, population:uint32 }
-```
+The text here depicts three record values.  It declares a type called `city_schema`
+and decorates each record value with the type.
 When all the values in a sequence have the same record type, the sequence
 can be interpreted as a _table_, where record values form the _rows_
 and the fields of the records form the _columns_.  In this way, these
@@ -434,42 +539,45 @@ three records form a relational table conforming to the schema `city_schema`.
 In contrast, text representing a semi-structured sequence of log lines
 might look like this:
 ```
+type socket={addr:ip,port:uint16}
+type conn={info:string,src:socket,dst:socket}
+type access_list={info:string,nets:[net]}
 {
     info: "Connection Example",
-    src: { addr: 10.1.1.2, port: 80::uint16 }::=socket,
-    dst: { addr: 10.0.1.2, port: 20130::uint16 }::=socket
-}::=conn
+    src: { addr: 10.1.1.2, port: 80 },
+    dst: { addr: 10.0.1.2, port: 20130 }
+}::conn
 {
     info: "Connection Example 2",
-    src: { addr: 10.1.1.8, port: 80::uint16 }::=socket,
-    dst: { addr: 10.1.2.88, port: 19801::uint16 }::=socket
-}::=conn
+    src: { addr: 10.1.1.8, port: 80 },
+    dst: { addr: 10.1.2.88, port: 19801 }
+}::conn
 {
     info: "Access List Example",
     nets: [ 10.1.1.0/24, 10.1.2.0/24 ]
-}::=access_list
+}::access_list
 { metric: "A", ts: 2020-11-24T08:44:09.586441-08:00, value: 120 }
 { metric: "B", ts: 2020-11-24T08:44:20.726057-08:00, value: 0.86 }
 { metric: "A", ts: 2020-11-24T08:44:32.201458-08:00, value: 126 }
 { metric: "C", ts: 2020-11-24T08:44:43.547506-08:00, value: { x:10, y:101 } }
 ```
-In this case, the first record defines not just a record type
-with named type `conn`, but also a second embedded record type called `socket`.
-Decorators are used where a type is not inferred from
-the value itself:
+In this case, the type declarations define a record type called `socket`,
+which is embedded in a second record type called `conn`:
 * `socket` is a record with typed fields `addr` and `port` where `port` is an unsigned 16-bit integer, and
 * `conn` is a record with typed fields `info`, `src`, and `dst`.
 
-The subsequent value defines a type called `access_list`.  In this case,
-the `nets` field is an array of networks and illustrates the helpful range of
-primitive types.  Note that the syntax here implies
-the type of the array, as it is inferred from the type of the elements.
+The decorator of each `conn` value establishes the type of its fields, so
+the `port` values need no decorators of their own.
+
+The `access_list` type is a record whose
+`nets` field is an array of networks and illustrates the helpful range of
+primitive types.
 
 Finally, there are four more values that show SUP's efficacy for
 representing metrics.  Here, there are no type decorators as all of the field
 types are implied by their syntax, and hence, the top-level record type is implied.
 For instance, the `ts` field is an RFC 3339 date and time string,
-unambiguously the primitive type `time`.  Further,
+unambiguously the primitive type `timestamp`.  Further,
 note that the `value` field takes on different types and even a complex record
 type on the last line.  In this case, there is a different top-level
 record type implied by each of the three variations of type of the `value` field.
@@ -482,17 +590,18 @@ For example, union and enum values must both appear in a context
 that defines their type.
 
 ```
-<sup> = <sup> <eos> <dec-value> | <sup> <dec-value> | <dec-value>
+<sup> = <sup> <item> | <item>
 
-<eos> = .
+<item> = <value> | <type-decl>
 
-<value> = <any> | <any> <val-typedef> | <any> <decorators>
+<type-decl> = "type" <name> "=" <type>
 
-<val-typedef> = "::=" <name>
+<value> = <any> | <any> <decorators>
 
 <decorators> = "::" <type> | <decorators> "::" <type>
 
-<any> = <primitive> | <type-val> | <record> | <array> | <set> | <map> | <enum>
+<any> = <primitive> | <type-value> | <record> | <array> | <set> | <map> |
+        <error-value> | <fusion-value> | <some-value>
 
 <primitive> = primitive value as defined above
 
@@ -500,7 +609,7 @@ that defines their type.
 
 <flist> = <flist> "," <field> | <field>
 
-<field> = <name> ":" <value>
+<field> = <name> ":" <value> | <name> "?:" <value>
 
 <name> = <identifier> | <quoted-string>
 
@@ -512,11 +621,9 @@ that defines their type.
 
 <vlist> = <vlist> "," <value> | <value>
 
-<set> = "|[" <vlist> "]|"  |  "|["  "]|"
+<set> = "set[" <vlist> "]"  |  "set["  "]"
 
-<enum> = <string> "::" <enum-type>
-
-<map> = "|{" <mlist> "}|"  |  "|{"  "}|"
+<map> = "map{" <mlist> "}"  |  "map{"  "}"
 
 <mlist> = <mvalue> | <mlist> "," <mvalue>
 
@@ -526,9 +633,14 @@ that defines their type.
 
 <error-value> = "error(" <value> ")"
 
+<fusion-value> = "fusion(" <value> "," <type-value> ")"
+
+<some-value> = "some(" <value> ")"
+
 <type> = <primitive-type> | <record-type> | <array-type> | <set-type> |
-            <union-type> | <enum-type> | <map-type> |
-            <type-def> | <name> | <numeric> | <error-type>
+         <map-type> | <union-type> | <enum-type> | <error-type> |
+         <fusion-type> | <option-type> | <decimal-type> | <name> |
+         "(" <type> ")"
 
 <primitive-type> = uint8 | uint16 | etc. as defined above
 
@@ -536,11 +648,13 @@ that defines their type.
 
 <tflist> = <tflist> "," <tfield> | <tfield>
 
-<tfield> = <name> ":" <type>
+<tfield> = <name> ":" <type> | <name> "?:" <type>
 
-<array-type> = "[" <type> "]"  |  "[" "]"
+<array-type> = "[" <type> "]"
 
-<set-type> = "|[" <type> "]|"  |  "|[" "]|"
+<set-type> = "set[" <type> "]"
+
+<map-type> = "map{" <type> ":" <type> "}"
 
 <union-type> = <type> "|" <tlist>
 
@@ -550,13 +664,11 @@ that defines their type.
 
 <nlist> = <nlist> "," <name> | <name>
 
-<map-type> = "{" <type> "," <type> "}"
-
-<type-def> = <identifier> = <type-type>
-
-<name> = as defined above
-
-<numeric> = [0-9]+
-
 <error-type> = "error(" <type> ")"
+
+<fusion-type> = "fusion(" <type> ")"
+
+<option-type> = "option(" <type> ")"
+
+<decimal-type> = "decimal(" <integer> ")" | "decimal(" <integer> "," <integer> ")"
 ```

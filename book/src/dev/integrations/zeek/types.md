@@ -3,7 +3,7 @@
 As the [super-structured data model](../../../formats/model.md) was in many ways inspired by the
 [Zeek TSV log format](https://docs.zeek.org/en/current/tutorial/logs.html#zeek-log-formats),
 SuperDB's rich storage formats ([SUP](../../../formats/sup.md),
-[CSUP](../../../formats/csup.md), etc.) maintain comprehensive interoperability
+[BSUP](../../../formats/bsup.md), etc.) maintain comprehensive interoperability
 with Zeek.
 
 When Zeek is configured to output its logs in
