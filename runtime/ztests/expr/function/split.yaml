@@ -1,5 +1,8 @@
 spq: split(s, sep)
 
+# The input is dynamic so absent fields are errors at runtime.
+flags: -dynamic
+
 input: |
   {s:"a,b,c",sep:","::(int64|string)}
   {s:"abc",sep:""}

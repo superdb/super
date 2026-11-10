@@ -13,7 +13,7 @@ type shared struct {
 // XXX this needs to change when we use the SUP values from the ast
 func (s *shared) literal(e ast.Primitive) {
 	switch e.Type {
-	case "missing", "none", "null":
+	case "none", "null":
 		s.write(e.Type)
 	case "string", "error":
 		s.write("\"%s\"", e.Text)

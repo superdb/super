@@ -136,7 +136,7 @@ func (u *Upcast) toRecord(vec vector.Any, to *super.TypeRecord) vector.Any {
 		if ok {
 			vec = recVec.Fields[n]
 		} else {
-			vec = vector.NewMissing(recVec.Len())
+			vec = vector.NewNone(recVec.Len())
 		}
 		fieldVecs[i] = u.upcast(vec, f.Type)
 		if fieldVecs[i] == nil {
@@ -321,7 +321,7 @@ func (u *Upcast) toOption(vec vector.Any, to *super.TypeOption) vector.Any {
 			}
 			return vector.NewOption(to, tags, some, none)
 		})
-	case *vector.Missing:
+	case *vector.None:
 		return vector.NewOptionNone(to, vec.Len())
 	case *vector.View:
 		return u.toOption(vector.PushView(vec), to)

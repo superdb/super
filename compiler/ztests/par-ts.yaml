@@ -90,7 +90,7 @@ outputs:
         )
       | merge ts asc nulls last
       | aggregate partials-in
-          count:=count() by y:=y,ts:=ts
+          count:=count() by y:=this?.y,ts:=this?.ts
       | output main
       <PUT COUNTDISTINCT UNIQ>
       lister ...
@@ -109,7 +109,7 @@ outputs:
         )
       | combine
       | aggregate partials-in
-          countdistinct:=countdistinct(x) by y:=y
+          countdistinct:=countdistinct(x) by y:=this?.y
       | uniq
       | output main
       <RENAME UNIQ>

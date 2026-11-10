@@ -16,9 +16,8 @@ import (
 )
 
 var (
-	Missing = Value{typ: TypeMissing}
-	None    = Value{typ: TypeNone}
-	Null    = Value{typ: TypeNull}
+	None = Value{typ: TypeNone}
+	Null = Value{typ: TypeNull}
 
 	False = NewBool(false)
 	True  = NewBool(true)
@@ -274,8 +273,10 @@ func (v Value) IsError() bool {
 	return ok
 }
 
-func (v *Value) IsMissing() bool {
-	return v == nil || v.Type() == TypeMissing
+// IsPlainNone reports whether v is nil or the plain (singleton) none,
+// e.g., the value of an absent field.
+func (v *Value) IsPlainNone() bool {
+	return v == nil || v.Type() == TypeNone
 }
 
 // Equal reports whether p and v have the same type and the same BSUP
@@ -382,8 +383,9 @@ func (v *Value) AsTime() nano.Ts {
 	return 0
 }
 
-func (v *Value) MissingAsNull() Value {
-	if v.IsMissing() {
+// NoneAsNull returns null if v is the plain none and v otherwise.
+func (v *Value) NoneAsNull() Value {
+	if v.IsPlainNone() {
 		return Null
 	}
 	return *v
@@ -453,8 +455,8 @@ func (v Value) Unwrap() Value {
 	return v
 }
 
-func (v Value) DeoptionWithMissing(sctx *Context) Value {
-	return v.Coalesce(Missing)
+func (v Value) DeoptionWithNone(sctx *Context) Value {
+	return v.Coalesce(None)
 }
 
 func (v Value) IsNone() bool {

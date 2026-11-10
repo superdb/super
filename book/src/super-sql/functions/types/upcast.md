@@ -15,7 +15,7 @@ type coercion and converts a value `val` from its type to any supertype of its t
 as indicated by the `target` type argument.
 
 When a record value does not contain a field in the super type, the super type's
-corresponding field must be optional and the missing value will appear as "none".
+corresponding field must be optional and the field will be absent (i.e., "none").
 
 A type is a supertype of a subtype if all paths through the subtype are valid
 paths through the supertype.
@@ -31,7 +31,7 @@ in a structured error.
 
 ---
 
-_Upcast showing missing versus null_
+_Upcast showing an absent field versus null_
 
 ```mdtest-spq {data-layout="stacked"}
 # spq

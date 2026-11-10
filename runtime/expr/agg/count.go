@@ -11,7 +11,6 @@ type count struct {
 
 func (a *count) Consume(vec vector.Any) {
 	switch vec.Kind() {
-	// XXX TBD - missing should be error
 	case vector.KindNull, vector.KindNone:
 		return
 	case vector.KindOption:

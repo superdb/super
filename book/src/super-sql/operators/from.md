@@ -216,7 +216,7 @@ values {token:"abc",query:{q:"x"}}
 In this case, a computed URL must begin with `http:` or `https:` when
 any of these options are present or an error results.
 
-A null, missing, or none value for an option, a header field, or an element
+A null or none value for an option, a header field, or an element
 of a header field's array is ignored.
 
 A response with an HTTP status other than 2xx is an error.

@@ -58,9 +58,9 @@ input: |
   {r:{x:1}}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 1:
+  field may be missing (consider ok()) at line 1, column 3:
   r.y
-  ~~~
+    ~
 
 ---
 

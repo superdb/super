@@ -65,6 +65,5 @@ func (*IP) strings(*collector)        {}
 func (*Net) strings(*collector)       {}
 func (*Null) strings(*collector)      {}
 func (*None) strings(*collector)      {}
-func (*Missing) strings(*collector)   {}
 func (*TypeValue) strings(*collector) {}
 func (*Enum) strings(*collector)      {}

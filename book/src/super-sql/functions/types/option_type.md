@@ -15,7 +15,7 @@ The `option_type` function returns the option type of `t`, e.g.,
 of an optional field, so it is useful as the type of a field in the
 argument to [record_type](record_type.md).
 
-If `t` is an option type, `missing`, or `none`, an error is returned.
+If `t` is an option type or `none`, an error is returned.
 
 ## Examples
 

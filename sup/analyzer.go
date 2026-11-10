@@ -68,9 +68,6 @@ type (
 		value   Value
 		subtype scode.Bytes
 	}
-	Missing struct {
-		typ super.Type
-	}
 	None struct {
 		typ super.Type
 	}
@@ -96,7 +93,6 @@ func (n *Null) Type() super.Type      { return n.typ }
 func (t *TypeValue) Type() super.Type { return t.typ }
 func (e *Error) Type() super.Type     { return e.typ }
 func (f *Fusion) Type() super.Type    { return f.typ }
-func (m *Missing) Type() super.Type   { return m.typ }
 func (n *None) Type() super.Type      { return n.typ }
 func (o *Option) Type() super.Type    { return o.typ }
 
@@ -146,7 +142,7 @@ func (a *Analyzer) BindTypeScope(decls []*ast.TypeDecl) ([]int, []error) {
 				errors[k] = err
 				haveErr = true
 				// Avoid deadlock waiting for declared-but-not-resolved type
-				inner = super.TypeMissing
+				inner = super.TypeNone
 			}
 			if err := a.sctx.BindTypeNamed(patches[k], nameds[k], inner); err != nil {
 				errors[k] = err
@@ -258,7 +254,7 @@ func (a *Analyzer) bindTypeDecls(decls []ast.TypeDecl) error {
 		if patch := patches[k]; patch >= 0 {
 			typ, err := a.convertType(decl.Type)
 			if err != nil {
-				typ = super.TypeMissing
+				typ = super.TypeNone
 				bindingErr = err
 			}
 			if err := a.sctx.BindTypeNamed(patch, nameds[k], typ); err != nil {
@@ -299,9 +295,6 @@ func (a *Analyzer) convertPrimitive(val *ast.Primitive) (Value, error) {
 	if typ == super.TypeNull {
 		return &Null{typ: super.TypeNull}, nil
 	}
-	if typ == super.TypeMissing {
-		return &Missing{typ: super.TypeMissing}, nil
-	}
 	// Nones are here to be decorated (i.e., cast) to an option type.
 	// If they are never cast, we still allow them to be serialized even though
 	// the runtime will error on such uses and never produce such output.
@@ -331,9 +324,8 @@ func (a *Analyzer) convertRecord(val *ast.Record) (Value, error) {
 			return nil, err
 		}
 		typ := val.Type()
-		if f.Opt && !super.IsOptionType(typ) && super.TypeUnder(typ) != super.TypeMissing && super.TypeUnder(typ) != super.TypeNone {
+		if f.Opt && !super.IsOptionType(typ) && super.TypeUnder(typ) != super.TypeNone {
 			// Wrap type in an option type if it's not already expressed as such.
-			// A missing value is left as is and caught when the record is built.
 			typ = a.sctx.LookupTypeOption(typ)
 			val = &Option{
 				typ:   typ,
@@ -488,7 +480,7 @@ func (a Analyzer) convertSome(val *ast.Some) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	if under := super.TypeUnder(v.Type()); under == super.TypeMissing || under == super.TypeNone {
+	if under := super.TypeUnder(v.Type()); under == super.TypeNone {
 		return nil, fmt.Errorf("some() cannot contain a %s value", FormatType(under))
 	}
 	if super.IsOptionType(v.Type()) {
@@ -508,10 +500,6 @@ func (a *Analyzer) decorate(val Value, typ super.Type) (Value, error) {
 		return val, nil
 	}
 	switch val.(type) {
-	case *Missing:
-		if super.TypeUnder(typ) != super.TypeMissing && !unionHas(typ, super.TypeMissing) {
-			return nil, fmt.Errorf("missing value cannot be decorated with %q", FormatType(typ))
-		}
 	case *None:
 		if _, ok := super.TypeUnder(typ).(*super.TypeUnion); ok && !unionHas(typ, super.TypeNone) {
 			// As with cast, decorating none with a union type that does
@@ -556,19 +544,11 @@ func (a *Analyzer) decorate(val Value, typ super.Type) (Value, error) {
 		return &Option{typ: typ, value: inner}, nil
 	}
 	switch val := val.(type) {
-	case *Missing:
-		if super.TypeUnder(typ) != super.TypeMissing {
-			return nil, fmt.Errorf("missing value cannot be decorated with %q", FormatType(typ))
-		}
-		return &Missing{typ}, nil
 	case *None:
 		// Decorating a none with a non-option type T is shorthand for
 		// decorating it with option(T), unless T is a none type.
 		if super.TypeUnder(typ) == super.TypeNone {
 			return &None{typ: typ}, nil
-		}
-		if super.TypeUnder(typ) == super.TypeMissing {
-			return nil, fmt.Errorf("none value cannot be decorated with %q", FormatType(typ))
 		}
 		return &Option{typ: a.sctx.LookupTypeOption(typ)}, nil
 	case *Null:
@@ -858,7 +838,7 @@ func (a Analyzer) convertType(typ ast.Type) (super.Type, error) {
 		if err != nil {
 			return nil, err
 		}
-		if under := super.TypeUnder(typ); under == super.TypeMissing || under == super.TypeNone {
+		if under := super.TypeUnder(typ); under == super.TypeNone {
 			return nil, fmt.Errorf("option some type cannot be type %s", FormatType(under))
 		}
 		return a.sctx.LookupTypeOption(typ), nil

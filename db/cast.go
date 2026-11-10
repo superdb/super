@@ -37,7 +37,7 @@ func newCastPuller(sctx *super.Context, parent vio.Puller, typ super.Type, sql b
 		sctx:        sctx,
 		parent:      parent,
 		typ:         typ,
-		opts:        cast.Options{MissingToNull: sql, Strict: true},
+		opts:        cast.Options{AbsentToNull: sql, Strict: true},
 		typHasError: cast.HasError(typ),
 		defuse:      expr.NewSuperDefuse(sctx),
 	}
@@ -103,7 +103,7 @@ func (c *castPuller) cast(vec vector.Any) (vector.Any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if c.opts.MissingToNull {
+	if c.opts.AbsentToNull {
 		// The values of a SQL table's nullable columns are stored as
 		// their values (i.e., a value or null) rather than as unions
 		// with null.

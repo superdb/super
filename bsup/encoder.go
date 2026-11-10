@@ -160,8 +160,6 @@ func NewPrimitiveEncoder(typedefs *TypeDefs, vec vector.Any, root bool) Encoder 
 		return NewTypeValueEncoder(typedefs, vec)
 	case *vector.Null:
 		return NewNullEncoder(vec.Len())
-	case *vector.Missing:
-		return NewMissingEncoder(vec.Len())
 	case *vector.None:
 		return NewNoneEncoder(vec.Len())
 	default:

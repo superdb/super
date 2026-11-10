@@ -34,6 +34,6 @@ superfuse | values {super:supertypeof(this),type:typeof(this)}
 {a:1}
 {a:"x",b:2}
 # expected output
-{super:<{a:fusion(int64|string),b:fusion(int64|missing)}>,type:<{a:int64}>}
-{super:<{a:fusion(int64|string),b:fusion(int64|missing)}>,type:<{a:string,b:int64}>}
+{super:<{a:fusion(int64|string),b:fusion(int64|none)}>,type:<{a:int64}>}
+{super:<{a:fusion(int64|string),b:fusion(int64|none)}>,type:<{a:string,b:int64}>}
 ```

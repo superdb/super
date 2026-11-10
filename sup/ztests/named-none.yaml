@@ -23,16 +23,6 @@ output: *input
 
 ---
 
-spq: pass
-
-input: &input |
-  type foo=missing
-  missing::foo
-
-output: *input
-
----
-
 spq: values this ?? none::bar
 
 input: |

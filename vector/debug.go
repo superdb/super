@@ -90,7 +90,6 @@ func write(w io.Writer, vec Any, indent, prefix string) {
 		fmt.Fprintf(w, " values=%v", vec.Values)
 	case *TypeValue:
 	case *Null:
-	case *Missing:
 	case *None:
 	case *Empty:
 

@@ -14,7 +14,7 @@ import (
 
 var ErrBufferOverflow = errors.New("SUP scanner buffer size exceeded")
 
-const primitiveRE = `^(true|false|null|missing|none|NaN|nan|[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}|[-+][Ii]nf|[-+0-9Ee./]+|0x[[:xdigit:]]*|([[:xdigit:]]{0,4}(:[[:xdigit:]]{0,4}){2,}(/[0-9]+)?)|([-.0-9]+(ns|us|ms|s|m|h|d|w|y))+|([-.:T\d]+(Z|[-+]\d\d:\d\d)))`
+const primitiveRE = `^(true|false|null|none|NaN|nan|[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}|[-+][Ii]nf|[-+0-9Ee./]+|0x[[:xdigit:]]*|([[:xdigit:]]{0,4}(:[[:xdigit:]]{0,4}){2,}(/[0-9]+)?)|([-.0-9]+(ns|us|ms|s|m|h|d|w|y))+|([-.:T\d]+(Z|[-+]\d\d:\d\d)))`
 const indentationRE = `\n\s*`
 const ip6followRE = `^([[:space:],:}\]])`
 

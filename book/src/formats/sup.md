@@ -102,7 +102,6 @@ The type names and format for
 | `uuid`     | a string of 32 hexadecimal digits in five groups separated by hyphens (8-4-4-4-12) as defined in RFC 9562 |
 | `type`     | a type in canonical form as described in [Section 2.5](#25-types) enclosed in angle brackets |
 | `null`     | the string `null` |
-| `missing`  | the string `missing` |
 | `none`     | the string `none` |
 
 The [reserved primitive types](model.md#1-primitive-types)
@@ -139,7 +138,7 @@ a type decorator is applied, e.g., `123::float64`.
 
 The following primitive types represent _implied-type_ values:
 `int64`, `uint64`, `duration`, `timestamp`, `float64`, `bool`, `bytes`,
-`string`, `ip`, `net`, `uuid`, `type`, `null`, `missing`, and `none`.
+`string`, `ip`, `net`, `uuid`, `type`, `null`, and `none`.
 Values for these types are determined by the format of the value and
 thus do not need decorators to clarify the underlying type, e.g.,
 ```
@@ -457,17 +456,14 @@ decimal( <precision> [, <scale>] )
 ```
 where `<precision>` and `<scale>` are integers and the scale defaults to 0.
 
-### 2.6 Null, Missing, and None Values
+### 2.6 Null and None Values
 
-The [null value](model.md#11-null-missing-and-none) is represented by
+The [null value](model.md#11-null-and-none) is represented by
 the string `null` and has type `null`.  A null value may be decorated
 with `null` or with a union type that includes `null`, e.g.,
 ```
 null::(int64|null)
 ```
-
-The missing value is represented by the string `missing` and
-has type `missing`.
 
 The none value is represented by the string `none` and
 has type `none`.  When decorated with a type that is not `none`,

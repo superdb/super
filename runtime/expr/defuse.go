@@ -83,7 +83,7 @@ func defuseRecord(sctx *super.Context, in vector.Any) vector.Any {
 		var fields []super.Field
 		var fvecs []vector.Any
 		for i, vec := range vecs {
-			if _, ok := vec.(*vector.Missing); ok {
+			if _, ok := vec.(*vector.None); ok {
 				continue
 			}
 			fvecs = append(fvecs, vec)
@@ -158,8 +158,8 @@ func defuseMap(sctx *super.Context, vmap *vector.Map) vector.Any {
 }
 
 func SubsetOfList(sctx *super.Context, elements vector.Any, parentOffsets, index []uint32, typ super.Type) (vector.Any, []uint32) {
-	if typ == super.TypeMissing {
-		nones := vector.NewMissing(uint32(len(index)))
+	if typ == super.TypeNone {
+		nones := vector.NewNone(uint32(len(index)))
 		offsets := make([]uint32, len(index)+1)
 		return nones, offsets
 	}
@@ -241,7 +241,7 @@ func SlotTypesInList(sctx *super.Context, inner vector.Any, offsets []uint32) []
 	for i := range n {
 		start, end := offsets[i], offsets[i+1]
 		if start == end {
-			slotTypes[i] = super.TypeMissing
+			slotTypes[i] = super.TypeNone
 		} else if dynamic != nil {
 			slotTypes[i] = typeOfRange(sctx, dynamic, alltypes, start, end)
 		} else {

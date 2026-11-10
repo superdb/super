@@ -103,7 +103,7 @@ func (i *inferNode) load(typ super.Type, bytes scode.Bytes) {
 	case *super.TypeOption:
 		inner := typ.Type
 		childType, childBytes := typ.Decode(bytes)
-		if childType != super.TypeMissing {
+		if childType != super.TypeNone {
 			i.children[0].load(inner, childBytes)
 		}
 	}

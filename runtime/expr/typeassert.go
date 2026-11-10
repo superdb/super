@@ -14,7 +14,7 @@ import (
 // on its some value (and an option's none is none), and a fusion value on its
 // subtype (see typeSwitch).
 // A type assertion does not convert values, so, e.g., "1".(int64) is none.
-// An error or missing value is passed through unless it has type T.
+// An error or none is passed through unless it has type T.
 type TypeAssert struct {
 	sctx   *super.Context
 	expr   Evaluator
@@ -107,13 +107,13 @@ func applyAligned(opt vector.ApplyOpt, vec, aligned vector.Any, others []vector.
 }
 
 // passThrough returns true for the types of values passed through by a type
-// assertion whose type isn't the asserted type: errors, missing, and none.
+// assertion whose type isn't the asserted type: errors and none.
 func passThrough(typ super.Type) bool {
 	switch typ := super.TypeUnder(typ).(type) {
 	case *super.TypeError:
 		return true
 	default:
-		return typ == super.TypeMissing || typ == super.TypeNone
+		return typ == super.TypeNone
 	}
 }
 

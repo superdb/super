@@ -79,11 +79,11 @@ func TestFuserAny(t *testing.T) {
 		{[]string{"any", "int64"}, "any", "fusion(all)"},
 		{[]string{"any", "{a:int64}", "[string]"}, "any", "fusion(all)"},
 		{[]string{"any", "null"}, "any", "fusion(all)"},
-		// any absorbs everything but missing.
-		{[]string{"any", "missing"}, "missing|any", "fusion(all)"},
-		{[]string{"any", "int64|missing"}, "missing|any", "fusion(all)"},
+		// any absorbs everything but none.
+		{[]string{"any", "none"}, "none|any", "fusion(all)"},
+		{[]string{"any", "int64|none"}, "none|any", "fusion(all)"},
 		{[]string{"{a:any}", "{a:int64}"}, "{a:any}", "{a:fusion(all)}"},
-		{[]string{"{a:any}", "{b:int64}"}, "{a:missing|any,b:int64|missing}", "{a:fusion(all),b:fusion(int64|missing)}"},
+		{[]string{"{a:any}", "{b:int64}"}, "{a:none|any,b:int64|none}", "{a:fusion(all),b:fusion(int64|none)}"},
 		{[]string{"[any]", "[int64]"}, "[any]", "fusion([fusion(all)])"},
 		{[]string{"{a:any}|string", "string"}, "string|{a:any}", "fusion(string|{a:fusion(all)})"},
 		// A fused type with fusion(all) normalizes to any in the supertype.
@@ -110,7 +110,7 @@ func TestAnyToFusion(t *testing.T) {
 		{"any", "fusion(all)"},
 		{"int64", "int64"},
 		{"{a:any,b:[any],c:int64}", "{a:fusion(all),b:[fusion(all)],c:int64}"},
-		{"any|missing", "fusion(all)"},
+		{"any|none", "fusion(all)"},
 		{"{a:any}|string", "string|{a:fusion(all)}"},
 		{"any|string", "fusion(all)"},
 		{"map{string:any}", "map{string:fusion(all)}"},

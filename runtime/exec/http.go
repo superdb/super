@@ -9,7 +9,7 @@ import (
 )
 
 // The HTTP options of the from operator may be values of a named, union, or
-// option type, and an option whose value is null, missing, or none is absent.
+// option type, and an option whose value is null or none is absent.
 
 // HTTPMethod returns the HTTP method specified by val, which must be a string,
 // or "" (i.e., GET) if val is absent.
@@ -91,7 +91,7 @@ func headerStrings(val super.Value) ([]string, error) {
 }
 
 // present returns val without named, union, fusion, or option types and
-// returns false if val is absent, i.e., null, missing, or none.
+// returns false if val is absent, i.e., null or none.
 func present(val super.Value) (super.Value, bool) {
 	val = val.Under()
 	if super.IsOptionType(val.Type()) {
@@ -101,7 +101,7 @@ func present(val super.Value) (super.Value, bool) {
 		val = val.Unwrap().Under()
 	}
 	switch val.Type().ID() {
-	case super.IDNull, super.IDMissing, super.IDNone:
+	case super.IDNull, super.IDNone:
 		return val, false
 	}
 	return val, true

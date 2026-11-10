@@ -83,8 +83,6 @@ func NewValueBuilder(typ super.Type) ValueBuilder {
 		return &netValueBuilder{}
 	case *super.TypeOfType:
 		return newTypeValueValueBuilder()
-	case *super.TypeOfMissing:
-		return &missingValueBuilder{}
 	case *super.TypeOfNone:
 		return &noneValueBuilder{}
 	case *super.TypeOfNull:
@@ -535,18 +533,6 @@ func (c *nullValueBuilder) Write(scode.Bytes) {
 
 func (c *nullValueBuilder) Build(*super.Context) Any {
 	return NewNull(c.n)
-}
-
-type missingValueBuilder struct {
-	len uint32
-}
-
-func (m *missingValueBuilder) Write(scode.Bytes) {
-	m.len++
-}
-
-func (m *missingValueBuilder) Build(*super.Context) Any {
-	return NewMissing(m.len)
 }
 
 type noneValueBuilder struct {

@@ -1,10 +1,13 @@
 spq: distinct b
 
+# The input is dynamic so absent fields are errors at runtime.
+flags: -dynamic
+
 input: |
   {a:1,b?:"foo"}
   {a:1,b?:none::string}
   {a:1,b:"foo"}
-  {a:1,b:fusion("foo"::(string|missing),<string>)}
+  {a:1,b:fusion("foo"::(string|none),<string>)}
 
 output: |
   {a:1,b?:"foo"}

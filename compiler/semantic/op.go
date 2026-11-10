@@ -511,10 +511,12 @@ func (t *translator) sortExpr(sch relScope, s ast.SortExpr, reverse bool, inType
 		} else if sel, ok := ts.(*selectScope); ok {
 			e, _ = t.groupedExpr(sel, s.Expr, inType)
 		} else {
-			e, _ = t.expr(s.Expr, inType)
+			e, _ = t.absentFieldOK(s.Expr, inType)
 		}
 	} else {
-		e, _ = t.expr(s.Expr, inType)
+		// Values whose sort key is an absent field sort with the
+		// errors.
+		e, _ = t.absentFieldOK(s.Expr, inType)
 	}
 	o := order.Asc
 	if s.Order != nil {
@@ -748,16 +750,13 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 	case *ast.AggregateOp:
 		keys, keyPaths := t.assignments(o.Keys, inType)
 		t.checkStaticAssignment(o.Keys, keys)
-		for k, path := range keyPaths {
-			t.checker.groupKey(o.Keys[k].RHS, path.typ)
-		}
 		if len(keys) == 0 && len(o.Aggs) == 1 {
 			if seq, typ := t.singletonAgg(&o.Aggs[0], seq, inType); seq != nil {
 				return seq, typ
 			}
 		}
 		if len(keys) == 1 && len(o.Aggs) == 0 {
-			if seq, typ := t.singletonKey(o.Keys[0], seq, inType); seq != nil {
+			if seq, typ := t.singletonKey(o.Keys[0], keys[0], keyPaths[0], seq); seq != nil {
 				return seq, typ
 			}
 		}
@@ -878,7 +877,6 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 			t.error(o.Args, err)
 			return append(seq, badOp), t.checker.unknown
 		}
-		t.checkResults(o.Args, paths)
 		return append(seq, &sem.CutOp{
 			Node: o,
 			Args: assignments,
@@ -1020,7 +1018,6 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 		}), inType
 	case *ast.PutOp:
 		assignments, paths := t.assignments(o.Args, inType)
-		t.checkResults(o.Args, paths)
 		// We can do collision checking on static paths, so check what we can.
 		var fields field.List
 		for _, a := range assignments {
@@ -1041,6 +1038,10 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 	case *ast.RenameOp:
 		var assignments []sem.Assignment
 		var paths []pathType
+		// A field that may be absent can be renamed (where it's
+		// absent, there's nothing to rename).
+		absentOK := t.checker.absentOK
+		t.checker.absentOK = true
 		for _, fa := range o.Args {
 			assign, path := t.assignment(&fa, inType)
 			if _, ok := isLval(assign.RHS); !ok {
@@ -1058,6 +1059,7 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 			assignments = append(assignments, assign)
 			paths = append(paths, path)
 		}
+		t.checker.absentOK = absentOK
 		// Type checking for rename TBD.  Return unknown here.
 		return append(seq, &sem.RenameOp{
 			Node: o,
@@ -1124,7 +1126,10 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 				},
 			},
 		})
-		return append(seq, sem.NewValues(o, sem.NewThis(o, field.NewChain("sample")))), t.checker.unknown
+		// The sample is none (and so absent) when every value of e for a
+		// shape is none, so it's read as noneish and dropped by values.
+		sample := field.Chain{{ID: "sample", Noneish: true}}
+		return append(seq, sem.NewValues(o, sem.NewThis(o, sample))), t.checker.unknown
 	case *ast.AssertOp:
 		cond, _ := t.expr(o.Expr, inType)
 		// 'assert EXPR' is equivalent to
@@ -1169,9 +1174,6 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 			})), outType
 	case *ast.ValuesOp:
 		exprs, types := t.exprs(o.Exprs, inType)
-		for k, typ := range types {
-			t.checker.result(o.Exprs[k], typ)
-		}
 		return append(seq, sem.NewValues(o, exprs...)), t.checker.values(types)
 	case *ast.Script:
 		t.error(o, errors.New("a script of multiple statements cannot be used here"))
@@ -1370,11 +1372,12 @@ func (t *translator) singletonAgg(assignment *ast.Assignment, seq sem.Seq, inTyp
 	), path.typ
 }
 
-func (t *translator) singletonKey(agg ast.Assignment, seq sem.Seq, inType super.Type) (sem.Seq, super.Type) {
+// singletonKey handles an aggregate with only the key agg, which has been
+// translated to out with path.
+func (t *translator) singletonKey(agg ast.Assignment, out sem.Assignment, path pathType, seq sem.Seq) (sem.Seq, super.Type) {
 	if agg.LHS != nil {
 		return nil, nil
 	}
-	out, path := t.assignment(&agg, inType)
 	this, ok := out.LHS.(*sem.ThisExpr)
 	if !ok || len(this.Chain) != 1 {
 		return nil, nil
@@ -1660,7 +1663,6 @@ func (t *translator) assignmentOp(p *ast.AssignmentOp, inType super.Type) (sem.O
 			aggs = append(aggs, assign)
 		} else {
 			puts = append(puts, assign)
-			t.checker.result(astAssign.RHS, path.typ)
 		}
 		paths = append(paths, path)
 	}
@@ -1678,13 +1680,6 @@ func (t *translator) assignmentOp(p *ast.AssignmentOp, inType super.Type) (sem.O
 		Node: p,
 		Aggs: aggs,
 	}, t.checker.pathsToType(paths)
-}
-
-// checkResults checks that the assigned values of a put or cut aren't missing.
-func (t *translator) checkResults(asts []ast.Assignment, paths []pathType) {
-	for k, path := range paths {
-		t.checker.result(asts[k].RHS, path.typ)
-	}
 }
 
 func (t *translator) checkStaticAssignment(asts []ast.Assignment, assignments []sem.Assignment) bool {
@@ -1723,9 +1718,7 @@ func (t *translator) exprOp(e ast.Expr, seq sem.Seq, inType super.Type) (sem.Seq
 	if t.isBool(out) {
 		return append(seq, &sem.FilterOp{Node: e, Expr: out}), t.checker.narrow(inType, out)
 	}
-	// As with the values operator, the value must not be missing and a
-	// plain none is dropped.
-	t.checker.result(e, typ)
+	// As with the values operator, a plain none is dropped.
 	return append(seq, sem.NewValues(e, out)), t.checker.values([]super.Type{typ})
 }
 

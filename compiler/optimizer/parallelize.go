@@ -5,6 +5,7 @@ import (
 
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/order"
+	"github.com/superdb/super/pkg/field"
 )
 
 // Parallelize tries to parallelize the DAG by splitting each source
@@ -187,9 +188,12 @@ func (o *Optimizer) liftIntoParPaths(seq dag.Seq) {
 		op.PartialsIn = true
 		// The upstream aggregators will compute any key expressions
 		// so the ingress aggregator should simply reference the key
-		// by its name.  This loop updates the ingress to do so.
+		// by its name.  This loop updates the ingress to do so.  A partial
+		// keeps a plain none key, which is a field of type none, so the
+		// reference is noneish to read it as none rather than as an
+		// absent field.
 		for k := range op.Keys {
-			op.Keys[k].RHS = op.Keys[k].LHS
+			op.Keys[k].RHS = noneishRef(op.Keys[k].LHS)
 		}
 	case *dag.SortOp:
 		if len(op.Exprs) == 0 {
@@ -341,4 +345,19 @@ func sortExprsForSortKeys(keys order.SortKeys) []dag.SortExpr {
 		)
 	}
 	return exprs
+}
+
+// noneishRef returns e, a reference to a group key, with each element of its
+// chain noneish.
+func noneishRef(e dag.Expr) dag.Expr {
+	this, ok := e.(*dag.ThisExpr)
+	if !ok {
+		return e
+	}
+	chain := make(field.Chain, len(this.Chain))
+	for k, elem := range this.Chain {
+		elem.Noneish = true
+		chain[k] = elem
+	}
+	return &dag.ThisExpr{Kind: "ThisExpr", Chain: chain}
 }

@@ -21,7 +21,6 @@ input: |
   none::option(int64)
   none::(int64|string)
   []
-  missing
 
 output: |
   [1,none]
@@ -38,7 +37,6 @@ output: |
   none::int64
   none::option(int64|string)
   []
-  missing
 
 ---
 
@@ -75,17 +73,6 @@ spq: pass
 
 flags: -i sup
 
-input: missing::option(int64)
-
-error: |
-  stdio:stdin: missing value cannot be decorated with "option(int64)"
-
----
-
-spq: pass
-
-flags: -i sup
-
 input: '{a:1}::{a:int64,b:string}'
 
 error: |
@@ -112,14 +99,3 @@ input: '{a?:1}::{a:int64}'
 
 error: |
   stdio:stdin: cannot decorate an option value with a non-option type
-
----
-
-spq: pass
-
-flags: -i sup
-
-input: none::missing
-
-error: |
-  stdio:stdin: none value cannot be decorated with "missing"

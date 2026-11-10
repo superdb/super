@@ -249,7 +249,7 @@ func (w *Writer) writePrimitive(val super.Value) {
 		v = super.DecodeUUID(val.Bytes()).String()
 	case id == super.IDType:
 		v = sup.FormatValue(val)
-	case id == super.IDMissing || id == super.IDNone:
+	case id == super.IDNone:
 		v = nil
 	default:
 		panic(fmt.Sprintf("unsupported id=%d", id))

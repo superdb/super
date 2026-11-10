@@ -78,7 +78,7 @@ func TestLegacyZeekValid(t *testing.T) {
 	record, err := sendLegacyValues(parser, values)
 	require.NoError(t, err)
 
-	assert.Equal(t, record.Deref("ts").MissingAsNull(), super.Null)
+	assert.Equal(t, record.Deref("ts").NoneAsNull(), super.Null)
 	// XXX check contents of other fields?
 
 	// Test standard headers with a timestamp in records

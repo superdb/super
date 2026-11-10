@@ -405,8 +405,6 @@ func (m *shadowMarshaler) marshal(path []string, shadow loader.Shadow) error {
 		node, name = &s.Node, "Null"
 	case *loader.None:
 		node, name = &s.Node, "None"
-	case *loader.Missing:
-		node, name = &s.Node, "Missing"
 	default:
 		return fmt.Errorf("unknown shadow %T", shadow)
 	}

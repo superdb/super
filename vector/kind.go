@@ -27,7 +27,6 @@ const (
 	KindUnion   = 16
 	KindEnum    = 17
 	KindFusion  = 19
-	KindMissing = 20
 	KindOption  = 21
 	KindNone    = 22
 	KindUUID    = 23
@@ -64,8 +63,6 @@ func KindFromString(v string) Kind {
 		return KindRecord
 	case "Null":
 		return KindNull
-	case "Missing":
-		return KindMissing
 	case "None":
 		return KindNone
 	case "UUID":

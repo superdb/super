@@ -577,8 +577,6 @@ func formatPrimitive(b *strings.Builder, typ super.Type, bytes scode.Bytes) {
 		b.WriteString(FormatTypeValue(bytes))
 	case *super.TypeOfNull:
 		b.WriteString("null")
-	case *super.TypeOfMissing:
-		b.WriteString("missing")
 	case *super.TypeOfNone:
 		b.WriteString("none")
 	case *super.TypeOfUnimplemented:

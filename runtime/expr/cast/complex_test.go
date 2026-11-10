@@ -22,7 +22,7 @@ func TestCastVectorShapes(t *testing.T) {
 		`{a:1}`, `{a:"1"}`, `{a:"x"}`, `{a:null}`, `{a:1,b:"x"}`, `{b:"y",c:3}`,
 		`{a:{b:1}}`, `{a:[1,2]}`, `{a:[1,"x"]}`, `{}`,
 		`{a:1,b:none::int64}`, `{a:some(1)::option(int64)}`,
-		`{a:missing::(int64|missing)}`, `{a:"1"::(string|missing)}`,
+		`{a:"1"::(string|none)}`,
 		`{type:"push",ref:"main"}`, `{type:"star",action:"x"}`,
 		`{type:"pr",num:1,ref:"r"}`, `{type:"pr",num:2}`, `{foo:1}`,
 		`[]`, `[1]`, `[1,2]`, `["1","2"]`, `[1,"a",2]`, `[1,1.5]`, `[1,"x",null]`,
@@ -40,8 +40,8 @@ func TestCastVectorShapes(t *testing.T) {
 		`[int64]`, `[string]`, `[option(int64)]`, `[{a:int64}]`, `[[string]]`,
 		`set[int64]`, `set[string]`,
 		`map{string:int64}`, `map{string:string}`,
-		`int64|string`, `string|int64`, `int64|missing`, `{a:int64}|missing`,
-		`int64|none`, `{a:int64}|string`, `{a:int64|missing}`, `{a:string|missing}`, `foo:string`, `rec:{a:string}`, `rec:{a:int64}`,
+		`int64|string`, `string|int64`, `int64|none`, `{a:int64}|none`,
+		`{a:int64}|string`, `{a:int64|none}`, `{a:string|none}`, `foo:string`, `rec:{a:string}`, `rec:{a:int64}`,
 		`error(string)`, `error({a:string})`,
 		`{type:string,ref:string}|{type:string,action:string,repo:option(string)}|{type:string,num:int64,ref:option(string)}`,
 		`{a:int64}|{a:string}`, `{a:int64}|{b:string,c:int64}`, `[int64]|[string]`,
@@ -68,7 +68,7 @@ func TestCastVectorShapes(t *testing.T) {
 	var recIndex []int
 	rb := vector.NewDynamicValueBuilder()
 	for i, val := range vals {
-		if _, ok := val.Type().(*super.TypeUnion); !ok && !val.IsError() && !val.IsMissing() {
+		if _, ok := val.Type().(*super.TypeUnion); !ok && !val.IsError() && !val.IsPlainNone() {
 			recIndex = append(recIndex, i)
 			rb.Write(val)
 		}
@@ -244,9 +244,9 @@ func TestCastWithOptions(t *testing.T) {
 		out      string
 	}{
 		{`{x:1}`, `{x:int64,y:int64|null}`, cast.Options{}, `{x:1,y:error("no such field y")}`},
-		{`{x:1}`, `{x:int64,y:int64|null}`, cast.Options{MissingToNull: true}, `{x:1,y:null::(int64|null)}`},
-		{`{x:1}`, `{x:int64,y:int64}`, cast.Options{MissingToNull: true}, `{x:1,y:error("no such field y")}`},
-		{`{x:1}`, `{x:int64,y:null}`, cast.Options{MissingToNull: true}, `{x:1,y:null}`},
+		{`{x:1}`, `{x:int64,y:int64|null}`, cast.Options{AbsentToNull: true}, `{x:1,y:null::(int64|null)}`},
+		{`{x:1}`, `{x:int64,y:int64}`, cast.Options{AbsentToNull: true}, `{x:1,y:error("no such field y")}`},
+		{`{x:1}`, `{x:int64,y:null}`, cast.Options{AbsentToNull: true}, `{x:1,y:null}`},
 		{`{x:1,z:2}`, `{x:int64}`, cast.Options{}, `{x:1}`},
 		{`{x:1,z:2}`, `{x:int64}`, cast.Options{Strict: true}, `error({message:"cannot cast to {x:int64}: no field z in type",on:{x:1,z:2}})`},
 		{`{a:{x:1,z:2}}`, `{a:{x:int64}}`, cast.Options{Strict: true}, `{a:error({message:"cannot cast to {x:int64}: no field z in type",on:{x:1,z:2}})}`},

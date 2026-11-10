@@ -22,7 +22,7 @@ func (s *Some) Call(args ...vector.Any) vector.Any {
 func (s *Some) call(args ...vector.Any) vector.Any {
 	vec := args[0]
 	switch vec.Kind() {
-	case vector.KindError, vector.KindOption, vector.KindMissing:
+	case vector.KindError, vector.KindOption:
 		return vec
 	case vector.KindNone:
 		return vector.NewStringError(s.sctx, "none cannot be some", vec.Len())

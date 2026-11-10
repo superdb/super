@@ -107,7 +107,7 @@ func loadMeta(sctx *super.Context, meta string) (super.Value, error) {
 	}
 	val, err := sup.ParseValue(super.NewContext(), meta)
 	if err != nil {
-		return super.Missing, fmt.Errorf("%w %q: %s", ErrInvalidCommitMeta, meta, err)
+		return super.None, fmt.Errorf("%w %q: %s", ErrInvalidCommitMeta, meta, err)
 	}
 	return val, nil
 }

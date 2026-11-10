@@ -10,6 +10,9 @@ spq: |
     case false ( put _UNCLASSIFIED:=true )
   | sort this
 
+# The input is dynamic so absent fields are errors at runtime.
+flags: -dynamic
+
 input: |
   {_path:"conn",id:{src:"192.168.1.1",dst:"192.168.1.2"},etc:"foo"}
   {_path:"dns",id:{src:"192.168.1.1",dst:"192.168.1.2"},query:"www.google.com",query_size:23}

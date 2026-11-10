@@ -121,7 +121,7 @@ input: |
   "foo"
   null
   error("bad")
-  <missing>
+  <none>
 
 output: |
   error({message:"record_type: argument must be a record of type values",on:"foo"})
@@ -133,6 +133,6 @@ output: |
   error({message:"record_type: error value encountered",on:error("bad")})
   error({message:"array_type: error value encountered",on:error("bad")})
   error({message:"option_type: error value encountered",on:error("bad")})
-  error({message:"record_type: argument must be a record of type values",on:<missing>})
-  <[missing]>
-  error({message:"option_type: invalid option type",on:<missing>})
+  error({message:"record_type: argument must be a record of type values",on:<none>})
+  <[none]>
+  error({message:"option_type: invalid option type",on:<none>})

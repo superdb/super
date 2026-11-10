@@ -13,11 +13,6 @@ func To(sctx *super.Context, vec vector.Any, typ super.Type) vector.Any {
 	switch vec.Kind() {
 	case vector.KindNull:
 		return vector.NewUnionOfOne(sctx.Nullable(typ), vector.NewNull(vec.Len()))
-	case vector.KindMissing:
-		if typ == super.TypeMissing {
-			return vec
-		}
-		return vector.NewStringError(sctx, "cannot cast missing (consider ??)", vec.Len())
 	case vector.KindNone:
 		// Casting none to an option type yields that option's none
 		// and casting none to a non-option type T is shorthand for

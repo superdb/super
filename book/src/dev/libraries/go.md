@@ -53,8 +53,8 @@ func main() {
 			return
 		}
 		s := val.Deref("s")
-		if s.IsMissing() {
-			s = super.Missing.Ptr()
+		if s == nil {
+			s = sctx.NewErrorf("missing").Ptr()
 		}
 		fmt.Println(sup.String(s))
 	}
@@ -123,7 +123,8 @@ func main() {
 	}
 	ctx := context.TODO()
 	db := client.NewConnectionTo(uri.String())
-	q, err := db.Query(ctx, super.NewContext(), srcfiles.Plain("from Demo"))
+	sctx := super.NewContext()
+	q, err := db.Query(ctx, sctx, srcfiles.Plain("from Demo"))
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -139,8 +140,8 @@ func main() {
 			return
 		}
 		s := val.Deref("s")
-		if s.IsMissing() {
-			s = super.Missing.Ptr()
+		if s == nil {
+			s = sctx.NewErrorf("missing").Ptr()
 		}
 		fmt.Println(sup.String(s))
 	}

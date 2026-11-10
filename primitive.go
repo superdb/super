@@ -352,16 +352,6 @@ func (t *TypeOfNet) Kind() Kind {
 	return PrimitiveKind
 }
 
-type TypeOfMissing struct{}
-
-func (t *TypeOfMissing) ID() int {
-	return IDMissing
-}
-
-func (t *TypeOfMissing) Kind() Kind {
-	return PrimitiveKind
-}
-
 // TypeOfNone is the type of the singleton none value, whose primary purpose
 // is to be cast to an option type, yielding that option's none.  It is also
 // the element type of empty arrays and sets and the key and value type of

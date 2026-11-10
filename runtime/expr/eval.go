@@ -60,8 +60,6 @@ func Catch(sctx *super.Context, opts int, vec vector.Any, msg string) (vector.An
 			}
 			return vec, true
 		}
-	case vector.KindMissing:
-		return catchErr(sctx, msg, "unexpected missing value", vec), true
 	case vector.KindNone:
 		if opts&CatchNone != 0 {
 			return catchErr(sctx, msg, "none value not handled (consider ??)", vec), true

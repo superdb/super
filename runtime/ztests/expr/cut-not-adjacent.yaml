@@ -16,12 +16,48 @@ outputs:
       fields in record rec must be adjacent at line 1, column 5:
       cut rec.sub1,other,rec.sub2
           ~~~~~~~~~~~~~~~~~~~~~~~
+      field may be missing (consider ok()) at line 1, column 5:
+      cut rec.sub1,other,rec.sub2
+          ~~~
+      field may be missing (consider ok()) at line 1, column 14:
+      cut rec.sub1,other,rec.sub2
+                   ~~~~~
+      field may be missing (consider ok()) at line 1, column 20:
+      cut rec.sub1,other,rec.sub2
+                         ~~~
       fields in record rec1 must be adjacent at line 1, column 5:
       cut rec1.rec2.sub1,other,rec1.sub2
           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      field may be missing (consider ok()) at line 1, column 5:
+      cut rec1.rec2.sub1,other,rec1.sub2
+          ~~~~
+      field may be missing (consider ok()) at line 1, column 20:
+      cut rec1.rec2.sub1,other,rec1.sub2
+                         ~~~~~
+      field may be missing (consider ok()) at line 1, column 26:
+      cut rec1.rec2.sub1,other,rec1.sub2
+                               ~~~~
       fields in record rec1 must be adjacent at line 1, column 5:
       cut rec1.rec2.sub1,other,rec1.rec2.sub2
           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      field may be missing (consider ok()) at line 1, column 5:
+      cut rec1.rec2.sub1,other,rec1.rec2.sub2
+          ~~~~
+      field may be missing (consider ok()) at line 1, column 20:
+      cut rec1.rec2.sub1,other,rec1.rec2.sub2
+                         ~~~~~
+      field may be missing (consider ok()) at line 1, column 26:
+      cut rec1.rec2.sub1,other,rec1.rec2.sub2
+                               ~~~~
       fields in record t.rec must be adjacent at line 1, column 5:
       cut t.rec.sub1,t.other,t.rec.sub2
           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      field may be missing (consider ok()) at line 1, column 5:
+      cut t.rec.sub1,t.other,t.rec.sub2
+          ~
+      field may be missing (consider ok()) at line 1, column 16:
+      cut t.rec.sub1,t.other,t.rec.sub2
+                     ~
+      field may be missing (consider ok()) at line 1, column 24:
+      cut t.rec.sub1,t.other,t.rec.sub2
+                             ~

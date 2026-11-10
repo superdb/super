@@ -18,6 +18,6 @@ func (*None) EndRecord()                { panic("system error") }
 func (n *None) BeginArray() Value       { return ToUnion(n).BeginArray() }
 func (*None) EnterArray() Value         { panic("system error") }
 func (*None) EndArray(Value)            { panic("system error") }
-func (*None) Kind() vector.Kind         { return vector.KindMissing }
+func (*None) Kind() vector.Kind         { return vector.KindNone }
 func (*None) Len() uint32               { return 0 }
 func (*None) Error() error              { return nil }

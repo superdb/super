@@ -2,7 +2,7 @@
 # from it (e.g., by put, aggregate, a record expression, or match).
 spq: |
   put o?.y
-  | values this, {p.o?.y}, match o?.y with o?.z when int64 y+(z ?? 0) else 0
+  | values this, {p.o?.y}, match o?.y with o?.z when int64 y+(z.ok() ?? 0) else 0
 
 input: |
   {o:some({y:1,z:2}),p:{o:some({y:3})}}

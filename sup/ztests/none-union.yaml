@@ -1,7 +1,7 @@
 spq: pass
 
 input: &input |
-  missing::(int64|string|missing)
+  {a:none::(int64|string|none)}
   none::option(int64|string)
 
 output: *input

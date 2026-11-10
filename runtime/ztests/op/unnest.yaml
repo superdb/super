@@ -148,7 +148,7 @@ spq: |
     {x:[1,2]::([int64]|null),y:2},
     {x:none::([int64]|none),y:3},
     {x:[3]::([int64]|none),y:4}
-  | unnest x with y
+  | unnest x.ok() with y
   | values this
 
 output: |

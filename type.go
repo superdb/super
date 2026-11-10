@@ -97,7 +97,6 @@ var (
 	TypeUUID      = &TypeOfUUID{}
 	TypeType      = &TypeOfType{}
 	TypeNull      = &TypeOfNull{}
-	TypeMissing   = &TypeOfMissing{}
 	TypeNone      = &TypeOfNone{}
 	TypeAll       = &TypeOfAll{}
 	// TypeAny is the top type of the type system, to which every type
@@ -201,11 +200,11 @@ const (
 	IDGeography     = 35
 	IDType          = 36
 	IDNull          = 37
-	IDMissing       = 38
-	IDNone          = 39
-	IDAll           = 40
-	IDAny           = 41
-	IDTypeComplex   = 48
+	// 38 was the ID of the missing type, which was removed.
+	IDNone        = 39
+	IDAll         = 40
+	IDAny         = 41
+	IDTypeComplex = 48
 )
 
 // Encodings for complex type values.
@@ -294,8 +293,6 @@ func LookupPrimitive(name string) Type {
 		return TypeType
 	case "null":
 		return TypeNull
-	case "missing":
-		return TypeMissing
 	case "none":
 		return TypeNone
 	case "all":
@@ -359,8 +356,6 @@ func PrimitiveName(typ Type) string {
 		return "type"
 	case *TypeOfNull:
 		return "null"
-	case *TypeOfMissing:
-		return "missing"
 	case *TypeOfNone:
 		return "none"
 	case *TypeOfAll:
@@ -424,8 +419,6 @@ func LookupPrimitiveByID(id int) (Type, error) {
 		return TypeType, nil
 	case IDNull:
 		return TypeNull, nil
-	case IDMissing:
-		return TypeMissing, nil
 	case IDNone:
 		return TypeNone, nil
 	case IDAll:

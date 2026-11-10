@@ -1,5 +1,8 @@
 spq: values compare(a, b)
 
+# The input is dynamic so absent fields are errors at runtime.
+flags: -dynamic
+
 input: |
   {a:2,b:1}
   {a:2,b:"1"}

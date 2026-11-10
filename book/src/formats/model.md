@@ -9,7 +9,7 @@ or a "named type".
 Primitive types include signed and unsigned integers, IEEE binary
 floating point, durations and timestamps, string, byte sequence, Boolean,
 IP address, IP network, UUID, the first-class type _type_, and a few
-special types (`null`, `missing`, `none`, `all`, and `any`)
+special types (`null`, `none`, `all`, and `any`)
 described below.
 
 The primitive types are defined as follows:
@@ -54,7 +54,6 @@ The primitive types are defined as follows:
 | `geography`        | a geographic shape (reserved) |
 | `type`             | a type value |
 | `null`             | the type of the `null` value |
-| `missing`          | the type of the `missing` value |
 | `none`             | the type of the `none` value |
 | `all`              | the type of a value of any type held by a [fusion](#28-fusion) |
 | `any`              | the top type, to which every type conforms |
@@ -69,21 +68,20 @@ represent a complex type, the value itself is a singleton.
 Since every type in the type system is uniquely defined, two type values
 are equal if and only if the types they represent are equal.
 
-### 1.1 Null, Missing, and None
+### 1.1 Null and None
 
 The _null_ type is a primitive type whose only value is `null`.
 Since `null` has its own type, a value that is either a value of some
 type `T` or null is a [union](#25-union) of `T` and `null`,
 e.g., a nullable string has type `string|null`.
 
-The _missing_ type is a primitive type whose only value is `missing`,
-which represents the absence of a value, e.g., in a record type formed by
-[type fusion](../super-sql/type-fusion.md), the value of
-a field that is absent from the original record.
-
-The _none_ type is a primitive type whose only value is `none`.  Its
-primary purpose is to be cast to an [option](#29-option) type, yielding
-that option's "none" value.  It is also the element type of an empty array
+The _none_ type is a primitive type whose only value is `none`, which
+represents the absence of a value.  A record field whose value is `none`
+is absent from the record, e.g., in a record type formed by
+[type fusion](../super-sql/type-fusion.md), a field that is absent from
+the original record has a union type with a `none` member.
+When cast to an [option](#29-option) type, `none` yields that option's
+"none" value.  It is also the element type of an empty array
 or set and the key and value type of an empty map whose types are not
 otherwise known.
 
@@ -249,7 +247,7 @@ Fusion types are created by [type fusion](../super-sql/type-fusion.md),
 which allows values of many different types to be stored as values of
 a single fused type without losing their original types.
 For example, the values `{a:1}` and `{b:"x"}` may be stored as
-fusion values of type `fusion({a:int64|missing,b:string|missing})`
+fusion values of type `fusion({a:int64|none,b:string|none})`
 whose subtypes are `{a:int64}` and `{b:string}`.
 
 The type `fusion(all)` holds a value of any type, whose subtype is
@@ -263,7 +261,7 @@ The type order of two fusion types is the type order of their supertypes.
 
 An option represents a value of a given type that is either present
 (called "some") or absent (called "none").  The type of an option may
-not be an option type, `missing`, or `none`.
+not be an option type or `none`.
 
 An option type is uniquely defined by the type of its value.
 

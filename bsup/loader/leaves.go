@@ -277,16 +277,6 @@ func (n *None) project(*FrameLoader, field.Projection) vector.Any {
 	return vector.NewNone(n.Length)
 }
 
-// Missing is a vector of missing values, whose locators are its kind and
-// count.
-type Missing struct {
-	Node
-}
-
-func (m *Missing) project(*FrameLoader, field.Projection) vector.Any {
-	return vector.NewMissing(m.Length)
-}
-
 // TypeValue is a vector of type values, whose IDs are in the frame's typedefs
 // table (as opposed to its vector typedefs table) and whose locators are its
 // kind, count, and the segment of its IDs.  It is also the subtypes of a

@@ -37,7 +37,7 @@ set[1,2,3]`
 		}
 		require.NoError(t, err)
 		v := val.Deref("foo")
-		require.True(t, v.IsMissing())
+		require.True(t, v.IsPlainNone())
 	}
 }
 

@@ -1545,7 +1545,6 @@ Literal
   / BooleanLiteral
   / NullLiteral
   / NoneLiteral
-  / MissingLiteral
 
 SubnetLiteral
   = v:IP6Net !IdentifierRest {
@@ -1585,9 +1584,6 @@ NullLiteral
 NoneLiteral
   = NONE { return newPrimitive(c, "none", ""), nil }
 
-MissingLiteral
-  = MISSING { return newPrimitive(c, "missing", ""), nil }
-  
 UUIDLiteral
   = H4 H4 "-" H4 "-" H4 "-" H4 "-" H4 H4 H4 !IdentifierRest {
       return newPrimitive(c, "uuid", string(c.text)), nil
@@ -1812,7 +1808,7 @@ PrimitiveType
       / "uuid" / "geometry" / "geography"
       / "bytes"
       / "ip" / "net"
-      / "type" / "null" / "missing" / "none" / "all" ) {
+      / "type" / "null" / "none" / "all" ) {
             return &ast.TypePrimitive{
                 Kind: "TypePrimitive",
                 Name: string(c.text),
@@ -1910,7 +1906,6 @@ IdentifierRest
 IDGuard
   = BooleanLiteral
   / NONE
-  / MISSING
   / NullLiteral
   / NaN
   / Infinity
@@ -2734,7 +2729,6 @@ LOAD       = "LOAD"i            !IdentifierRest
 MATERIALIZED = "MATERIALIZED"i  !IdentifierRest
 MAP        = "MAP"i             !IdentifierRest
 MERGE      = "MERGE"i           !IdentifierRest
-MISSING    = "MISSING"i         !IdentifierRest
 NONE       = "NONE"i            !IdentifierRest
 NOT        = "NOT"i             !IdentifierRest
 NULL       = "NULL"i            !IdentifierRest

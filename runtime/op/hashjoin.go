@@ -111,7 +111,7 @@ func buildTable(vecs []vector.Any, key expr.Evaluator) map[string][]super.Value 
 		rightKeyVec := key.Eval(vec)
 		for i := range vec.Len() {
 			keyVal := vector.ValueAt(&sb, rightKeyVec, i)
-			if keyVal.IsMissing() {
+			if keyVal.IsPlainNone() {
 				continue
 			}
 			key := hashKey(keyVal)
@@ -189,7 +189,7 @@ func (j *hashJoin) probeLeft() (vector.Any, error) {
 		b := vector.NewDynamicValueBuilder()
 		for i := range vec.Len() {
 			keyVal := vector.ValueAt(&sb, leftKeyVec, i)
-			if keyVal.IsMissing() {
+			if keyVal.IsPlainNone() {
 				continue
 			}
 			var rightVals []super.Value
@@ -235,7 +235,7 @@ func (j *hashJoin) probeRight() (vector.Any, error) {
 		b := vector.NewDynamicValueBuilder()
 		for i := range vec.Len() {
 			keyVal := vector.ValueAt(&sb, rightKeyVec, i)
-			if keyVal.IsMissing() {
+			if keyVal.IsPlainNone() {
 				continue
 			}
 			var leftVals []super.Value

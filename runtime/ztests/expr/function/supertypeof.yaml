@@ -7,11 +7,11 @@ input: |
   {a:"x",b:2}
 
 output: |
-  <{a:fusion(int64|string),b:fusion(int64|missing)}>
+  <{a:fusion(int64|string),b:fusion(int64|none)}>
   <{a:int64}>
   <fusion(int64|string)>
   <int64>
-  <{a:fusion(int64|string),b:fusion(int64|missing)}>
+  <{a:fusion(int64|string),b:fusion(int64|none)}>
   <{a:string,b:int64}>
   <fusion(int64|string)>
   <string>

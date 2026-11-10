@@ -72,8 +72,8 @@ func (m *materializer) union(u *Union) (vector.Any, []uint32) {
 		types = append(types, vec.Type())
 	}
 	if u.None != nil {
-		types = append(types, super.TypeMissing)
-		vecs = append(vecs, vector.NewEmpty(super.TypeMissing))
+		types = append(types, super.TypeNone)
+		vecs = append(vecs, vector.NewEmpty(super.TypeNone))
 	}
 	utyp := m.sctx.MustLookupTypeUnion(super.UniqueTypes(types))
 	subtypes := m.makeUnionSubtypes(u.Tags, dynamic, fixed)
@@ -187,7 +187,7 @@ func (m *materializer) record(r *Record) (vector.Any, []uint32) {
 		}
 		if len(rle) > 0 {
 			needIDs = true
-			vec = m.missing(vec, ids, fixed[i], n, rle)
+			vec = m.absent(vec, ids, fixed[i], n, rle)
 		}
 		vecs = append(vecs, vec)
 		allFields = append(allFields, super.NewField(fieldNames[i], vec.Type()))
@@ -212,29 +212,29 @@ func (m *materializer) record(r *Record) (vector.Any, []uint32) {
 	return vector.NewFusionWithLoader(m.sctx, typ, loader, record), subtypes
 }
 
-// missing wraps a field that is absent in some rows (per rle) as
+// absent wraps a field that is absent in some rows (per rle) as
 // fusion((T|none)): a plain union with none, not option(T). Its subtypes
 // are none where the field is absent, so defuse removes the field there,
 // and otherwise the field's own subtype. The field doesn't depend on the
 // parent record's subtypes.
-func (m *materializer) missing(vec vector.Any, ids []uint32, fixed uint32, n uint32, rle []uint32) vector.Any {
+func (m *materializer) absent(vec vector.Any, ids []uint32, fixed uint32, n uint32, rle []uint32) vector.Any {
 	if f, ok := vec.(*vector.Fusion); ok {
 		// Flatten to a single fusion((T1|...|none)) like the fuser does.
 		// ids already carry the child's per-value subtypes.
 		vec = f.Values
 	}
-	// This builds a *vector.Union of type (T|none) via sctx.UnionWithNone
+	// This builds a *vector.Union of type (T|none) via sctx.UnionNone.
 	// If vec is itself a union, its tags are kept and none is appended.
 	u := vector.NewUnionNoneRLE(m.sctx, vec, n, rle)
 	// Tags index the union's vectors, not Typ.Types, so find none there.
-	missingTag := uint32(slices.IndexFunc(u.Values(), func(v vector.Any) bool {
-		return v.Type() == super.TypeMissing
+	noneTag := uint32(slices.IndexFunc(u.Values(), func(v vector.Any) bool {
+		return v.Type() == super.TypeNone
 	}))
 	subtypes := make([]uint32, 0, n)
 	for _, tag := range u.Tags() {
 		switch {
-		case tag == missingTag:
-			subtypes = append(subtypes, super.IDMissing)
+		case tag == noneTag:
+			subtypes = append(subtypes, super.IDNone)
 		case ids != nil:
 			subtypes = append(subtypes, ids[0])
 			ids = ids[1:]

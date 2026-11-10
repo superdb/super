@@ -49,7 +49,7 @@ func buildValue(b *scode.Builder, val Value) error {
 		return buildFusion(b, val)
 	case *Option:
 		return buildOption(b, val)
-	case *Missing, *None, *Null:
+	case *None, *Null:
 		b.Append(nil)
 		return nil
 	}
@@ -166,7 +166,7 @@ func BuildPrimitive(b *scode.Builder, val Primitive) error {
 		}
 		b.Append(super.EncodeNet(net.Masked()))
 		return nil
-	case *super.TypeOfMissing, *super.TypeOfNone:
+	case *super.TypeOfNone:
 		b.Append(nil)
 		return nil
 	case *super.TypeOfNull:
@@ -183,10 +183,7 @@ func BuildPrimitive(b *scode.Builder, val Primitive) error {
 
 func buildRecord(b *scode.Builder, val *Record) error {
 	b.BeginContainer()
-	for k, v := range val.fields {
-		if super.TypeUnder(v.Type()) == super.TypeMissing {
-			return fmt.Errorf("missing value assigned to field %s", super.TypeUnder(val.Type()).(*super.TypeRecord).Fields[k].Name)
-		}
+	for _, v := range val.fields {
 		if err := buildValue(b, v); err != nil {
 			return err
 		}

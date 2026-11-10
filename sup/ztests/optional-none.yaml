@@ -1,8 +1,0 @@
-spq: pass
-
-flags: -i sup
-
-input: '{x?:missing}'
-
-error: |
-  stdio:stdin: missing value assigned to field x

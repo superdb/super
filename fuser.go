@@ -9,8 +9,8 @@ import (
 // Fuser constructs a fused supertype for all the types passed to Fuse.
 //
 // The supertype is a type of the type system: it has no fusion types and
-// any absorbs every type except missing (so the fusion of type any with a type
-// that may be missing is any|missing).  A fused type passed to Fuse is
+// any absorbs every type except none (so the fusion of type any with a type
+// that may be absent is any|none).  A fused type passed to Fuse is
 // normalized to its supertype, with fusion(all) normalized to any.  The
 // fused type (see FusedType) is a type of the data model, in which any
 // becomes fusion(all).
@@ -77,7 +77,7 @@ func (f *Fuser) fuse(a, b Type) Type {
 		return f.fuse(a, typ.Type)
 	}
 	if isAny(a) || isAny(b) {
-		return f.anyType(hasMissing(a) || hasMissing(b))
+		return f.anyType(hasNoneType(a) || hasNoneType(b))
 	}
 	switch a := a.(type) {
 	case *TypeRecord:
@@ -88,7 +88,7 @@ func (f *Fuser) fuse(a, b Type) Type {
 				if k, ok := b.IndexOfField(field.Name); ok {
 					typ = f.fuse(field.Type, b.Fields[k].Type)
 				} else {
-					typ = f.fuse(field.Type, TypeMissing)
+					typ = f.fuse(field.Type, TypeNone)
 				}
 				fields = append(fields, NewField(field.Name, typ))
 			}
@@ -98,7 +98,7 @@ func (f *Fuser) fuse(a, b Type) Type {
 				if a.HasField(field.Name) {
 					continue
 				}
-				typ := f.fuse(field.Type, TypeMissing)
+				typ := f.fuse(field.Type, TypeNone)
 				fields = append(fields, NewField(field.Name, typ))
 			}
 			slices.SortFunc(fields, func(x Field, y Field) int {
@@ -188,30 +188,30 @@ func isAny(t Type) bool {
 	return false
 }
 
-// hasMissing returns true if t is missing or a union containing missing.
-func hasMissing(t Type) bool {
-	if t == TypeMissing {
+// hasNoneType returns true if t is none or a union containing none.
+func hasNoneType(t Type) bool {
+	if t == TypeNone {
 		return true
 	}
 	if union, ok := t.(*TypeUnion); ok {
-		return slices.Contains(union.Types, Type(TypeMissing))
+		return slices.Contains(union.Types, Type(TypeNone))
 	}
 	return false
 }
 
-// anyType returns any or, if missing is true, any|missing.
-func (f *Fuser) anyType(missing bool) Type {
-	if missing {
-		return f.sctx.MustLookupTypeUnion([]Type{TypeAny, TypeMissing})
+// anyType returns any or, if none is true, any|none.
+func (f *Fuser) anyType(none bool) Type {
+	if none {
+		return f.sctx.MustLookupTypeUnion([]Type{TypeAny, TypeNone})
 	}
 	return TypeAny
 }
 
 // unionOf returns the type for the union types, which satisfy the invariant
-// of extendUnionTypes, where any absorbs every type but missing.
+// of extendUnionTypes, where any absorbs every type but none.
 func (f *Fuser) unionOf(types []Type) Type {
 	if slices.ContainsFunc(types, isAny) {
-		return f.anyType(slices.Contains(types, Type(TypeMissing)))
+		return f.anyType(slices.Contains(types, Type(TypeNone)))
 	}
 	if len(types) == 1 {
 		return types[0]
@@ -340,14 +340,14 @@ func (f *Fuser) merge(super, sub Type) Type {
 			}
 			superFields[col].Type = f.merge(superFields[col].Type, subField.Type)
 		}
-		// A field of super that's not in sub is missing in sub's values.
+		// A field of super that's not in sub is absent from sub's values.
 		for k, superField := range super.Fields {
 			if !sub.HasField(superField.Name) {
-				superFields[k].Type = f.merge(superFields[k].Type, TypeMissing)
+				superFields[k].Type = f.merge(superFields[k].Type, TypeNone)
 			}
 		}
 		superType := f.sctx.MustLookupTypeRecord(superFields)
-		// The fused fields record their subtypes (including missing for
+		// The fused fields record their subtypes (including none for
 		// a field absent from sub) so the record itself is a fusion only
 		// when sub's fields are in a different order.
 		if !orderPreserved(super, sub) {

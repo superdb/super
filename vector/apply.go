@@ -14,7 +14,7 @@ const (
 	ApplyRipUnions ApplyOpt = 1 << iota
 	ApplyRipFusions
 	ApplyRipOptions
-	ApplyDefuseMissings
+	ApplyDefuseNones
 )
 
 type NoRip struct {
@@ -59,11 +59,11 @@ func Apply(opt ApplyOpt, eval func(...Any) Any, vecs ...Any) Any {
 			}
 		}
 	}
-	if opt&ApplyDefuseMissings != 0 {
+	if opt&ApplyDefuseNones != 0 {
 		for k, vec := range vecs {
 			if _, ok := vec.(*NoRip); !ok {
 				if union, ok := Super(vec).(*Union); ok {
-					vecs[k] = defuseMissing(vec, union)
+					vecs[k] = defuseNone(vec, union)
 				}
 			}
 		}
@@ -219,14 +219,14 @@ func ripOption(o *Option) Any {
 	return o
 }
 
-func defuseMissing(vec Any, union *Union) Any {
-	missingTag := findMissing(union.Values())
-	if missingTag < 0 {
+func defuseNone(vec Any, union *Union) Any {
+	noneTag := findNone(union.Values())
+	if noneTag < 0 {
 		return vec
 	}
 	var index, tags []uint32
 	for k, tag := range union.Tags() {
-		if int(tag) != missingTag {
+		if int(tag) != noneTag {
 			index = append(index, uint32(k))
 			tags = append(tags, 0)
 		} else {
@@ -234,13 +234,13 @@ func defuseMissing(vec Any, union *Union) Any {
 		}
 	}
 	vals := Pick(vec, index)
-	missings := NewMissing(vec.Len() - uint32(len(index)))
-	return NewDynamic(tags, []Any{vals, missings})
+	nones := NewNone(vec.Len() - uint32(len(index)))
+	return NewDynamic(tags, []Any{vals, nones})
 }
 
-func findMissing(vecs []Any) int {
+func findNone(vecs []Any) int {
 	for k, vec := range vecs {
-		if vec.Type() == super.TypeMissing {
+		if vec.Type() == super.TypeNone {
 			if vec.Len() != 0 {
 				return k
 			}

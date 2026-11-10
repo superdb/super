@@ -10,7 +10,7 @@ import (
 // Match is a match expression, whose value is the value of the first case
 // whose type the matched value has (as for TypeAssert, see typeSwitch) or else
 // the value of its else expression or none if it has none.  An error or
-// missing value that no case matches is passed through.
+// none value that no case matches is passed through.
 type Match struct {
 	sctx      *super.Context
 	expr      Evaluator
@@ -58,7 +58,7 @@ func (m *Match) Eval(this vector.Any) vector.Any {
 		}
 		leaf := levels[len(levels)-1]
 		switch super.TypeUnder(leaf.Type()).(type) {
-		case *super.TypeError, *super.TypeOfMissing:
+		case *super.TypeError, *super.TypeOfNone:
 			return leaf
 		}
 		if m.elseExpr != nil {

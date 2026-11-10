@@ -169,4 +169,4 @@ input: |
 error: |
   field may be missing (consider ok()) at line 1, column 8:
   values r.f + 1
-         ~~~
+         ~

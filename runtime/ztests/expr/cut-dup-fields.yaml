@@ -17,12 +17,57 @@ outputs:
       duplicate field: "rec" at line 1, column 5:
       cut rec,other,rec
           ~~~~~~~~~~~~~
+      field may be missing (consider ok()) at line 1, column 5:
+      cut rec,other,rec
+          ~~~
+      field may be missing (consider ok()) at line 1, column 9:
+      cut rec,other,rec
+              ~~~~~
+      field may be missing (consider ok()) at line 1, column 15:
+      cut rec,other,rec
+                    ~~~
       duplicate field: "rec.sub1" at line 1, column 5:
       cut rec.sub1,rec.sub1
           ~~~~~~~~~~~~~~~~~
+      field may be missing (consider ok()) at line 1, column 5:
+      cut rec.sub1,rec.sub1
+          ~~~
+      field may be missing (consider ok()) at line 1, column 9:
+      cut rec.sub1,rec.sub1
+              ~~~~
+      field may be missing (consider ok()) at line 1, column 14:
+      cut rec.sub1,rec.sub1
+                   ~~~
+      field may be missing (consider ok()) at line 1, column 18:
+      cut rec.sub1,rec.sub1
+                       ~~~~
       duplicate field: "rec.sub.sub" at line 1, column 5:
       cut rec.sub,rec.sub.sub
           ~~~~~~~~~~~~~~~~~~~
+      field may be missing (consider ok()) at line 1, column 5:
+      cut rec.sub,rec.sub.sub
+          ~~~
+      field may be missing (consider ok()) at line 1, column 9:
+      cut rec.sub,rec.sub.sub
+              ~~~
+      field may be missing (consider ok()) at line 1, column 13:
+      cut rec.sub,rec.sub.sub
+                  ~~~
+      field may be missing (consider ok()) at line 1, column 17:
+      cut rec.sub,rec.sub.sub
+                      ~~~
       duplicate field: "rec.sub" at line 1, column 5:
       cut rec.sub.sub,rec.sub
           ~~~~~~~~~~~~~~~~~~~
+      field may be missing (consider ok()) at line 1, column 5:
+      cut rec.sub.sub,rec.sub
+          ~~~
+      field may be missing (consider ok()) at line 1, column 9:
+      cut rec.sub.sub,rec.sub
+              ~~~
+      field may be missing (consider ok()) at line 1, column 17:
+      cut rec.sub.sub,rec.sub
+                      ~~~
+      field may be missing (consider ok()) at line 1, column 21:
+      cut rec.sub.sub,rec.sub
+                          ~~~

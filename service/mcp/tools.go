@@ -56,9 +56,9 @@ const fusionDocs = "https://superdb.org/super-sql/operators/superfuse.html"
 // instructions still sees it.
 const fusionNotes = `Reading types from describe_table: a superfused type summarizes heterogeneous
 data in one type.  fusion(T1|T2|...) at a position means the values there vary
-across these types in the data.  missing in a fusion means the value is absent:
+across these types in the data.  none in a fusion means the value is absent:
 a record field that some values lack, or, inside an array, no element (an empty
-array).  For example, tags:fusion(string|missing|[fusion(string|missing)]) means
+array).  For example, tags:fusion(string|none|[fusion(string|none)]) means
 tags is sometimes a string, sometimes absent, and sometimes an array of strings
 that may be empty.  When data is defused, an empty array with no other type
 becomes [none].  Use form "fused" to get a plain union type instead.
@@ -194,11 +194,11 @@ limit that keeps them small.`,
 			Description: `Return a table's type in SUP type syntax: its declared type if it has one and
 otherwise the type of its data, which is computed from the type of each of its data
 objects (without scanning its values).  By default, the type is superfused, i.e., a
-fusion type shows exactly where the data's types vary (e.g., {a:int64,b:fusion(string|missing)}
-means b is absent from some values, and [fusion(string|missing)] means an array of
+fusion type shows exactly where the data's types vary (e.g., {a:int64,b:fusion(string|none)}
+means b is absent from some values, and [fusion(string|none)] means an array of
 strings that is sometimes empty).  If the type has a fusion type, the result's notes
 explain how to read it.  Form "fused" returns the type without fusion types (e.g.,
-{a:int64,b:string|missing}).  See ` + fusionDocs + `.`,
+{a:int64,b:string|none}).  See ` + fusionDocs + `.`,
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{

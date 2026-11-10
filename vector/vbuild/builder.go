@@ -88,8 +88,6 @@ func New(typ super.Type) Builder {
 		}
 	case *super.TypeOfNull:
 		return &nullBuilder{}
-	case *super.TypeOfMissing:
-		return &missingBuilder{}
 	case *super.TypeOfNone:
 		return &noneBuilder{}
 	case *super.TypeOfUnimplemented, *super.TypeDecimal:

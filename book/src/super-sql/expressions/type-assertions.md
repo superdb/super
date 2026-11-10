@@ -35,7 +35,7 @@ its option type, e.g., `x.(option(int64))`, and is otherwise `none`.
 
 Unlike a [cast](cast.md), a type assertion never converts a value, so
 `"1".(int64)` is `none` while `"1"::int64` is `1`.  An
-[error](../types/error.md) or `missing` value is passed through rather
+[error](../types/error.md) is passed through rather
 than becoming `none` (unless it has the asserted type) so that, e.g., a
 misspelled field name isn't hidden by a default value.
 

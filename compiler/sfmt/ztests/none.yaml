@@ -1,13 +1,13 @@
 script: |
-  super compile -C 'this==missing'
+  super compile -C 'this==none'
   echo ===
-  super compile -C -dag 'this==missing'
+  super compile -C -dag 'this==none'
 
 outputs:
   -  name: stdout
      data: |
-       where this==missing
+       where this==none
        ===
        null
-       | where this==missing
+       | where this==none
        | output main

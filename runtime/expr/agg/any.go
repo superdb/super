@@ -7,8 +7,12 @@ import (
 	"github.com/superdb/super/vector"
 )
 
+// Any is the any aggregate function, whose result is the first value that
+// isn't null or none, or else none if it saw only plain nones (e.g., from
+// ok() of an absent field), or else null.
 type Any struct {
-	val super.Value
+	val     super.Value
+	sawNone bool
 }
 
 func NewAny() *Any {
@@ -21,13 +25,20 @@ func (a *Any) Consume(vec vector.Any) {
 	if a.val.IsValid() {
 		return
 	}
-	if k := vector.Super(vec).Kind(); k == vector.KindNull || k == vector.KindMissing || k == vector.KindNone {
+	switch vector.Super(vec).Kind() {
+	case vector.KindNone:
+		a.sawNone = true
+		return
+	case vector.KindNull:
 		return
 	}
 	var b scode.Builder
 	for slot := range vec.Len() {
 		val := vector.ValueAt(&b, vec, slot)
-		if underVal := val.Under(); !underVal.IsNull() && !underVal.IsMissing() && !underVal.IsNone() {
+		underVal := val.Under()
+		if underVal.IsPlainNone() {
+			a.sawNone = true
+		} else if !underVal.IsNull() && !underVal.IsNone() {
 			a.val = val
 			return
 		}
@@ -40,6 +51,9 @@ func (a *Any) ConsumeAsPartial(vec vector.Any) {
 
 func (a *Any) Result(sctx *super.Context) vector.Any {
 	if !a.val.IsValid() {
+		if a.sawNone {
+			return vector.NewNone(1)
+		}
 		return vector.NewNull(1)
 	}
 	return sbuf.Dematerialize(sctx, a.val)

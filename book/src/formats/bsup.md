@@ -222,7 +222,7 @@ where `<type-id>` is the fusion's supertype.
 |0x09|<type-id>|
 ```
 where `<type-id>` is the type of an option's value when it has one.  The
-underlying type may not be an option, `missing`, or `none`.
+underlying type may not be an option or `none`.
 
 ### 4.11 Decimal Typedef
 
@@ -277,12 +277,11 @@ _body_ of a value of each type (see [Values](#73-values)).
 | `geography`        | 35 | reserved                                                   |
 | `type`             | 36 | [type value](#6-type-values)                              |
 | `null`             | 37 | empty                                                      |
-| `missing`          | 38 | empty                                                      |
 | `none`             | 39 | empty                                                      |
 | `all`              | 40 | a value of any type (see [Fusion Values](#733-complex-values)) |
 | `any`              | 41 | none: no value has type `any`, the top type of the type system |
 
-IDs 42 through 47 are reserved for future primitive types.  A type whose
+ID 38 and IDs 42 through 47 are reserved for future primitive types.  A type whose
 body is "reserved" has a type ID, so it may appear in a type, but its values
 are not yet defined.
 
@@ -539,7 +538,7 @@ A _plain_ vector is encoded according to its type:
 | `bytes`, `string`, `uuid`, `all` | `<count><bytes><offsets>`: a [bytes table](#85-segment-data) of the values' bodies |
 | `ip`, `net` | `<count><bytes><offsets>`: a bytes table of the values' bodies |
 | `type` | `<count><ids>`: a segment of unsigned 32-bit type IDs in the type values table |
-| `null`, `missing`, `none` | `<count>` |
+| `null`, `none` | `<count>` |
 | record | the locators of each field's vector in field order, or `<count>` if the record has no fields |
 | array, set | `<count><offsets><values>` |
 | map | `<count><offsets><keys><values>` |

@@ -3,20 +3,20 @@ spq: values optionize(this)
 input: |
   <int64>
   <int64|string>
-  <int64|missing>
-  <missing|int64|string>
-  <missing|none|option(int64)|string>
-  <missing|option(int64|string)|ip>
-  <missing|none>
-  <{a:int64|missing,b:string}>
-  <[{a:missing|string}]>
-  <set[missing|int64]>
-  <map{string:missing|ip}>
-  <error({a:missing|int64})>
-  <option({a:missing|int64})>
-  <{a:int64|missing}|string>
-  <missing|{a:int64|missing}>
-  type foo={a:int64|missing}
+  <int64|none>
+  <none|int64|string>
+  <none|none|option(int64)|string>
+  <none|option(int64|string)|ip>
+  <none|none>
+  <{a:int64|none,b:string}>
+  <[{a:none|string}]>
+  <set[none|int64]>
+  <map{string:none|ip}>
+  <error({a:none|int64})>
+  <option({a:none|int64})>
+  <{a:int64|none}|string>
+  <none|{a:int64|none}>
+  type foo={a:int64|none}
   <foo>
   <[foo]>
   1
@@ -30,7 +30,7 @@ output: |
   <option(int64|string)>
   <option(int64|string)>
   <option(int64|string|ip)>
-  <missing|none>
+  <none|none>
   <{a?:int64,b:string}>
   <[{a?:string}]>
   <set[option(int64)]>
@@ -39,7 +39,7 @@ output: |
   <option({a?:int64})>
   <string|{a?:int64}>
   <option({a?:int64})>
-  type foo={a:int64|missing}
+  type foo={a:int64|none}
   <foo>
   <[foo]>
   error({message:"optionize: argument is not a type",on:1})
@@ -50,16 +50,16 @@ output: |
 
 # A null member of the type of a record field is treated like missing so the
 # field becomes optional, except that null is kept if it's the field's only
-# type (so null stays null and missing|null becomes option(null)).  A null in
+# type (so null stays null and none|null becomes option(null)).  A null in
 # a union that isn't a field's type is left as is.
 spq: values optionize(this)
 
 input: |
   <{a:null|int64}>
-  <{a:missing|null|int64}>
-  <{a:missing|null|int64|string}>
+  <{a:none|null|int64}>
+  <{a:none|null|int64|string}>
   <{a:null}>
-  <{a:missing|null}>
+  <{a:none|null}>
   <{a:{b:null|string}}>
   <{a:[int64|null]}>
   <int64|null>

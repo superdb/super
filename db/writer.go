@@ -102,7 +102,7 @@ func (w *Writer) flushSorted(vec vector.Any, path field.Path, o order.Which, fin
 	keys := w.deref(vec, path)
 	key := func(slot uint32) super.Value {
 		val := vector.ValueAt(nil, keys, slot)
-		return val.MissingAsNull()
+		return val.NoneAsNull()
 	}
 	objectCap := uint32(min(w.table.ObjectCap, uint64(vec.Len())))
 	n := vec.Len()
@@ -251,10 +251,10 @@ func (w *Writer) sort(vec vector.Any) (vector.Any, super.Value, super.Value) {
 		if first {
 			first = false
 			minVal = primaryKey.Eval(*val)
-			minVal = minVal.MissingAsNull()
+			minVal = minVal.NoneAsNull()
 		}
 		maxVal = primaryKey.Eval(*val)
-		maxVal = maxVal.MissingAsNull()
+		maxVal = maxVal.NoneAsNull()
 		out.Write(*val)
 	}
 }

@@ -46,8 +46,6 @@ func (e *Empty) Kind() Kind {
 			return KindType
 		case *super.TypeOfNull:
 			return KindNull
-		case *super.TypeOfMissing:
-			return KindMissing
 		case *super.TypeOfNone:
 			return KindNone
 		case *super.TypeRecord:

@@ -186,7 +186,7 @@ func (p *Parser) matchPrimitive() (*ast.Primitive, error) {
 	var typ string
 	if s == "true" || s == "false" {
 		typ = "bool"
-	} else if s == "null" || s == "missing" || s == "none" {
+	} else if s == "null" || s == "none" {
 		typ = s
 	} else if _, err := uuid.Parse(s); err == nil && len(s) == 36 {
 		typ = "uuid"

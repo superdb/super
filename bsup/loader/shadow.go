@@ -174,8 +174,6 @@ func (d *decoder) primitive(id uint32) Shadow {
 		return &Null{node}
 	case super.IDNone:
 		return &None{node}
-	case super.IDMissing:
-		return &Missing{node}
 	default:
 		panic(fmt.Sprintf("BSUP loader: type %s has no vector encoding", typ))
 	}

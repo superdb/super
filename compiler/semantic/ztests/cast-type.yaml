@@ -65,14 +65,14 @@ output: |
 ---
 
 # A cast to a type with missing is missing only if the value may be missing.
-spq: values {a:1}::({a:int64}|missing) | values a+1
+spq: values {a:1}::({a:int64}|none) | values a+1
 
 output: |
   2
 
 ---
 
-spq: values y::(int64|missing)
+spq: values y::(int64|none)
 
 input: |
   {x:1}
@@ -80,5 +80,5 @@ input: |
 
 error: |
   field may be missing (consider ok()) at line 1, column 8:
-  values y::(int64|missing)
-         ~~~~~~~~~~~~~~~~~~
+  values y::(int64|none)
+         ~

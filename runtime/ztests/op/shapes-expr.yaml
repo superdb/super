@@ -1,5 +1,8 @@
 spq: shapes s2 | sort
 
+# The input is dynamic so absent fields are errors at runtime.
+flags: -dynamic
+
 input: |
   {s1:"a",s2:"b"}
   {s1:"a",s2:0}

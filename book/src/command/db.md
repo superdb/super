@@ -712,7 +712,7 @@ sent twice, a small limit is best),
 * `describe_table` returns a table's declared type or, if it has none,
 the superfused type of its data computed from the types of its data
 objects, which shows where the data's types vary (e.g.,
-`{a:int64,b:fusion(string|missing)}` means `b` is absent from some values),
+`{a:int64,b:fusion(string|none)}` means `b` is absent from some values),
 or, with form `fused`, the type without fusion types,
 * `health` checks that the database is readable and returns the status, the
 SuperDB version, whether the server is read-only, and the number of tables,

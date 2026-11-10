@@ -24,9 +24,8 @@ import (
 func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) {
 	switch e := e.(type) {
 	case *ast.AggFuncExpr:
-		expr, _ := t.exprNullable(e.Expr, inType)
 		nameLower := strings.ToLower(e.Name)
-		if expr == nil && nameLower != "count" {
+		if e.Expr == nil && nameLower != "count" {
 			t.error(e, fmt.Errorf("aggregator '%s' requires argument", e.Name))
 			return badExpr, badType
 		}
@@ -183,9 +182,7 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 		var valTypes []super.Type
 		for _, entry := range e.Entries {
 			key, keyType := t.expr(entry.Key, inType)
-			t.checker.result(entry.Key, keyType)
 			val, valType := t.expr(entry.Value, inType)
-			t.checker.result(entry.Value, valType)
 			entries = append(entries, sem.Entry{Key: key, Value: val})
 			keyTypes = append(keyTypes, keyType)
 			valTypes = append(valTypes, valType)
@@ -220,7 +217,6 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 				}
 				fields[name] = struct{}{}
 				e, typ := t.expr(elem.Value, inType)
-				t.checker.result(elem.Value, typ)
 				if elem.Opt {
 					e = &sem.CallExpr{Node: elem.Value, Tag: "some", Args: []sem.Expr{e}}
 					typ = t.checker.optionize(typ)
@@ -240,7 +236,6 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 				types = append(types, typ)
 			case *ast.ExprElem:
 				e, typ := t.expr(elem.Expr, inType)
-				t.checker.result(elem.Expr, typ)
 				if elem.Opt {
 					e = &sem.CallExpr{Node: elem.Expr, Tag: "some", Args: []sem.Expr{e}}
 				}
@@ -416,6 +411,36 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 	panic(e)
 }
 
+// inspectsAbsent returns true if name is a function that inspects the type of
+// its arguments and handles an absent field (which is an error at runtime),
+// so a field argument that may be absent isn't reported as possibly missing.
+func inspectsAbsent(name string) bool {
+	switch strings.ToLower(name) {
+	case "has", "is", "is_error", "kind", "nameof", "typeof":
+		return true
+	}
+	return false
+}
+
+// absentFieldOK is expr for a context where a field may be absent, i.e., e
+// is a field reference that isn't reported as possibly missing (see
+// checker.deref).
+func (t *translator) absentFieldOK(e ast.Expr, inType super.Type) (sem.Expr, super.Type) {
+	switch e := e.(type) {
+	case *ast.IDExpr:
+	case *ast.BinaryExpr:
+		if e.Op != "." && e.Op != "?." {
+			return t.expr(e, inType)
+		}
+	default:
+		return t.expr(e, inType)
+	}
+	absentOK := t.checker.absentOK
+	t.checker.absentOK = true
+	defer func() { t.checker.absentOK = absentOK }()
+	return t.expr(e, inType)
+}
+
 func (t *translator) dot(e *ast.BinaryExpr, nullish bool, inType super.Type) (sem.Expr, super.Type) {
 	id, ok := e.RHS.(*ast.IDExpr)
 	if !ok {
@@ -565,7 +590,14 @@ func (t *translator) binaryExpr(e *ast.BinaryExpr, inType super.Type) (sem.Expr,
 	if op == "." || op == "?." {
 		return t.dot(e, op == "?.", inType)
 	}
-	lhs, lhsType := t.expr(e.LHS, inType)
+	operand := t.expr
+	switch op {
+	case "==", "!=", "=", "<>":
+		// A field that may be absent can be compared since the
+		// comparison is false where it's absent.
+		operand = t.absentFieldOK
+	}
+	lhs, lhsType := operand(e.LHS, inType)
 	rhsInType := inType
 	if op == "and" {
 		// The right-hand side matters only when the left-hand side is
@@ -573,7 +605,7 @@ func (t *translator) binaryExpr(e *ast.BinaryExpr, inType super.Type) (sem.Expr,
 		// left-hand side (see checker.narrowAnd).
 		rhsInType = t.checker.narrowAnd(inType, lhs)
 	}
-	rhs, rhsType := t.expr(e.RHS, rhsInType)
+	rhs, rhsType := operand(e.RHS, rhsInType)
 	if op == "like" || op == "not like" {
 		s, ok := t.mustEvalString(rhs)
 		if !ok {
@@ -722,6 +754,24 @@ func (t *translator) semCall(call *ast.CallExpr, inType super.Type) (sem.Expr, s
 			e, typ := t.expr(call.Args[0], inType)
 			call := sem.NewCall(call, "ok", []sem.Expr{e})
 			return call, t.checker.checkOk(typ, call, t.checker.popErrs())
+		}
+		if strings.ToLower(f.Name) == "is_ok" && len(call.Args) == 1 {
+			// is_ok(e) is ok(e) ?? none != none (see semCallByName),
+			// so as with ok(), e's type errors aren't reported.
+			t.checker.pushErrs()
+			args, argTypes := t.exprs(call.Args, inType)
+			t.checker.popErrs()
+			return t.semCallByName(call, f.Name, args, argTypes, inType)
+		}
+		if inspectsAbsent(f.Name) {
+			var args []sem.Expr
+			var argTypes []super.Type
+			for _, arg := range call.Args {
+				e, typ := t.absentFieldOK(arg, inType)
+				args = append(args, e)
+				argTypes = append(argTypes, typ)
+			}
+			return t.semCallByName(call, f.Name, args, argTypes, inType)
 		}
 		args, argTypes := t.exprs(call.Args, inType)
 		return t.semCallByName(call, f.Name, args, argTypes, inType)
@@ -1282,20 +1332,15 @@ func (t *translator) arrayElems(elems []ast.ArrayElem, inType super.Type) ([]sem
 		case *ast.SpreadElem:
 			elemExpr, elemType := t.expr(elem.Expr, inType)
 			out = append(out, &sem.SpreadElem{Node: elem, Expr: elemExpr})
-			var spreadType super.Type
-			if arrayType, ok := elemType.(*super.TypeArray); ok {
-				spreadType = arrayType.Type
-			} else {
-				spreadType = t.checker.unknown
+			if spreadType, ok := t.checker.spreadElemType(elemType); ok {
+				types = append(types, spreadType)
 			}
-			types = append(types, spreadType)
 		case *ast.ExprElem:
 			elemExpr, elemType := t.expr(elem.Expr, inType)
-			t.checker.result(elem.Expr, elemType)
 			out = append(out, &sem.ExprElem{Node: elem, Expr: elemExpr})
 			// A none element is dropped from the array at runtime so it
 			// doesn't contribute to the element type.
-			if !isNoneType(elemType) {
+			if elemType, ok := t.checker.withoutPlainNone(elemType); ok {
 				types = append(types, elemType)
 			}
 		default:

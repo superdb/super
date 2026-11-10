@@ -1,4 +1,4 @@
-spq: values missing?.x
+spq: values typeof(none?.x)
 
 output: |
-  missing
+  <none>

@@ -12,8 +12,7 @@ spq: |
     none::(int64|string),
     typeof([]),
     typeof(set[]),
-    typeof(map{}),
-    missing ?? 123 -- this is missing because ?? doesn't do missing and missings shouldn't really happen
+    typeof(map{})
 
 
 output: |
@@ -27,7 +26,6 @@ output: |
   <[none]>
   <set[none]>
   <map{none:none}>
-  missing
 
 ---
 

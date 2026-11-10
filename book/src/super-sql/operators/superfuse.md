@@ -36,8 +36,8 @@ superfuse
 {a:1}
 {b:2}
 # expected output
-{a:fusion(1::(int64|missing),<int64>),b:fusion(missing::(int64|missing),<missing>)}
-{a:fusion(missing::(int64|missing),<missing>),b:fusion(2::(int64|missing),<int64>)}
+{a:fusion(1::(int64|none),<int64>),b:fusion(none::(int64|none),<none>)}
+{a:fusion(none::(int64|none),<none>),b:fusion(2::(int64|none),<int64>)}
 ```
 
 ---
@@ -64,6 +64,6 @@ superfuse
 {a:[1,2]}
 {a:["foo","bar"],b:10.0.0.1}
 # expected output
-{a:fusion([fusion(1::(int64|string),<int64>),fusion(2::(int64|string),<int64>)],<[int64]>),b:fusion(missing::(ip|missing),<missing>)}
-{a:fusion([fusion("foo"::(int64|string),<string>),fusion("bar"::(int64|string),<string>)],<[string]>),b:fusion(10.0.0.1::(ip|missing),<ip>)}
+{a:fusion([fusion(1::(int64|string),<int64>),fusion(2::(int64|string),<int64>)],<[int64]>),b:fusion(none::(ip|none),<none>)}
+{a:fusion([fusion("foo"::(int64|string),<string>),fusion("bar"::(int64|string),<string>)],<[string]>),b:fusion(10.0.0.1::(ip|none),<ip>)}
 ```

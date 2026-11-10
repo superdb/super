@@ -3,7 +3,7 @@ spq: |
   values
     {a:null}::option({a:int64}),
     {b:1}::option({a:int64}),
-    {a:null}::({a:int64}|missing),
+    {a:null}::({a:int64}|none),
     {type:"x",ref:"r"}::({type:string,ref:string}|{type:string,num:int64})
 
 output: |

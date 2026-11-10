@@ -127,7 +127,7 @@ func FusedType(sctx *super.Context, objects []*Object) (super.Type, error) {
 }
 
 func NewObject() Object {
-	none := super.NewValue(super.TypeMissing, nil)
+	none := super.NewValue(super.TypeNone, nil)
 	return Object{ID: uuid.NewV7(), Min: none, Max: none}
 }
 

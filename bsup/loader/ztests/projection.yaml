@@ -23,35 +23,35 @@ inputs:
 outputs:
   - name: stdout
     data: |
-      {x:1,y:2,z:missing}
-      {x:3,y:4,z:missing}
-      {x:3,y:4,z:missing}
-      {x:3,y:4,z:missing}
-      {x:missing,y:missing,z:missing}
+      {x:1,y:2,z:none}
+      {x:3,y:4,z:none}
+      {x:3,y:4,z:none}
+      {x:3,y:4,z:none}
+      {x:none,y:none,z:none}
       ===
       {s:"foo"}
-      {s:missing}
+      {s:none}
       {s:"bar"}
-      {s:missing}
+      {s:none}
       {s:"baz"}
       ===
       {x:1,s:"foo"}
-      {x:3,s:missing}
+      {x:3,s:none}
       {x:3,s:"bar"}
-      {x:3,s:missing}
-      {x:missing,s:"baz"}
+      {x:3,s:none}
+      {x:none,s:"baz"}
       ===
       {s:"foo",x:1}
-      {s:missing,x:3}
+      {s:none,x:3}
       {s:"bar",x:3}
-      {s:missing,x:3}
-      {s:"baz",x:missing}
+      {s:none,x:3}
+      {s:"baz",x:none}
       ===
-      {y:2,w:missing}
-      {y:4,w:missing}
-      {y:4,w:missing}
-      {y:4,w:missing}
-      {y:missing,w:{y:5}}
+      {y:2,w:none}
+      {y:4,w:none}
+      {y:4,w:none}
+      {y:4,w:none}
+      {y:none,w:{y:5}}
       ===
       1
       2

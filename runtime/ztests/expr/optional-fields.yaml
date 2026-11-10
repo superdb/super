@@ -182,13 +182,11 @@ spq: values this?.x
 flags: -dynamic
 
 input: |
-  missing
   none::int64
   {x:1}
   {x?:1}
 
 output: |
-  missing
   error("cannot access field 'x' of int64")
   1
   some(1)
@@ -200,7 +198,6 @@ spq: values this?.x?.y
 flags: -dynamic
 
 input: |
-  missing
   none::int64
   {x:1}
   {x?:1}
@@ -208,7 +205,6 @@ input: |
   {x:{y?:none::int64}}
 
 output: |
-  missing
   error("cannot access field 'x' of int64")
   error("cannot access field 'y' of int64")
   error("cannot access field 'y' of int64")

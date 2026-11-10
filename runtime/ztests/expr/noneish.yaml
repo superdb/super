@@ -13,7 +13,7 @@ spq: |
   values x.ok() ?? 1
 
 input: |
-  {x:fusion(missing::(int64|missing),<missing>)}
+  {x:fusion(none::(int64|none),<none>)}
 
 output: |
   1

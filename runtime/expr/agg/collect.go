@@ -23,10 +23,6 @@ func (c *collect) NoRip() bool { return true }
 
 func (c *collect) Consume(vec vector.Any) {
 	vec = vector.Apply(vector.ApplyRipUnions, func(vecs ...vector.Any) vector.Any {
-		// catch missing values
-		if vec, ok := expr.Catch(c.sctx, 0, vecs[0], "collect"); ok {
-			return vec
-		}
 		return vecs[0]
 	}, c.defuse.Eval(vec))
 	if d, ok := vec.(*vector.Dynamic); ok {

@@ -22,7 +22,7 @@ If no case matches, the result is `<else-result>` or, without an
 `else` clause, `none`, which disappears from a record, array, or map,
 is dropped from the output of the [values](../operators/values.md) operator,
 and is typically handled with the `??` operator.
-An [error](../types/error.md) or `missing` value is passed through
+An [error](../types/error.md) is passed through
 unless a case has its type.
 
 A result is evaluated with `this` bound to the value of `<expr>` asserted to

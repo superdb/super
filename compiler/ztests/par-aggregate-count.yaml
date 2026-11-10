@@ -23,7 +23,7 @@ outputs:
         )
       | combine
       | aggregate partials-in
-          count:=count() by y:=y
+          count:=count() by y:=this?.y
       | output main
       ===
       lister ...

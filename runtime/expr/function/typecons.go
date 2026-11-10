@@ -120,7 +120,7 @@ func newTypeCons(sctx *super.Context, name string) *typeCons {
 			case "fusion_type":
 				return sctx.LookupTypeFusion(inner)
 			default:
-				if _, ok := inner.(*super.TypeOption); ok || inner == super.TypeMissing || inner == super.TypeNone {
+				if _, ok := inner.(*super.TypeOption); ok || inner == super.TypeNone {
 					return nil, errors.New("invalid option type")
 				}
 				return sctx.LookupTypeOption(inner), nil

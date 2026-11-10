@@ -82,7 +82,7 @@ func (u *Upcast) toRecord(b *scode.Builder, typ super.Type, bytes scode.Bytes, t
 	for _, f := range to.Fields {
 		elemType, elemBytes, ok := derefAsBytes(recType, bytes, f.Name)
 		if !ok {
-			elemType = super.TypeMissing
+			elemType = super.TypeNone
 			elemBytes = nil
 		}
 		if ok := u.upcast(b, elemType, elemBytes, f.Type); !ok {

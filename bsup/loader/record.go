@@ -34,7 +34,7 @@ func (r *Record) project(loader *FrameLoader, projection field.Projection) vecto
 		if k := slices.Index(r.Names, node.Name); k >= 0 {
 			val = r.Fields[k].project(loader, node.Proj)
 		} else {
-			val = vector.NewMissing(r.Length)
+			val = vector.NewNone(r.Length)
 		}
 		valFields = append(valFields, val)
 		types = append(types, super.NewField(node.Name, val.Type()))

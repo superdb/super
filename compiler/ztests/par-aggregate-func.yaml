@@ -23,7 +23,7 @@ outputs:
         )
       | combine
       | aggregate partials-in
-          union:=union(s) by n:=n
+          union:=union(s) by n:=this?.n
       | output main
       ===
       file test.bsup format bsup unordered project [a,b]
@@ -38,5 +38,5 @@ outputs:
         )
       | combine
       | aggregate partials-in
-          count:=count(a) by b:=b
+          count:=count(a) by b:=this?.b
       | output main

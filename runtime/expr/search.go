@@ -56,7 +56,7 @@ func NewSearchString(sctx *super.Context, s string, e Evaluator) Evaluator {
 	return &search{sctx, e, nil, pred}
 }
 
-// Eval searches the result of s.e.  Errors, nulls, nones, and missings that
+// Eval searches the result of s.e.  Errors, nulls, and nones that
 // s.e itself produces are caught here, type by type, rather than searched.
 // Values nested inside the result are data to search (see eval).
 func (s *search) Eval(this vector.Any) vector.Any {
@@ -74,9 +74,9 @@ func (s *search) applyEval(vec vector.Any) vector.Any {
 
 func (s *search) eval(vecs ...vector.Any) vector.Any {
 	vec := vector.Under(vecs[0])
-	// Search doesn't defuse so we need to check for missings (and of course
+	// Search doesn't defuse so we need to check for nones (since
 	// none never matches a search).
-	if k := vec.Kind(); k == vector.KindMissing || k == vector.KindNone {
+	if k := vec.Kind(); k == vector.KindNone {
 		return vector.NewFalse(vec.Len())
 	}
 	typ := vec.Type()

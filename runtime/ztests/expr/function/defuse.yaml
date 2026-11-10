@@ -2,8 +2,8 @@
 spq: defuse(this)
 
 input: |
-  {x:{y:2::(int64|bool)},z:"foo"::(missing|string)}
-  {x:{y:true::(int64|bool)},z:missing::(missing|string)}
+  {x:{y:2::(int64|bool)},z:"foo"::(none|string)}
+  {x:{y:true::(int64|bool)},z:none::(none|string)}
   {}
 
 output: |

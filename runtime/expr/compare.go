@@ -124,13 +124,13 @@ func (c *Compare) compareOptions(lhs, rhs vector.Any) vector.Any {
 }
 
 func compareNones(a, b vector.Any) (bool, bool) {
-	if a.Kind() == vector.KindMissing {
-		if b.Kind() == vector.KindMissing {
+	if a.Kind() == vector.KindNone {
+		if b.Kind() == vector.KindNone {
 			return true, true
 		}
 		return false, true
 	}
-	if b.Kind() == vector.KindMissing {
+	if b.Kind() == vector.KindNone {
 		return false, true
 	}
 	return false, false

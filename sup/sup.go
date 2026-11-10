@@ -20,7 +20,7 @@ import (
 // syntactically from its value and thus never needs a decorator.
 func Implied(typ super.Type) bool {
 	switch typ := typ.(type) {
-	case *super.TypeOfInt64, *super.TypeOfDuration, *super.TypeOfTimestamp, *super.TypeOfFloat64, *super.TypeOfBool, *super.TypeOfBytes, *super.TypeOfString, *super.TypeOfIP, *super.TypeOfNet, *super.TypeOfUUID, *super.TypeOfType, *super.TypeOfNull, *super.TypeOfMissing, *super.TypeOfNone:
+	case *super.TypeOfInt64, *super.TypeOfDuration, *super.TypeOfTimestamp, *super.TypeOfFloat64, *super.TypeOfBool, *super.TypeOfBytes, *super.TypeOfString, *super.TypeOfIP, *super.TypeOfNet, *super.TypeOfUUID, *super.TypeOfType, *super.TypeOfNull, *super.TypeOfNone:
 		return true
 	case *super.TypeRecord:
 		return !slices.ContainsFunc(typ.Fields, func(f super.Field) bool {

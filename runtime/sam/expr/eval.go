@@ -86,7 +86,7 @@ func lookupKey(mapBytes, target scode.Bytes) (scode.Bytes, bool) {
 }
 
 func indexMap(sctx *super.Context, typ *super.TypeMap, mapBytes scode.Bytes, key super.Value) super.Value {
-	if key.IsMissing() {
+	if key.IsPlainNone() {
 		return key
 	}
 	if key.Type() != typ.KeyType {
@@ -99,12 +99,12 @@ func indexMap(sctx *super.Context, typ *super.TypeMap, mapBytes scode.Bytes, key
 				}
 			}
 		}
-		return super.Missing
+		return super.None
 	}
 	if valBytes, ok := lookupKey(mapBytes, key.Bytes()); ok {
 		return deunion(typ.ValType, valBytes)
 	}
-	return super.Missing
+	return super.None
 }
 
 func deunion(typ super.Type, b scode.Bytes) super.Value {

@@ -17,6 +17,10 @@ type checker struct {
 	checked map[super.Type]super.Type
 	unknown super.Type
 	estack  []errlist
+	// absentOK is true while checking a nullish field access (e.g., a
+	// SQL column reference), where an absent field is null rather than
+	// an error (see deref).
+	absentOK bool
 }
 
 func newChecker(t *translator) *checker {
@@ -84,9 +88,6 @@ func (c *checker) op(typ super.Type, op sem.Op) super.Type {
 	case *sem.AggregateOp:
 		aggPaths := c.assignments(typ, op.Aggs)
 		keyPaths := c.assignments(typ, op.Keys)
-		for k, path := range keyPaths {
-			c.groupKey(op.Keys[k].RHS, path.typ)
-		}
 		return c.pathsToType(append(keyPaths, aggPaths...))
 	case *sem.BadOp:
 		return c.unknown
@@ -304,8 +305,20 @@ func (c *checker) assignments(in super.Type, assignments []sem.Assignment) []pat
 
 func (c *checker) sortExprs(typ super.Type, exprs []sem.SortExpr) {
 	for _, se := range exprs {
-		c.expr(typ, se.Expr)
+		c.absentFieldOK(typ, se.Expr)
 	}
+}
+
+// absentFieldOK is expr for a context where a field may be absent, i.e., e
+// is a field reference that isn't reported as possibly missing (see deref).
+func (c *checker) absentFieldOK(typ super.Type, e sem.Expr) super.Type {
+	switch e.(type) {
+	case *sem.ThisExpr, *sem.DotExpr:
+		absentOK := c.absentOK
+		c.absentOK = true
+		defer func() { c.absentOK = absentOK }()
+	}
+	return c.expr(typ, e)
 }
 
 func (c *checker) exprs(typ super.Type, exprs []sem.Expr) []super.Type {
@@ -330,13 +343,13 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 	case *sem.AggFunc:
 		argType := typ
 		if e.Filter != nil {
-			c.notMissing(e.Filter, c.expr(typ, e.Filter))
+			c.expr(typ, e.Filter)
 			// The argument is evaluated only for the values where
 			// the filter is true.
 			argType = c.narrow(typ, e.Filter)
 		}
 		if e.Expr != nil {
-			c.notMissing(e.Expr, c.expr(argType, e.Expr))
+			c.expr(argType, e.Expr)
 		}
 		// XXX This will be handled in a subsequent PR where we add type signatures
 		// to the package containing the agg func implementatons.
@@ -352,22 +365,32 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 	case *sem.BadExpr:
 		return c.unknown
 	case *sem.BinaryExpr:
-		lhs := c.expr(typ, e.LHS)
+		operand := c.expr
+		if e.Op == "==" || e.Op == "!=" {
+			// A field that may be absent can be compared since
+			// the comparison is false where it's absent.
+			operand = c.absentFieldOK
+		}
+		lhs := operand(typ, e.LHS)
 		rhsIn := typ
 		if strings.ToLower(e.Op) == "and" {
 			// The right-hand side matters only when the left-hand
 			// side is true or null (see narrowAnd).
 			rhsIn = c.narrowAnd(typ, e.LHS)
 		}
-		rhs := c.expr(rhsIn, e.RHS)
+		rhs := operand(rhsIn, e.RHS)
 		return c.binary(e.Op, e, e.LHS, e.RHS, lhs, rhs)
 	case *sem.CallExpr:
 		if e.Tag == "ok" {
 			return c.ok(typ, e)
 		}
+		expr := c.expr
+		if inspectsAbsent(e.Tag) {
+			expr = c.absentFieldOK
+		}
 		var types []super.Type
 		for _, e := range e.Args {
-			types = append(types, c.expr(typ, e))
+			types = append(types, expr(typ, e))
 		}
 		if isBuiltin(e.Tag) {
 			return c.callBuiltin(e, types)
@@ -514,15 +537,16 @@ func (c *checker) ok(typ super.Type, call *sem.CallExpr) super.Type {
 }
 
 // checkOk returns the type of ok(e) where typ is the type of e and errs are
-// the type errors found in e.  ok() turns an error or missing value into none,
-// so the type errors in e aren't reported, and the value of ok(e) is either of
-// one of the types of e that isn't an error or missing, or none.
+// the type errors found in e.  ok() turns an error (e.g., from reading an
+// absent field) into none, so the type errors in e aren't reported, and the
+// value of ok(e) is either of one of the types of e that isn't an error or
+// none, or none.
 func (c *checker) checkOk(typ super.Type, call *sem.CallExpr, errs []errloc) super.Type {
 	typ, ok := c.withoutTypes(defuse(typ), func(typ super.Type) bool {
-		return isMissingType(typ) || isErrorType(typ)
+		return isNoneType(typ) || isErrorType(typ)
 	})
 	if !ok {
-		// The value is always an error or missing so ok() is always none.
+		// The value is always an error or none so ok() is always none.
 		return super.TypeNone
 	}
 	return c.orNone(typ)
@@ -571,10 +595,6 @@ func (c *checker) withoutTypes(typ super.Type, drop func(super.Type) bool) (supe
 		return typ, true
 	}
 	return c.union(keep), true
-}
-
-func isMissingType(typ super.Type) bool {
-	return under(typ) == super.TypeMissing
 }
 
 // isNoneType reports whether typ is the type of a plain none, which
@@ -658,16 +678,8 @@ func (c *checker) binary(op string, loc, lloc, rloc ast.Node, lhs, rhs super.Typ
 	lhs = defuse(lhs)
 	rhs = defuse(rhs)
 	if op != "==" && op != "!=" && op != "??" {
-		if hasMissing(lhs) {
-			c.error(lloc, errMissing)
-			return c.unknown
-		}
 		if hasOption(lhs) || hasNone(lhs) {
 			c.error(lloc, fmt.Errorf("%s: %w", sup.FormatType(lhs), errNone))
-			return c.unknown
-		}
-		if hasMissing(rhs) {
-			c.error(rloc, errMissing)
 			return c.unknown
 		}
 		if hasOption(rhs) || hasNone(rhs) {
@@ -693,13 +705,6 @@ func (c *checker) binary(op string, loc, lloc, rloc ast.Node, lhs, rhs super.Typ
 	case "*", "/", "%":
 		return c.arithmetic(lloc, rloc, lhs, rhs)
 	case "??":
-		// ?? handles none (and null) but not a field that may be missing,
-		// which ok() converts to none.  A value that is only ever missing
-		// (e.g., the literal missing) passes through ?? unchanged.
-		if !hasUnknown(lhs) && mayBeMissing(lhs) {
-			c.error(lloc, errMissing)
-			return c.unknown
-		}
 		return c.coalesce(lhs, rhs)
 	default:
 		panic(op)
@@ -718,7 +723,7 @@ func (c *checker) this(loc ast.Node, this *sem.ThisExpr, typ super.Type) super.T
 }
 
 // derefNullish is deref for a nullish field access (e.g., a SQL column
-// reference), which produces null for a null value and in place of a missing
+// reference), which produces null for a null value and in place of an absent
 // field.
 func (c *checker) derefNullish(loc ast.Node, typ super.Type, field string, noneish bool) super.Type {
 	if isUnknown(typ) {
@@ -731,7 +736,10 @@ func (c *checker) derefNullish(loc ast.Node, typ super.Type, field string, nonei
 	if !ok {
 		return super.TypeNull
 	}
-	out := c.missingAsNull(c.deref(loc, rest, field, noneish))
+	absentOK := c.absentOK
+	c.absentOK = true
+	out := c.noneAsNull(c.deref(loc, rest, field, noneish))
+	c.absentOK = absentOK
 	if rest != defuse(typ) {
 		// The value may be null, in which case the field is null.
 		out = c.fuse([]super.Type{out, super.TypeNull})
@@ -739,13 +747,14 @@ func (c *checker) derefNullish(loc ast.Node, typ super.Type, field string, nonei
 	return out
 }
 
-// missingAsNull returns typ with any missing type replaced by null.
-func (c *checker) missingAsNull(typ super.Type) super.Type {
+// noneAsNull returns typ, the type of a field that is absent where its type
+// is plain none, with plain none replaced by null.
+func (c *checker) noneAsNull(typ super.Type) super.Type {
 	under := defuse(typ)
-	if hasUnknown(under) || !hasMissing(under) {
+	if hasUnknown(under) || !hasPlainNone(under) {
 		return typ
 	}
-	rest, ok := c.withoutTypes(under, isMissingType)
+	rest, ok := c.withoutTypes(under, isNoneType)
 	if !ok {
 		return super.TypeNull
 	}
@@ -770,17 +779,13 @@ func (c *checker) arrayElems(typ super.Type, elems []sem.ArrayElem) super.Type {
 	for _, elem := range elems {
 		switch elem := elem.(type) {
 		case *sem.SpreadElem:
-			spreadType := c.expr(typ, elem.Expr)
-			if arrayType, ok := spreadType.(*super.TypeArray); ok {
-				spreadType = arrayType.Type
-			} else {
-				spreadType = c.unknown
+			if elemType, ok := c.spreadElemType(c.expr(typ, elem.Expr)); ok {
+				fuser.fuse(elemType)
 			}
-			fuser.fuse(spreadType)
 		case *sem.ExprElem:
 			// A none element is dropped from the array at runtime so it
 			// doesn't contribute to the element type.
-			if elemType := c.expr(typ, elem.Expr); !isNoneType(elemType) {
+			if elemType, ok := c.withoutPlainNone(c.expr(typ, elem.Expr)); ok {
 				fuser.fuse(elemType)
 			}
 		default:
@@ -788,6 +793,24 @@ func (c *checker) arrayElems(typ super.Type, elems []sem.ArrayElem) super.Type {
 		}
 	}
 	return defuse(fuser.Type())
+}
+
+// spreadElemType returns the type of the elements contributed to an array by
+// a spread of a value of type typ, or false if it contributes none.  A spread
+// of a plain none (e.g., from ok() of an absent field) contributes no
+// elements.
+func (c *checker) spreadElemType(typ super.Type) (super.Type, bool) {
+	typ, ok := c.withoutPlainNone(typ)
+	if !ok {
+		return nil, false
+	}
+	switch typ := under(defuse(typ)).(type) {
+	case *super.TypeArray:
+		return typ.Type, true
+	case *super.TypeSet:
+		return typ.Type, true
+	}
+	return c.unknown, true
 }
 
 func (c *checker) recordElems(typ super.Type, elems []sem.RecordElem) super.Type {
@@ -852,8 +875,6 @@ func (c *checker) formRecordElems(elems []sem.RecordElem, types []super.Type) su
 				}
 				continue
 			}
-			// A field whose value may be none may be absent.
-			typ = c.noneAsMissing(typ)
 			if k, ok := order[elem.Name]; ok {
 				// As in the runtime, a field of the same name as an earlier
 				// field (e.g., from a spread) replaces it in place.
@@ -867,34 +888,6 @@ func (c *checker) formRecordElems(elems []sem.RecordElem, types []super.Type) su
 		}
 	}
 	return c.t.sctx.MustLookupTypeRecord(fields)
-}
-
-// noneAsMissing returns typ with plain none replaced by missing if typ is a
-// union (or the fusion of a union) with plain none as a member, i.e., the type
-// of a field whose value may be none, which disappears from a record, so the
-// field may be missing.  A named type is a value and is returned as is.
-func (c *checker) noneAsMissing(typ super.Type) super.Type {
-	if typ == nil || hasUnknown(typ) {
-		return typ
-	}
-	u, ok := defuse(typ).(*super.TypeUnion)
-	if !ok || !slices.Contains(u.Types, super.Type(super.TypeNone)) {
-		return typ
-	}
-	var types []super.Type
-	for _, t := range u.Types {
-		if t == super.TypeNone {
-			t = super.TypeMissing
-		}
-		types = append(types, t)
-	}
-	out := c.unionOf(super.Flatten(types))
-	if _, isFusion := typ.(*super.TypeFusion); isFusion {
-		if _, isUnion := out.(*super.TypeUnion); isUnion {
-			return c.t.sctx.MustLookupTypeFusion(out)
-		}
-	}
-	return out
 }
 
 // unionOf returns the single type in types or else the union of types.
@@ -932,8 +925,8 @@ func (c *checker) callBuiltin(call *sem.CallExpr, args []super.Type) super.Type 
 // e, which is known when e is a type expression (e.g., <int64> or a named
 // type) and is otherwise unknown.  A cast passes a null through (except to
 // an option type that doesn't admit null, which makes it the option's none)
-// so the type admits null if in does, and a cast produces missing only from
-// missing so the type admits missing only if in does.
+// so the type admits null if in does, and a cast produces none only from
+// none (except to an option type) so the type admits none only if in does.
 func (c *checker) castType(in super.Type, e sem.Expr) super.Type {
 	typeExpr, ok := e.(*sem.TypeExpr)
 	if !ok {
@@ -946,13 +939,6 @@ func (c *checker) castType(in super.Type, e sem.Expr) super.Type {
 	typ, err = c.t.sctx.TranslateType(typ)
 	if err != nil {
 		return c.unknown
-	}
-	if hasMissing(typ) && !hasUnknown(in) && !hasMissing(in) {
-		rest, ok := c.withoutTypes(typ, isMissingType)
-		if !ok {
-			return c.unknown
-		}
-		typ = rest
 	}
 	if hasNullType(in) && !hasNullType(typ) {
 		if o, ok := under(typ).(*super.TypeOption); ok && !hasNullType(o.Type) {
@@ -1085,10 +1071,10 @@ func (c *checker) putPaths(inType super.Type, puts []pathType) super.Type {
 	}
 	for _, put := range puts {
 		// A field whose value is a plain none disappears from the record
-		// (e.g., an aggregate's group key), so it may be missing.
-		leaf := c.noneAsMissing(put.typ)
+		// (e.g., an aggregate's group key), so it may be absent.
+		leaf := put.typ
 		if isNoneType(leaf) {
-			leaf = super.TypeMissing
+			leaf = super.TypeNone
 		}
 		typ := c.putInto(recType, put.elems, leaf)
 		var ok bool
@@ -1226,13 +1212,26 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 			}
 			return c.unknown
 		}
-		return typ.Fields[which].Type
+		fieldType := typ.Fields[which].Type
+		if !c.absentOK && !hasUnknown(fieldType) && hasPlainNone(fieldType) {
+			// A field whose type has plain none (e.g., in a fused record
+			// type) is absent from some records, where it's an error at
+			// runtime, so it must be converted to none with ok() (or read
+			// with a nullish SQL column reference, which makes it null).
+			c.error(loc, errMissing)
+			if rest, ok := c.withoutTypes(defuse(fieldType), isNoneType); ok {
+				return rest
+			}
+			return c.unknown
+		}
+		return fieldType
 	case *super.TypeUnion:
 		if hasNone(typ) {
 			// The value may be a bare none (e.g., it's from ok()), which
 			// has no type to carry, so e?.f is a bare none when e is and
-			// e.f doesn't handle none.
-			if !noneish {
+			// e.f doesn't handle none.  Where an absent field is OK,
+			// so is a field of an absent value.
+			if !noneish && !c.absentOK {
 				c.error(loc, fmt.Errorf("%s: %w", sup.FormatType(typ), errNone))
 				return c.unknown
 			}
@@ -1282,7 +1281,7 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 		}
 		return c.orNone(c.deref(loc, typ.Type, field, noneish))
 	case *super.TypeOfNone:
-		if !noneish {
+		if !noneish && !c.absentOK {
 			c.error(loc, fmt.Errorf("%s: %w", sup.FormatType(inType), errNone))
 			return c.unknown
 		}
@@ -1291,10 +1290,6 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 		// A field of a type value is a type value (or an error if the
 		// type has no such field, which we can't know statically).
 		return super.TypeType
-	case *super.TypeOfMissing:
-		// A field of a missing value is missing too, so leave the missing
-		// in the type for whatever uses it to catch.
-		return typ
 	}
 	c.error(loc, fmt.Errorf("no such field %q: . applied to %s", field, sup.FormatType(inType)))
 	return c.unknown
@@ -1535,20 +1530,15 @@ func hasUnknown(typ super.Type) bool {
 	return isUnknown(typ)
 }
 
-func hasMissing(typ super.Type) bool {
-	if u, ok := under(typ).(*super.TypeUnion); ok {
-		if slices.ContainsFunc(u.Types, hasMissing) {
-			return true
-		}
+// hasPlainNone reports whether typ is plain none or an (unnamed) union with
+// plain none as one of its types, which is the type of a field that may be
+// absent.
+func hasPlainNone(typ super.Type) bool {
+	typ = defuse(typ)
+	if u, ok := typ.(*super.TypeUnion); ok {
+		return slices.ContainsFunc(u.Types, hasPlainNone)
 	}
-	return under(typ) == super.TypeMissing
-}
-
-// mayBeMissing reports whether typ is a union with missing as one of its
-// types, as for a field that's absent from some records.
-func mayBeMissing(typ super.Type) bool {
-	u, ok := under(typ).(*super.TypeUnion)
-	return ok && slices.ContainsFunc(u.Types, hasMissing)
+	return typ == super.TypeNone
 }
 
 // hasNone reports whether typ is none or a union with none as one of its
@@ -1782,36 +1772,13 @@ func (f *fuser) Type() super.Type {
 }
 
 func (c *checker) aggFunc(name string, arg ast.Node, argType super.Type, filter ast.Node, filterType super.Type) super.Type {
-	// An aggregate function skips none values but a field that may be
-	// absent must be converted to none with ok(), e.g., count(y.ok()).
-	if arg != nil {
-		c.notMissing(arg, argType)
-	}
-	if filter == nil || c.notMissing(filter, filterType) {
+	// An aggregate function skips none values.  A field that may be
+	// absent is caught where it's read (see deref).
+	if filter != nil {
 		c.boolean(filter, filterType)
 	}
 	//XXX TBD... need to type check args and get return value
 	return c.unknown
-}
-
-// groupKey checks the type of a grouping expression.  A missing value
-// can't be a group key so a field that may be absent must be converted
-// to none with ok(), e.g., aggregate count() by y.ok(), in which case
-// the values where the field is absent form the none group.
-func (c *checker) groupKey(loc ast.Node, typ super.Type) {
-	c.notMissing(loc, typ)
-}
-
-// result reports an error at loc if typ, the type of a value the query
-// produces (e.g., an output value, record field, array element, or assigned
-// field), may be missing, as for a field that's absent from some records.
-// Such a missing value is an error at runtime, so it must be converted to
-// none with ok(), e.g., values y.ok().
-func (c *checker) result(loc ast.Node, typ super.Type) {
-	typ = defuse(typ)
-	if typ != nil && !hasUnknown(typ) && mayBeMissing(typ) {
-		c.error(loc, errMissing)
-	}
 }
 
 // values returns the type of the output of a values operator whose
@@ -1854,20 +1821,10 @@ func (c *checker) withoutPlainNone(typ super.Type) (super.Type, bool) {
 	return out, true
 }
 
-// notMissing reports an error at loc if typ may be missing.
-func (c *checker) notMissing(loc ast.Node, typ super.Type) bool {
-	typ = defuse(typ)
-	if typ == nil || hasUnknown(typ) || !hasMissing(typ) {
-		return true
-	}
-	c.error(loc, errMissing)
-	return false
-}
-
 // typeAssert returns the type of a type assertion of a value of type in to
 // the type of the type expression e, which is the asserted type (or, for a
 // named union type, the named type or one of its members) or none,
-// plus any error or missing types of in, which a type assertion passes
+// plus any error or none types of in, which a type assertion passes
 // through (unless the asserted type is the error type).
 func (c *checker) typeAssert(in super.Type, e sem.Expr) super.Type {
 	target := c.typeOfTypeExpr(e)
@@ -1888,7 +1845,7 @@ func (c *checker) typeAssert(in super.Type, e sem.Expr) super.Type {
 			members = u.Types
 		}
 		for _, t := range members {
-			if (isErrorType(t) || isMissingType(t)) && t != target {
+			if (isErrorType(t) || isNoneType(t)) && t != target {
 				types = append(types, t)
 			}
 		}
@@ -1949,7 +1906,7 @@ func (c *checker) caseInputType(typ super.Type, input sem.Expr) super.Type {
 
 // matchType returns the type of a match expression whose matched value has
 // type in, whose cases have types targets (nil if unknown), and whose case
-// (and else) expressions have types types.  An error or missing value that
+// (and else) expressions have types types.  An error or none value that
 // no case matches is passed through, and without an else, the value is
 // none if no case matches, unless the cases cover every type of in.
 func (c *checker) matchType(in super.Type, targets, types []super.Type, hasElse bool) super.Type {
@@ -1966,7 +1923,7 @@ func (c *checker) matchType(in super.Type, targets, types []super.Type, hasElse 
 		if matched {
 			continue
 		}
-		if isErrorType(m) || isMissingType(m) {
+		if isErrorType(m) || isNoneType(m) {
 			out = append(out, m)
 			continue
 		}

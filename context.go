@@ -305,14 +305,14 @@ func (c *Context) MustLookupTypeUnion(types []Type) *TypeUnion {
 	return typ
 }
 
-func (c *Context) UnionMissing(typ Type) *TypeUnion {
-	if typ == TypeMissing {
+func (c *Context) UnionNone(typ Type) *TypeUnion {
+	if typ == TypeNone {
 		panic("cannot create none-only union")
 	}
 	var types []Type
 	if union, ok := typ.(*TypeUnion); ok {
 		for _, t := range union.Types {
-			if t == TypeMissing {
+			if t == TypeNone {
 				return union
 			}
 		}
@@ -320,7 +320,7 @@ func (c *Context) UnionMissing(typ Type) *TypeUnion {
 	} else {
 		types = []Type{typ}
 	}
-	return c.MustLookupTypeUnion(append(types, TypeMissing))
+	return c.MustLookupTypeUnion(append(types, TypeNone))
 }
 
 func (c *Context) LookupTypeEnum(symbols []string) *TypeEnum {
@@ -481,8 +481,8 @@ func (c *Context) BindTypeNamed(patch int, named *TypeNamed, inner Type) error {
 	// and TranslateType look up types in c.
 	inner, err := c.TranslateType(c.AnyToFusion(inner))
 	if err != nil {
-		// Bind to missing so waiters are released and fail below.
-		inner = TypeMissing
+		// Bind to none so waiters are released and fail below.
+		inner = TypeNone
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -493,8 +493,8 @@ func (c *Context) BindTypeNamed(patch int, named *TypeNamed, inner Type) error {
 	}
 	cycle := namedCycle(named, inner)
 	if cycle {
-		// Bind to missing so waiters are released and fail below.
-		inner = TypeMissing
+		// Bind to none so waiters are released and fail below.
+		inner = TypeNone
 	}
 	innerID, ok := c.localID(inner)
 	if !ok {
@@ -670,7 +670,7 @@ func HasAny(typ Type) bool {
 }
 
 func (c *Context) LookupTypeOption(inner Type) *TypeOption {
-	if _, ok := inner.(*TypeOption); ok || inner == TypeMissing || inner == TypeNone {
+	if _, ok := inner.(*TypeOption); ok || inner == TypeNone {
 		panic(inner)
 	}
 	c.mu.Lock()
@@ -748,7 +748,7 @@ func (c *Context) LookupTypeValue(typ Type) Value {
 		var err error
 		if typ, err = c.TranslateType(typ); err != nil {
 			// This shouldn't happen.
-			return Missing
+			return None
 		}
 	}
 	return NewValue(TypeType, EncodeTypeValue(typ))
@@ -793,7 +793,7 @@ func (c *Context) DecodeTypeValue(tv []byte) (Type, []byte) {
 			return named, tv
 		}
 		if tv == nil {
-			c.BindTypeNamed(patch, named, TypeMissing) // release waiters
+			c.BindTypeNamed(patch, named, TypeNone) // release waiters
 			return nil, nil
 		}
 		if err := c.BindTypeNamed(patch, named, inner); err != nil {
@@ -1865,7 +1865,7 @@ func (t *TypeDefsMapper) lookupType(id uint32) Type {
 			pinner := t.LookupType(p.inner)
 			if pinner == nil {
 				ok = false
-				pinner = TypeMissing // release waiters; this lookup fails below
+				pinner = TypeNone // release waiters; this lookup fails below
 			}
 			if err := t.sctx.BindTypeNamed(p.off, p.named, pinner); err != nil {
 				ok = false
@@ -2024,7 +2024,7 @@ func (t *TypeDefsMapper) lookupType(id uint32) Type {
 		case nil, *TypeOption:
 			return nil
 		}
-		if inner == TypeMissing || inner == TypeNone {
+		if inner == TypeNone {
 			return nil
 		}
 		return t.sctx.LookupTypeOption(inner)
@@ -2205,24 +2205,24 @@ func (t *TypeDefsMerger) lookupChild(id, extID uint32) uint32 {
 	return t.LookupID(id)
 }
 
-// OptionizeMissing returns typ with every union type with a missing member, i.e.,
-// (missing|T) or (missing|T1|T2|...), replaced by the option type option(T)
+// OptionizeNone returns typ with every union type with a none member, i.e.,
+// (none|T) or (none|T1|T2|...), replaced by the option type option(T)
 // or option(T1|T2|...).  Since an option already represents an absent value,
-// none members and option members of such a union are absorbed into the
-// result, e.g., (missing|none|option(T1)|T2) becomes option(T1|T2).
+// option members of such a union are absorbed into the result, e.g.,
+// (none|option(T1)|T2) becomes option(T1|T2).
 // In addition, a null member of the type of a record field is treated like
-// missing, i.e., a field of type (null|T), (missing|T), or (missing|null|T)
+// none, i.e., a field of type (null|T), (none|T), or (none|null|T)
 // becomes a field of type option(T), unless null is the only type left
-// besides missing, in which case the field is left as is.
-// OptionizeMissing descends into all complex types except named types,
+// besides none, in which case the field is left as is.
+// OptionizeNone descends into all complex types except named types,
 // which are left as is (since a named type's name is bound to its type and
 // named types may be recursive).
-func (c *Context) OptionizeMissing(typ Type) Type {
+func (c *Context) OptionizeNone(typ Type) Type {
 	switch typ := typ.(type) {
 	case *TypeRecord:
 		var fields []Field
 		for k, f := range typ.Fields {
-			if t := c.optionizeNullField(c.OptionizeMissing(f.Type)); t != f.Type {
+			if t := c.optionizeNullField(c.OptionizeNone(f.Type)); t != f.Type {
 				if fields == nil {
 					fields = slices.Clone(typ.Fields)
 				}
@@ -2234,31 +2234,31 @@ func (c *Context) OptionizeMissing(typ Type) Type {
 		}
 		return c.MustLookupTypeRecord(fields)
 	case *TypeArray:
-		if t := c.OptionizeMissing(typ.Type); t != typ.Type {
+		if t := c.OptionizeNone(typ.Type); t != typ.Type {
 			return c.LookupTypeArray(t)
 		}
 	case *TypeSet:
-		if t := c.OptionizeMissing(typ.Type); t != typ.Type {
+		if t := c.OptionizeNone(typ.Type); t != typ.Type {
 			return c.LookupTypeSet(t)
 		}
 	case *TypeMap:
-		key, val := c.OptionizeMissing(typ.KeyType), c.OptionizeMissing(typ.ValType)
+		key, val := c.OptionizeNone(typ.KeyType), c.OptionizeNone(typ.ValType)
 		if key != typ.KeyType || val != typ.ValType {
 			return c.LookupTypeMap(key, val)
 		}
 	case *TypeError:
-		if t := c.OptionizeMissing(typ.Type); t != typ.Type {
+		if t := c.OptionizeNone(typ.Type); t != typ.Type {
 			return c.LookupTypeError(t)
 		}
 	case *TypeOption:
-		if t := c.OptionizeMissing(typ.Type); t != typ.Type {
+		if t := c.OptionizeNone(typ.Type); t != typ.Type {
 			if _, ok := t.(*TypeOption); ok {
 				return t
 			}
 			return c.LookupTypeOption(t)
 		}
 	case *TypeFusion:
-		if t := c.OptionizeMissing(typ.Type); t != typ.Type {
+		if t := c.OptionizeNone(typ.Type); t != typ.Type {
 			return c.MustLookupTypeFusion(t)
 		}
 	case *TypeUnion:
@@ -2306,11 +2306,11 @@ func (c *Context) optionizeUnion(union *TypeUnion) Type {
 	var types []Type
 	changed := false
 	for _, t := range union.Types {
-		u := c.OptionizeMissing(t)
+		u := c.OptionizeNone(t)
 		changed = changed || u != t
 		types = append(types, u)
 	}
-	if !slices.Contains(types, Type(TypeMissing)) {
+	if !slices.Contains(types, Type(TypeNone)) {
 		if !changed {
 			return union
 		}
@@ -2326,7 +2326,7 @@ func (c *Context) optionizeUnion(union *TypeUnion) Type {
 				inner = append(inner, t.Type)
 			}
 		default:
-			if t != TypeMissing && t != TypeNone {
+			if t != TypeNone {
 				inner = append(inner, t)
 			}
 		}
@@ -2334,8 +2334,8 @@ func (c *Context) optionizeUnion(union *TypeUnion) Type {
 	inner = UniqueTypes(inner)
 	switch len(inner) {
 	case 0:
-		// The union has only missing and none, so the best we can do is
-		// leave it as is.
+		// The union has only none, so the best we can do is leave it
+		// as is.
 		return union
 	case 1:
 		return c.LookupTypeOption(inner[0])

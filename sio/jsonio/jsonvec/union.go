@@ -140,7 +140,7 @@ func (u *Union) Values() []Value {
 	values := make([]Value, len(u.lut))
 	for kind, idx := range u.lut {
 		switch kind {
-		case vector.KindMissing:
+		case vector.KindNone:
 			values[idx] = u.None
 		case vector.KindNull:
 			values[idx] = u.Null

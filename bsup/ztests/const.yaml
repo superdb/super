@@ -14,10 +14,10 @@ outputs:
     data: |
       type Version={Major:uint8,Minor:uint16}
       type ColumnHeader={Version:Version,FrameSize:uint64,FusedType:uint32,VectorTypedefsSize:uint64,LocatorsSize:uint64,TypedefsSize:uint64}
-      {Version:{Major:0,Minor:31},FrameSize:48,FusedType:8,VectorTypedefsSize:0,LocatorsSize:6,TypedefsSize:0}::ColumnHeader
+      {Version:{Major:0,Minor:32},FrameSize:48,FusedType:8,VectorTypedefsSize:0,LocatorsSize:6,TypedefsSize:0}::ColumnHeader
       type Const={Path:string,Type:type,Length:uint32,Bytes:bytes}
       {Path:"",Type:<int64>,Length:3,Bytes:0x02}::Const
       {Kind:"ColumnFrameFusedType",Type:<int64>}
       type SuperFooter={Version:Version,FooterSize:uint64,FusedTypeSize:uint64,StatsSize:uint64,SuperFrameSize:uint64}
-      {Version:{Major:0,Minor:31},FooterSize:68,FusedTypeSize:1,StatsSize:21,SuperFrameSize:48}::SuperFooter
+      {Version:{Major:0,Minor:32},FooterSize:68,FusedTypeSize:1,StatsSize:21,SuperFrameSize:48}::SuperFooter
       {Kind:"SuperFrameFusedType",Type:<int64>}

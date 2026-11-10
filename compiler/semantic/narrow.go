@@ -12,31 +12,31 @@ import (
 // narrow returns typ, the type of the input of a filter with predicate e,
 // narrowed to the types of the values for which e may be true, so the
 // operators downstream of the filter are checked with a more precise type,
-// e.g., after "where is_ok(a)", a field a that may be missing in typ is not
-// missing.  Narrowing is like type narrowing in TypeScript and handles
+// e.g., after "where is_ok(a)", a field a that may be absent in typ is
+// present.  Narrowing is like type narrowing in TypeScript and handles
 // predicates of these forms, where p is a field path (including a SQL
 // column reference):
 //
 //   - A and B, which narrows by A and then by B,
 //   - A or B, which fuses the types narrowed by A and by B,
-//   - is_ok(p), which removes the error, missing, none, and null types of p,
-//   - is_error(p), which narrows the type of p to its error and missing types,
-//   - not is_error(p), which removes the error and missing types of p,
+//   - is_ok(p), which removes the error, none, and null types of p,
+//   - is_error(p), which narrows the type of p to its error and none types,
+//   - not is_error(p), which removes the error and none types of p,
 //   - is(p, <T>) and typeof(p) == <T>, which narrow the type of p to T
 //     (including when T is one of the types fused in the type of p, e.g.,
-//     <{x:int64}> for a record type {x:int64|missing,y:int64|missing}),
+//     <{x:int64}> for a record type {x:int64|none,y:int64|none}),
 //   - kind(p) == "<kind>", which removes the types of p whose kind
 //     (see the kind function) isn't <kind>,
-//   - p IS NOT NULL, which removes the error, missing, and null types of p,
-//   - a comparison of p (e.g., p > 1), which removes the error, missing, and
+//   - p IS NOT NULL, which removes the error, none, and null types of p,
+//   - a comparison of p (e.g., p > 1), which removes the error, none, and
 //     null types of p since a comparison with such a value is an error
 //     or null and a filter drops values for which its predicate isn't true,
 //     and
-//   - p IN <expr>, which removes the error, missing, none, and null types of
+//   - p IN <expr>, which removes the error, none, and null types of
 //     p for the same reason.
 //
-// A missing field is an error at runtime (or null for a SQL column
-// reference), so missing is treated as an error type.
+// An absent field, i.e., a field whose type is none, is an error at runtime
+// (or null for a SQL column reference), so none is treated as an error type.
 //
 // When the type of p is a union, these remove the union's member types.
 // When p is a field of a record that's a member of a union, a member for
@@ -121,7 +121,15 @@ func (c *checker) narrowBy(typ super.Type, e sem.Expr, orNull bool) super.Type {
 			}
 		case e.Tag == "is_error" && len(e.Args) == 1:
 			if ref, ok := plainPath(e.Args[0]); ok {
-				return c.narrowPath(typ, ref, isErrorLike)
+				// An absent field (of type none) is an error at
+				// runtime.
+				errAbsent := c.t.sctx.LookupTypeError(super.TypeString)
+				return c.refinePath(typ, ref, func(t super.Type) (super.Type, bool) {
+					if isNoneType(t) {
+						return errAbsent, true
+					}
+					return t, isErrorType(t)
+				})
 			}
 		}
 	case *sem.UnaryExpr:
@@ -248,12 +256,12 @@ func (c *checker) narrowAt(typ super.Type, path field.Chain, keep refiner) (supe
 	switch t := under(typ).(type) {
 	case *super.TypeRecord:
 		if path[0].Nullish {
-			// A missing value of a SQL column reference is null.
-			keep = missingAsNull(keep)
+			// An absent field of a SQL column reference is null.
+			keep = noneAsNull(keep)
 		}
 		k, ok := t.IndexOfField(path[0].ID)
 		if !ok {
-			_, ok := c.narrowAt(super.TypeMissing, path[1:], keep)
+			_, ok := c.narrowAt(super.TypeNone, path[1:], keep)
 			return typ, ok
 		}
 		ftype, ok := c.narrowAt(t.Fields[k].Type, path[1:], keep)
@@ -270,8 +278,8 @@ func (c *checker) narrowAt(typ super.Type, path field.Chain, keep refiner) (supe
 			return typ, true
 		}
 		return rec, true
-	case *super.TypeOfMissing:
-		// A field of a missing value is missing.
+	case *super.TypeOfNone:
+		// A field of an absent value is absent.
 		_, ok := keep(typ)
 		return typ, ok
 	}
@@ -293,15 +301,15 @@ func (c *checker) narrowIs(typ super.Type, path field.Chain, target super.Type) 
 		// target, so we can't narrow.
 		return typ
 	}
-	// A missing value is error("missing") at runtime.
-	errMissing := c.t.sctx.LookupTypeError(super.TypeString)
+	// An absent field (of type none) is an error at runtime.
+	errAbsent := c.t.sctx.LookupTypeError(super.TypeString)
 	return c.refinePath(typ, path, func(t super.Type) (super.Type, bool) {
 		switch {
-		case t == target || isMissingType(t) && target == errMissing:
+		case t == target || isNoneType(t) && target == errAbsent:
 			return t, true
 		case fits(target, t):
 			// t is a fused type (e.g., a record with fields that
-			// may be missing) of which target may be a member.
+			// may be absent) of which target may be a member.
 			return target, true
 		}
 		return nil, false
@@ -309,7 +317,7 @@ func (c *checker) narrowIs(typ super.Type, path field.Chain, target super.Type) 
 }
 
 // fits returns true if a value of type typ, which may be a fused type (whose
-// unions are the types of its values and whose missing fields are absent
+// unions are the types of its values and whose fields of type none are absent
 // from them), may have type target.
 func fits(target, typ super.Type) bool {
 	typ = defuse(typ)
@@ -336,9 +344,9 @@ func fits(target, typ super.Type) bool {
 				return false
 			}
 		}
-		// A field of typ that's not in target must be missing.
+		// A field of typ that's not in target must be absent.
 		for _, f := range typ.Fields {
-			if _, ok := rec.IndexOfField(f.Name); !ok && !fits(super.TypeMissing, f.Type) {
+			if _, ok := rec.IndexOfField(f.Name); !ok && !fits(super.TypeNone, f.Type) {
 				return false
 			}
 		}
@@ -396,7 +404,7 @@ func (c *checker) typeOfTypeLiteral(e sem.Expr) super.Type {
 
 // plainPath returns the chain of e if e is a field reference (or this) whose
 // chain has no ?. elements.  (An element of a SQL column reference is
-// nullish, i.e., it's null rather than missing when the field is absent.)
+// nullish, i.e., it's null rather than an error when the field is absent.)
 func plainPath(e sem.Expr) (field.Chain, bool) {
 	this, ok := e.(*sem.ThisExpr)
 	if !ok {
@@ -482,8 +490,8 @@ func hasKind(typ super.Type, kind string) bool {
 		// a union value's kind is "union", so we can't tell.
 		return true
 	}
-	if isMissingType(typ) {
-		// A missing value is an error at runtime.
+	if isNoneType(typ) {
+		// An absent field is an error at runtime.
 		return kind == "error"
 	}
 	if under(typ) == super.TypeType {
@@ -494,25 +502,25 @@ func hasKind(typ super.Type, kind string) bool {
 }
 
 // isPresent returns true if a value of type typ may satisfy is_ok(), i.e.,
-// it's not an error, missing, none, or null.
+// it's not an error, none, or null.
 func isPresent(typ super.Type) bool {
-	return !isErrorType(typ) && !isMissingType(typ) && !isNoneishType(typ)
+	return !isErrorType(typ) && !isNoneType(typ) && !isNoneishType(typ)
 }
 
 // isErrorLike returns true if a value of type typ may be an error, which
-// includes a missing value.
+// includes an absent field (of type none).
 func isErrorLike(typ super.Type) bool {
-	return isErrorType(typ) || isMissingType(typ)
+	return isErrorType(typ) || isNoneType(typ)
 }
 
 func notErrorLike(typ super.Type) bool {
 	return !isErrorLike(typ)
 }
 
-// missingAsNull returns keep for a value that's null when it's missing.
-func missingAsNull(keep refiner) refiner {
+// noneAsNull returns keep for a value that's null when it's absent.
+func noneAsNull(keep refiner) refiner {
 	return func(t super.Type) (super.Type, bool) {
-		if isMissingType(t) {
+		if isNoneType(t) {
 			_, ok := keep(super.TypeNull)
 			return t, ok
 		}
@@ -521,7 +529,7 @@ func missingAsNull(keep refiner) refiner {
 }
 
 // isComparable returns true if a value of type typ may be true in a comparison,
-// i.e., it's not an error, missing, or null.
+// i.e., it's not an error, none, or null.
 func isComparable(typ super.Type) bool {
-	return !isErrorType(typ) && !isMissingType(typ) && under(typ) != super.TypeNull
+	return !isErrorType(typ) && !isNoneType(typ) && under(typ) != super.TypeNull
 }

@@ -25,8 +25,6 @@ func Pick(val Any, index []uint32) Any {
 		return NewDict(val.Any, index2, counts)
 	case *Error:
 		return NewError(val.Typ, Pick(val.Vals, index))
-	case *Missing:
-		return NewMissing(uint32(len(index)))
 	case *None:
 		return NewNone(uint32(len(index)))
 	case *NoRip:
