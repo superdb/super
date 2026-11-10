@@ -34,22 +34,22 @@ func Optimize(ctx context.Context, main *dag.Main, env *exec.Environment, parall
 	return nil
 }
 
-func Build(rctx *runtime.Context, main *dag.Main, env *exec.Environment) (map[string]vio.Puller, *op.DebugChans, vio.Meter, error) {
+func Build(rctx *runtime.Context, main *dag.Main, env *exec.Environment) ([]vio.Puller, *op.Outputs, vio.Meter, error) {
 	b := rungen.NewBuilder(rctx, env)
-	outputs, debugs, err := b.Build(main)
+	leaves, outputs, err := b.Build(main)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return outputs, debugs, b.Meter(), nil
+	return leaves, outputs, b.Meter(), nil
 }
 
-func BuildWithBuilder(rctx *runtime.Context, main *dag.Main, env *exec.Environment) (map[string]vio.Puller, *op.DebugChans, *rungen.Builder, error) {
+func BuildWithBuilder(rctx *runtime.Context, main *dag.Main, env *exec.Environment) ([]vio.Puller, *op.Outputs, *rungen.Builder, error) {
 	b := rungen.NewBuilder(rctx, env)
-	outputs, debugs, err := b.Build(main)
+	leaves, outputs, err := b.Build(main)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return outputs, debugs, b, nil
+	return leaves, outputs, b, nil
 }
 
 func CompileWithAST(rctx *runtime.Context, ast *parser.AST, env *exec.Environment, optimize bool, parallel int) (*exec.Query, error) {
@@ -63,11 +63,11 @@ func CompileWithAST(rctx *runtime.Context, ast *parser.AST, env *exec.Environmen
 			return nil, err
 		}
 	}
-	outputs, debugs, meter, err := Build(rctx, main, env)
+	leaves, outputs, meter, err := Build(rctx, main, env)
 	if err != nil {
 		return nil, err
 	}
-	return exec.NewQuery(rctx, bundleOutputs(rctx, outputs, debugs), meter), nil
+	return exec.NewQuery(rctx, bundleOutputs(rctx, leaves, outputs), meter), nil
 }
 
 func Compile(rctx *runtime.Context, env *exec.Environment, optimize bool, parallel int, inputs []srcfiles.Input) (*exec.Query, error) {
@@ -78,17 +78,11 @@ func Compile(rctx *runtime.Context, env *exec.Environment, optimize bool, parall
 	return CompileWithAST(rctx, ast, env, optimize, parallel)
 }
 
-func bundleOutputs(rctx *runtime.Context, outputs map[string]vio.Puller, chans *op.DebugChans) vio.Puller {
-	switch len(outputs) + len(chans.Debug) {
-	case 0:
+// bundleOutputs returns the mux for the leaves and outputs of a flowgraph or
+// nil if there are no leaves.
+func bundleOutputs(rctx *runtime.Context, leaves []vio.Puller, outputs *op.Outputs) vio.Puller {
+	if len(leaves) == 0 {
 		return nil
-	case 1:
-		var puller vio.Puller
-		for k, p := range outputs {
-			puller = op.NewCatcher(op.NewSingle(k, p))
-		}
-		return puller
-	default:
-		return op.NewMux(rctx, outputs, chans)
 	}
+	return op.NewMux(rctx, outputs, leaves)
 }

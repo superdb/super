@@ -28,7 +28,7 @@ func newDagen(r reporter) *dagen {
 
 func (d *dagen) assemble(seq sem.Seq, types []byte, funcs map[string]*funcDef) *dag.Main {
 	dagSeq := d.seq(seq)
-	dagSeq = d.checkOutputs(true, dagSeq)
+	dagSeq = d.checkOutputs(true, true, dagSeq)
 	dagFuncs := make([]*dag.FuncDef, 0, len(d.funcs))
 	for _, f := range funcs {
 		dagFuncs = append(dagFuncs, d.fn(f))
@@ -307,7 +307,7 @@ func (d *dagen) unnest(op *sem.UnnestOp) dag.Op {
 	if op.Body == nil {
 		return u
 	}
-	body := d.seq(op.Body)
+	body := d.checkOutputs(true, false, d.seq(op.Body))
 	body.Prepend(u)
 	body = collectThis(body)
 	s := &dag.SubqueryExpr{
@@ -591,7 +591,7 @@ func (d *dagen) subquery(e *sem.SubqueryExpr) *dag.SubqueryExpr {
 		Kind:       "SubqueryExpr",
 		Correlated: e.Correlated,
 		SQL:        e.SQL,
-		Body:       d.seq(e.Body),
+		Body:       d.checkOutputs(true, false, d.seq(e.Body)),
 	}
 	if e.Array {
 		subquery.Body = collectThis(subquery.Body)
@@ -635,12 +635,14 @@ func (d *dagen) fn(f *funcDef) *dag.FuncDef {
 	}
 }
 
-func (d *dagen) checkOutputs(isLeaf bool, seq dag.Seq) dag.Seq {
+// checkOutputs reports an error for any output operator of seq that isn't
+// located in a leaf and, if addMain is true, adds an output operator for
+// the main output to any leaf without one.  (The leaves of a subquery's
+// flowgraph produce its values so outputs aren't added there.)
+func (d *dagen) checkOutputs(isLeaf, addMain bool, seq dag.Seq) dag.Seq {
 	if len(seq) == 0 {
 		return seq
 	}
-	// - Report an error in any outputs are not located in the leaves.
-	// - Add output operators to any leaves where they do not exist.
 	lastN := len(seq) - 1
 	for i, o := range seq {
 		isLast := lastN == i
@@ -651,22 +653,22 @@ func (d *dagen) checkOutputs(isLeaf bool, seq dag.Seq) dag.Seq {
 			}
 		case *dag.ScatterOp:
 			for k := range o.Paths {
-				o.Paths[k] = d.checkOutputs(isLast && isLeaf, o.Paths[k])
+				o.Paths[k] = d.checkOutputs(isLast && isLeaf, addMain, o.Paths[k])
 			}
 		case *dag.ForkOp:
 			for k := range o.Paths {
-				o.Paths[k] = d.checkOutputs(isLast && isLeaf, o.Paths[k])
+				o.Paths[k] = d.checkOutputs(isLast && isLeaf, addMain, o.Paths[k])
 			}
 		case *dag.SwitchOp:
 			for k := range o.Cases {
-				o.Cases[k].Path = d.checkOutputs(isLast && isLeaf, o.Cases[k].Path)
+				o.Cases[k].Path = d.checkOutputs(isLast && isLeaf, addMain, o.Cases[k].Path)
 			}
 		}
 	}
 	switch seq[lastN].(type) {
 	case *dag.ForkOp, *dag.OutputOp, *dag.ScatterOp, *dag.SwitchOp:
 	default:
-		if isLeaf {
+		if isLeaf && addMain {
 			return append(seq, &dag.OutputOp{Kind: "OutputOp", Name: "main"})
 		}
 	}

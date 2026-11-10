@@ -24,13 +24,15 @@ import (
 var ErrJoinParents = errors.New("join requires two upstream parallel query paths")
 
 type Builder struct {
-	rctx            *runtime.Context
-	mctx            *super.Context
-	mapper          *super.TypeDefsMapper
-	env             *exec.Environment
-	progress        *vio.Progress
-	debugs          *op.DebugChans
-	channels        map[string][]vio.Puller
+	rctx     *runtime.Context
+	mctx     *super.Context
+	mapper   *super.TypeDefsMapper
+	env      *exec.Environment
+	progress *vio.Progress
+	// outputs is the channel to the mux for the output and debug operators.
+	// It's nil when there is no mux (e.g., when an expression is evaluated
+	// at compile time).
+	outputs         *op.Outputs
 	deletes         *sync.Map
 	funcs           map[string]*dag.FuncDef
 	compiledVamUDFs map[string]*expr.UDF
@@ -43,15 +45,16 @@ func NewBuilder(rctx *runtime.Context, env *exec.Environment) *Builder {
 		mctx:            super.NewContext(),
 		env:             env,
 		progress:        &vio.Progress{},
-		debugs:          op.NewDebugChans(),
-		channels:        make(map[string][]vio.Puller),
+		outputs:         op.NewOutputs(),
 		funcs:           make(map[string]*dag.FuncDef),
 		compiledVamUDFs: make(map[string]*expr.UDF),
 	}
 }
 
-// Build builds a flowgraph for main.
-func (b *Builder) Build(main *dag.Main) (map[string]vio.Puller, *op.DebugChans, error) {
+// Build builds a flowgraph for main and returns its leaves, each of which
+// ends in an output operator, and the channel on which its output and debug
+// operators send (see op.Mux).
+func (b *Builder) Build(main *dag.Main) ([]vio.Puller, *op.Outputs, error) {
 	if !isEntry(main.Body, true) {
 		return nil, nil, errors.New("internal error: DAG entry point is not a data source")
 	}
@@ -62,14 +65,13 @@ func (b *Builder) Build(main *dag.Main) (map[string]vio.Puller, *op.DebugChans, 
 		}
 		b.mapper = super.NewTypeDefsMapper(b.rctx.Sctx, defs)
 	}
-	if _, err := b.compileVamMain(main, nil); err != nil {
+	leaves, err := b.compileVamMain(main, nil)
+	if err != nil {
 		return nil, nil, err
 	}
-	channels := make(map[string]vio.Puller)
-	for key, pullers := range b.channels {
-		channels[key] = b.combineVam(pullers)
-	}
-	return channels, b.debugs, nil
+	// A leaf is nil when an output operator has no parent.
+	leaves = slices.DeleteFunc(leaves, func(p vio.Puller) bool { return p == nil })
+	return leaves, b.outputs, nil
 }
 
 func (b *Builder) sctx() *super.Context {
@@ -178,6 +180,9 @@ func EvalAtCompileTime(sctx *super.Context, main *dag.MainExpr) (val super.Value
 // the query of a type declaration.
 func EvalAtCompileTimeWithEnv(ctx context.Context, sctx *super.Context, env *exec.Environment, main *dag.MainExpr) (val super.Value, err error) {
 	b := NewBuilder(runtime.NewContext(ctx, sctx), env)
+	// There's no mux so the values of output and debug operators are
+	// discarded.
+	b.outputs = nil
 	for _, f := range main.Funcs {
 		b.funcs[f.Tag] = f
 	}

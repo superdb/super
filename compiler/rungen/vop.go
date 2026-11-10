@@ -218,8 +218,7 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		if err != nil {
 			return nil, err
 		}
-		d := op.NewDebug(b.rctx, e, filter, b.debugs, parent)
-		return d, nil
+		return op.NewDebug(b.rctx, e, filter, b.outputs, parent), nil
 	case *dag.DeleterScan:
 		table, err := b.lookupTable(o.Table)
 		if err != nil {
@@ -316,11 +315,10 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 	case *dag.NullScan:
 		return vio.NewPuller(vector.NewNull(1)), nil
 	case *dag.OutputOp:
-		if parent != nil {
-			parent = op.NewOutput(parent)
+		if parent == nil {
+			return nil, nil
 		}
-		b.channels[o.Name] = append(b.channels[o.Name], parent)
-		return parent, nil
+		return op.NewOutput(b.rctx, parent, b.outputs, o.Name), nil
 	case *dag.PassOp:
 		return parent, nil
 	case *dag.PutOp:
