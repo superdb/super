@@ -9,7 +9,14 @@ class Super {
    */
   static instantiate(url) {
     return fetch(url)
-      .then((resp) => this.createInstance(resp))
+      .then((resp) => {
+        if (!resp.ok) {
+          const err = new Error(`HTTP ${resp.status} fetching ${url}`);
+          err.status = resp.status;
+          throw err;
+        }
+        return this.createInstance(resp);
+      })
       .then((instance) => new Super(instance));
   }
 
@@ -62,25 +69,24 @@ class Super {
 
 let db;
 
-Super.instantiate(document.location.origin + '/super.wasm')
-  .then((instance) => db = instance);
+// Resolves once the engine has loaded (to null) or failed to load (to the
+// Error), so callers can tell the two apart without polling.
+export const engineLoaded = Super.instantiate(document.location.origin + '/super.wasm')
+  .then((instance) => {
+    db = instance;
+    return null;
+  })
+  .catch((e) => {
+    console.error('SuperDB engine (super.wasm) failed to load:', e);
+    return e;
+  });
 
 export async function super_(...args) {
-  function waitFor(func) {
-    return new Promise((resolve) => {
-      function check() {
-        if (func()) resolve();
-        setTimeout(check, 25);
-      }
-      check();
-    });
-  }
-
-  await waitFor(() => db);
+  const loadError = await engineLoaded;
+  if (loadError) throw loadError;
   try {
     return await db.run(...args);
   } catch (e) {
     return e.toString();
   }
 }
-

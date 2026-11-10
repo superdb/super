@@ -103,3 +103,12 @@
     background: var(--quote-border);
   }
 }
+
+.super-example-notice {
+  margin-block-end: 3px;
+  padding: 0.6em 1em;
+  border-left: 4px solid #b00020;
+  background: #fde8eb;
+  color: #8a0018;
+  font-weight: 600;
+}
