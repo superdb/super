@@ -99,6 +99,7 @@ that may be absent, convert it to `none` with
 # spq
 values {a:1},{b:2} | values {input:this, ok:a.ok(), with_default:a.ok() ?? 0}
 # input
+
 # expected output
 {input:{a:1},ok:1,with_default:1}
 {input:{b:2},with_default:0}
