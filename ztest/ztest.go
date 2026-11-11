@@ -282,7 +282,7 @@ type ZTest struct {
 	// Superfuse, if false, disables superfusing the input when the test is
 	// run with SUPER_FUSEINPUT set (as TestSPQ does), e.g., for a test of
 	// superdefusion whose input must not be fused.
-	Superfuse *bool `yaml:"superfuse,omitempty"`
+	SkipFuseInput bool `yaml:"skip-fuseinput,omitempty"`
 
 	// For script-style tests.
 	Script  string   `yaml:"script,omitempty"`
@@ -487,7 +487,7 @@ func (z *ZTest) runInternal(ctx context.Context) (string, error) {
 		eng.AddBytes("stdio:stdin", []byte(*i))
 	}
 	env := exec.NewEnvironment(eng, nil)
-	if z.Superfuse != nil && !*z.Superfuse {
+	if z.SkipFuseInput {
 		env.FuseInput = false
 	}
 	env.Dynamic = inflags.Dynamic

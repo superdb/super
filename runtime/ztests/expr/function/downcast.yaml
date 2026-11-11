@@ -7,7 +7,7 @@
 # Test downcast on records.
 spq: downcast(this[0], this[1])
 
-superfuse: false
+skip-fuseinput: true
 
 input: |
   [{x:1},<{}>]
@@ -37,7 +37,7 @@ output: |
 # Test downcast on unions.
 spq: downcast(this[0], this[1])
 
-superfuse: false
+skip-fuseinput: true
 
 input: |
   [1::(int64|bool|string),<(int64|string)>]
@@ -58,7 +58,7 @@ output: |
 
 spq: downcast(this[0], this[1])
 
-superfuse: false
+skip-fuseinput: true
 
 input: |
   ["x"::enum(x,y,z),<enum(x,y)>]
@@ -73,7 +73,7 @@ output: |
 # Test downcast on arrays.
 spq: downcast(this[0], this[1])
 
-superfuse: false
+skip-fuseinput: true
 
 input: |
   [[1::(int64|bool|string),"foo"::(int64|bool|string)],<[int64|bool|string]>]
@@ -87,7 +87,7 @@ output: |
 # Test downcast on maps.
 spq: downcast(this, <map{string:string}>)
 
-superfuse: false
+skip-fuseinput: true
 
 input: |
   map{"a"::(int64|string):"b"::(int64|string)}
@@ -114,7 +114,7 @@ output: |
 # 1 with 2::(int64|(foo=(int64|string))).
 spq: downcast(this[0], this[1])
 
-superfuse: false
+skip-fuseinput: true
 
 input: |
   type foo=(int64|string)
@@ -131,7 +131,7 @@ output: |
 # Test downcast on fusion values.
 spq: downcast(this[0], this[1])
 
-superfuse: false
+skip-fuseinput: true
 
 input: |
   [fusion({x?:1,y?:none::string},<{x:int64}>),<{x:int64}>]
@@ -156,7 +156,7 @@ output: |
 # Test downcast on error values.
 spq: downcast(this, <error(string)>)
 
-superfuse: false
+skip-fuseinput: true
 
 input: |
   error("foo"::(int64|string))
@@ -173,7 +173,7 @@ output: |
 # Test downcast on named values.
 spq: downcast(this[0], this[1])
 
-superfuse: false
+skip-fuseinput: true
 
 input: |
   type foo=int64
