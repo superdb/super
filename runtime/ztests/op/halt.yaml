@@ -1,0 +1,34 @@
+# Halt stops the query at its first input value and makes the value of its
+# expression the query's last value, dropping any pending output.
+script: |
+  echo "// first value"
+  super -s -c 'where this > 2 | halt {stopped:this}' in.sup
+  echo "// this"
+  super -s -c 'where this > 2 | halt' in.sup
+  echo "// none is skipped"
+  super -s -c 'halt this > 2 ? this : none' in.sup
+  echo "// subquery"
+  super -s -c 'values (values this | where this == 3 | halt {in_subquery:this})' in.sup
+  echo "// no input"
+  super -s -c 'where false | halt' in.sup
+
+inputs:
+  - name: in.sup
+    data: |
+      1
+      2
+      3
+      4
+
+outputs:
+  - name: stdout
+    data: |
+      // first value
+      {stopped:3}
+      // this
+      3
+      // none is skipped
+      3
+      // subquery
+      {in_subquery:3}
+      // no input

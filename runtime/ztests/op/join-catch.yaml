@@ -1,0 +1,72 @@
+# A join with a catch clause sends the side errors of its condition to the
+# handler: for a nested loop join, an error for each joined value, and for a
+# hash join (an equality condition), an error for each value whose key has
+# an error.  The output is sorted since the order is undefined.
+script: |
+  for style in "" left right anti; do
+    echo "// $style nested loop"
+    super -s -c "from left.sup | $style join (from right.sup) on left.id = right.id and left.v + 1 > 1 catch ( values {bad:under(this).on} )" | super -s -c 'sort this' -
+    echo "// $style hash"
+    super -s -c "from left.sup | $style join (from right.sup) on left.v + 1 = right.id + 1 catch ( values {bad:under(this).on} )" | super -s -c 'sort this' -
+  done
+  echo "// right key"
+  super -s -c "from right.sup | join (from left.sup) on left.id + 1 = right.v + 1 catch ( values under(this) )" | super -s -c 'sort this' -
+  echo "// without a catch, side errors are dropped"
+  super -s -c "from left.sup | join (from right.sup) on left.id = right.id and left.v + 1 > 1" | super -s -c 'sort this' -
+
+inputs:
+  - name: left.sup
+    data: |
+      {id:1,v:1}
+      {id:2,v:"x"}
+      {id:3,v:3}
+  - name: right.sup
+    data: |
+      {id:1,w:10}
+      {id:2,w:20}
+      {id:3,w:30}
+
+outputs:
+  - name: stdout
+    data: |
+      //  nested loop
+      {bad:{left:{id:2,v:"x"},right:{id:2,w:20}}}
+      {left:{id:1,v:1},right:{id:1,w:10}}
+      {left:{id:3,v:3},right:{id:3,w:30}}
+      //  hash
+      {bad:{left:{id:2,v:"x"}}}
+      {left:{id:1,v:1},right:{id:1,w:10}}
+      {left:{id:3,v:3},right:{id:3,w:30}}
+      // left nested loop
+      {bad:{left:{id:2,v:"x"},right:{id:2,w:20}}}
+      {left:{id:2,v:"x"}}
+      {left:{id:1,v:1},right:{id:1,w:10}}
+      {left:{id:3,v:3},right:{id:3,w:30}}
+      // left hash
+      {bad:{left:{id:2,v:"x"}}}
+      {left:{id:2,v:"x"}}
+      {left:{id:1,v:1},right:{id:1,w:10}}
+      {left:{id:3,v:3},right:{id:3,w:30}}
+      // right nested loop
+      {bad:{left:{id:2,v:"x"},right:{id:2,w:20}}}
+      {right:{id:2,w:20}}
+      {left:{id:1,v:1},right:{id:1,w:10}}
+      {left:{id:3,v:3},right:{id:3,w:30}}
+      // right hash
+      {bad:{left:{id:2,v:"x"}}}
+      {right:{id:2,w:20}}
+      {left:{id:1,v:1},right:{id:1,w:10}}
+      {left:{id:3,v:3},right:{id:3,w:30}}
+      // anti nested loop
+      {bad:{left:{id:2,v:"x"},right:{id:2,w:20}}}
+      {left:{id:2,v:"x"}}
+      // anti hash
+      {bad:{left:{id:2,v:"x"}}}
+      {left:{id:2,v:"x"}}
+      // right key
+      {left:{id:1,w:10},right:{id:1,v:1}}
+      {left:{id:3,w:30},right:{id:3,v:3}}
+      {message:"join: key error",on:{right:{id:2,v:"x"}},error:error("incompatible types")}
+      // without a catch, side errors are dropped
+      {left:{id:1,v:1},right:{id:1,w:10}}
+      {left:{id:3,v:3},right:{id:3,w:30}}

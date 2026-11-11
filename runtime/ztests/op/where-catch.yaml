@@ -1,0 +1,73 @@
+# A where or search with a catch clause sends the side errors of its predicate
+# to the handler.  The output is sorted since the order of the handler's
+# values and the values that pass is undefined.
+script: |
+  for q in 'where x + 1 > 2' \
+      'where x + 1 > 2 catch ( values {bad:this} )' \
+      'where x + 1 > 2 catch ( values under(this).on )' \
+      'where x + 1 > 2 catch pass' \
+      'where x + 1 > 2 catch ignore' \
+      'where x + 1 > 2 catch ( count() )' \
+      'search x + 1 > 2 catch ( values {searched:under(this).on} )'; do
+    echo "// $q"
+    super -s -c "$q" in.sup | super -s -c 'sort this' -
+  done
+  echo "// halt"
+  super -s -c 'where x + 1 > 2 catch halt' halt.sup
+  echo "// pushdown"
+  super -o in.bsup in.sup
+  super -s -c 'from in.bsup | where x + 1 > 2 catch ( values {bad:under(this).on} )' | super -s -c 'sort this' -
+
+inputs:
+  - name: halt.sup
+    data: |
+      {x:1}
+      {x:"a"}
+  - name: in.sup
+    data: |
+      {x:2}
+      {x:"a"}
+      {x:3}
+      {x:{y:1}}
+      {x:null}
+
+outputs:
+  - name: stdout
+    data: |
+      // where x + 1 > 2
+      {x:2}
+      {x:3}
+      // where x + 1 > 2 catch ( values {bad:this} )
+      {bad:error({message:"where: predicate error",on:{x:"a"},error:error({message:">: error value encountered",on:error("incompatible types")})})}
+      {bad:error({message:"where: predicate error",on:{x:{y:1}},error:error({message:">: error value encountered",on:error("incompatible types")})})}
+      {x:2}
+      {x:3}
+      // where x + 1 > 2 catch ( values under(this).on )
+      {x:2}
+      {x:3}
+      {x:"a"}
+      {x:{y:1}}
+      // where x + 1 > 2 catch pass
+      {x:2}
+      {x:3}
+      error({message:"where: predicate error",on:{x:"a"},error:error({message:">: error value encountered",on:error("incompatible types")})})
+      error({message:"where: predicate error",on:{x:{y:1}},error:error({message:">: error value encountered",on:error("incompatible types")})})
+      // where x + 1 > 2 catch ignore
+      {x:2}
+      {x:3}
+      // where x + 1 > 2 catch ( count() )
+      2
+      {x:2}
+      {x:3}
+      // search x + 1 > 2 catch ( values {searched:under(this).on} )
+      {searched:{x:"a"}}
+      {searched:{x:{y:1}}}
+      {x:2}
+      {x:3}
+      // halt
+      error({message:"where: predicate error",on:{x:"a"},error:error({message:">: error value encountered",on:error("incompatible types")})})
+      // pushdown
+      {bad:{x:"a"}}
+      {bad:{x:{y:1}}}
+      {x:2}
+      {x:3}

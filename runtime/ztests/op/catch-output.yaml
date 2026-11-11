@@ -1,0 +1,27 @@
+# A catch handler can send its values to an output and an output in a
+# subquery can be the leaf of a pipe with a table insert (which used to
+# panic).
+script: |
+  super -s -c 'values 10/this | catch ( values {err:this} | output main ) | values {ok:this}' in.sup | super -s -c 'sort this' -
+  echo ===
+  echo '[1,2][3,4]' | super -s -c "unnest this into (sum(this) | output foo)" -
+  echo ===
+  echo '[1,2][3,4]' | super -s -c "unnest this into (sum(this) | output main)" - | super -s -c 'sort this' -
+
+inputs:
+  - name: in.sup
+    data: |
+      1
+      "two"
+      5
+
+outputs:
+  - name: stdout
+    data: |
+      {err:error("incompatible types")}
+      {ok:2}
+      {ok:10}
+      ===
+      ===
+      3
+      7

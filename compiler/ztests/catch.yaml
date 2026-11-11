@@ -1,0 +1,90 @@
+# Catch clauses, the catch and halt operators, and the catch pragma are
+# formatted by compile and the optimizer doesn't merge or push down a filter
+# with a catch clause.
+script: |
+  super compile -C 'where x catch ( values {bad:this} ) | search y catch ignore | catch pass | halt this'
+  echo ===
+  super compile -C 'join (values 1) on left.x = right.x catch halt'
+  echo ===
+  super compile -C -dag 'from a.sup | join (values {x:1}) on left.x = right.x catch halt'
+  echo ===
+  super compile -C -O 'from a.sup | where x + 1 > 2 catch pass | where y'
+  echo ===
+  super compile -C -O 'from a.sup | where x + 1 > 2 | where y'
+  echo ===
+  super compile -C 'pragma catch values x'
+  echo ===
+  super compile -C -dag 'pragma catch = ignore from a.sup | values x | where this > 1'
+  echo ===
+  ! super compile -dag 'pragma catch = 1 values this'
+
+inputs:
+  - name: a.sup
+    data: |
+      {x:1,y:true}
+
+outputs:
+  - name: stdout
+    data: |
+      where x catch (
+          values {bad:this}
+        )
+      | search y catch ignore
+      | catch pass
+      | halt this
+      ===
+      join (
+        values 1
+      ) on left.x=right.x catch halt
+      ===
+      null
+      | fork
+        (
+          file a.sup format sup type {x:int64,y:bool}
+        )
+        (
+          values {x:1}
+        )
+      | inner join as {left,right} on left.x==right.x catch (
+          halt this
+        )
+      | output main
+      ===
+      file a.sup format sup type {x:int64,y:bool}
+      | where x+1>2 catch (
+          pass
+        )
+      | where y
+      | output main
+      ===
+      file a.sup format sup type {x:int64,y:bool}
+        data-filter project [x,y] (
+          x+1>2 and y
+        )
+      | where x+1>2 and y
+      | output main
+      ===
+      pragma catch
+      values x
+      ===
+      file a.sup format sup type {x:int64,y:bool}
+      | catch (
+        where false
+      )
+      | values x
+      | catch (
+        where false
+      )
+      | where this>1 catch (
+          where false
+        )
+      | catch (
+        where false
+      )
+      | output main
+      ===
+  - name: stderr
+    data: |
+      catch pragma must be a query in parentheses or one of halt, ignore, or pass at line 1, column 16:
+      pragma catch = 1 values this
+                     ~

@@ -1,0 +1,55 @@
+# The catch operator sends the values with an error in them to its handler
+# and passes the others.  The output is sorted since the order of the
+# handler's values and the passed values is undefined.
+script: |
+  for q in 'catch ( values {caught:this} )' 'catch ignore' 'catch pass' \
+      'catch ( count() )' \
+      'catch ( values 10/this | catch ( values {nested:this} ) )'; do
+    echo "// $q"
+    super -s -c "$q" in.sup | super -s -c 'sort this' -
+  done
+  echo "// halt"
+  super -s -c 'catch halt' halt.sup
+
+inputs:
+  - name: in.sup
+    data: |
+      1
+      error("bad")
+      {a:2,b:error("in record")}
+      [3,error("in array")]
+      4
+  - name: halt.sup
+    data: |
+      error("first")
+
+outputs:
+  - name: stdout
+    data: |
+      // catch ( values {caught:this} )
+      1
+      4
+      {caught:{a:2,b:error("in record")}}
+      {caught:[3,error("in array")]}
+      {caught:error("bad")}
+      // catch ignore
+      1
+      4
+      // catch pass
+      1
+      4
+      {a:2,b:error("in record")}
+      [3,error("in array")]
+      error("bad")
+      // catch ( count() )
+      1
+      3
+      4
+      // catch ( values 10/this | catch ( values {nested:this} ) )
+      1
+      4
+      {nested:error("incompatible types")}
+      {nested:error("incompatible types")}
+      {nested:error({message:"/: error value encountered",on:error("bad")})}
+      // halt
+      error("first")

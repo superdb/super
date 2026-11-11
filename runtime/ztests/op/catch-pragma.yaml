@@ -1,0 +1,54 @@
+# The catch pragma puts a catch at the output of every operator and makes its
+# handler the default handler of side errors.
+script: |
+  echo "// halt"
+  super -s -c 'pragma catch values x + 1 | where this > 2' halt.sup
+  echo "// handler"
+  super -s -c 'pragma catch = ( values {caught:this} ) values x + 1 | values this * 10' in.sup | super -s -c 'sort this' -
+  echo "// side errors"
+  super -s -c 'pragma catch = ( values {caught:under(this).on} ) where x + 1 > 2' in.sup | super -s -c 'sort this' -
+  echo "// a catch clause takes precedence"
+  super -s -c 'pragma catch = halt where x + 1 > 2 catch ignore' in.sup | super -s -c 'sort this' -
+  echo "// scoped"
+  super -s -c 'values (pragma catch = ignore values x + 1), x + 1' in.sup | super -s -c 'sort this' -
+  echo "// fork and merge"
+  super -s -c 'pragma catch = ignore fork ( values x + 1 ) ( values x * 10 ) | merge this' in.sup
+
+inputs:
+  - name: in.sup
+    data: |
+      {x:2}
+      {x:"a"}
+      {x:3}
+  - name: halt.sup
+    data: |
+      {x:1}
+      {x:"a"}
+
+outputs:
+  - name: stdout
+    data: |
+      // halt
+      error("incompatible types")
+      // handler
+      30
+      40
+      {caught:error("incompatible types")}
+      // side errors
+      {caught:{x:"a"}}
+      {x:2}
+      {x:3}
+      // a catch clause takes precedence
+      {x:2}
+      {x:3}
+      // scoped
+      3
+      3
+      4
+      4
+      error("incompatible types")
+      // fork and merge
+      3
+      4
+      20
+      30
