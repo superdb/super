@@ -274,6 +274,9 @@ func (c *canon) expr(e ast.Expr, parent string) {
 		if e.Array {
 			open, close = "[", "]"
 		}
+		if e.Materialized {
+			c.write("materialized ")
+		}
 		c.open(open)
 		c.head = true
 		c.seq(e.Body)
@@ -467,36 +470,38 @@ func (c *canon) decl(d ast.Decl) {
 			}
 			c.write(f.Name)
 		}
-		c.open(": (")
-		c.ret()
-		c.flush()
-		c.head = true
-		c.seq(d.Body)
-		c.close()
-		c.ret()
-		c.flush()
-		c.write(")")
-		c.head, c.first = true, true
+		c.write(": ")
+		c.declBody(d.Body)
+	case *ast.QueryDecl:
+		c.write("let %s = ", sup.QuotedName(d.Name.Name))
+		if d.Materialized {
+			c.write("materialized ")
+		}
+		c.declBody(d.Body)
 	case *ast.TypeDecl:
 		c.write("type %s = ", sup.QuotedName(d.Name.Name))
 		c.typ(d.Type)
 	case *ast.TypeQueryDecl:
-		c.write("type %s ", sup.QuotedName(d.Name.Name))
-		c.open("= (")
-		c.ret()
-		c.flush()
-		c.head = true
-		c.seq(d.Body)
-		c.close()
-		c.ret()
-		c.flush()
-		c.write(")")
-		c.head, c.first = true, true
+		c.write("type %s = ", sup.QuotedName(d.Name.Name))
+		c.declBody(d.Body)
 	default:
 		c.open("unknown decl: %T", d)
 		c.close()
 	}
 
+}
+
+func (c *canon) declBody(body ast.Seq) {
+	c.open("(")
+	c.ret()
+	c.flush()
+	c.head = true
+	c.seq(body)
+	c.close()
+	c.ret()
+	c.flush()
+	c.write(")")
+	c.head, c.first = true, true
 }
 
 func (c *canon) seq(seq ast.Seq) {

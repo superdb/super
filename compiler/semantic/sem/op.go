@@ -167,6 +167,10 @@ type (
 		Message string
 		Meta    string
 	}
+	MaterializedScan struct {
+		ast.Node
+		Tag int
+	}
 	MergeOp struct {
 		ast.Node
 		Exprs []SortExpr
@@ -249,33 +253,34 @@ type (
 	}
 )
 
-func (*AggregateOp) opNode() {}
-func (*BadOp) opNode()       {}
-func (*CountOp) opNode()     {}
-func (*CutOp) opNode()       {}
-func (*DebugOp) opNode()     {}
-func (*DistinctOp) opNode()  {}
-func (*DropOp) opNode()      {}
-func (*FilterOp) opNode()    {}
-func (*ForkOp) opNode()      {}
-func (*FuseOp) opNode()      {}
-func (*HeadOp) opNode()      {}
-func (*InferOp) opNode()     {}
-func (*JoinOp) opNode()      {}
-func (*LoadOp) opNode()      {}
-func (*MergeOp) opNode()     {}
-func (*OutputOp) opNode()    {}
-func (*PassOp) opNode()      {}
-func (*PutOp) opNode()       {}
-func (*RenameOp) opNode()    {}
-func (*SkipOp) opNode()      {}
-func (*SortOp) opNode()      {}
-func (*SwitchOp) opNode()    {}
-func (*TailOp) opNode()      {}
-func (*TopOp) opNode()       {}
-func (*UnnestOp) opNode()    {}
-func (*UniqOp) opNode()      {}
-func (*ValuesOp) opNode()    {}
+func (*AggregateOp) opNode()      {}
+func (*BadOp) opNode()            {}
+func (*CountOp) opNode()          {}
+func (*CutOp) opNode()            {}
+func (*DebugOp) opNode()          {}
+func (*DistinctOp) opNode()       {}
+func (*DropOp) opNode()           {}
+func (*FilterOp) opNode()         {}
+func (*ForkOp) opNode()           {}
+func (*FuseOp) opNode()           {}
+func (*HeadOp) opNode()           {}
+func (*InferOp) opNode()          {}
+func (*JoinOp) opNode()           {}
+func (*LoadOp) opNode()           {}
+func (*MaterializedScan) opNode() {}
+func (*MergeOp) opNode()          {}
+func (*OutputOp) opNode()         {}
+func (*PassOp) opNode()           {}
+func (*PutOp) opNode()            {}
+func (*RenameOp) opNode()         {}
+func (*SkipOp) opNode()           {}
+func (*SortOp) opNode()           {}
+func (*SwitchOp) opNode()         {}
+func (*TailOp) opNode()           {}
+func (*TopOp) opNode()            {}
+func (*UnnestOp) opNode()         {}
+func (*UniqOp) opNode()           {}
+func (*ValuesOp) opNode()         {}
 
 func NewValues(n ast.Node, expr ...Expr) *ValuesOp {
 	return &ValuesOp{Node: n, Exprs: expr}
@@ -433,6 +438,11 @@ func CopyOp(op Op) Op {
 			Author:  op.Author,
 			Message: op.Message,
 			Meta:    op.Meta,
+		}
+	case *MaterializedScan:
+		return &MaterializedScan{
+			Node: op.Node,
+			Tag:  op.Tag,
 		}
 	case *MergeOp:
 		return &MergeOp{

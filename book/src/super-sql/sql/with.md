@@ -3,10 +3,10 @@
 A [WITH](with.md) clause may precede any
 [SQL operator](intro.md#sql-operator) and has the form
 ```
-WITH <alias> AS (
+WITH <alias> AS [ [ NOT ] MATERIALIZED ] (
   <sql-op>
 )
-[ , <alias> AS ( <sql-op> ) ... ]
+[ , <alias> AS [ [ NOT ] MATERIALIZED ] ( <sql-op> ) ... ]
 ```
 where
 * `<alias>` is a table alias with optional columns as defined
@@ -20,6 +20,10 @@ A CTE is similar to a [query declaration](../declarations/queries.md)
 but the CTE body must be a [SQL operator](intro.md#sql-operator)
 and the CTE name can be used only with a [FROM](from.md) clause
 and is not accessible in an expression.
+
+Use `MATERIALIZED` to materialize a named query by evaluating it once and
+reusing the result on each invocation.  This is useful when a query is expensive
+or has output that varies across evaluations.
 
 The table aliases form a lexical scope
 which is available in any `FROM` clause defined within the SQL operator
@@ -88,3 +92,22 @@ SELECT (
 ```
 
 ---
+
+_A materialized CTE is evaluated once_
+
+```mdtest-spq
+# spq
+WITH T(x) AS MATERIALIZED (
+    VALUES (now())
+)
+SELECT * FROM T
+UNION
+SELECT * FROM T
+UNION
+SELECT * FROM T
+| count(distinct this)
+# input
+
+# expected output
+1
+```

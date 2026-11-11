@@ -205,7 +205,7 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 			Value: sup.FormatValue(val),
 		}, val.Type()
 	case *ast.SubqueryExpr:
-		return t.subqueryExpr(e, e.Array, e.Body, inType)
+		return t.subqueryExpr(e, e.Array, e.Materialized, e.Body, inType)
 	case *ast.RecordExpr:
 		fields := map[string]struct{}{}
 		var out []sem.RecordElem
@@ -526,7 +526,7 @@ func (t *translator) doubleQuoteExpr(d *ast.DoubleQuoteExpr, inType super.Type) 
 }
 
 func (t *translator) existsExpr(e *ast.ExistsExpr, inType super.Type) (sem.Expr, super.Type) {
-	q, _ := t.subqueryExpr(e, true, e.Body, inType)
+	q, _ := t.subqueryExpr(e, true, false, e.Body, inType)
 	return sem.NewBinaryExpr(e, ">",
 		sem.NewCall(e, "len", []sem.Expr{q}),
 		sem.NewLiteral(e, super.NewInt64(0), t.defs)), super.TypeBool
@@ -735,13 +735,7 @@ func (t *translator) semCall(call *ast.CallExpr, inType super.Type) (sem.Expr, s
 
 func (t *translator) maybeSubquery(n ast.Node, name string, inType super.Type) (*sem.SubqueryExpr, super.Type) {
 	if seq, typ := t.scope.lookupQuery(t, name); seq != nil {
-		e := &sem.SubqueryExpr{
-			Node:       n,
-			Correlated: isCorrelated(seq),
-			SQL:        t.scope.sql != nil,
-			Body:       seq,
-		}
-		return e, t.checker.subquery(e, typ)
+		return t.newSubqueryExpr(n, false, false, seq, typ)
 	}
 	return nil, nil
 }
@@ -885,19 +879,7 @@ func (t *translator) maybeSubqueryCall(call *ast.CallExpr, name string, inType s
 		return nil, nil
 	}
 	userOp, typ := t.userOp(call.Loc, decl, call.Args, inType)
-	// When a user op is encountered inside an expression, we turn it into a
-	// subquery operating on a single-shot "this" value unless it's uncorrelated
-	// (i.e., starts with a from), in which case we put the uncorrelated body
-	// in the subquery without the correlating values logic. This is controlled
-	// via the Correlated flag.
-	e := &sem.SubqueryExpr{
-		Node:       call,
-		Array:      false,
-		Correlated: isCorrelated(userOp),
-		SQL:        t.scope.sql != nil,
-		Body:       userOp,
-	}
-	return e, t.checker.subquery(e, typ)
+	return t.newSubqueryExpr(call, false, false, userOp, typ)
 }
 
 func (t *translator) semMapCall(call *ast.CallExpr, args []sem.Expr, argTypes []super.Type) (sem.Expr, super.Type) {
@@ -1342,26 +1324,42 @@ func (t *translator) arraySubquery(elems []sem.ArrayElem) *sem.SubqueryExpr {
 	return nil
 }
 
-func (t *translator) subqueryExpr(astExpr ast.Expr, array bool, body ast.Seq, inType super.Type) (*sem.SubqueryExpr, super.Type) {
+func (t *translator) subqueryExpr(n ast.Node, array, materialized bool, astBody ast.Seq, inType super.Type) (*sem.SubqueryExpr, super.Type) {
+	if materialized {
+		inType = super.TypeNull
+	}
 	// We pass inType in whether or not it's correlated since an uncorrelated
 	// subquery will just ignore it.
-	seq, outType := t.seq(body, inType)
-	correlated := isCorrelated(seq)
-	e := &sem.SubqueryExpr{
-		Node:       astExpr,
-		Array:      array,
-		Correlated: correlated,
-		SQL:        t.scope.sql != nil,
-		Body:       seq,
-	}
-	// Add a nullscan only for uncorrelated queries that don't have a source.
-	if !correlated && !HasSource(e.Body) {
-		e.Body.Prepend(&sem.NullScan{})
+	body, outType := t.seq(astBody, inType)
+	if materialized {
+		body = t.subqueryMaterializedScan(n, true, body, outType)
 	}
 	if !array && t.scope.sql != nil {
 		// SQL expects a record with a single column result so unravel this
 		// condition with this complex cleanup...
-		e.Body, outType = t.scalarSubqueryCheck(astExpr, e.Body, outType)
+		body, outType = t.scalarSubqueryCheck(n, body, outType)
+	}
+	return t.newSubqueryExpr(n, array, materialized, body, outType)
+}
+
+// newSubqueryExpr returns a subquery expression for body, whose output has
+// type outType.  A body that doesn't depend on the subquery's input is
+// materialized, and unless the caller has already done so (materialized is
+// true), it's hoisted into a shared definition so that copies of the
+// expression (e.g., in parallel paths) evaluate it only once.
+func (t *translator) newSubqueryExpr(n ast.Node, array, materialized bool, body sem.Seq, outType super.Type) (*sem.SubqueryExpr, super.Type) {
+	if !isCorrelated(body) {
+		if _, ok := body[0].(*sem.MaterializedScan); !materialized && !(ok && len(body) == 1) {
+			body = t.subqueryMaterializedScan(n, false, body, outType)
+		}
+		materialized = true
+	}
+	e := &sem.SubqueryExpr{
+		Node:         n,
+		Array:        array,
+		Materialized: materialized,
+		SQL:          t.scope.sql != nil,
+		Body:         body,
 	}
 	return e, t.checker.subquery(e, outType)
 }
@@ -1421,6 +1419,7 @@ func isCorrelated(seq sem.Seq) bool {
 		*sem.DeleteScan,
 		*sem.FileScan,
 		*sem.HTTPScan,
+		*sem.MaterializedScan,
 		*sem.NullScan,
 		*sem.TableMetaScan,
 		*sem.TableScan:

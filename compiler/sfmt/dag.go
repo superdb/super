@@ -205,12 +205,10 @@ func (c *canonDAG) expr(e dag.Expr, parent string) {
 		}
 		c.write("]")
 	case *dag.SubqueryExpr:
-		c.open("(")
-		if e.Correlated {
-			c.head = true
-			c.next()
-			c.write("-- correlated")
+		if e.Materialized {
+			c.write("materialized ")
 		}
+		c.open("(")
 		c.head = true
 		c.seq(e.Body)
 		c.close()
@@ -406,6 +404,9 @@ func (c *canonDAG) op(o dag.Op) {
 			c.write(")")
 		}
 		c.close()
+	case *dag.MaterializedScan:
+		c.next()
+		c.write("materialized %d", o.Tag)
 	case *dag.NullScan:
 		c.next()
 		c.write("null")
@@ -727,6 +728,20 @@ func (c *canonDAG) main(main *dag.Main) {
 		c.write(")")
 		c.ret()
 		c.flush()
+	}
+	for tag, m := range main.MaterializedDefs {
+		c.open("let %d/%s = materialized (", tag, m.Name)
+		c.ret()
+		c.flush()
+		c.head = true
+		c.seq(m.Body)
+		c.close()
+		c.ret()
+		c.flush()
+		c.write(")")
+		c.ret()
+		c.flush()
+		c.head, c.first = true, true
 	}
 	c.head = true
 	c.seq(main.Body)

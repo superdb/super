@@ -131,8 +131,8 @@ type (
 	}
 	SubqueryExpr struct {
 		ast.Node
-		Correlated bool
-		Array      bool
+		Array        bool
+		Materialized bool
 		// SQL is true for a subquery in a SQL expression (see
 		// dag.SubqueryExpr).
 		SQL  bool
@@ -462,11 +462,11 @@ func CopyExpr(e Expr) Expr {
 		}
 	case *SubqueryExpr:
 		return &SubqueryExpr{
-			Node:       e.Node,
-			Correlated: e.Correlated,
-			Array:      e.Array,
-			SQL:        e.SQL,
-			Body:       CopySeq(e.Body),
+			Node:         e.Node,
+			Array:        e.Array,
+			Materialized: e.Materialized,
+			SQL:          e.SQL,
+			Body:         CopySeq(e.Body),
 		}
 	case *ThisExpr:
 		return &ThisExpr{

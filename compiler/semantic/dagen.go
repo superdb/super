@@ -26,7 +26,7 @@ func newDagen(r reporter) *dagen {
 	}
 }
 
-func (d *dagen) assemble(seq sem.Seq, types []byte, funcs map[string]*funcDef) *dag.Main {
+func (d *dagen) assemble(seq sem.Seq, types []byte, funcs map[string]*funcDef, m []*materializedDef) *dag.Main {
 	dagSeq := d.seq(seq)
 	dagSeq = d.checkOutputs(true, true, dagSeq)
 	dagFuncs := make([]*dag.FuncDef, 0, len(d.funcs))
@@ -37,16 +37,28 @@ func (d *dagen) assemble(seq sem.Seq, types []byte, funcs map[string]*funcDef) *
 	slices.SortFunc(dagFuncs, func(a, b *dag.FuncDef) int {
 		return strings.Compare(a.Tag, b.Tag)
 	})
-	return &dag.Main{Types: types, Funcs: dagFuncs, Body: dagSeq}
+	return &dag.Main{Types: types, Funcs: dagFuncs, MaterializedDefs: d.materializedDefs(m), Body: dagSeq}
 }
 
-func (d *dagen) assembleExpr(e sem.Expr, types []byte, funcs map[string]*funcDef) *dag.MainExpr {
+func (d *dagen) assembleExpr(e sem.Expr, types []byte, funcs map[string]*funcDef, m []*materializedDef) *dag.MainExpr {
 	dagExpr := d.expr(e)
 	dagFuncs := make([]*dag.FuncDef, 0, len(d.funcs))
 	for _, f := range funcs {
 		dagFuncs = append(dagFuncs, d.fn(f))
 	}
-	return &dag.MainExpr{Types: types, Funcs: dagFuncs, Expr: dagExpr}
+	return &dag.MainExpr{Types: types, Funcs: dagFuncs, MaterializedDefs: d.materializedDefs(m), Expr: dagExpr}
+}
+
+func (d *dagen) materializedDefs(materialized []*materializedDef) []*dag.MaterializedDef {
+	out := make([]*dag.MaterializedDef, len(materialized))
+	for i, m := range materialized {
+		out[i] = &dag.MaterializedDef{
+			Kind: "MaterializedDef",
+			Name: m.name,
+			Body: d.checkOutputs(true, false, d.seq(m.body)),
+		}
+	}
+	return out
 }
 
 func (d *dagen) seq(seq sem.Seq) dag.Seq {
@@ -105,6 +117,11 @@ func (d *dagen) op(op sem.Op) dag.Op {
 			Headers: op.Headers,
 			Body:    op.Body,
 			Type:    typ,
+		}
+	case *sem.MaterializedScan:
+		return &dag.MaterializedScan{
+			Kind: "MaterializedScan",
+			Tag:  op.Tag,
 		}
 	case *sem.NullScan:
 		return &dag.NullScan{
@@ -311,9 +328,8 @@ func (d *dagen) unnest(op *sem.UnnestOp) dag.Op {
 	body.Prepend(u)
 	body = collectThis(body)
 	s := &dag.SubqueryExpr{
-		Kind:       "SubqueryExpr",
-		Correlated: true,
-		Body:       body,
+		Kind: "SubqueryExpr",
+		Body: body,
 	}
 	return &dag.UnnestOp{Kind: "UnnestOp", Expr: s}
 }
@@ -588,10 +604,10 @@ func (d *dagen) entries(entries []sem.Entry) []dag.Entry {
 
 func (d *dagen) subquery(e *sem.SubqueryExpr) *dag.SubqueryExpr {
 	subquery := &dag.SubqueryExpr{
-		Kind:       "SubqueryExpr",
-		Correlated: e.Correlated,
-		SQL:        e.SQL,
-		Body:       d.checkOutputs(true, false, d.seq(e.Body)),
+		Kind:         "SubqueryExpr",
+		Materialized: e.Materialized,
+		SQL:          e.SQL,
+		Body:         d.checkOutputs(true, false, d.seq(e.Body)),
 	}
 	if e.Array {
 		subquery.Body = collectThis(subquery.Body)

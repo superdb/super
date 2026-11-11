@@ -76,6 +76,8 @@ func (c *checker) op(typ super.Type, op sem.Op) super.Type {
 		*sem.CommitMetaScan,
 		*sem.DeleteScan:
 		return c.unknown
+	case *sem.MaterializedScan:
+		return c.t.materializedDefs[op.Tag].typ
 	case *sem.NullScan:
 		return super.TypeNull
 	//
@@ -489,13 +491,13 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 }
 
 // subquery returns the type of subquery e whose body's output has type typ.
-// A pipe subquery whose body may produce no values is none (see mayBeEmpty).
+// A pipe subquery whose body may produce no values is none (see translator.mayBeEmpty).
 // (A SQL subquery is null.)
 func (c *checker) subquery(e *sem.SubqueryExpr, typ super.Type) super.Type {
 	if e.Array {
 		return c.t.sctx.LookupTypeArray(typ)
 	}
-	if e.SQL || !mayBeEmpty(e) {
+	if e.SQL || !c.t.mayBeEmpty(e) {
 		return typ
 	}
 	if typ == nil {
