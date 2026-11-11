@@ -17,15 +17,8 @@ func (n *Named) project(loader *FrameLoader, projection field.Projection) vector
 	vec := n.Values.project(loader, projection)
 	// Try to preserve the named type if possible but if the projection changes
 	// the underlying type, then just return the inner vector.
-	inner := vec.Type()
-	named := loader.sctx.LookupByName(n.Name)
-	if named == nil {
-		var err error
-		named, err = loader.sctx.LookupTypeNamed(n.Name, vec.Type())
-		if err != nil {
-			panic(err)
-		}
-	} else if named.Type != inner {
+	named, err := loader.sctx.LookupTypeNamed(n.Name, vec.Type())
+	if err != nil {
 		return vec
 	}
 	return vector.NewNamed(named, vec)
