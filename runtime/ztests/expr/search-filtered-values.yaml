@@ -1,0 +1,67 @@
+# Arrays, sets, and maps left by a filter match at their new positions.
+spq: where len(this) != 1 | head 10 | search 5
+
+input: |
+  type foo=[int64]
+  [1]
+  [5,6]
+  [7,8]
+  [1]::foo
+  [5,6]::foo
+  [7,8]::foo
+  set[1]
+  set[5,6]
+  set[7,8]
+  map{1:"a"}
+  map{5:"b",6:"c"}
+  map{7:"d",8:"e"}
+  map{"a":1}
+  map{"b":5,"c":6}
+  map{"d":7,"e":8}
+
+output: |
+  [5,6]
+  type foo=[int64]
+  [5,6]::foo
+  set[5,6]
+  map{5:"b",6:"c"}
+  map{"b":5,"c":6}
+
+---
+
+# Records with array fields left by a filter match at their new positions.
+spq: where k > 1 | head 10 | search 6
+
+input: |
+  {k:1,r:[1,2]}
+  {k:2,r:[5,6]}
+  {k:3,r:[7,8]}
+
+output: |
+  {k:2,r:[5,6]}
+
+---
+
+# grep() over arrays left by a filter matches at their new positions.
+spq: where len(this) != 1 | values grep("needle", this)
+
+input: |
+  ["a"]
+  ["b","needle"]
+  ["c","d"]
+
+output: |
+  true
+  false
+
+---
+
+# Arrays nested in arrays of records match at their own positions.
+spq: search 1
+
+input: |
+  [{a:[5]},{a:[6]}]
+  [{a:[1]}]
+
+output: |
+  [{a:[1]}]
