@@ -31,3 +31,58 @@ output: |
   false
   false
   true
+
+---
+
+# Arrays, sets, and maps left by a filter are checked at their new positions.
+spq: where len(this) != 1 | values has_error(this)
+
+input: |
+  [1]::[int64|error(int64)]
+  [2,error(0)]
+  []::[int64|error(int64)]
+  [3,4]::[int64|error(int64)]
+  set[1]::set[int64|error(int64)]
+  set[2,error(0)]
+  set[3,4]::set[int64|error(int64)]
+  map{1:1}::map{int64:int64|error(int64)}
+  map{2:error(0),3:3}
+  map{4:4,5:5}::map{int64:int64|error(int64)}
+
+output: |
+  true
+  false
+  false
+  true
+  false
+  true
+  false
+
+---
+
+# Named arrays left by a filter are checked too.
+spq: where len(this) > 1 | values has_error(this)
+
+input: |
+  type foo=[int64|error(int64)]
+  [1]::foo
+  [2,error(0)]::foo
+  [3,4]::foo
+
+output: |
+  true
+  false
+
+---
+
+# Records with an empty record field left by a filter give one result each.
+spq: where a > 1 | values has_error(this)
+
+input: |
+  {a:1,r:{}}
+  {a:2,r:{}}
+  {a:3,r:{}}
+
+output: |
+  false
+  false
