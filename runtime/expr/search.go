@@ -124,10 +124,11 @@ func (s *search) evalForList(vec vector.Any, offsets, index []uint32, length uin
 	out := vector.NewFalse(length)
 	var index2 []uint32
 	for j := range length {
+		idx := j
 		if index != nil {
-			j = index[j]
+			idx = index[j]
 		}
-		start, end := offsets[j], offsets[j+1]
+		start, end := offsets[idx], offsets[idx+1]
 		if start == end {
 			continue
 		}
