@@ -29,7 +29,8 @@ type Builder struct {
 	mapper   *super.TypeDefsMapper
 	env      *exec.Environment
 	progress *vio.Progress
-	// outputs is the channel to the mux for the output and debug operators.
+	// outputs is the target to mux together DAG output, output ops, and debug ops...
+	// it wraps a Go channel for synchronization and won't block when ctx done.
 	// It's nil when there is no mux (e.g., when an expression is evaluated
 	// at compile time).
 	outputs         *op.Outputs
