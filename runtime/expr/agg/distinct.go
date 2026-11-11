@@ -1,89 +1,97 @@
 package agg
 
 import (
-	"encoding/binary"
-
 	"github.com/superdb/super"
 	"github.com/superdb/super/runtime/expr"
-	samagg "github.com/superdb/super/runtime/sam/expr/agg"
-	"github.com/superdb/super/sbuf"
-	"github.com/superdb/super/scode"
 	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/vbuild"
+	"github.com/superdb/super/vector/vhash"
 )
 
+// distinct feeds the distinct values of each group to fun.  The distinct
+// (group, value) pairs are kept in a hash table per value type.
 type distinct struct {
-	fun  expr.AggFunc
-	buf  []byte
-	seen map[string]struct{}
+	fun    expr.AggFunc
+	n      uint32
+	tables []*vhash.Table
+	index  map[super.Type]*vhash.Table
 }
 
 func newDistinct(f expr.AggFunc) expr.AggFunc {
-	return &distinct{fun: f, seen: map[string]struct{}{}}
+	return &distinct{fun: f, index: map[super.Type]*vhash.Table{}}
 }
 
-func (d *distinct) Consume(vec vector.Any) {
-	id := vec.Type().ID()
-	var b scode.Builder
-	for i := range vec.Len() {
-		b.Truncate()
-		vec.Serialize(&b, i)
-		d.buf = binary.AppendVarint(d.buf[:0], int64(id))
-		d.buf = append(d.buf, b.Bytes()...)
-		if _, ok := d.seen[string(d.buf)]; ok {
-			continue
+func (d *distinct) Resize(n uint32) {
+	d.n = n
+}
+
+func (d *distinct) Consume(groups []uint32, vec vector.Any) {
+	if dynamic, ok := vec.(*vector.Dynamic); ok {
+		for tag, slots := range dynamic.ReverseTagMap() {
+			if len(slots) > 0 {
+				d.insert(pick(groups, slots), dynamic.Values[tag])
+			}
 		}
-		d.seen[string(d.buf)] = struct{}{}
-	}
-}
-
-func (d *distinct) ConsumeAsPartial(vec vector.Any) {
-	if vec.Len() != 1 {
-		panic("distinct: invalid partial")
-	}
-	if vec.Kind() == vector.KindNull {
 		return
 	}
-	var slot uint32
-	if view, ok := vec.(*vector.View); ok {
-		vec = view.Any
-		slot = view.Index[0]
+	d.insert(groups, vec)
+}
+
+func (d *distinct) insert(groups []uint32, vec vector.Any) {
+	if vec.Len() == 0 {
+		return
 	}
-	array, ok := vec.(*vector.Array)
+	typ := vec.Type()
+	table, ok := d.index[typ]
 	if !ok {
-		panic("distinct: invalid partial")
+		table = vhash.NewTable([]super.Type{super.TypeUint32, typ})
+		d.index[typ] = table
+		d.tables = append(d.tables, table)
 	}
-	start, end := vector.ContainerOffset(array, slot)
-	values := array.Values
-	if start > 0 || end < values.Len() {
-		index := make([]uint32, end-start)
-		for i := range index {
-			index[i] = start + uint32(i)
+	table.FindOrInsert([]vector.Any{groupsVector(groups), vec})
+}
+
+func groupsVector(groups []uint32) vector.Any {
+	vals := make([]uint64, len(groups))
+	for i, g := range groups {
+		vals[i] = uint64(g)
+	}
+	return vector.NewUint(super.TypeUint32, vals)
+}
+
+// each calls fn with the groups and values of each table's distinct pairs.
+func (d *distinct) each(sctx *super.Context, fn func(groups []uint32, vals vector.Any)) {
+	for _, table := range d.tables {
+		keys := table.Keys(sctx)
+		gvals := keys[0].(*vector.Uint).Values
+		groups := make([]uint32, len(gvals))
+		for i, g := range gvals {
+			groups[i] = uint32(g)
 		}
-		values = vector.Pick(values, index)
+		fn(groups, keys[1])
 	}
-	d.Consume(values)
+}
+
+func (d *distinct) ConsumeAsPartial(groups []uint32, partial vector.Any) {
+	if partial.Kind() == vector.KindNull {
+		return
+	}
+	elemGroups, values := expandContainer(groups, partial)
+	d.Consume(elemGroups, vector.Deunion(values))
 }
 
 func (d *distinct) Result(sctx *super.Context) vector.Any {
-	b := vector.NewDynamicValueBuilder()
-	var count int
-	for key := range d.seen {
-		b.Write(samagg.NewValueFromDistinctKey(sctx, key))
-		count++
-		if count == 1024 {
-			d.fun.Consume(b.Build(sctx))
-			b = vector.NewDynamicValueBuilder()
-			count = 0
-		}
-		delete(d.seen, key)
-	}
-	if count > 0 {
-		d.fun.Consume(b.Build(sctx))
-	}
+	d.fun.Resize(d.n)
+	d.each(sctx, d.fun.Consume)
 	return d.fun.Result(sctx)
 }
 
 func (d *distinct) ResultAsPartial(sctx *super.Context) vector.Any {
-	val := samagg.DistinctResultAsPartial(sctx, d.seen)
-	return sbuf.Dematerialize(sctx, val)
+	var groups []uint32
+	b := vbuild.NewDynamicBuilder()
+	d.each(sctx, func(g []uint32, vals vector.Any) {
+		groups = append(groups, g...)
+		b.Write(vals)
+	})
+	return buildArrays(sctx, d.n, groups, b.Build(), true)
 }

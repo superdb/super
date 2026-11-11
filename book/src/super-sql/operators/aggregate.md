@@ -197,7 +197,7 @@ _Results are included for `by` groupings that generate null results when `filter
 clauses are used inside `aggregate`_
 ```mdtest-spq
 # spq
-sum(v) filter (k=="bar") by key:=k | sort
+sum(v) filter (k=="bar") by key:=k | sort key
 # input
 {k:"foo",v:1}
 {k:"bar",v:2}

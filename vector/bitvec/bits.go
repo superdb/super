@@ -62,6 +62,46 @@ func (b Bits) Set(slot uint32) {
 	b.bits[slot>>6] |= (1 << (slot & 0x3f))
 }
 
+// Clear causes the bit at position slot to become false on an allocated
+// bitvector, where slot must be smaller than the length of the bit vector.
+func (b Bits) Clear(slot uint32) {
+	b.bits[slot>>6] &^= 1 << (slot & 0x3f)
+}
+
+// SetTo causes the bit at position slot to become v on an allocated
+// bitvector, where slot must be smaller than the length of the bit vector.
+func (b Bits) SetTo(slot uint32, v bool) {
+	w, s := slot>>6, slot&0x3f
+	b.bits[w] = b.bits[w]&^(1<<s) | b2u(v)<<s
+}
+
+// b2u returns 1 if v is true and 0 otherwise.  The compiler emits this
+// without a branch.
+func b2u(v bool) uint64 {
+	if v {
+		return 1
+	}
+	return 0
+}
+
+// Resize changes the length of b to n.  When b grows, the new bits are
+// false.  Resize modifies the underlying storage.
+func (b *Bits) Resize(n uint32) {
+	if n > b.length {
+		// Clear any stale bits past the current length since they
+		// become part of b.
+		used := int(b.length+63) / 64
+		if r := b.length % 64; r != 0 {
+			b.bits[used-1] &= 1<<r - 1
+		}
+		clear(b.bits[used:])
+		if words := int(n+63) / 64; words > len(b.bits) {
+			b.bits = append(b.bits, make([]uint64, words-len(b.bits))...)
+		}
+	}
+	b.length = n
+}
+
 func (b *Bits) Append(v bool) {
 	b.length++
 	n := int(b.length>>6) + 1

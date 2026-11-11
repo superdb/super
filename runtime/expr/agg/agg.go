@@ -26,7 +26,7 @@ func NewPattern(sctx *super.Context, op string, distinct, hasarg bool) (expr.Agg
 		}
 	case "array_agg":
 		pattern = func() expr.AggFunc {
-			return &arrayAgg{*newCollect(sctx)}
+			return newArrayAgg(sctx)
 		}
 	case "fuse":
 		pattern = func() expr.AggFunc {
@@ -42,15 +42,15 @@ func NewPattern(sctx *super.Context, op string, distinct, hasarg bool) (expr.Agg
 		}
 	case "sum":
 		pattern = func() expr.AggFunc {
-			return newMathReducer(mathSum)
+			return newSum()
 		}
 	case "min":
 		pattern = func() expr.AggFunc {
-			return newMathReducer(mathMin)
+			return newMin()
 		}
 	case "max":
 		pattern = func() expr.AggFunc {
-			return newMathReducer(mathMax)
+			return newMax()
 		}
 	case "union":
 		pattern = func() expr.AggFunc {
@@ -66,11 +66,11 @@ func NewPattern(sctx *super.Context, op string, distinct, hasarg bool) (expr.Agg
 		}
 	case "and":
 		pattern = func() expr.AggFunc {
-			return &and{}
+			return newAnd()
 		}
 	case "or":
 		pattern = func() expr.AggFunc {
-			return &or{}
+			return newOr()
 		}
 	default:
 		return nil, fmt.Errorf("unknown aggregation function: %s", op)
@@ -88,4 +88,15 @@ func NewPattern(sctx *super.Context, op string, distinct, hasarg bool) (expr.Agg
 		}
 	}
 	return pattern, nil
+}
+
+func pick[E any](s []E, index []uint32) []E {
+	if index == nil {
+		return s
+	}
+	out := make([]E, len(index))
+	for i, k := range index {
+		out[i] = s[k]
+	}
+	return out
 }

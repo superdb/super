@@ -1,6 +1,8 @@
 package aggregate
 
 import (
+	"slices"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/runtime/expr"
@@ -18,6 +20,7 @@ type scalarAggregate struct {
 	partialsOut bool
 
 	funcs []expr.AggFunc
+	zeros []uint32 // groups for consume, as all values are in group 0
 }
 
 func NewScalar(parent vio.Puller, sctx *super.Context, aggs []*expr.Aggregator, aggNames []field.Path, aggExprs []expr.Evaluator, partialsIn, partialsOut bool) (vio.Puller, error) {
@@ -65,11 +68,13 @@ func (s *scalarAggregate) Pull(done bool) (vector.Any, error) {
 }
 
 func (s *scalarAggregate) consume(vecs ...vector.Any) vector.Any {
+	n := vecs[0].Len()
+	s.zeros = slices.Grow(s.zeros[:0], int(n))[:n]
 	for i, vec := range vecs {
 		if s.partialsIn {
-			s.funcs[i].ConsumeAsPartial(vec)
+			s.funcs[i].ConsumeAsPartial(s.zeros, vec)
 		} else {
-			s.funcs[i].Consume(vec)
+			s.funcs[i].Consume(s.zeros, vec)
 		}
 	}
 	return vector.NewNull(vecs[0].Len())
@@ -78,7 +83,9 @@ func (s *scalarAggregate) consume(vecs ...vector.Any) vector.Any {
 func newFuncs(aggs []*expr.Aggregator) []expr.AggFunc {
 	var funcs []expr.AggFunc
 	for _, agg := range aggs {
-		funcs = append(funcs, agg.Pattern())
+		f := agg.Pattern()
+		f.Resize(1)
+		funcs = append(funcs, f)
 	}
 	return funcs
 }
