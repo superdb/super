@@ -188,13 +188,15 @@ func FlattenBool(vec vector.Any) *vector.Bool {
 	case *vector.Dynamic:
 		out := vector.NewFalse(vec.Len())
 		for i := range vec.Len() {
-			if vector.BoolValue(vec, i) {
+			if vec.Values[vec.Tags[i]].Kind() == vector.KindBool && vector.BoolValue(vec, i) {
 				out.Set(i)
 			}
 		}
 		return out
 	case *vector.Bool:
 		return vec
+	case *vector.Null:
+		return vector.NewFalse(vec.Len())
 	default:
 		panic(vector.Format(vec))
 	}

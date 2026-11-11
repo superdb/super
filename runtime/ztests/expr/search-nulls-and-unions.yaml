@@ -1,0 +1,58 @@
+# Fields that are null in some values can be searched.
+spq: search 1
+
+flags: -i json
+
+input: |
+  {"a":null}
+  {"a":1}
+
+output: |
+  {a:1}
+
+---
+
+# Arrays, sets, and maps that contain nulls can be searched.
+spq: search 1
+
+input: |
+  [null]
+  [null,1]
+  set[null,1]
+  map{1:null}
+  map{null:1}
+  [[null,1]]
+  [null::(int64|null),1::(int64|null)]
+
+output: |
+  [null,1]
+  set[1,null]
+  map{1:null}
+  map{null:1}
+  [[null,1]]
+  [null,1]
+
+---
+
+# Searching for null in arrays matches nothing, as it does elsewhere.
+spq: search null
+
+input: |
+  [1,2]
+  [null,1]
+
+output: ""
+
+---
+
+# Errors whose values are unions can be searched.
+spq: search 1
+
+input: |
+  {a:error(1::(int64|string))}
+  {a:error("x"::(int64|string))}
+  [error(1::(int64|string))]
+
+output: |
+  {a:error(1::(int64|string))}
+  [error(1::(int64|string))]
