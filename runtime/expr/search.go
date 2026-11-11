@@ -110,7 +110,7 @@ func (s *search) eval(vecs ...vector.Any) vector.Any {
 		return vector.Or(s.evalForList(vec.Keys, vec.Offsets, index, n),
 			s.evalForList(vec.Values, vec.Offsets, index, n))
 	case *vector.Error:
-		return s.eval(vec.Vals)
+		return s.applyEval(vec.Vals)
 	case *vector.Option:
 		if none, ok := vec.Any.(*vector.None); ok {
 			return vector.NewFalse(none.Len())
