@@ -75,6 +75,7 @@
         - [infer](super-sql/operators/infer.md)
         - [join](super-sql/operators/join.md)
         - [load](super-sql/operators/load.md)
+        - [output](super-sql/operators/output.md)
         - [pass](super-sql/operators/pass.md)
         - [put](super-sql/operators/put.md)
         - [rename](super-sql/operators/rename.md)

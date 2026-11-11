@@ -1,0 +1,101 @@
+# An output operator in a subquery sends its values to the query's output.
+# The values are sorted since the order of values from a subquery's output
+# and from the query's other outputs is undefined.
+script: |
+  for f in *.spq; do
+    echo "// $f"
+    super -s -I $f | super -s -c "sort this" -
+  done
+  echo "// leaf error"
+  ! super -s -c 'values (values 1 | output main | values 2)'
+  echo "// constant"
+  ! super -s -c 'const x = (values 1 | output main) values x'
+
+inputs:
+  - name: correlated.spq
+    data: |
+      values 1,2,3 | values (values this+10 | output main)
+  - name: fork.spq
+    data: |
+      values 1,2
+      | values (
+          fork
+            (values f"sent {this}" | output main)
+            (values this*10)
+        )
+  - name: nested.spq
+    data: |
+      values 1,2 | values (values (values this+100 | output main) | output main)
+  - name: unnest-into.spq
+    data: |
+      values [1,2],[3] | unnest this into (output main)
+  - name: array.spq
+    data: |
+      values [1,2] | values [unnest this | output main], "after"
+  - name: recursive.spq
+    data: |
+      fn f(n): (
+        case when n<=0 then 0
+        else (fork (values n | output main) (values f(n-1)))
+        end
+      )
+      values f(3)
+  - name: per-row.spq
+    data: |
+      values 1,2 | values {x:this,y:(values 7 | output main)}
+  # A subquery that reads data is uncorrelated and evaluated once.
+  - name: uncorrelated.spq
+    data: |
+      values 1,2 | values {x:this,y:(from seven.sup | fork (output main) (values a+1))}
+  - name: seven.sup
+    data: |
+      {a:7}
+
+outputs:
+  - name: stdout
+    data: |
+      // array.spq
+      1
+      2
+      "after"
+      []
+      // correlated.spq
+      11
+      12
+      13
+      // fork.spq
+      10
+      20
+      "sent 1"
+      "sent 2"
+      // nested.spq
+      101
+      102
+      // per-row.spq
+      7
+      7
+      {x:1}
+      {x:2}
+      // recursive.spq
+      0
+      1
+      2
+      3
+      // uncorrelated.spq
+      {a:7}
+      {x:1,y:8}
+      {x:2,y:8}
+      // unnest-into.spq
+      1
+      2
+      3
+      // leaf error
+      // constant
+  - name: stderr
+    data: |
+      output operator must be a flowgraph leaf at line 1, column 20:
+      values (values 1 | output main | values 2)
+                         ~~~~~~~~~~~
+      output operator cannot be used in a constant expression at line 1, column 23:
+      const x = (values 1 | output main) values x
+                            ~~~~~~~~~~~

@@ -143,7 +143,9 @@ func (e *evaluator) op(op sem.Op) bool {
 		// Like join, if any of the parent legs is non-const, the constThis if false here
 		return e.sortExprs(op.Exprs) && e.constThis
 	case *sem.OutputOp:
-		return true
+		// There's no mux at compile time to receive the values.
+		e.errs.error(op, errors.New("output operator cannot be used in a constant expression"))
+		return false
 	case *sem.PutOp:
 		return e.assignments(op.Args) && e.constThis
 	case *sem.RenameOp:

@@ -66,11 +66,11 @@ func (l *compiler) NewDeleteQuery(rctx *runtime.Context, ast *parser.AST, head *
 	if err = optimizer.New(rctx, l.env).OptimizeDeleter(main, Parallelism); err != nil {
 		return nil, err
 	}
-	outputs, debugs, b, err := BuildWithBuilder(rctx, main, l.env)
+	leaves, outputs, b, err := BuildWithBuilder(rctx, main, l.env)
 	if err != nil {
 		return nil, err
 	}
-	return exec.NewDeleteQuery(rctx, bundleOutputs(rctx, outputs, debugs), b.Deletes()), nil
+	return exec.NewDeleteQuery(rctx, bundleOutputs(rctx, leaves, outputs), b.Deletes()), nil
 }
 
 func (l *compiler) NewObjectScanner(rctx *runtime.Context, tableID uuid.UUID, objects []*data.Object) (vio.Puller, error) {

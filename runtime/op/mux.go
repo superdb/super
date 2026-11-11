@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"slices"
 	"sync"
 
 	"github.com/superdb/super/runtime"
@@ -29,217 +30,150 @@ func (c *Catcher) Pull(done bool) (vec vector.Any, err error) {
 	return c.parent.Pull(done)
 }
 
-// Mux implements the muxing of a set of parallel paths at the output of
-// a flowgraph.  It also implements the double-EOS algorithm with proc.Latch
-// to detect the end of each parallel stream.  Its output protocol is a single EOS
-// when all of the upstream legs are done at which time it cancels the flowgraoh.
-// Each  batch returned by the mux is wrapped in a Batch, which can be unwrappd
-// with Unwrap to extract the integer index of the output (in left-to-right
-// DFS traversal order of the flowgraph).  This proc requires more than one
-// parent; use proc.Latcher for a single-output flowgraph.
-type Mux struct {
-	rctx     *runtime.Context
-	once     sync.Once
-	ch       <-chan muxresult
-	parents  []*puller
-	nparents int
-	debugger *debugger
-	eosCh    chan<- struct{}
+// Outputs is the channel by which the output and debug operators of a query,
+// whether in the query's flowgraph or in a subquery, send labeled vectors to
+// the mux (see Mux).  A nil *Outputs discards the vectors sent to it.
+type Outputs struct {
+	ch chan muxresult
+	mu sync.Mutex
+	// labels holds the labels of the output operators.
+	labels map[string]struct{}
 }
 
-type DebugChans struct {
-	Debug []chan vector.Any
-	EOS   chan struct{}
+func NewOutputs() *Outputs {
+	return &Outputs{
+		ch:     make(chan muxresult),
+		labels: make(map[string]struct{}),
+	}
 }
 
-func NewDebugChans() *DebugChans {
-	return &DebugChans{EOS: make(chan struct{})}
+func (o *Outputs) addLabel(label string) {
+	if o == nil {
+		return
+	}
+	// Output operators are created at runtime for the copies of a
+	// correlated subquery (see Subquery), so this may race with others.
+	o.mu.Lock()
+	o.labels[label] = struct{}{}
+	o.mu.Unlock()
 }
 
-func (d *DebugChans) Next() chan vector.Any {
-	ch := make(chan vector.Any)
-	d.Debug = append(d.Debug, ch)
-	return ch
+func (o *Outputs) sortedLabels() []string {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	var labels []string
+	for label := range o.labels {
+		labels = append(labels, label)
+	}
+	slices.Sort(labels)
+	return labels
+}
+
+// send sends vec labeled label to the mux.
+func (o *Outputs) send(ctx context.Context, label string, vec vector.Any) error {
+	if o == nil {
+		return nil
+	}
+	select {
+	case o.ch <- muxresult{vec: vec, label: label}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 type muxresult struct {
 	vec   vector.Any
 	label string
 	err   error
+	// pumped is true when a pump is done (with err if it failed).
+	pumped bool
 }
 
-func (m muxresult) vector() *vector.Labeled {
-	return &vector.Labeled{Any: m.vec, Label: m.label}
+// Mux collects the outputs of a query.  Its output and debug operators send
+// vectors on the query's Outputs, and the mux returns each vector labeled with
+// the name of its output (see vector.Labeled).  The mux drives the leaves of
+// the query's flowgraph, each of which ends in an output operator, with a pump
+// for each leaf: a goroutine that pulls the leaf until EOS.  (An output
+// operator in a subquery is driven by the subquery's evaluation.)
+//
+// Since the mux only reads from the Outputs channel and never pulls from the
+// flowgraph, an operator's send always makes progress as long as the mux is
+// pulled.
+//
+// When all of the pumps are done, no operator can send, so the mux returns an
+// end of channel (a Labeled with a nil vector) for each output's label and
+// then EOS, and it cancels the query.  There's no end of channel for debug.
+type Mux struct {
+	rctx    *runtime.Context
+	once    sync.Once
+	outputs *Outputs
+	pumps   []vio.Puller
+	running int
+	ends    []string
 }
 
-type puller struct {
-	vio.Puller
-	ch    chan<- muxresult
-	label string
-}
-
-func (p *puller) run(ctx context.Context) {
-	for {
-		vec, err := p.Pull(false)
-		select {
-		case p.ch <- muxresult{vec, p.label, err}:
-			if vec == nil || err != nil {
-				return
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func NewMux(rctx *runtime.Context, parents map[string]vio.Puller, chans *DebugChans) *Mux {
-	if len(parents)+len(chans.Debug) <= 1 {
-		panic("NewMux must be called with two or more parents")
-	}
-	ch := make(chan muxresult)
-	pullers := make([]*puller, 0, len(parents))
-	for label, parent := range parents {
-		pullers = append(pullers, &puller{NewCatcher(parent), ch, label})
-	}
-	var debugger *debugger
-	if len(chans.Debug) != 0 {
-		debugger = newDebugger(chans)
-	}
+// NewMux returns a Mux for outputs and the leaves of a query's flowgraph,
+// pumps.
+func NewMux(rctx *runtime.Context, outputs *Outputs, pumps []vio.Puller) *Mux {
 	return &Mux{
-		rctx:     rctx,
-		ch:       ch,
-		parents:  pullers,
-		nparents: len(parents),
-		debugger: debugger,
-		eosCh:    chans.EOS,
+		rctx:    rctx,
+		outputs: outputs,
+		pumps:   pumps,
+		running: len(pumps),
 	}
 }
 
-// Pull implements the merge logic for returning data from the upstreams.
+// Pull returns the next vector from any output.  The done argument is ignored
+// since the mux doesn't pull from the flowgraph: to stop a query early, cancel
+// its context (as exec.Query.Pull does).
 func (m *Mux) Pull(bool) (vector.Any, error) {
 	m.once.Do(func() {
-		for _, puller := range m.parents {
-			go puller.run(m.rctx.Context)
-		}
-		if m.debugger != nil {
-			m.debugger.run()
+		for _, p := range m.pumps {
+			go m.pump(m.rctx.Context, NewCatcher(p))
 		}
 	})
-	for m.nparents != 0 || m.debugger.active() {
+	for m.running != 0 {
 		select {
-		case res := <-m.ch:
+		case res := <-m.outputs.ch:
 			if res.err != nil {
 				m.rctx.Cancel()
 				return nil, res.err
 			}
-			if res.vec == nil {
-				m.nparents--
-				if m.nparents == 0 {
-					close(m.eosCh)
-				}
+			if !res.pumped {
+				return &vector.Labeled{Any: res.vec, Label: res.label}, nil
 			}
-			return res.vector(), nil
-		case res := <-m.debugger.channel():
-			m.debugger.check(res)
-			if res.err != nil {
-				m.rctx.Cancel()
-				return nil, res.err
-			}
-			if res.vec != nil {
-				return res.vector(), nil
+			m.running--
+			if m.running == 0 {
+				m.ends = m.outputs.sortedLabels()
 			}
 		case <-m.rctx.Context.Done():
 			return nil, m.rctx.Context.Err()
 		}
 	}
+	if len(m.ends) != 0 {
+		label := m.ends[0]
+		m.ends = m.ends[1:]
+		return &vector.Labeled{Label: label}, nil
+	}
 	m.rctx.Cancel()
 	return nil, nil
 }
 
-type Single struct {
-	vio.Puller
-	label string
-	eos   bool
-}
-
-func NewSingle(label string, parent vio.Puller) *Single {
-	return &Single{Puller: parent, label: label}
-}
-
-func (s *Single) Pull(bool) (vector.Any, error) {
-	if s.eos {
-		return nil, nil
-	}
-	vec, err := s.Puller.Pull(false)
-	if vec == nil {
-		s.eos = true
-	}
-	return &vector.Labeled{Any: vec, Label: s.label}, err
-}
-
-func Unlabel(vec vector.Any) (vector.Any, string) {
-	if vec, ok := vec.(*vector.Labeled); ok {
-		return vec.Any, vec.Label
-	}
-	return vec, ""
-}
-
-type debugger struct {
-	threads  []dthread
-	resultCh chan muxresult
-	nrun     int
-}
-
-func newDebugger(chans *DebugChans) *debugger {
-	var threads []dthread
-	resultCh := make(chan muxresult)
-	for _, ch := range chans.Debug {
-		threads = append(threads, dthread{
-			vecCh:    ch,
-			resultCh: resultCh,
-		})
-	}
-	return &debugger{
-		threads:  threads,
-		resultCh: resultCh,
-		nrun:     len(threads),
-	}
-}
-
-func (d *debugger) active() bool {
-	return d != nil && d.nrun != 0
-}
-
-func (d *debugger) run() {
-	for _, t := range d.threads {
-		go t.run()
-	}
-}
-
-func (d *debugger) check(r muxresult) {
-	if r.vec == nil {
-		d.nrun--
-	}
-}
-
-func (d *debugger) channel() <-chan muxresult {
-	if d == nil {
-		return nil
-	}
-	return d.resultCh
-}
-
-type dthread struct {
-	vecCh    <-chan vector.Any
-	resultCh chan<- muxresult
-}
-
-func (d *dthread) run() {
+// pump pulls p until EOS or an error and then tells the mux that it's done.
+// Since an output operator's send is synchronous, all of p's vectors have
+// been received by the mux when p returns EOS.
+func (m *Mux) pump(ctx context.Context, p vio.Puller) {
+	var err error
 	for {
-		vec := <-d.vecCh
-		d.resultCh <- muxresult{vec, "debug", nil}
-		if vec == nil {
-			return
+		var vec vector.Any
+		vec, err = p.Pull(false)
+		if vec == nil || err != nil {
+			break
 		}
+	}
+	select {
+	case m.outputs.ch <- muxresult{err: err, pumped: true}:
+	case <-ctx.Done():
 	}
 }

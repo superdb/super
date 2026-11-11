@@ -1,0 +1,14 @@
+# A debug operator in a correlated subquery is pulled once per value.
+script: |
+  super -s -c 'values 1,2,3 | values (values this+10 | debug f"debug {this}")' 2>&1 |
+    super -s -c 'sort this' -
+
+outputs:
+  - name: stdout
+    data: |
+      11
+      12
+      13
+      "debug 11"
+      "debug 12"
+      "debug 13"
