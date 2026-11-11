@@ -135,6 +135,22 @@ type (
 	FilterOp struct {
 		ast.Node
 		Expr Expr
+		// Catch, if not nil, handles the side errors of Expr (see
+		// CatchOp), which are otherwise dropped.
+		Catch Seq
+	}
+	// CatchOp sends each input value with an error in it (i.e., for which
+	// has_error(this) is true) to Body and passes the other values.  The
+	// values output by Body are output along with the passed values.
+	CatchOp struct {
+		ast.Node
+		Body Seq
+	}
+	// HaltOp stops the query and makes the value of Expr for its first
+	// input value the query's last value.
+	HaltOp struct {
+		ast.Node
+		Expr Expr
 	}
 	ForkOp struct {
 		ast.Node
@@ -158,6 +174,9 @@ type (
 		LeftAlias  string
 		RightAlias string
 		Cond       Expr
+		// Catch, if not nil, handles the side errors of Cond (see
+		// FilterOp).
+		Catch Seq
 	}
 	LoadOp struct {
 		ast.Node
@@ -253,7 +272,9 @@ func (*AggregateOp) opNode() {}
 func (*BadOp) opNode()       {}
 func (*CountOp) opNode()     {}
 func (*CutOp) opNode()       {}
+func (*CatchOp) opNode()     {}
 func (*DebugOp) opNode()     {}
+func (*HaltOp) opNode()      {}
 func (*DistinctOp) opNode()  {}
 func (*DropOp) opNode()      {}
 func (*FilterOp) opNode()    {}
@@ -378,10 +399,16 @@ func CopyOp(op Op) Op {
 			Node: op.Node,
 			Args: copyAssignments(op.Args),
 		}
+	case *CatchOp:
+		return &CatchOp{
+			Node: op.Node,
+			Body: CopySeq(op.Body),
+		}
 	case *DebugOp:
 		return &DebugOp{
-			Node: op.Node,
-			Expr: CopyExpr(op.Expr),
+			Node:   op.Node,
+			Expr:   CopyExpr(op.Expr),
+			Filter: CopyExpr(op.Filter),
 		}
 	case *DistinctOp:
 		return &DistinctOp{
@@ -395,6 +422,12 @@ func CopyOp(op Op) Op {
 		}
 	case *FilterOp:
 		return &FilterOp{
+			Node:  op.Node,
+			Expr:  CopyExpr(op.Expr),
+			Catch: CopySeq(op.Catch),
+		}
+	case *HaltOp:
+		return &HaltOp{
 			Node: op.Node,
 			Expr: CopyExpr(op.Expr),
 		}
@@ -424,6 +457,7 @@ func CopyOp(op Op) Op {
 			LeftAlias:  op.LeftAlias,
 			RightAlias: op.RightAlias,
 			Cond:       CopyExpr(op.Cond),
+			Catch:      CopySeq(op.Catch),
 		}
 	case *LoadOp:
 		return &LoadOp{

@@ -8,11 +8,11 @@
 <left-input>
 | [anti|inner|left|right] join (
   <right-input>
-) [as { <left-name>,<right-name> }] [on <predicate> | using ( <field> [, <field> ...]) ]
+) [as { <left-name>,<right-name> }] [on <predicate> [catch <handler>] | using ( <field> [, <field> ...]) ]
 
 ( <left-input> )
 ( <right-input> )
-| [anti|inner|left|right] join [as { <left-name>,<right-name> }] [on <predicate> | using ( <field> [, <field> ...])]
+| [anti|inner|left|right] join [as { <left-name>,<right-name> }] [on <predicate> [catch <handler>] | using ( <field> [, <field> ...])]
 
 <left-input> cross join ( <right-input> ) [as { <left-name>,<right-name> }]
 
@@ -72,6 +72,10 @@ like any other record without complex scoping logic.
 
 If relational scoping is desired, a SQL [`JOIN`](../sql/join.md) clause
 can be used instead.
+
+The errors of `<predicate>` are dropped unless there's a
+[catch clause](catch.md#catch-clauses), which sends them to `<handler>`, or a
+[catch pragma](../declarations/pragmas.md).
 
 ## Examples
 

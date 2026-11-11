@@ -71,11 +71,21 @@ func (o *Outputs) sortedLabels() []string {
 
 // send sends vec labeled label to the mux.
 func (o *Outputs) send(ctx context.Context, label string, vec vector.Any) error {
+	return o.sendResult(ctx, muxresult{vec: vec, label: label})
+}
+
+// halt sends the value of vec to the mux, which stops the query and returns
+// the value as the query's last value (see Mux).
+func (o *Outputs) halt(ctx context.Context, vec vector.Any) error {
+	return o.sendResult(ctx, muxresult{vec: vec, label: "main", halt: true})
+}
+
+func (o *Outputs) sendResult(ctx context.Context, res muxresult) error {
 	if o == nil {
 		return nil
 	}
 	select {
-	case o.ch <- muxresult{vec: vec, label: label}:
+	case o.ch <- res:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -88,6 +98,8 @@ type muxresult struct {
 	err   error
 	// pumped is true when a pump is done (with err if it failed).
 	pumped bool
+	// halt is true for the value of a halt operator.
+	halt bool
 }
 
 // Mux collects the outputs of a query.  Its output and debug operators send
@@ -104,6 +116,10 @@ type muxresult struct {
 // When all of the pumps are done, no operator can send, so the mux returns an
 // end of channel (a Labeled with a nil vector) for each output's label and
 // then EOS, and it cancels the query.  There's no end of channel for debug.
+//
+// When a halt operator sends its value, the mux cancels the query, which
+// drops any values not yet returned, and returns the halt's value labeled
+// "main" as the query's last value.
 type Mux struct {
 	rctx    *runtime.Context
 	once    sync.Once
@@ -111,6 +127,7 @@ type Mux struct {
 	pumps   []vio.Puller
 	running int
 	ends    []string
+	halted  bool
 }
 
 // NewMux returns a Mux for outputs and the leaves of a query's flowgraph,
@@ -133,9 +150,17 @@ func (m *Mux) Pull(bool) (vector.Any, error) {
 			go m.pump(m.rctx.Context, NewCatcher(p))
 		}
 	})
+	if m.halted {
+		return nil, nil
+	}
 	for m.running != 0 {
 		select {
 		case res := <-m.outputs.ch:
+			if res.halt {
+				m.halted = true
+				m.rctx.Cancel()
+				return &vector.Labeled{Any: res.vec, Label: res.label}, nil
+			}
 			if res.err != nil {
 				m.rctx.Cancel()
 				return nil, res.err

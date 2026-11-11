@@ -84,6 +84,22 @@ type (
 	FilterOp struct {
 		Kind string `json:"kind" unpack:""`
 		Expr Expr   `json:"expr"`
+		// Catch, if not nil, handles the side errors of Expr, which are
+		// otherwise dropped.  See CatchOp.
+		Catch Seq `json:"catch,omitempty"`
+	}
+	// CatchOp sends each input value with an error in it (i.e., for which
+	// has_error(this) is true) to Body and passes the other values.  The
+	// values output by Body are output along with the passed values.
+	CatchOp struct {
+		Kind string `json:"kind" unpack:""`
+		Body Seq    `json:"body"`
+	}
+	// HaltOp stops the query and makes the value of Expr for its first
+	// input value the query's last value.
+	HaltOp struct {
+		Kind string `json:"kind" unpack:""`
+		Expr Expr   `json:"expr"`
 	}
 	ForkOp struct {
 		Kind  string `json:"kind" unpack:""`
@@ -100,6 +116,9 @@ type (
 		RightAlias string `json:"right_alias"`
 		LeftKey    Expr   `json:"left_key"`
 		RightKey   Expr   `json:"right_key"`
+		// Catch, if not nil, handles the side errors of the keys (see
+		// FilterOp).
+		Catch Seq `json:"catch,omitempty"`
 	}
 	HeadOp struct {
 		Kind  string `json:"kind" unpack:""`
@@ -115,6 +134,9 @@ type (
 		LeftAlias  string `json:"left_alias"`
 		RightAlias string `json:"right_alias"`
 		Cond       Expr   `json:"cond"`
+		// Catch, if not nil, handles the side errors of Cond (see
+		// FilterOp).
+		Catch Seq `json:"catch,omitempty"`
 	}
 	LoadOp struct {
 		Kind    string    `json:"kind" unpack:""`
@@ -209,7 +231,9 @@ type (
 func (*AggregateOp) opNode() {}
 func (*CombineOp) opNode()   {}
 func (*CountOp) opNode()     {}
+func (*CatchOp) opNode()     {}
 func (*DebugOp) opNode()     {}
+func (*HaltOp) opNode()      {}
 func (*DistinctOp) opNode()  {}
 func (*DropOp) opNode()      {}
 func (*FilterOp) opNode()    {}

@@ -279,7 +279,7 @@ SearchOrTerm = _ OR _ t:SearchAnd { return []any{"or", t}, nil }
 
 SearchAnd
   = first:SearchFactor
-    rest:((_ AND)? _ !OR expr:SearchFactor { return []any{"and", expr}, nil })* {
+    rest:((_ AND)? _ !OR !CATCH expr:SearchFactor { return []any{"and", expr}, nil })* {
       return makeBinaryExprChain(first, rest, c), nil
     }
 
@@ -456,6 +456,8 @@ Operator
   = op:SQLOp &EndOfOp { return op, nil }
   / ForkOp
   / SwitchOp
+  / CatchOp
+  / HaltOp
   / SearchOp
   / AssertOp
   / SortOp
@@ -529,8 +531,49 @@ Case
   / DEFAULT { return nil, nil }
 
 SearchOp
-  = (SEARCH _ / "?" __) expr:SearchBoolean {
-      return &ast.SearchOp{Kind:"SearchOp",Expr:expr.(ast.Expr),Loc:loc(c)}, nil
+  = (SEARCH _ / "?" __) expr:SearchBoolean catch:CatchClause? {
+      o := &ast.SearchOp{Kind:"SearchOp",Expr:expr.(ast.Expr),Loc:loc(c)}
+      if catch != nil {
+        o.Catch = catch.(*ast.CatchHandler)
+      }
+      return o, nil
+    }
+
+CatchOp
+  = CATCH _ handler:CatchHandler {
+      return &ast.CatchOp{
+        Kind: "CatchOp",
+        Handler: handler.(*ast.CatchHandler),
+        Loc: loc(c),
+      }, nil
+    }
+
+CatchClause
+  = _ CATCH _ handler:CatchHandler { return handler, nil }
+
+CatchHandler
+  = body:ScopeBody {
+      return &ast.CatchHandler{
+        Kind: "CatchHandler",
+        Body: sliceOf[ast.Op](body),
+        Loc: loc(c),
+      }, nil
+    }
+  / action:(HALT { return "halt", nil } / IGNORE { return "ignore", nil } / PASS { return "pass", nil }) {
+      return &ast.CatchHandler{
+        Kind: "CatchHandler",
+        Action: action.(string),
+        Loc: loc(c),
+      }, nil
+    }
+
+HaltOp
+  = HALT expr:(_ e:Expr { return e, nil })? &EndOfOp {
+      o := &ast.HaltOp{Kind: "HaltOp", Loc: loc(c)}
+      if expr != nil {
+        o.Expr = expr.(ast.Expr)
+      }
+      return o, nil
     }
 
 AssertOp
@@ -675,12 +718,16 @@ SkipOp
     }
 
 WhereOp
-  = WHERE _ expr:Expr {
-      return &ast.WhereOp{
+  = WHERE _ expr:Expr catch:CatchClause? {
+      o := &ast.WhereOp{
         Kind: "WhereOp",
         Expr: expr.(ast.Expr),
         Loc: loc(c),
-      }, nil
+      }
+      if catch != nil {
+        o.Catch = catch.(*ast.CatchHandler)
+      }
+      return o, nil
     }
 
 UniqOp
@@ -733,12 +780,15 @@ JoinOp
       }
       return o, nil
     }
-  / style:JoinStyle JOIN rightInput:JoinRightInput alias:OptJoinAlias _ e:JoinCond {
+  / style:JoinStyle JOIN rightInput:JoinRightInput alias:OptJoinAlias _ e:JoinCond catch:CatchClause? {
       o := &ast.JoinOp{
         Kind: "JoinOp",
         Style: style.(string),
         Cond: e.(ast.JoinCond),
         Loc: loc(c),
+      }
+      if catch != nil {
+        o.Catch = catch.(*ast.CatchHandler)
       }
       if rightInput != nil {
         o.RightInput = sliceOf[ast.Op](rightInput)
@@ -2686,6 +2736,7 @@ CALL       = "CALL"i            !IdentifierRest
 CASE       = "CASE"i            !IdentifierRest
 MATCH      = "MATCH"i           !IdentifierRest
 CAST       = "CAST"i            !IdentifierRest
+CATCH      = "CATCH"i           !IdentifierRest
 CONST      = "CONST"i           !IdentifierRest
 COUNT      = "COUNT"i           !IdentifierRest
 CREATE     = "CREATE"i          !IdentifierRest
@@ -2750,6 +2801,8 @@ ORDINALITY = "ORDINALITY"i      !IdentifierRest
 OUTER      = "OUTER"i           !IdentifierRest
 OUTPUT     = "OUTPUT"i          !IdentifierRest
 PASS       = "PASS"i            !IdentifierRest
+HALT       = "HALT"i            !IdentifierRest
+IGNORE     = "IGNORE"i          !IdentifierRest
 PUT        = "PUT"i             !IdentifierRest
 PRAGMA     = "PRAGMA"i          !IdentifierRest
 RECURSIVE  = "RECURSIVE"i       !IdentifierRest

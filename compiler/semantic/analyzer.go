@@ -79,6 +79,9 @@ type translator struct {
 	sctx     *super.Context
 	types    *sup.Analyzer
 	defs     *super.Context
+	// catchDepth is the depth of the catch handlers being translated,
+	// which don't get the catch pragma's handler (see catchPragma).
+	catchDepth int
 }
 
 func newTranslator(ctx context.Context, r reporter, env *exec.Environment) *translator {

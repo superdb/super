@@ -5,8 +5,8 @@
 ## Synopsis
 
 ```
-search <sexpr>
-? <sexpr>
+search <sexpr> [ catch <handler> ]
+? <sexpr> [ catch <handler> ]
 ```
 
 ## Description
@@ -18,6 +18,10 @@ A search operation filters its input by applying the search expression `<sexpr>`
 to each input value and emitting all values that match.
 
 The `search` keyword can be abbreviated as `?`.
+
+The errors of `<sexpr>` are dropped unless there's a
+[catch clause](catch.md#catch-clauses), which sends them to `<handler>`, or a
+[catch pragma](../declarations/pragmas.md).
 
 ### Search Expressions
 

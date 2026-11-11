@@ -66,9 +66,12 @@ func eqOp(aop, bop sem.Op) bool {
 	case *sem.CutOp:
 		b, ok := bop.(*sem.CutOp)
 		return ok && eqAssignments(a.Args, b.Args)
+	case *sem.CatchOp:
+		b, ok := bop.(*sem.CatchOp)
+		return ok && eqSeq(a.Body, b.Body)
 	case *sem.DebugOp:
 		b, ok := bop.(*sem.DebugOp)
-		return ok && eqExpr(a.Expr, b.Expr)
+		return ok && eqExpr(a.Expr, b.Expr) && eqExpr(a.Filter, b.Filter)
 	case *sem.DistinctOp:
 		b, ok := bop.(*sem.DistinctOp)
 		return ok && eqExpr(a.Expr, b.Expr)
@@ -77,7 +80,7 @@ func eqOp(aop, bop sem.Op) bool {
 		return ok && eqExprs(a.Args, b.Args)
 	case *sem.FilterOp:
 		b, ok := bop.(*sem.FilterOp)
-		return ok && eqExpr(a.Expr, b.Expr)
+		return ok && eqExpr(a.Expr, b.Expr) && eqSeq(a.Catch, b.Catch)
 	case *sem.ForkOp:
 		b, ok := bop.(*sem.ForkOp)
 		if !ok || len(a.Paths) != len(b.Paths) {
@@ -92,12 +95,15 @@ func eqOp(aop, bop sem.Op) bool {
 	case *sem.FuseOp:
 		_, ok := bop.(*sem.FuseOp)
 		return ok
+	case *sem.HaltOp:
+		b, ok := bop.(*sem.HaltOp)
+		return ok && eqExpr(a.Expr, b.Expr)
 	case *sem.HeadOp:
 		b, ok := bop.(*sem.HeadOp)
 		return ok && a.Count == b.Count
 	case *sem.JoinOp:
 		b, ok := bop.(*sem.JoinOp)
-		return ok && a.Style == b.Style && a.LeftAlias == b.LeftAlias && a.RightAlias == b.RightAlias && eqExpr(a.Cond, b.Cond)
+		return ok && a.Style == b.Style && a.LeftAlias == b.LeftAlias && a.RightAlias == b.RightAlias && eqExpr(a.Cond, b.Cond) && eqSeq(a.Catch, b.Catch)
 	case *sem.LoadOp:
 		b, ok := bop.(*sem.LoadOp)
 		return ok && a.Table == b.Table && a.Branch == b.Branch && a.Author == b.Author && a.Message == b.Message && a.Meta == b.Meta

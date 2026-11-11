@@ -55,9 +55,13 @@ func clrOp(op sem.Op) {
 	case *sem.CutOp:
 		op.Node = nil
 		clrAssignments(op.Args)
+	case *sem.CatchOp:
+		op.Node = nil
+		clrSeq(op.Body)
 	case *sem.DebugOp:
 		op.Node = nil
 		clrExpr(op.Expr)
+		clrExpr(op.Filter)
 	case *sem.DistinctOp:
 		op.Node = nil
 		clrExpr(op.Expr)
@@ -65,6 +69,10 @@ func clrOp(op sem.Op) {
 		op.Node = nil
 		clrExprs(op.Args)
 	case *sem.FilterOp:
+		op.Node = nil
+		clrExpr(op.Expr)
+		clrSeq(op.Catch)
+	case *sem.HaltOp:
 		op.Node = nil
 		clrExpr(op.Expr)
 	case *sem.ForkOp:
@@ -79,6 +87,7 @@ func clrOp(op sem.Op) {
 	case *sem.JoinOp:
 		op.Node = nil
 		clrExpr(op.Cond)
+		clrSeq(op.Catch)
 	case *sem.LoadOp:
 		op.Node = nil
 	case *sem.MergeOp:

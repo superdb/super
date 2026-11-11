@@ -41,6 +41,7 @@ func (t *translator) seq(in ast.Seq, typ super.Type) (sem.Seq, super.Type) {
 			}
 		}
 		seq, typ = t.semOp(in[0], seq, typ)
+		seq, typ = t.catchEveryOp(seq, typ)
 		in = in[1:]
 	}
 	return seq, typ
@@ -984,13 +985,19 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 	case *ast.CallOp:
 		return t.callOp(o, seq, inType)
 	case *ast.SearchOp:
-		e, typ := t.expr(o.Expr, inType)
-		t.checker.boolean(o.Expr, typ)
-		return append(seq, &sem.FilterOp{Node: o, Expr: e}), t.checker.narrow(inType, e)
+		return t.filterOp(o, o.Expr, o.Catch, seq, inType)
 	case *ast.WhereOp:
-		e, typ := t.expr(o.Expr, inType)
-		t.checker.boolean(o.Expr, typ)
-		return append(seq, &sem.FilterOp{Node: o, Expr: e}), t.checker.narrow(inType, e)
+		return t.filterOp(o, o.Expr, o.Catch, seq, inType)
+	case *ast.CatchOp:
+		body, typ := t.catchHandler(o.Handler, inType)
+		return append(seq, &sem.CatchOp{Node: o, Body: body}), fuseOutputs(t.checker, inType, typ)
+	case *ast.HaltOp:
+		var e sem.Expr = sem.NewThis(o, nil)
+		if o.Expr != nil {
+			e, _ = t.expr(o.Expr, inType)
+		}
+		// A halt outputs no values (see fuseOutputs).
+		return append(seq, &sem.HaltOp{Node: o, Expr: e}), super.TypeNone
 	case *ast.TopOp:
 		limit := 1
 		if o.Limit != nil {
@@ -1267,7 +1274,7 @@ func (t *translator) joinOp(op *ast.JoinOp, parent sem.Seq, inTypes []super.Type
 		t.error(op.Alias, errors.New("left and right join aliases cannot be the same"))
 		return append(parent, badOp), t.checker.unknown
 	}
-	typ := t.sctx.MustLookupTypeRecord([]super.Field{
+	var typ super.Type = t.sctx.MustLookupTypeRecord([]super.Field{
 		super.NewField(leftAlias, leftType),
 		super.NewField(rightAlias, rightType),
 	})
@@ -1285,6 +1292,15 @@ func (t *translator) joinOp(op *ast.JoinOp, parent sem.Seq, inTypes []super.Type
 		LeftAlias:  leftAlias,
 		RightAlias: rightAlias,
 		Cond:       cond,
+	}
+	if cond != nil {
+		var catchType super.Type
+		join.Catch, catchType = t.sideCatch(op.Catch)
+		if join.Catch != nil {
+			typ = fuseOutputs(t.checker, typ, catchType)
+		}
+	} else if op.Catch != nil {
+		t.error(op.Catch, errors.New("catch clause requires a join condition"))
 	}
 	if subquery == nil {
 		return append(parent, join), typ
@@ -1641,6 +1657,13 @@ func (t *translator) pragmaDecl(d *ast.PragmaDecl) {
 	case "pg":
 		if v, ok := t.mustEvalBool(expr); ok {
 			t.scope.pragmas["pg"] = v
+		}
+	case "catch":
+		if h := catchPragmaHandler(d.Expr); h != nil {
+			body, _ := t.catchHandler(h, t.checker.unknown)
+			t.scope.pragmas["catch"] = body
+		} else {
+			t.error(d.Expr, errors.New("catch pragma must be a query in parentheses or one of halt, ignore, or pass"))
 		}
 	default:
 		t.error(d.Name, fmt.Errorf("unknown pragma %q", name))
@@ -2064,4 +2087,124 @@ func (t *translator) unnestExpr(o *ast.UnnestOp, inType super.Type) (sem.Expr, s
 		return rec, t.checker.unknown, field
 	}
 	return rec, recType, field
+}
+
+// filterOp translates a where or search operator with predicate e and catch
+// clause h (or nil).
+func (t *translator) filterOp(o ast.Op, e ast.Expr, h *ast.CatchHandler, seq sem.Seq, inType super.Type) (sem.Seq, super.Type) {
+	pred, typ := t.expr(e, inType)
+	t.checker.boolean(e, typ)
+	filter := &sem.FilterOp{Node: o, Expr: pred}
+	outType := t.checker.narrow(inType, pred)
+	var catchType super.Type
+	if filter.Catch, catchType = t.sideCatch(h); filter.Catch != nil {
+		outType = fuseOutputs(t.checker, outType, catchType)
+	}
+	return append(seq, filter), outType
+}
+
+// catchHandler translates the handler h of a catch operator or clause, whose
+// input has type inType, and returns its body and output type.  The actions
+// halt, ignore, and pass are the bodies "halt this", "where false", and "pass".
+func (t *translator) catchHandler(h *ast.CatchHandler, inType super.Type) (sem.Seq, super.Type) {
+	switch h.Action {
+	case "halt":
+		return sem.Seq{&sem.HaltOp{Node: h, Expr: sem.NewThis(h, nil)}}, super.TypeNone
+	case "ignore":
+		f := &sem.FilterOp{Node: h, Expr: sem.NewLiteral(h, super.False, t.defs)}
+		return sem.Seq{f}, super.TypeNone
+	case "pass":
+		return sem.Seq{&sem.PassOp{Node: h}}, inType
+	}
+	t.catchDepth++
+	defer func() { t.catchDepth-- }()
+	return t.seq(h.Body, inType)
+}
+
+// sideCatch returns the body and output type of the handler of the side errors
+// of an operator with the catch clause h (or nil).  Side errors are the errors
+// of an expression that the operator consumes rather than outputs, like a
+// where predicate, which are dropped if there's no handler.  If h is nil, the
+// handler of the catch pragma is used, if any.  The handler's input is an
+// error whose type isn't known statically.
+func (t *translator) sideCatch(h *ast.CatchHandler) (sem.Seq, super.Type) {
+	if h == nil {
+		return t.catchPragma(t.checker.unknown)
+	}
+	if h.Action == "ignore" {
+		return nil, nil
+	}
+	return t.catchHandler(h, t.checker.unknown)
+}
+
+// catchPragma returns a copy of the body of the catch pragma's handler and its
+// output type for input of type inType or nil if there's no catch pragma or
+// a catch handler is being translated.
+func (t *translator) catchPragma(inType super.Type) (sem.Seq, super.Type) {
+	p, ok := t.scope.lookupPragma("catch").(sem.Seq)
+	if !ok || t.catchDepth > 0 {
+		return nil, nil
+	}
+	body := sem.CopySeq(p)
+	// The handler was checked when the pragma was declared.
+	t.checker.pushErrs()
+	typ := t.checker.seq(inType, body)
+	t.checker.popErrs()
+	return body, typ
+}
+
+// catchEveryOp appends a catch operator with the catch pragma's handler, if
+// any, to seq, whose output has type typ, unless seq ends with an operator
+// whose output is caught elsewhere: a catch, an output or halt (which have no
+// output), or a fork or switch (whose paths end with catches and which must be
+// followed directly by a join or merge).
+func (t *translator) catchEveryOp(seq sem.Seq, typ super.Type) (sem.Seq, super.Type) {
+	if len(seq) == 0 {
+		return seq, typ
+	}
+	switch seq[len(seq)-1].(type) {
+	case *sem.CatchOp, *sem.OutputOp, *sem.HaltOp, *sem.ForkOp, *sem.SwitchOp, *sem.BadOp:
+		return seq, typ
+	}
+	body, bodyType := t.catchPragma(typ)
+	if body == nil {
+		return seq, typ
+	}
+	return append(seq, &sem.CatchOp{Body: body}), fuseOutputs(t.checker, typ, bodyType)
+}
+
+// fuseOutputs returns the type of the values output by an operator and a catch
+// handler with output types typ and catchType.  A type of none means no values
+// (e.g., from halt).
+func fuseOutputs(c *checker, typ, catchType super.Type) super.Type {
+	var types []super.Type
+	for _, t := range []super.Type{typ, catchType} {
+		if t != nil && t != super.TypeNone {
+			types = append(types, t)
+		}
+	}
+	if len(types) == 0 {
+		return super.TypeNone
+	}
+	return c.fuse(types)
+}
+
+// catchPragmaHandler returns the handler of a catch pragma whose value is e: a
+// query in parentheses or one of halt, ignore, or pass.  With no value, the
+// handler is halt.  It returns nil if e isn't a handler.
+func catchPragmaHandler(e ast.Expr) *ast.CatchHandler {
+	switch e := e.(type) {
+	case nil:
+		return &ast.CatchHandler{Kind: "CatchHandler", Action: "halt"}
+	case *ast.SubqueryExpr:
+		if !e.Array {
+			return &ast.CatchHandler{Kind: "CatchHandler", Body: e.Body, Loc: e.Loc}
+		}
+	case *ast.IDExpr:
+		switch name := strings.ToLower(e.Name); name {
+		case "halt", "ignore", "pass":
+			return &ast.CatchHandler{Kind: "CatchHandler", Action: name, Loc: e.Loc}
+		}
+	}
+	return nil
 }

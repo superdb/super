@@ -100,6 +100,8 @@ func (c *checker) op(typ super.Type, op sem.Op) super.Type {
 			Value: sem.NewLiteral(op, super.NewUint64(0), c.t.defs),
 		})
 		return c.recordElems(typ, elems)
+	case *sem.CatchOp:
+		return fuseOutputs(c, typ, c.seq(typ, op.Body))
 	case *sem.CutOp:
 		return c.pathsToType(c.assignments(typ, op.Args))
 	case *sem.DebugOp:
@@ -116,11 +118,18 @@ func (c *checker) op(typ super.Type, op sem.Op) super.Type {
 		return c.dropPaths(typ, drops)
 	case *sem.FilterOp:
 		c.boolean(op.Expr, c.expr(typ, op.Expr))
-		return c.narrow(typ, op.Expr)
+		out := c.narrow(typ, op.Expr)
+		if op.Catch != nil {
+			out = fuseOutputs(c, out, c.seq(c.unknown, op.Catch))
+		}
+		return out
 	case *sem.ForkOp:
 		return c.fuse(c.fork(typ, op))
 	case *sem.FuseOp:
 		return typ
+	case *sem.HaltOp:
+		c.expr(typ, op.Expr)
+		return super.TypeNone
 	case *sem.HeadOp:
 		return typ
 	case *sem.LoadOp:
@@ -189,6 +198,9 @@ func (c *checker) join(types []super.Type, op *sem.JoinOp) super.Type {
 		super.NewField(op.RightAlias, types[1]),
 	})
 	c.expr(typ, op.Cond)
+	if op.Catch != nil {
+		return fuseOutputs(c, typ, c.seq(c.unknown, op.Catch))
+	}
 	return typ
 }
 

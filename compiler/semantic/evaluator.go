@@ -112,6 +112,10 @@ func (e *evaluator) op(op sem.Op) bool {
 		return false
 	case *sem.CutOp:
 		return e.assignments(op.Args)
+	case *sem.CatchOp, *sem.HaltOp:
+		// These have side effects so they're never evaluated at compile
+		// time.
+		return false
 	case *sem.DebugOp:
 		return e.expr(op.Expr) && e.constThis
 	case *sem.DistinctOp:
@@ -119,7 +123,7 @@ func (e *evaluator) op(op sem.Op) bool {
 	case *sem.DropOp:
 		return e.exprs(op.Args) && e.constThis
 	case *sem.FilterOp:
-		return e.expr(op.Expr) && e.constThis
+		return op.Catch == nil && e.expr(op.Expr) && e.constThis
 	case *sem.ForkOp:
 		isConst := true
 		for _, seq := range op.Paths {
@@ -136,7 +140,7 @@ func (e *evaluator) op(op sem.Op) bool {
 		// This join depends on the parents but this is handled in the fork above.
 		// If any path of parents are non-const, then constThis will be false on
 		// entering here.
-		return e.expr(op.Cond) && e.constThis
+		return op.Catch == nil && e.expr(op.Cond) && e.constThis
 	case *sem.LoadOp:
 		return true
 	case *sem.MergeOp:

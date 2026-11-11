@@ -14,7 +14,7 @@ func liftFiltersIntoJoins(seq dag.Seq) dag.Seq {
 		_, isfork := seq[i].(*dag.ForkOp)
 		_, isjoin := seq[i+1].(*dag.JoinOp)
 		var isfilter bool
-		filter, isfilter = seq[i+2].(*dag.FilterOp)
+		filter, isfilter = plainFilter(seq[i+2])
 		if isfork && isjoin && isfilter {
 			break
 		}
@@ -113,6 +113,7 @@ func replaceJoinWithHashJoin(seq dag.Seq) {
 			RightAlias: j.RightAlias,
 			LeftKey:    left,
 			RightKey:   right,
+			Catch:      j.Catch,
 		}
 	})
 }

@@ -44,6 +44,10 @@ func (a *demandAnalyzer) demandForOp(op dag.Op, downstreams []demand.Demand) []d
 		}
 		return out
 	case *dag.HashJoinOp:
+		if op.Catch != nil {
+			// A side error holds the entire value whose key erred.
+			return []demand.Demand{demand.All(), demand.All()}
+		}
 		downstream := downstreams[0]
 		left := demand.GetKey(downstream, op.LeftAlias)
 		left = demand.Union(left, a.demandForExpr(op.LeftKey))
@@ -51,6 +55,11 @@ func (a *demandAnalyzer) demandForOp(op dag.Op, downstreams []demand.Demand) []d
 		right = demand.Union(right, a.demandForExpr(op.RightKey))
 		return []demand.Demand{left, right}
 	case *dag.JoinOp:
+		if op.Catch != nil {
+			// A side error holds the entire joined value.
+			a.demandForExpr(op.Cond)
+			return []demand.Demand{demand.All(), demand.All()}
+		}
 		d := demand.Union(downstreams[0], a.demandForExpr(op.Cond))
 		left := demand.GetKey(d, op.LeftAlias)
 		right := demand.GetKey(d, op.RightAlias)
@@ -98,6 +107,16 @@ func (a *demandAnalyzer) demandForSimpleOp(op dag.Op, downstream demand.Demand) 
 	case *dag.DropOp:
 		return downstream
 	case *dag.FilterOp:
+		d := a.demandForExpr(op.Expr)
+		if op.Catch != nil {
+			// A side error holds the entire value.
+			return demand.All()
+		}
+		return demand.Union(downstream, d)
+	case *dag.CatchOp:
+		// The handler's input is the entire value.
+		return demand.All()
+	case *dag.HaltOp:
 		return demand.Union(downstream, a.demandForExpr(op.Expr))
 	case *dag.FuseOp:
 		return demand.All()

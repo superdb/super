@@ -122,11 +122,12 @@ type (
 		Loc   `json:"loc"`
 	}
 	JoinOp struct {
-		Kind       string     `json:"kind" unpack:""`
-		Style      string     `json:"style"`
-		RightInput Seq        `json:"right_input"`
-		Alias      *JoinAlias `json:"alias"`
-		Cond       JoinCond   `json:"cond"`
+		Kind       string        `json:"kind" unpack:""`
+		Style      string        `json:"style"`
+		RightInput Seq           `json:"right_input"`
+		Alias      *JoinAlias    `json:"alias"`
+		Cond       JoinCond      `json:"cond"`
+		Catch      *CatchHandler `json:"catch"`
 		Loc        `json:"loc"`
 	}
 	LoadOp struct {
@@ -166,9 +167,10 @@ type (
 		Loc   `json:"loc"`
 	}
 	SearchOp struct {
-		Kind string `json:"kind" unpack:""`
-		Expr Expr   `json:"expr"`
-		Loc  `json:"loc"`
+		Kind  string        `json:"kind" unpack:""`
+		Expr  Expr          `json:"expr"`
+		Catch *CatchHandler `json:"catch"`
+		Loc   `json:"loc"`
 	}
 	ShapesOp struct {
 		Kind string `json:"kind" unpack:""`
@@ -231,11 +233,35 @@ type (
 		Loc   `json:"loc"`
 	}
 	WhereOp struct {
+		Kind  string        `json:"kind" unpack:""`
+		Expr  Expr          `json:"expr"`
+		Catch *CatchHandler `json:"catch"`
+		Loc   `json:"loc"`
+	}
+	// CatchOp sends each input value with an error in it (i.e., for which
+	// has_error(this) is true) to Handler and passes the other values.
+	CatchOp struct {
+		Kind    string        `json:"kind" unpack:""`
+		Handler *CatchHandler `json:"handler"`
+		Loc     `json:"loc"`
+	}
+	// HaltOp stops the query and makes the value of Expr (or this if Expr
+	// is nil) for its first input value the query's last value.
+	HaltOp struct {
 		Kind string `json:"kind" unpack:""`
 		Expr Expr   `json:"expr"`
 		Loc  `json:"loc"`
 	}
 )
+
+// CatchHandler is the handler of a catch operator or a catch clause, which is
+// a query (Body) or one of the actions "halt", "ignore", or "pass".
+type CatchHandler struct {
+	Kind   string `json:"kind" unpack:""`
+	Action string `json:"action"`
+	Body   Seq    `json:"body"`
+	Loc    `json:"loc"`
+}
 
 type (
 	DBMeta struct {
@@ -371,4 +397,6 @@ func (*TopOp) opNode()        {}
 func (*UniqOp) opNode()       {}
 func (*UnnestOp) opNode()     {}
 func (*ValuesOp) opNode()     {}
+func (*CatchOp) opNode()      {}
+func (*HaltOp) opNode()       {}
 func (*WhereOp) opNode()      {}

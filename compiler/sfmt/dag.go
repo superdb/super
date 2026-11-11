@@ -516,7 +516,16 @@ func (c *canonDAG) op(o dag.Op) {
 		c.next()
 		c.open("where ")
 		c.expr(o.Expr, "")
+		c.catchClause(o.Catch)
 		c.close()
+	case *dag.CatchOp:
+		c.next()
+		c.write("catch ")
+		c.catchBody(o.Body)
+	case *dag.HaltOp:
+		c.next()
+		c.write("halt ")
+		c.expr(o.Expr, "")
 	case *dag.ForkOp:
 		c.next()
 		c.open("fork")
@@ -545,6 +554,7 @@ func (c *canonDAG) op(o dag.Op) {
 		c.expr(o.LeftKey, "")
 		c.write("==")
 		c.expr(o.RightKey, "")
+		c.catchClause(o.Catch)
 	case *dag.HeadOp:
 		c.next()
 		c.write("head %d", o.Count)
@@ -556,6 +566,7 @@ func (c *canonDAG) op(o dag.Op) {
 			c.write(" on ")
 			c.expr(o.Cond, "")
 		}
+		c.catchClause(o.Catch)
 		c.close()
 	case *dag.LoadOp:
 		c.next()
@@ -741,4 +752,21 @@ func (c *canonDAG) sortExprs(sortExprs []dag.SortExpr) {
 		c.expr(s.Key, "")
 		c.write(" %s nulls %s", s.Order, s.Nulls)
 	}
+}
+
+func (c *canonDAG) catchClause(body dag.Seq) {
+	if body != nil {
+		c.write(" catch ")
+		c.catchBody(body)
+	}
+}
+
+func (c *canonDAG) catchBody(body dag.Seq) {
+	c.write("(")
+	c.open()
+	c.head = true
+	c.seq(body)
+	c.close()
+	c.ret()
+	c.write(")")
 }

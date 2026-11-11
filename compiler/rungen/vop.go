@@ -23,6 +23,8 @@ import (
 // the leaves.
 func (b *Builder) compileVam(o dag.Op, parents []vio.Puller) ([]vio.Puller, error) {
 	switch o := o.(type) {
+	case *dag.CatchOp:
+		return b.compileCatch(o.Body, b.combineVam(parents), op.NewHasErrorSplit(b.sctx()))
 	case *dag.CombineOp:
 		return []vio.Puller{b.combineVam(parents)}, nil
 	case *dag.ForkOp:
@@ -39,7 +41,10 @@ func (b *Builder) compileVam(o dag.Op, parents []vio.Puller) ([]vio.Puller, erro
 		if err != nil {
 			return nil, err
 		}
-		join := op.NewHashJoin(b.rctx, o.Style, parents[0], parents[1], leftKey, rightKey, o.LeftAlias, o.RightAlias)
+		join := op.NewHashJoin(b.rctx, o.Style, parents[0], parents[1], leftKey, rightKey, o.LeftAlias, o.RightAlias, o.Catch != nil)
+		if o.Catch != nil {
+			return b.compileCatch(o.Catch, join, op.SplitSideErrors)
+		}
 		return []vio.Puller{join}, nil
 	case *dag.JoinOp:
 		if len(parents) != 2 {
@@ -53,7 +58,10 @@ func (b *Builder) compileVam(o dag.Op, parents []vio.Puller) ([]vio.Puller, erro
 				return nil, err
 			}
 		}
-		join := op.NewNestedLoopJoin(b.rctx, parents[0], parents[1], o.Style, o.LeftAlias, o.RightAlias, cond)
+		join := op.NewNestedLoopJoin(b.rctx, parents[0], parents[1], o.Style, o.LeftAlias, o.RightAlias, cond, o.Catch != nil)
+		if o.Catch != nil {
+			return b.compileCatch(o.Catch, join, op.SplitSideErrors)
+		}
 		return []vio.Puller{join}, nil
 	case *dag.MergeOp:
 		exprs, err := b.compileSortExprs(o.Exprs)
@@ -70,6 +78,16 @@ func (b *Builder) compileVam(o dag.Op, parents []vio.Puller) ([]vio.Puller, erro
 			return b.compileVamExprSwitch(o, parent)
 		}
 		return b.compileVamSwitch(o, parent)
+	case *dag.FilterOp:
+		e, err := b.compileVamExpr(o.Expr)
+		if err != nil {
+			return nil, err
+		}
+		filter := op.NewFilter(b.sctx(), b.combineVam(parents), e, o.Catch != nil)
+		if o.Catch != nil {
+			return b.compileCatch(o.Catch, filter, op.SplitSideErrors)
+		}
+		return []vio.Puller{filter}, nil
 	default:
 		p, err := b.compileVamLeaf(o, b.combineVam(parents))
 		if err != nil {
@@ -77,6 +95,18 @@ func (b *Builder) compileVam(o dag.Op, parents []vio.Puller) ([]vio.Puller, erro
 		}
 		return []vio.Puller{p}, nil
 	}
+}
+
+// compileCatch returns the exits of a catch of the values of parent that split
+// catches by the catch handler body: the values that pass through and the
+// exits of body, whose input is the values that are caught.
+func (b *Builder) compileCatch(body dag.Seq, parent vio.Puller, split func(vector.Any) (vector.Any, vector.Any)) ([]vio.Puller, error) {
+	c := op.NewCatch(b.rctx, parent, split)
+	exits, err := b.compileVamSeq(body, []vio.Puller{c.Caught()})
+	if err != nil {
+		return nil, err
+	}
+	return append([]vio.Puller{c.Pass()}, exits...), nil
 }
 
 func (b *Builder) combineVam(pullers []vio.Puller) vio.Puller {
@@ -274,12 +304,12 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		projection := field.NewProjectionMaybe(o.Pushdown.HasProjection, o.Pushdown.Projection)
 		pushdown := b.newPushdown(projection, metaFilter, searchFilter, dataFilter, o.Pushdown.Unordered)
 		return op.NewFileScan(b.rctx, b.env, parent, o.Paths, o.Formats, pushdown, b.progress), nil
-	case *dag.FilterOp:
+	case *dag.HaltOp:
 		e, err := b.compileVamExpr(o.Expr)
 		if err != nil {
 			return nil, err
 		}
-		return op.NewFilter(b.sctx(), parent, e), nil
+		return op.NewHalt(b.rctx, parent, e, b.outputs), nil
 	case *dag.FuseOp:
 		return op.NewFuse(b.sctx(), parent, o.Complete), nil
 	case *dag.HTTPScan:

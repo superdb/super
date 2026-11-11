@@ -218,6 +218,9 @@ func (o *Optimizer) liftIntoParPaths(seq dag.Seq) {
 			paths[k].Append(dag.CopyOp(op))
 		}
 	case *dag.DropOp, *dag.FilterOp, *dag.PutOp, *dag.RenameOp, *dag.ValuesOp:
+		if hasCatch(op) {
+			return
+		}
 		if merge != nil {
 			// See if this op would disrupt the merge-on key
 			mergeKey, err := o.propagateSortKeyOp(merge, []order.SortKeys{nil})
@@ -260,6 +263,11 @@ func parallelPaths(op dag.Op) ([]dag.Seq, bool) {
 // an output order.
 func (o *Optimizer) concurrentPath(seq dag.Seq, sortKeys order.SortKeys) (length int, outputSortExprs []dag.SortExpr, orderRequired bool, err error) {
 	for k := range seq {
+		if hasCatch(seq[k]) {
+			// A catch handler sees all of its operator's errors so the
+			// operator isn't copied into the parallel paths.
+			return k, sortExprsForSortKeys(sortKeys), true, nil
+		}
 		switch op := seq[k].(type) {
 		// This should be a boolean in op.go that defines whether
 		// function can be parallelized... need to think through

@@ -20,6 +20,9 @@ type nestedLoopJoin struct {
 	leftAlias  string
 	rightAlias string
 	cond       expr.Evaluator
+	// catch is true if the join outputs a SideErrors for the joined values
+	// on which cond produces an error.  Otherwise, they're dropped.
+	catch bool
 
 	next func() (vector.Any, error, bool)
 	stop func()
@@ -27,7 +30,7 @@ type nestedLoopJoin struct {
 	pickSlotIndexes [][]uint32
 }
 
-func NewNestedLoopJoin(rctx *runtime.Context, left, right vio.Puller, style string, leftAlias, rightAlias string, cond expr.Evaluator) vio.Puller {
+func NewNestedLoopJoin(rctx *runtime.Context, left, right vio.Puller, style string, leftAlias, rightAlias string, cond expr.Evaluator, catch bool) vio.Puller {
 	return &nestedLoopJoin{
 		rctx:       rctx,
 		left:       left,
@@ -36,6 +39,7 @@ func NewNestedLoopJoin(rctx *runtime.Context, left, right vio.Puller, style stri
 		leftAlias:  leftAlias,
 		rightAlias: rightAlias,
 		cond:       cond,
+		catch:      catch,
 	}
 }
 
@@ -107,8 +111,15 @@ func (n *nestedLoopJoin) join(yield func(vector.Any, error) bool) {
 				leftVec, rightVec = vector.Deunion(leftVec), vector.Deunion(rightVec)
 				joinedVec := vector.Apply(vector.ApplyNone, n.makeResult, leftVec, rightVec)
 				if n.style != "cross" {
-					// Ignore condition errors.
-					hits, _ := expr.BoolMask(n.cond.Eval(joinedVec))
+					condVec := n.cond.Eval(joinedVec)
+					hits, errs := expr.BoolMask(condVec)
+					if n.catch && !errs.IsEmpty() {
+						slots := errs.ToArray()
+						sideErrs := NewSideErrors(n.rctx.Sctx, "join: condition error", vector.Pick(joinedVec, slots), vector.Pick(condVec, slots))
+						if !yield(sideErrs, nil) {
+							return
+						}
+					}
 					if len(innerHits) > 0 {
 						innerHits[j].Or(hits)
 					} else if outerHits != nil {

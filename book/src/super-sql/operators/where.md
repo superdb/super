@@ -5,7 +5,7 @@
 ## Synopsis
 
 ```
-[where] <expr>
+[where] <expr> [ catch <handler> ]
 ```
 
 ## Description
@@ -14,6 +14,10 @@ The `where` operator filters its input by applying a Boolean
 [expression](../expressions/intro.md) `<expr>`
 to each input value and dropping each value for which the expression evaluates
 to `false` or to an error.
+
+The errors of `<expr>` are dropped unless there's a
+[catch clause](catch.md#catch-clauses), which sends them to `<handler>`, or a
+[catch pragma](../declarations/pragmas.md).
 
 The `where` keyword is optional since it is a [shortcut](intro.md#shortcuts).
 

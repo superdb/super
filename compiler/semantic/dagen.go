@@ -166,6 +166,16 @@ func (d *dagen) op(op sem.Op) dag.Op {
 			Kind:  "ValuesOp",
 			Exprs: []dag.Expr{rec},
 		}
+	case *sem.CatchOp:
+		return &dag.CatchOp{
+			Kind: "CatchOp",
+			Body: d.catch(op.Body),
+		}
+	case *sem.HaltOp:
+		return &dag.HaltOp{
+			Kind: "HaltOp",
+			Expr: d.expr(op.Expr),
+		}
 	case *sem.DebugOp:
 		return &dag.DebugOp{
 			Kind:   "DebugOp",
@@ -184,8 +194,9 @@ func (d *dagen) op(op sem.Op) dag.Op {
 		}
 	case *sem.FilterOp:
 		return &dag.FilterOp{
-			Kind: "FilterOp",
-			Expr: d.expr(op.Expr),
+			Kind:  "FilterOp",
+			Expr:  d.expr(op.Expr),
+			Catch: d.catch(op.Catch),
 		}
 	case *sem.ForkOp:
 		return &dag.ForkOp{
@@ -214,6 +225,7 @@ func (d *dagen) op(op sem.Op) dag.Op {
 			LeftAlias:  op.LeftAlias,
 			RightAlias: op.RightAlias,
 			Cond:       d.expr(op.Cond),
+			Catch:      d.catch(op.Catch),
 		}
 	case *sem.LoadOp:
 		return &dag.LoadOp{
@@ -316,6 +328,16 @@ func (d *dagen) unnest(op *sem.UnnestOp) dag.Op {
 		Body:       body,
 	}
 	return &dag.UnnestOp{Kind: "UnnestOp", Expr: s}
+}
+
+// catch returns the DAG of the body of a catch handler (or nil).  As with a
+// subquery, an output operator in the handler must be a leaf of its
+// flowgraph.
+func (d *dagen) catch(body sem.Seq) dag.Seq {
+	if body == nil {
+		return nil
+	}
+	return d.checkOutputs(true, false, d.seq(body))
 }
 
 func (d *dagen) paths(paths []sem.Seq) []dag.Seq {

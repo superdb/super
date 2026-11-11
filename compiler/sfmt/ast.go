@@ -477,6 +477,12 @@ func (c *canon) decl(d ast.Decl) {
 		c.flush()
 		c.write(")")
 		c.head, c.first = true, true
+	case *ast.PragmaDecl:
+		c.write("pragma %s", d.Name.Name)
+		if d.Expr != nil {
+			c.write(" = ")
+			c.expr(d.Expr, "")
+		}
 	case *ast.TypeDecl:
 		c.write("type %s = ", sup.QuotedName(d.Name.Name))
 		c.typ(d.Type)
@@ -653,12 +659,25 @@ func (c *canon) op(o ast.Op) {
 		c.next()
 		c.open("search ")
 		c.expr(o.Expr, "")
+		c.catchClause(o.Catch)
 		c.close()
 	case *ast.WhereOp:
 		c.next()
 		c.open("where ")
 		c.expr(o.Expr, "")
+		c.catchClause(o.Catch)
 		c.close()
+	case *ast.CatchOp:
+		c.next()
+		c.write("catch ")
+		c.catchHandler(o.Handler)
+	case *ast.HaltOp:
+		c.next()
+		c.write("halt")
+		if o.Expr != nil {
+			c.write(" ")
+			c.expr(o.Expr, "")
+		}
 	case *ast.TopOp:
 		c.next()
 		c.write("top")
@@ -704,6 +723,7 @@ func (c *canon) op(o ast.Op) {
 			c.write(" as {%s,%s}", o.Alias.Left.Name, o.Alias.Right.Name)
 		}
 		c.joinCond(o.Cond)
+		c.catchClause(o.Catch)
 	case *ast.AssignmentOp:
 		c.next()
 		which := "put "
@@ -1182,4 +1202,25 @@ func IsSearch(e ast.Expr) bool {
 	default:
 		return false
 	}
+}
+
+func (c *canon) catchClause(h *ast.CatchHandler) {
+	if h != nil {
+		c.write(" catch ")
+		c.catchHandler(h)
+	}
+}
+
+func (c *canon) catchHandler(h *ast.CatchHandler) {
+	if h.Action != "" {
+		c.write("%s", h.Action)
+		return
+	}
+	c.write("(")
+	c.open()
+	c.head = true
+	c.seq(h.Body)
+	c.close()
+	c.ret()
+	c.write(")")
 }

@@ -16,8 +16,15 @@ Pragmas must appear in the declaration section of a [scope](../queries.md#scope)
 
 ## List of Pragmas
 
-Currently, there are two supported pragmas.
+Currently, there are three supported pragmas.
 
+* `catch` - puts a [catch](../operators/catch.md) at the output of every
+    operator in the pragma's scope and makes its handler the default handler of
+    [side errors](../operators/catch.md#catch-clauses).  The value is the
+    handler, which is a query in parentheses or one of `halt`, `ignore`, or
+    `pass`, and if it's omitted, the handler is `halt`, so `pragma catch` stops
+    the query at the first error anywhere in it.  The handlers of catches don't
+    get the pragma's catch.
 * `index_base` - controls whether [index expressions](../expressions/index.md) and
     [slice expressions](../expressions/slices.md) are 0-based or 1-based.
     * `0` for zero-based indexing
@@ -82,4 +89,20 @@ SELECT 0 AS x, COUNT(*) AS n GROUP BY x
 # expected output
 {x:0,n:2}
 {x:0,n:2}
+```
+
+---
+
+_Stop a query at its first error_
+
+```mdtest-spq
+# spq
+pragma catch
+values this + 1
+| where this > 2
+# input
+1
+"two"
+# expected output
+error("incompatible types")
 ```
