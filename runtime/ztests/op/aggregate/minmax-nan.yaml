@@ -1,0 +1,10 @@
+# NaN is greater than all other values (as in Postgres and DuckDB).
+spq: min(x), max(x)
+
+input: |
+  {x:1.}
+  {x:NaN}
+  {x:2.}
+
+output: |
+  {min:1.,max:NaN}

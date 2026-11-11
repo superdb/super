@@ -148,7 +148,7 @@ func (s *numericMinMax[T]) consume(groups []uint32, vec vector.Any) {
 		if index != nil {
 			i = index[slot]
 		}
-		if v := vals[i]; !s.set[g] || cmp.Compare(v, s.vals[g]) == s.sign {
+		if v := vals[i]; !s.set[g] || compareNaNLast(v, s.vals[g]) == s.sign {
 			s.vals[g] = v
 			s.set[g] = true
 		}
@@ -216,4 +216,19 @@ func (s *stringMinMax) result() vector.Any {
 		}
 	}
 	return combineNulls(vector.NewString(table), nulls, uint32(len(s.vals)))
+}
+
+// compareNaNLast is like cmp.Compare but orders NaN after all other values
+// (as Postgres and DuckDB do), so max returns NaN and min ignores it.
+func compareNaNLast[T cmp.Ordered](a, b T) int {
+	aNaN, bNaN := a != a, b != b
+	switch {
+	case aNaN && bNaN:
+		return 0
+	case aNaN:
+		return 1
+	case bNaN:
+		return -1
+	}
+	return cmp.Compare(a, b)
 }

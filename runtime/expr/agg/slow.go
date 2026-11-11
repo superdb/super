@@ -158,7 +158,7 @@ func minMaxValues(sign int) func(a, b super.Value) super.Value {
 		var c int
 		switch id := a.Type().ID(); {
 		case super.IsFloat(id):
-			c = cmp.Compare(b.Float(), a.Float())
+			c = compareNaNLast(b.Float(), a.Float())
 		case super.IsSigned(id):
 			c = cmp.Compare(b.Int(), a.Int())
 		case super.IsUnsigned(id):
