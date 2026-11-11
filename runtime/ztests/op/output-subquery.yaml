@@ -9,7 +9,7 @@ script: |
   echo "// leaf error"
   ! super -s -c 'values (values 1 | output main | values 2)'
   echo "// constant"
-  super -s -c 'const x = (values 1 | output main) values typeof(x)'
+  ! super -s -c 'const x = (values 1 | output main) values x'
 
 inputs:
   - name: correlated.spq
@@ -91,9 +91,11 @@ outputs:
       3
       // leaf error
       // constant
-      <none>
   - name: stderr
     data: |
       output operator must be a flowgraph leaf at line 1, column 20:
       values (values 1 | output main | values 2)
                          ~~~~~~~~~~~
+      output operator cannot be used in a constant expression at line 1, column 23:
+      const x = (values 1 | output main) values x
+                            ~~~~~~~~~~~

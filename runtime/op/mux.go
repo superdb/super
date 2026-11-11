@@ -177,10 +177,3 @@ func (m *Mux) pump(ctx context.Context, p vio.Puller) {
 	case <-ctx.Done():
 	}
 }
-
-func Unlabel(vec vector.Any) (vector.Any, string) {
-	if vec, ok := vec.(*vector.Labeled); ok {
-		return vec.Any, vec.Label
-	}
-	return vec, ""
-}
