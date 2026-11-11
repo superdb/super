@@ -26,7 +26,7 @@ func (l *logical) Consume(groups []uint32, vec vector.Any) {
 	if vec.Type().ID() != super.IDBool {
 		return
 	}
-	bools := expr.FlattenBool(vec)
+	bools := expr.FlattenBool(vector.Under(vec))
 	for i, g := range groups {
 		b := bools.IsSetDirect(uint32(i))
 		if !l.has[g] {
