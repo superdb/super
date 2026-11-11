@@ -78,9 +78,9 @@ e.g., a nullable string has type `string|null`.
 
 The _missing_ type is a primitive type whose only value is `missing`,
 which marks a field that is absent from some of the values described by
-one type, e.g., in a record type formed by
-[type fusion](../super-sql/type-fusion.md), the value of
-a field that is absent from the original record.
+one type, e.g., a field of a record type formed by
+[type fusion](../super-sql/type-fusion.md) that is absent from some of
+the original records.
 
 The _none_ type is a primitive type whose only value is `none`, which
 means there is no value, e.g., the result of
