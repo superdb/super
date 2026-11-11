@@ -375,25 +375,14 @@ func (c *Context) LookupTypeNamed(name string, inner Type) (*TypeNamed, error) {
 	if !utf8.ValidString(name) {
 		return nil, fmt.Errorf("bad type name %q: invalid UTF-8", name)
 	}
-	if err := CheckTypeName(name); err != nil {
+	named, patch, err := c.DeclareTypeNamed(name)
+	if err != nil {
 		return nil, err
 	}
-	c.mu.Lock()
-	if c.named == nil {
-		c.named = make(map[string]*TypeNamed)
-	}
-	if typ, ok := c.named[name]; ok {
-		c.mu.Unlock()
-		typ.Wait()
-		if typ.Type != inner {
+	if patch < 0 {
+		if named.Type != inner {
 			return nil, fmt.Errorf("type %q redefined", name)
 		}
-		return typ, nil
-
-	}
-	c.mu.Unlock()
-	named, patch, _ := c.DeclareTypeNamed(name)
-	if patch < 0 {
 		return named, nil
 	}
 	if err := c.BindTypeNamed(patch, named, inner); err != nil {

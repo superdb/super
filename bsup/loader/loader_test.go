@@ -31,6 +31,12 @@ type port=uint16
 `
 
 func newFrameLoader(t *testing.T, sctx *super.Context, s string) *loader.FrameLoader {
+	l, err := loader.NewFrameLoader(sctx, newFrame(t, sctx, s))
+	require.NoError(t, err)
+	return l
+}
+
+func newFrame(t *testing.T, sctx *super.Context, s string) *bsup.ColFrame {
 	var buf bytes.Buffer
 	w := bsup.NewColumnWriter(sio.NopCloser(&buf))
 	r := supio.NewReader(sctx, strings.NewReader(s))
@@ -47,9 +53,7 @@ func newFrameLoader(t *testing.T, sctx *super.Context, s string) *loader.FrameLo
 	require.NoError(t, w.Close())
 	frame, err := bsup.NewSeekable(sctx, bytes.NewReader(buf.Bytes())).Next()
 	require.NoError(t, err)
-	l, err := loader.NewFrameLoader(sctx, frame.(*bsup.ColFrame))
-	require.NoError(t, err)
-	return l
+	return frame.(*bsup.ColFrame)
 }
 
 func load(l *loader.FrameLoader, projection field.Projection) string {
@@ -122,6 +126,23 @@ func TestLoaderProjections(t *testing.T) {
 		}
 	}
 	wg.Wait()
+}
+
+func TestLoaderNamedConcurrentProjections(t *testing.T) {
+	// Concurrent projections that change a named type's inner type race to
+	// bind its name in a context where it isn't bound yet.
+	frame := newFrame(t, super.NewContext(), "type foo={a:int64,b:int64}\n{a:1,b:2}::foo\n")
+	for range 1000 {
+		l, err := loader.NewFrameLoader(super.NewContext(), frame)
+		require.NoError(t, err)
+		var wg sync.WaitGroup
+		for path, want := range map[string]string{"a": "{a:1}", "b": "{b:2}"} {
+			wg.Go(func() {
+				assert.Contains(t, load(l, projection(path)), want)
+			})
+		}
+		wg.Wait()
+	}
 }
 
 func TestLoaderDynamic(t *testing.T) {
