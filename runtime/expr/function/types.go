@@ -21,9 +21,10 @@ func (h HasError) Call(args ...vector.Any) vector.Any {
 }
 
 func (h HasError) hasError(in vector.Any) vector.Any {
+	n := in.Len()
 	var index []uint32
 	vec := vector.Under(in)
-	if view, ok := in.(*vector.View); ok {
+	if view, ok := vec.(*vector.View); ok {
 		index = view.Index
 		vec = view.Any
 	}
@@ -41,27 +42,27 @@ func (h HasError) hasError(in vector.Any) vector.Any {
 			result = expr.EvalOr(nil, result, h.hasError(f))
 		}
 		if result == nil {
-			return vector.NewFalse(vec.Len())
+			return vector.NewFalse(n)
 		}
 		return result
 	case *vector.Array:
-		return listHasError(h.hasError(vec.Values), index, vec.Offsets)
+		return listHasError(h.hasError(vec.Values), index, vec.Offsets, n)
 	case *vector.Set:
-		return listHasError(h.hasError(vec.Values), index, vec.Offsets)
+		return listHasError(h.hasError(vec.Values), index, vec.Offsets, n)
 	case *vector.Map:
-		keys := listHasError(h.hasError(vec.Keys), index, vec.Offsets)
-		vals := listHasError(h.hasError(vec.Values), index, vec.Offsets)
+		keys := listHasError(h.hasError(vec.Keys), index, vec.Offsets, n)
+		vals := listHasError(h.hasError(vec.Values), index, vec.Offsets, n)
 		return expr.EvalOr(nil, keys, vals)
 	default:
 		return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipFusions, IsErr{}.Call, in)
 	}
 }
 
-func listHasError(inner vector.Any, index, offsets []uint32) vector.Any {
+func listHasError(inner vector.Any, index, offsets []uint32, length uint32) vector.Any {
 	// XXX This is basically the same logic in search.evalForList we should
 	// probably centralize this functionality.
 	var index2 []uint32
-	out := vector.NewFalse(uint32(len(offsets) - 1))
+	out := vector.NewFalse(length)
 	for i := range out.Len() {
 		idx := i
 		if index != nil {
