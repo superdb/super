@@ -1,0 +1,38 @@
+# Scanning a file with "from" parallelizes the aggregation into partial
+# aggregations merged by a final one, exercising the partials paths of each
+# aggregate function.  The results must match the unparallelized ones.
+script: |
+  q='sum(v.ok()), min(v.ok()), avg(v.ok()), collect(v.ok()), array_agg(v.ok()), union(v.ok()), dcount(v.ok()), fuse(this), count(distinct v.ok()), any(v.ok()), and(v.ok()==1), collect_map(map{k:v.ok()}) by k | sort k'
+  super -s -c "$q" in.sup > serial.sup
+  super -s -c "from in.sup | $q" > partials.sup
+  cmp serial.sup partials.sup && echo same
+
+inputs:
+  - name: in.sup
+    data: |
+      {k:1,v:1}
+      {k:2,v:1.5}
+      {k:1,v:2}
+      {k:3,v:"b"}
+      {k:3,v:"a"}
+      {k:5,v:1s}
+      {k:2,v:2::uint8}
+      {k:7,v:null}
+      {k:8,v:[1,2]}
+      {k:8,v:"y"}
+      {k:9,v:1}
+      {k:9,v:"x"}
+
+outputs:
+  - name: stdout
+    data: |
+      same
+  - name: partials.sup
+    data: |
+      {k:1,sum:3,min:1,avg:1.5,collect:[1,2],array_agg:[1,2],union:set[1,2],dcount:2,fuse:<{k:int64,v:int64}>,count:2,any:1,and:false,collect_map:map{1:2}}
+      {k:2,sum:3.5,min:1.5,avg:1.75,collect:[1.5,2::uint8],array_agg:[1.5,2::uint8],union:set[2::uint8,1.5],dcount:2,fuse:<{k:int64,v:uint8|float64}>,count:2,any:1.5,and:false,collect_map:map{2:2::uint8}}
+      {k:3,sum:null,min:"a",avg:null,collect:["b","a"],array_agg:["b","a"],union:set["a","b"],dcount:2,fuse:<{k:int64,v:string}>,count:2,any:"b",and:false,collect_map:map{3:"a"}}
+      {k:5,sum:1s,min:1s,avg:1000000000.,collect:[1s],array_agg:[1s],union:set[1s],dcount:1,fuse:<{k:int64,v:duration}>,count:1,any:1s,and:false,collect_map:map{5:1s}}
+      {k:7,sum:null,min:null,avg:null,collect:[null],array_agg:[null],union:set[null],dcount:0,fuse:<{k:int64,v:null}>,count:0,any:null,and:null,collect_map:map{7:null}}
+      {k:8,sum:null,min:"y",avg:null,collect:["y",[1,2]],array_agg:["y",[1,2]],union:set["y",[1,2]],dcount:2,fuse:<{k:int64,v:string|[int64]}>,count:2,any:"y",and:false,collect_map:map{8:[1,2]}}
+      {k:9,sum:error("mixture of string and numeric values"),min:error("mixture of string and numeric values"),avg:1.,collect:[1,"x"],array_agg:[1,"x"],union:set[1,"x"],dcount:2,fuse:<{k:int64,v:int64|string}>,count:2,any:1,and:false,collect_map:map{9:"x"}}

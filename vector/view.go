@@ -23,6 +23,13 @@ func (v *View) Serialize(b *scode.Builder, slot uint32) {
 	v.Any.Serialize(b, v.Index[slot])
 }
 
+func UnwrapView(vec Any) (Any, []uint32) {
+	if view, ok := vec.(*View); ok {
+		return view.Any, view.Index
+	}
+	return vec, nil
+}
+
 func PushView(val Any) Any {
 	view, ok := val.(*View)
 	if !ok {
@@ -55,6 +62,8 @@ func PushView(val Any) Any {
 		return &Fusion{Typ: val.Typ, Values: Pick(val.Values, view.Index), Subtypes: subtypes}
 	case *Option:
 		return Pick(val, view.Index)
+	case *TypeValue:
+		return val.Pick(view.Index)
 	default:
 		return view
 	}

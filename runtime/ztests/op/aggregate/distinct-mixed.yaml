@@ -1,0 +1,18 @@
+# Distinct values of mixed types are fed to the underlying aggregation by
+# type, so nulls are ignored by count and non-numbers by avg as without
+# distinct.
+spq: |
+  count(distinct v), avg(distinct v) by k
+  | sort k
+
+input: |
+  {k:1,v:null}
+  {k:1,v:1}
+  {k:1,v:1}
+  {k:1,v:"a"}
+  {k:1,v:3}
+  {k:2,v:null}
+
+output: |
+  {k:1,count:3,avg:2.}
+  {k:2,count:0,avg:null}

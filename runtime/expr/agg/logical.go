@@ -2,80 +2,70 @@ package agg
 
 import (
 	"github.com/superdb/super"
+	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/bitvec"
 )
 
-type and struct {
-	val *bool
+// logical computes "and" or "or" for each group.
+type logical struct {
+	isAnd bool
+	vals  bitvec.Bits
+	has   []bool // whether a group has seen a value
 }
 
-func (a *and) Consume(vec vector.Any) {
+func newAnd() *logical { return &logical{isAnd: true} }
+func newOr() *logical  { return &logical{} }
+
+func (l *logical) Resize(n uint32) {
+	l.vals.Resize(n)
+	l.has = extend(l.has, n)
+}
+
+func (l *logical) Consume(groups []uint32, vec vector.Any) {
 	if vec.Type().ID() != super.IDBool {
 		return
 	}
-	for i := range vec.Len() {
-		if a.val == nil {
-			b := true
-			a.val = &b
+	bools := expr.FlattenBool(vector.Under(vec))
+	for i, g := range groups {
+		b := bools.IsSetDirect(uint32(i))
+		if !l.has[g] {
+			l.has[g] = true
+			l.vals.SetTo(g, b)
+		} else if l.isAnd {
+			l.vals.SetTo(g, l.vals.IsSetDirect(g) && b)
+		} else {
+			l.vals.SetTo(g, l.vals.IsSetDirect(g) || b)
 		}
-		*a.val = *a.val && vector.BoolValue(vec, i)
 	}
 }
 
-func (a *and) Result(*super.Context) vector.Any {
-	if a.val == nil {
-		return vector.NewNull(1)
-	}
-	if *a.val {
-		return vector.NewTrue(1)
-	}
-	return vector.NewFalse(1)
-}
-
-func (a *and) ConsumeAsPartial(partial vector.Any) {
-	if kind := partial.Kind(); partial.Len() != 1 || (kind != vector.KindBool && kind != vector.KindNull) {
-		panic("and: bad partial")
-	}
-	a.Consume(partial)
-}
-
-func (a *and) ResultAsPartial(*super.Context) vector.Any {
-	return a.Result(nil)
-}
-
-type or struct {
-	val *bool
-}
-
-func (o *or) Consume(vec vector.Any) {
-	if vec.Type().ID() != super.IDBool {
-		return
-	}
-	for i := range vec.Len() {
-		if o.val == nil {
-			o.val = new(bool)
+func (l *logical) Result(*super.Context) vector.Any {
+	var nulls []uint32
+	for g, has := range l.has {
+		if !has {
+			nulls = append(nulls, uint32(g))
+			continue
 		}
-		*o.val = *o.val || vector.BoolValue(vec, i)
 	}
+	bools := vector.NewBool(l.vals)
+	if len(nulls) == 0 {
+		return bools
+	}
+	null := vector.NewNull(uint32(len(nulls)))
+	if len(nulls) == len(l.has) {
+		return null
+	}
+	return vector.Combine(vector.ReversePick(bools, nulls), nulls, null)
 }
 
-func (o *or) Result(*super.Context) vector.Any {
-	if o.val == nil {
-		return vector.NewNull(1)
+func (l *logical) ConsumeAsPartial(groups []uint32, partial vector.Any) {
+	if kind := partial.Kind(); kind != vector.KindBool && kind != vector.KindNull {
+		panic("and/or: bad partial")
 	}
-	if *o.val {
-		return vector.NewTrue(1)
-	}
-	return vector.NewFalse(1)
+	l.Consume(groups, partial)
 }
 
-func (o *or) ConsumeAsPartial(partial vector.Any) {
-	if kind := partial.Kind(); partial.Len() != 1 || (kind != vector.KindBool && kind != vector.KindNull) {
-		panic("or: bad partial")
-	}
-	o.Consume(partial)
-}
-
-func (o *or) ResultAsPartial(*super.Context) vector.Any {
-	return o.Result(nil)
+func (l *logical) ResultAsPartial(*super.Context) vector.Any {
+	return l.Result(nil)
 }

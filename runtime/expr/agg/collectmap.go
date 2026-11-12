@@ -3,43 +3,54 @@ package agg
 import (
 	"github.com/superdb/super"
 	samagg "github.com/superdb/super/runtime/sam/expr/agg"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/scode"
 	"github.com/superdb/super/vector"
 )
 
 type collectMap struct {
-	samCollectMap *samagg.CollectMap
+	maps []*samagg.CollectMap
 }
 
 func newCollectMap() *collectMap {
-	return &collectMap{samagg.NewCollectMap()}
+	return &collectMap{}
 }
 
-func (c *collectMap) Consume(vec vector.Any) {
+func (c *collectMap) Resize(n uint32) {
+	for range n - uint32(len(c.maps)) {
+		c.maps = append(c.maps, samagg.NewCollectMap())
+	}
+}
+
+func (c *collectMap) Consume(groups []uint32, vec vector.Any) {
 	// XXX THIS - missing should be error
 	if k := vec.Kind(); k == vector.KindNull || k == vector.KindError || k == vector.KindMissing {
 		return
 	}
 	typ := vec.Type()
 	var b scode.Builder
-	for i := range vec.Len() {
+	for slot, g := range groups {
 		b.Truncate()
-		vec.Serialize(&b, i)
-		c.samCollectMap.Consume(super.NewValue(typ, b.Bytes().Body()))
+		vec.Serialize(&b, uint32(slot))
+		c.maps[g].Consume(super.NewValue(typ, b.Bytes().Body()))
 	}
 }
 
 func (c *collectMap) Result(sctx *super.Context) vector.Any {
-	val := c.samCollectMap.Result(sctx)
-	return sbuf.Dematerialize(sctx, val)
+	b := vector.NewDynamicValueBuilder()
+	for _, m := range c.maps {
+		b.Write(m.Result(sctx))
+	}
+	return b.Build(sctx)
 }
 
-func (c *collectMap) ConsumeAsPartial(partial vector.Any) {
-	c.Consume(partial)
+func (c *collectMap) ConsumeAsPartial(groups []uint32, partial vector.Any) {
+	c.Consume(groups, partial)
 }
 
 func (c *collectMap) ResultAsPartial(sctx *super.Context) vector.Any {
-	val := c.samCollectMap.ResultAsPartial(sctx)
-	return sbuf.Dematerialize(sctx, val)
+	b := vector.NewDynamicValueBuilder()
+	for _, m := range c.maps {
+		b.Write(m.ResultAsPartial(sctx))
+	}
+	return b.Build(sctx)
 }

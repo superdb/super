@@ -3,81 +3,68 @@ package agg
 import (
 	"github.com/superdb/super"
 	samagg "github.com/superdb/super/runtime/sam/expr/agg"
-	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/scode"
 	"github.com/superdb/super/vector"
 )
 
 type union struct {
-	samunion *samagg.Union
+	unions []*samagg.Union
 }
 
 func newUnion() *union {
-	return &union{samunion: samagg.NewUnion()}
+	return &union{}
 }
 
-func (u *union) Consume(vec vector.Any) {
+func (u *union) Resize(n uint32) {
+	for range n - uint32(len(u.unions)) {
+		u.unions = append(u.unions, samagg.NewUnion())
+	}
+}
+
+func (u *union) Consume(groups []uint32, vec vector.Any) {
 	if vec.Kind() == vector.KindNone {
 		return
 	}
-	switch vec := vec.(type) {
-	case *vector.Const:
-		val := vector.ValueAt(nil, vec, 0)
-		u.samunion.Update(val.Type(), val.Bytes())
-	case *vector.Dict:
-		u.Consume(vec.Any)
-	default:
-		typ := vec.Type()
-		var b scode.Builder
-		for i := range vec.Len() {
-			b.Truncate()
-			vec.Serialize(&b, i)
-			u.samunion.Update(typ, b.Bytes().Body())
-		}
+	typ := vec.Type()
+	var b scode.Builder
+	for slot, g := range groups {
+		b.Truncate()
+		vec.Serialize(&b, uint32(slot))
+		u.unions[g].Update(typ, b.Bytes().Body())
 	}
 }
 
 func (u *union) Result(sctx *super.Context) vector.Any {
-	val := u.samunion.Result(sctx)
-	return sbuf.Dematerialize(sctx, val)
+	b := vector.NewDynamicValueBuilder()
+	for _, union := range u.unions {
+		b.Write(union.Result(sctx))
+	}
+	return b.Build(sctx)
 }
 
-func (u *union) ConsumeAsPartial(partial vector.Any) {
+func (u *union) ConsumeAsPartial(groups []uint32, partial vector.Any) {
 	if partial.Kind() == vector.KindNull {
 		return
 	}
-	n := partial.Len()
-	var index []uint32
-	if view, ok := partial.(*vector.View); ok {
-		index = view.Index
-		partial = view.Any
-	}
-	set, ok := partial.(*vector.Set)
-	if !ok {
-		panic("union: partial not a set type")
-	}
-	inner := set.Values
-	typ := inner.Type()
-	union, _ := typ.(*super.TypeUnion)
+	elemGroups, values := expandContainer(groups, partial)
+	typ := values.Type()
+	utyp, _ := typ.(*super.TypeUnion)
 	var b scode.Builder
-	for idx := range n {
-		i := idx
-		if index != nil {
-			idx = index[i]
+	for slot, g := range elemGroups {
+		b.Truncate()
+		values.Serialize(&b, uint32(slot))
+		typ, bytes := typ, b.Bytes().Body()
+		if utyp != nil {
+			typ, bytes = utyp.Untag(bytes)
 		}
-		for k := set.Offsets[idx]; k < set.Offsets[idx+1]; k++ {
-			b.Truncate()
-			inner.Serialize(&b, k)
-			bytes := b.Bytes().Body()
-			if union != nil {
-				typ, bytes = union.Untag(bytes)
-			}
-			u.samunion.Update(typ, bytes)
-		}
+		u.unions[g].Update(typ, bytes)
 	}
 }
 
 func (u *union) ResultAsPartial(sctx *super.Context) vector.Any {
-	val := u.samunion.ResultAsPartial(sctx)
-	return sbuf.Dematerialize(sctx, val)
+	b := vector.NewDynamicValueBuilder()
+	for _, union := range u.unions {
+		b.Write(union.ResultAsPartial(sctx))
+	}
+	return b.Build(sctx)
 }

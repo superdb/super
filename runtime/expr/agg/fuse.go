@@ -1,8 +1,6 @@
 package agg
 
 import (
-	"fmt"
-
 	"github.com/superdb/super"
 	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/vector"
@@ -11,84 +9,85 @@ import (
 type fuse struct {
 	defuse   *expr.SuperDefuse
 	complete bool
-	seen     map[super.Type]struct{}
-	types    []super.Type
-	partials []super.Value
+	// seen holds the (group, type) pairs in types or partials.
+	seen  map[groupType]struct{}
+	types [][]super.Type // by group
+}
+
+type groupType struct {
+	group uint32
+	typ   super.Type
 }
 
 func newFuse(sctx *super.Context, complete bool) *fuse {
 	return &fuse{
 		defuse:   expr.NewSuperDefuse(sctx),
 		complete: complete,
-		seen:     make(map[super.Type]struct{}),
+		seen:     make(map[groupType]struct{}),
 	}
 }
 
 func (f *fuse) NoRip() bool { return true }
 
-func (f *fuse) Consume(vec vector.Any) {
-	if v, ok := vec.(*vector.NoRip); ok {
-		vec = v.Any
-	}
-	// Fuse the types of the superdefused values (i.e., the subtypes of
-	// any fusion values) as with the superfuse operator.  Note that vec
-	// may be a view of the values in a group, so the view must be kept
-	// since the subtypes of a fusion vary by slot.
-	vec = vector.PushView(f.defuse.Eval(vec))
+func (f *fuse) Resize(n uint32) {
+	f.types = extend(f.types, n)
+}
+
+func (f *fuse) Consume(groups []uint32, vec vector.Any) {
+	vec = f.defuse.Eval(vec)
 	if d, ok := vec.(*vector.Dynamic); ok {
-		for slot := range vec.Len() {
-			f.consume(d.TypeOf(slot))
+		for slot, g := range groups {
+			f.consume(g, d.TypeOf(uint32(slot)))
 		}
 		return
 	}
-	if vec.Type() == nil {
-		fmt.Printf("vec panic %T\n", vec)
+	typ := vec.Type()
+	for _, g := range groups {
+		f.consume(g, typ)
 	}
-	f.consume(vec.Type())
 }
 
-func (f *fuse) consume(typ super.Type) {
-	if _, ok := f.seen[typ]; !ok {
-		f.seen[typ] = struct{}{}
-		f.types = append(f.types, typ)
+func (f *fuse) consume(g uint32, typ super.Type) {
+	key := groupType{g, typ}
+	if _, ok := f.seen[key]; !ok {
+		f.seen[key] = struct{}{}
+		f.types[g] = append(f.types[g], typ)
 	}
 }
 
 func (f *fuse) Result(sctx *super.Context) vector.Any {
-	if len(f.types)+len(f.partials) == 0 {
-		return vector.NewNull(1)
-	}
-	fuser := super.NewFuser(sctx)
-	for _, p := range f.partials {
-		typ, err := sctx.LookupByValue(p.Bytes())
-		if err != nil {
-			panic(fmt.Errorf("fuse: invalid partial value: %w", err))
+	types := make([]super.Type, 0, len(f.types))
+	var nulls []uint32
+	for g, gtyps := range f.types {
+		if len(gtyps) == 0 {
+			nulls = append(nulls, uint32(g))
+			continue
 		}
-		fuser.Fuse(typ)
+		fuser := super.NewFuser(sctx)
+		for _, typ := range gtyps {
+			fuser.Fuse(typ)
+		}
+		if f.complete {
+			types = append(types, fuser.FusedType())
+		} else {
+			types = append(types, fuser.SuperType())
+		}
 	}
-	for _, typ := range f.types {
-		fuser.Fuse(typ)
-	}
-	var typ super.Type
-	if f.complete {
-		typ = fuser.FusedType()
-	} else {
-		typ = fuser.SuperType()
-	}
-	return vector.NewTypeValue(sctx, []super.Type{typ})
+	return combineNulls(vector.NewTypeValue(sctx, types), nulls, uint32(len(f.types)))
 }
 
-func (f *fuse) ConsumeAsPartial(partial vector.Any) {
+func (f *fuse) ConsumeAsPartial(groups []uint32, partial vector.Any) {
 	kind := partial.Kind()
 	if kind == vector.KindNull || kind == vector.KindMissing {
 		return
 	}
-	if kind != vector.KindType {
+	typeVec, ok := vector.PushView(partial).(*vector.TypeValue)
+	if !ok {
 		panic("fuse: partial not a type value")
 	}
-	for i := range partial.Len() {
-		typ := vector.TypeValueValue(partial, i)
-		f.partials = append(f.partials, super.NewValue(super.TypeType, super.EncodeTypeValue(typ)))
+	types := typeVec.Types()
+	for slot, g := range groups {
+		f.consume(g, types[slot])
 	}
 }
 

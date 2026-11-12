@@ -12,54 +12,72 @@ import (
 // dcount uses hyperloglog to approximate the count of unique values for
 // a field.
 type dcount struct {
-	sketch *hyperloglog.Sketch
+	sketches []*hyperloglog.Sketch
 }
 
 func newDCount() *dcount {
-	return &dcount{
-		sketch: hyperloglog.New(),
+	return &dcount{}
+}
+
+func (d *dcount) Resize(n uint32) {
+	for range n - uint32(len(d.sketches)) {
+		d.sketches = append(d.sketches, hyperloglog.New())
 	}
 }
 
-func (d *dcount) Consume(vec vector.Any) {
+func (d *dcount) Consume(groups []uint32, vec vector.Any) {
 	if vec.Kind() == vector.KindNull {
 		return
 	}
 	// append type id to vals so we get a unique count where the bytes are same
 	// but the super.Type is different.
 	scratch := super.AppendInt(nil, int64(vec.Type().ID()))
+	n := len(scratch)
 	var b scode.Builder
-	for i := range vec.Len() {
+	for slot, g := range groups {
 		b.Truncate()
-		vec.Serialize(&b, i)
+		vec.Serialize(&b, uint32(slot))
 		if vb := b.Bytes().Body(); vb != nil {
-			d.sketch.Insert(append(scratch, vb...))
+			scratch = append(scratch[:n], vb...)
+			d.sketches[g].Insert(scratch)
 		}
 	}
 }
 
 func (d *dcount) Result(*super.Context) vector.Any {
-	return vector.NewInt(super.TypeInt64, []int64{int64(d.sketch.Estimate())})
+	counts := make([]int64, len(d.sketches))
+	for g, sketch := range d.sketches {
+		counts[g] = int64(sketch.Estimate())
+	}
+	return vector.NewInt(super.TypeInt64, counts)
 }
 
-func (d *dcount) ConsumeAsPartial(partial vector.Any) {
-	if partial.Type() != super.TypeBytes || partial.Len() != 1 {
+func (d *dcount) ConsumeAsPartial(groups []uint32, partial vector.Any) {
+	vec, index := vector.UnwrapView(partial)
+	bytes, ok := vec.(*vector.Bytes)
+	if !ok {
 		panic("dcount: invalid partial")
 	}
-	b := vector.BytesValue(partial, 0)
-	var s hyperloglog.Sketch
-	if err := s.UnmarshalBinary(b); err != nil {
-		panic(fmt.Errorf("dcount: unmarshaling partial: %w", err))
+	for slot, g := range groups {
+		if index != nil {
+			slot = int(index[slot])
+		}
+		var s hyperloglog.Sketch
+		if err := s.UnmarshalBinary(bytes.Value(uint32(slot))); err != nil {
+			panic(fmt.Errorf("dcount: unmarshaling partial: %w", err))
+		}
+		d.sketches[g].Merge(&s)
 	}
-	d.sketch.Merge(&s)
 }
 
 func (d *dcount) ResultAsPartial(sctx *super.Context) vector.Any {
-	b, err := d.sketch.MarshalBinary()
-	if err != nil {
-		panic(fmt.Errorf("dcount: marshaling partial: %w", err))
+	table := vector.NewBytesTableEmpty(uint32(len(d.sketches)))
+	for _, sketch := range d.sketches {
+		b, err := sketch.MarshalBinary()
+		if err != nil {
+			panic(fmt.Errorf("dcount: marshaling partial: %w", err))
+		}
+		table.Append(b)
 	}
-	table := vector.NewBytesTableEmpty(0)
-	table.Append(b)
 	return vector.NewBytes(table)
 }
