@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -356,4 +357,35 @@ func TestTypeDefsNamedBindingCheck(t *testing.T) {
 	id := other.LookupType(foo(super.TypeString))
 	merger = super.NewTypeDefsMerger(merged, &other.TypeDefs)
 	assert.PanicsWithError(t, `type "foo" redefined`, func() { merger.LookupID(id) })
+}
+
+func TestTypeDefsMapperSharedNamedTypes(t *testing.T) {
+	// U is reached by more than one path from Ev and from A, which isn't a
+	// cycle, so mapping Ev declares U as part of a block and then maps A,
+	// whose block also includes U.  This used to deadlock as A's block
+	// waited for U to be bound by Ev's block up the stack.
+	val, err := supio.NewReader(super.NewContext(), strings.NewReader(`
+type U={id:int64}
+type A={u:U,v:U}
+type B={w:U}
+type Ev=A|B
+{w:{id:1}::U}::B::Ev
+`)).Read()
+	require.NoError(t, err)
+	typ := val.Type()
+	enc := super.NewTypeDefsEncoder()
+	id := enc.LookupType(typ)
+	defs, ok := super.NewTypeDefsFromBytes(enc.Bytes())
+	require.True(t, ok)
+	done := make(chan super.Type)
+	go func() {
+		done <- super.NewTypeDefsMapper(super.NewContext(), defs).LookupType(id)
+	}()
+	select {
+	case out := <-done:
+		require.NotNil(t, out)
+		assert.Equal(t, sup.FormatType(typ), sup.FormatType(out))
+	case <-time.After(10 * time.Second):
+		t.Fatal("TypeDefsMapper.LookupType deadlocked")
+	}
 }

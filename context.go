@@ -1837,6 +1837,13 @@ func (t *TypeDefsMapper) lookupType(id uint32) Type {
 			}
 			return out
 		}
+		// A name being resolved by a call frame up the stack is declared
+		// but not yet bound.  That frame binds it, so it's left out here
+		// as declareBlock would wait for it to be bound.
+		compIDs = slices.DeleteFunc(compIDs, func(cid compID) bool {
+			_, ok := t.patches[cid.name]
+			return ok
+		})
 		patches := t.sctx.declareBlock(compIDs)
 		for _, p := range patches {
 			t.patches[p.named.Name] = p
