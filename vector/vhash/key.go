@@ -31,6 +31,8 @@ func newKey(typ super.Type) key {
 		return newUintKey(typ)
 	case *super.TypeOfFloat16, *super.TypeOfFloat32, *super.TypeOfFloat64:
 		return newFloatKey(typ)
+	case *super.TypeOfBool:
+		return newBoolKey()
 	case *super.TypeOfUUID:
 		return newUUIDKey()
 	case *super.TypeOfIP:
@@ -42,7 +44,7 @@ func newKey(typ super.Type) key {
 	case *super.TypeOfType:
 		return newTypeKey()
 	default:
-		// Everything else (bool, null, records, arrays, maps,
+		// Everything else (null, records, arrays, maps,
 		// unions, enums, errors, options, ...) is keyed by its serialized
 		// form for now.
 		return newScodeKey(typ)
