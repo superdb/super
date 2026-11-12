@@ -11,22 +11,33 @@ dedup_type(m: map{string:type}) -> map{string:type}
 ## Description
 
 The `dedup_type` function takes a map of names to types, like the argument of
-[sum_type](sum_type.md), and returns the map with its repeated record types
-replaced by [named types](../../types/named.md) that its types share.
+[sum_type](sum_type.md), and returns the map with each record type that
+its types share replaced by a [named type](../../types/named.md).
 
-A record type is replaced if it isn't named and is the type of more than one
-field with the same name, at any depth in the map's types, including
-optional fields.  The name of its named type is the field name in CamelCase,
-i.e., the field name's words, separated by underscores or other characters
-that aren't letters or digits, are capitalized and joined, so the type of
-field `home_address` is named `HomeAddress`.  Records within records are
-named first, so an outer record type can refer to the named types of its
-inner records.
+A record type is shared if it isn't named and appears more than once within
+the map's types, at any depth, e.g., as the type of two fields, the element
+type of an array, or a member of a union.  (A record type that's within a
+shared record type isn't shared by appearing in it, since the shared type's
+body appears only once, but it is if it also appears elsewhere.)  The
+types of the map's entries themselves, empty record types, and the bodies of
+named types are left as is.
 
-A record type isn't replaced if
-* its name is already bound to a different type,
-* another record type that's replaced would have the same name, or
-* it's within the body of a named type.
+The name of a shared type is derived from the names of the fields with that
+type, each in CamelCase (so `home_address` is `HomeAddress`) and in the singular
+if the type is the element type of an array, set, or map (so `commits` is
+`Commit`).  The name is
+* the field name, if all of the fields have the same name, else
+* the words the field names end with, if they end with the same words
+  (e.g., `Address` for `home_address` and `work_address`), else
+* the most frequent field name, else
+* the field names tied for most frequent, joined in alphabetical order
+  (e.g., `BaseHead` for `head` and `base`).
+
+Each shared type gets a unique name.  When different types derive the same
+name, they're versioned with the suffixes `v1`, `v2`, and so on, in the order
+they appear (e.g., `Userv1` and `Userv2`).  A name that's already bound to a
+different type in the query is skipped in the same way, while one bound to
+the same type is reused.
 
 ## Examples
 
@@ -63,6 +74,27 @@ map{
 type Geo={lat:float64,lon:float64}
 type HomeAddress={street:string,geo:Geo}
 map{"Home":<{home_address:HomeAddress}>,"Trip":<{home_address:HomeAddress,stops:[{geo:Geo}]}>}
+```
+
+---
+
+_Name types shared by fields with different names and version name collisions_
+
+```mdtest-spq
+# spq
+values dedup_type(this)
+# input
+map{
+  "Order":<{ship_address:{street:string,zip:string},user:{id:int64}}>,
+  "Cart":<{user:{id:int64}}>,
+  "Account":<{home_address:{street:string,zip:string},user:{id:int64,email:string}}>,
+  "Profile":<{user:{id:int64,email:string}}>
+}
+# expected output
+type Userv1={id:int64}
+type Address={street:string,zip:string}
+type Userv2={id:int64,email:string}
+map{"Cart":<{user:Userv1}>,"Order":<{ship_address:Address,user:Userv1}>,"Account":<{home_address:Address,user:Userv2}>,"Profile":<{user:Userv2}>}
 ```
 
 ---

@@ -1,42 +1,104 @@
-# dedup_type names an unnamed record type that's the type of more than one
-# field with the same name (at any depth, including optional fields), naming it
-# the field name in CamelCase.  It names inner records first, leaves a named
-# type's body as is, skips a name that's already bound to a different type or
-# that two record types want, and returns errors for arguments of the wrong type.
+# dedup_type names an unnamed record type that appears more than once in the
+# map's types (at any depth), deriving the name from the fields with the type:
+# the field name in CamelCase (in the singular for an element of a list), the
+# words the field names end with, the most frequent field name, or the names
+# tied for most frequent.  Types that derive the same name are versioned.
 spq: values dedup_type(this)
 
 input: |
   map{"Foo":<{x:int64,thing:{s:string,b:bool}}>,"Bar":<{q:[string],thing:{s:string,b:bool}}>}
-  map{"A":<{home_address:{street:string,geo:{lat:float64,lon:float64}}}>,"B":<{home_address:{street:string,geo:{lat:float64,lon:float64}},spots:[{geo:{lat:float64,lon:float64}}]}>}
-  map{"A":<{opt?:{a:int64}}>,"B":<{opt?:{a:int64},once:{n:int64}}>}
-  map{"A":<{dup:{a:int64},Dup:{a:int64}}>}
-  map{"A":<{part:{a:int64}}>,"B":<{part:{a:int64}}>,"C":<{part:{b:int64}}>,"D":<{part:{b:int64}}>}
-  type Taken=string
-  map{"A":<{taken:{a:int64}}>,"B":<{taken:{a:int64}}>,"C":<Taken>}
+  map{"A":<{home_address:{street:string,city:string}}>,"B":<{work_address:{street:string,city:string}}>}
+  map{"PR":<{head:{ref:string,sha:string},base:{ref:string,sha:string}}>}
+  map{"A":<{user:{login:string,id:int64}}>,"B":<{user:{login:string,id:int64},owner:{login:string,id:int64}}>}
+  map{"A":<{commits:[{sha:string}]}>,"B":<{commits:[{sha:string}],entries:set[{k:string,v:string}],more_entries:[{k:string,v:string}]}>}
+  map{"A":<{user:{login:string}}>,"B":<{user:{login:string},author:{user:{id:int64},x:{user:{id:int64}}}}>}
+  map{"A":<{opt?:{a:string}}>,"B":<{u:{a:string}|null}>}
+
+output: |
+  type Thing={s:string,b:bool}
+  map{"Bar":<{q:[string],thing:Thing}>,"Foo":<{x:int64,thing:Thing}>}
+  type Address={street:string,city:string}
+  map{"A":<{home_address:Address}>,"B":<{work_address:Address}>}
+  type BaseHead={ref:string,sha:string}
+  map{"PR":<{head:BaseHead,base:BaseHead}>}
+  type User={login:string,id:int64}
+  map{"A":<{user:User}>,"B":<{user:User,owner:User}>}
+  type Commit={sha:string}
+  type Entry={k:string,v:string}
+  map{"A":<{commits:[Commit]}>,"B":<{commits:[Commit],entries:set[Entry],more_entries:[Entry]}>}
+  type Userv1={login:string}
+  type Userv2={id:int64}
+  map{"A":<{user:Userv1}>,"B":<{user:Userv1,author:{user:Userv2,x:{user:Userv2}}}>}
+  type OptU={a:string}
+  map{"A":<{opt?:OptU}>,"B":<{u:OptU|null}>}
+
+---
+
+# A record type within a shared record type isn't shared by appearing in it
+# but it is if it also appears elsewhere.
+spq: values dedup_type(this)
+
+input: |
+  map{"A":<{loc:{name:string,geo:{lat:float64,lon:float64}}}>,"B":<{loc:{name:string,geo:{lat:float64,lon:float64}}}>}
+
+output: |
+  type Loc={name:string,geo:{lat:float64,lon:float64}}
+  map{"A":<{loc:Loc}>,"B":<{loc:Loc}>}
+
+---
+
+spq: values dedup_type(this)
+
+input: |
+  map{"A":<{loc:{name:string,geo:{lat:float64,lon:float64}}}>,"B":<{loc:{name:string,geo:{lat:float64,lon:float64}},point:{lat:float64,lon:float64}}>}
+
+output: |
+  type GeoPoint={lat:float64,lon:float64}
+  type Loc={name:string,geo:GeoPoint}
+  map{"A":<{loc:Loc}>,"B":<{loc:Loc,point:GeoPoint}>}
+
+---
+
+# A name that's bound to a different type in the query's type context is
+# versioned, and one bound to the same type is reused.
+spq: values dedup_type(this), dedup_type(this)
+
+input: |
+  type Thing=string
+  map{"A":<{thing:{a:int64}}>,"B":<{thing:{a:int64}}>,"C":<Thing>}
+
+output: |
+  type Thingv1={a:int64}
+  type Thing=string
+  map{"A":<{thing:Thingv1}>,"B":<{thing:Thingv1}>,"C":<Thing>}
+  map{"A":<{thing:Thingv1}>,"B":<{thing:Thingv1}>,"C":<Thing>}
+
+---
+
+# A map entry's type, the body of a named type, an empty record type, and a
+# record type that appears once aren't named.
+spq: values dedup_type(this)
+
+input: |
   type Inner={a:int64}
-  map{"A":<{inner:Inner}>,"B":<{inner:Inner}>}
-  map{"A":<{x:int64}>}
+  map{"A":<{inner:Inner,meta:{}}>,"B":<{inner:Inner,meta:{}}>,"C":<{a:int64}>,"D":<{once:{a:int64}}>}
+
+output: |
+  type Inner={a:int64}
+  map{"A":<{inner:Inner,meta:{}}>,"B":<{inner:Inner,meta:{}}>,"C":<{a:int64}>,"D":<{once:{a:int64}}>}
+
+---
+
+# Arguments of the wrong type.
+spq: values dedup_type(this)
+
+input: |
   map{}
   map{"x":1}
   null
   error("bad")
 
 output: |
-  type Thing={s:string,b:bool}
-  map{"Bar":<{q:[string],thing:Thing}>,"Foo":<{x:int64,thing:Thing}>}
-  type Geo={lat:float64,lon:float64}
-  type HomeAddress={street:string,geo:Geo}
-  map{"A":<{home_address:HomeAddress}>,"B":<{home_address:HomeAddress,spots:[{geo:Geo}]}>}
-  type Opt={a:int64}
-  map{"A":<{opt?:Opt}>,"B":<{opt?:Opt,once:{n:int64}}>}
-  type Dup={a:int64}
-  map{"A":<{dup:Dup,Dup:Dup}>}
-  map{"A":<{part:{a:int64}}>,"B":<{part:{a:int64}}>,"C":<{part:{b:int64}}>,"D":<{part:{b:int64}}>}
-  type Taken=string
-  map{"A":<{taken:{a:int64}}>,"B":<{taken:{a:int64}}>,"C":<Taken>}
-  type Inner={a:int64}
-  map{"A":<{inner:Inner}>,"B":<{inner:Inner}>}
-  map{"A":<{x:int64}>}
   error({message:"dedup_type: argument is not a map of strings to types",on:map{}})
   error({message:"dedup_type: argument is not a map of strings to types",on:map{"x":1}})
   null

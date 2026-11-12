@@ -1,6 +1,8 @@
 package function
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -12,10 +14,9 @@ import (
 )
 
 // DedupType returns a map of type names to types like the argument of sum_type
-// in which each unnamed record type that appears more than once as the type
-// of a field with the same name is replaced by a named type, whose name is the
-// field name in CamelCase, e.g., the type of field "home_address" becomes
-// HomeAddress.
+// in which each unnamed record type that appears more than once within the
+// map's types is replaced by a named type shared by its appearances.  The name
+// is derived from the names of the fields with that type (see deriveName).
 type DedupType struct {
 	sctx *super.Context
 }
@@ -45,17 +46,18 @@ func (d *DedupType) call(sb *scode.Builder, vec vector.Any, slot uint32) super.V
 	val := vector.ValueAt(sb, vec, slot)
 	var keys []scode.Bytes
 	var types []super.Type
+	dedup := newDeduper(d.sctx)
 	for it := val.ContainerIter(); !it.Done(); {
-		keys = append(keys, it.Next())
+		key := it.Next()
 		typ, err := d.sctx.LookupByValue(it.Next())
 		if err != nil {
 			panic(err)
 		}
+		keys = append(keys, key)
 		types = append(types, typ)
-	}
-	dedup := newDeduper(d.sctx)
-	for _, typ := range types {
-		dedup.count(typ)
+		// A map entry's type isn't a candidate itself (it's named by the
+		// entry's key, e.g., by sum_type) but the types within it are.
+		dedup.walkInner(typ, camelCase(super.DecodeString(key)))
 	}
 	dedup.chooseNames()
 	var b scode.Builder
@@ -67,80 +69,202 @@ func (d *DedupType) call(sb *scode.Builder, vec vector.Any, slot uint32) super.V
 	return super.NewValue(mapType, b.Bytes())
 }
 
-// candidate is an unnamed record type that's the type of a field (or the type
-// of an optional field) whose name in CamelCase is name.
-type candidate struct {
-	name string
-	typ  *super.TypeRecord
-}
-
 type deduper struct {
-	sctx   *super.Context
-	counts map[candidate]int
-	// names holds the candidates that are replaced by a named type.
-	names map[candidate]struct{}
+	sctx *super.Context
+	// order holds the unnamed record types in the order first seen.
+	order []*super.TypeRecord
+	recs  map[*super.TypeRecord]*recInfo
 	// rewritten memoizes rewrite.
 	rewritten map[super.Type]super.Type
+	// used holds the names given to types by this deduper.
+	used map[string]super.Type
+}
+
+type recInfo struct {
+	count int
+	// names holds the names of the fields with this type (in CamelCase and
+	// in the singular for an element of an array, set, or map), in the
+	// order first seen, and counts their appearances.
+	names  []string
+	counts map[string]int
+	// base and version give the name chosen for the type if it's shared,
+	// which is base if version is zero and base followed by "v" and version
+	// otherwise.
+	base    string
+	version int
 }
 
 func newDeduper(sctx *super.Context) *deduper {
 	return &deduper{
 		sctx:      sctx,
-		counts:    make(map[candidate]int),
-		names:     make(map[candidate]struct{}),
+		recs:      make(map[*super.TypeRecord]*recInfo),
 		rewritten: make(map[super.Type]super.Type),
+		used:      make(map[string]super.Type),
 	}
 }
 
-// count counts the candidates in typ.  A named type is a barrier since its
-// body can't change without changing what the name means.
-func (d *deduper) count(typ super.Type) {
+// walk records an appearance of typ as the type of a field named name (or the
+// element type of a field named name if plural is true) and walks the types
+// within typ.  The body of a record type is walked only the first time the
+// type is seen since, if the type is seen again, it's replaced by a named type
+// whose body appears once.  A named type is a barrier since its body can't
+// change without changing what the name means.
+func (d *deduper) walk(typ super.Type, name string, plural bool) {
+	if rec, ok := typ.(*super.TypeRecord); ok && len(rec.Fields) > 0 {
+		if plural {
+			name = singular(name)
+		}
+		info, ok := d.recs[rec]
+		if !ok {
+			info = &recInfo{counts: make(map[string]int)}
+			d.recs[rec] = info
+			d.order = append(d.order, rec)
+		}
+		info.count++
+		if name != "" {
+			if info.counts[name] == 0 {
+				info.names = append(info.names, name)
+			}
+			info.counts[name]++
+		}
+		if ok {
+			return
+		}
+	}
+	d.walkInnerPlural(typ, name, plural)
+}
+
+func (d *deduper) walkInner(typ super.Type, name string) {
+	d.walkInnerPlural(typ, name, false)
+}
+
+func (d *deduper) walkInnerPlural(typ super.Type, name string, plural bool) {
 	switch typ := typ.(type) {
 	case *super.TypeRecord:
 		for _, f := range typ.Fields {
-			if c, ok := fieldCandidate(f); ok {
-				d.counts[c]++
-			}
-			d.count(f.Type)
+			d.walk(f.Type, camelCase(f.Name), false)
 		}
 	case *super.TypeArray:
-		d.count(typ.Type)
+		d.walk(typ.Type, name, true)
 	case *super.TypeSet:
-		d.count(typ.Type)
+		d.walk(typ.Type, name, true)
 	case *super.TypeMap:
-		d.count(typ.KeyType)
-		d.count(typ.ValType)
+		d.walk(typ.KeyType, name, true)
+		d.walk(typ.ValType, name, true)
 	case *super.TypeUnion:
 		for _, typ := range typ.Types {
-			d.count(typ)
+			d.walk(typ, name, plural)
 		}
 	case *super.TypeOption:
-		d.count(typ.Type)
+		d.walk(typ.Type, name, plural)
 	case *super.TypeError:
-		d.count(typ.Type)
+		d.walk(typ.Type, name, plural)
 	case *super.TypeFusion:
-		d.count(typ.Type)
+		d.walk(typ.Type, name, plural)
 	}
 }
 
-// chooseNames selects the candidates that appear more than once.  If two
-// such candidates with different types want the same name, neither is named
-// since there's no principled way to choose between them.
+// chooseNames chooses a name for each record type that's seen more than once.
+// Types whose derived names are the same are versioned with suffixes v1, v2,
+// and so on in the order first seen so each type gets a unique name.
 func (d *deduper) chooseNames() {
-	byName := make(map[string][]candidate)
-	for c, n := range d.counts {
-		if n > 1 {
-			byName[c.name] = append(byName[c.name], c)
+	var byName []string
+	groups := make(map[string][]*super.TypeRecord)
+	for _, rec := range d.order {
+		info := d.recs[rec]
+		if info.count < 2 {
+			continue
 		}
+		name := deriveName(info.names, info.counts)
+		if name == "" {
+			continue
+		}
+		if _, ok := groups[name]; !ok {
+			byName = append(byName, name)
+		}
+		groups[name] = append(groups[name], rec)
 	}
-	for _, cands := range byName {
-		if len(cands) == 1 {
-			d.names[cands[0]] = struct{}{}
+	for _, name := range byName {
+		recs := groups[name]
+		for i, rec := range recs {
+			info := d.recs[rec]
+			info.base = name
+			if len(recs) > 1 {
+				info.version = i + 1
+			}
 		}
 	}
 }
 
-// rewrite returns typ with each chosen candidate replaced by its named type.
+func versionName(base string, version int) string {
+	if version == 0 {
+		return base
+	}
+	return fmt.Sprintf("%sv%d", base, version)
+}
+
+// deriveName derives a type name from the names of the fields with the type:
+// the name if there's only one, else the words the names end with if they end
+// with the same words (e.g., Address for HomeAddress and WorkAddress), else the
+// most frequent name, else the names that are tied for most frequent joined in
+// alphabetical order (up to three of them).
+func deriveName(names []string, counts map[string]int) string {
+	switch len(names) {
+	case 0:
+		return ""
+	case 1:
+		return names[0]
+	}
+	if suffix := commonSuffix(names); suffix != "" {
+		return suffix
+	}
+	var most []string
+	var max int
+	for _, name := range names {
+		switch n := counts[name]; {
+		case n > max:
+			max = n
+			most = []string{name}
+		case n == max:
+			most = append(most, name)
+		}
+	}
+	slices.Sort(most)
+	if len(most) > 3 {
+		most = most[:1]
+	}
+	return strings.Join(most, "")
+}
+
+// commonSuffix returns the CamelCase words that all of names end with.
+func commonSuffix(names []string) string {
+	suffix := camelWords(names[0])
+	for _, name := range names[1:] {
+		words := camelWords(name)
+		n := 0
+		for n < len(suffix) && n < len(words) && suffix[len(suffix)-1-n] == words[len(words)-1-n] {
+			n++
+		}
+		suffix = suffix[len(suffix)-n:]
+	}
+	return strings.Join(suffix, "")
+}
+
+// camelWords splits a CamelCase name into its words, where a word begins at
+// an upper case letter.
+func camelWords(name string) []string {
+	var words []string
+	start := 0
+	for i, r := range name {
+		if i > start && unicode.IsUpper(r) {
+			words = append(words, name[start:i])
+			start = i
+		}
+	}
+	return append(words, name[start:])
+}
+
+// rewrite returns typ with each shared record type replaced by its named type.
 func (d *deduper) rewrite(typ super.Type) super.Type {
 	if out, ok := d.rewritten[typ]; ok {
 		return out
@@ -150,9 +274,14 @@ func (d *deduper) rewrite(typ super.Type) super.Type {
 	case *super.TypeRecord:
 		fields := make([]super.Field, 0, len(typ.Fields))
 		for _, f := range typ.Fields {
-			fields = append(fields, super.NewField(f.Name, d.rewriteField(f)))
+			fields = append(fields, super.NewField(f.Name, d.rewrite(f.Type)))
 		}
 		out = d.sctx.MustLookupTypeRecord(fields)
+		if info := d.recs[typ]; info != nil && info.base != "" {
+			if named := d.bind(info.base, info.version, out); named != nil {
+				out = named
+			}
+		}
 	case *super.TypeArray:
 		out = d.sctx.LookupTypeArray(d.rewrite(typ.Type))
 	case *super.TypeSet:
@@ -178,44 +307,22 @@ func (d *deduper) rewrite(typ super.Type) super.Type {
 	return out
 }
 
-// rewriteField returns the rewritten type of field f, which is a named type
-// (or an option of a named type) if f's type is a chosen candidate.
-func (d *deduper) rewriteField(f super.Field) super.Type {
-	c, ok := fieldCandidate(f)
-	if !ok {
-		return d.rewrite(f.Type)
+// bind binds the name given by base and version to typ.  If the name is
+// already used for a different type, whether by this deduper or in the
+// query's type context, the next free version is used instead (e.g., Userv3
+// if Userv2 is taken).
+func (d *deduper) bind(base string, version int, typ super.Type) *super.TypeNamed {
+	for range 1000 {
+		name := versionName(base, version)
+		if t, ok := d.used[name]; !ok || t == typ {
+			if named, err := d.sctx.LookupTypeNamed(name, typ); err == nil {
+				d.used[name] = typ
+				return named
+			}
+		}
+		version++
 	}
-	if _, ok := d.names[c]; !ok {
-		return d.rewrite(f.Type)
-	}
-	// If c.name is already bound to a different type, LookupTypeNamed
-	// fails and the candidate is left as is.
-	named, err := d.sctx.LookupTypeNamed(c.name, d.rewrite(c.typ))
-	if err != nil {
-		return d.rewrite(f.Type)
-	}
-	if _, ok := f.Type.(*super.TypeOption); ok {
-		return d.sctx.LookupTypeOption(named)
-	}
-	return named
-}
-
-// fieldCandidate returns the candidate for field f if its type is an unnamed
-// record type or an option of one (i.e., an optional field).
-func fieldCandidate(f super.Field) (candidate, bool) {
-	typ := f.Type
-	if option, ok := typ.(*super.TypeOption); ok {
-		typ = option.Type
-	}
-	rec, ok := typ.(*super.TypeRecord)
-	if !ok {
-		return candidate{}, false
-	}
-	name := camelCase(f.Name)
-	if name == "" {
-		return candidate{}, false
-	}
-	return candidate{name, rec}, true
+	return nil
 }
 
 // camelCase returns name in CamelCase, where the words of name are separated
@@ -231,4 +338,21 @@ func camelCase(name string) string {
 		b.WriteString(word[n:])
 	}
 	return b.String()
+}
+
+// singular returns the singular of the last word of a CamelCase name using a
+// few English rules, e.g., Commits is Commit and Entries is Entry.
+func singular(name string) string {
+	lower := strings.ToLower(name)
+	switch {
+	case strings.HasSuffix(lower, "ies") && len(name) > 3:
+		return name[:len(name)-3] + "y"
+	case strings.HasSuffix(lower, "sses"), strings.HasSuffix(lower, "uses"), strings.HasSuffix(lower, "xes"),
+		strings.HasSuffix(lower, "ches"), strings.HasSuffix(lower, "shes"):
+		return name[:len(name)-2]
+	case strings.HasSuffix(lower, "s") && !strings.HasSuffix(lower, "ss") &&
+		!strings.HasSuffix(lower, "us") && !strings.HasSuffix(lower, "is") && len(name) > 1:
+		return name[:len(name)-1]
+	}
+	return name
 }
