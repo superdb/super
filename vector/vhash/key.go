@@ -39,8 +39,10 @@ func newKey(typ super.Type) key {
 		return newNetKey()
 	case *super.TypeOfString, *super.TypeOfBytes:
 		return newBytesKey(typ)
+	case *super.TypeOfType:
+		return newTypeKey()
 	default:
-		// Everything else (bool, null, type values, records, arrays, maps,
+		// Everything else (bool, null, records, arrays, maps,
 		// unions, enums, errors, options, ...) is keyed by its serialized
 		// form for now.
 		return newScodeKey(typ)
