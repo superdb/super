@@ -34,10 +34,11 @@ if the type is the element type of an array, set, or map (so `commits` is
   (e.g., `BaseHead` for `head` and `base`).
 
 Each shared type gets a unique name.  When different types derive the same
-name, they're versioned with the suffixes `v1`, `v2`, and so on, in the order
-they appear (e.g., `Userv1` and `Userv2`).  A name that's already bound to a
-different type in the query is skipped in the same way, while one bound to
-the same type is reused.
+name, they're ranked by how many times they appear (and then by the order they
+first appear), the first gets the name, and the others are versioned with the
+suffixes `_v2`, `_v3`, and so on (e.g., `User` and `User_v2`).  A name that's
+already bound to a different type in the query is skipped in the same way,
+while one bound to the same type is reused.
 
 ## Examples
 
@@ -88,13 +89,13 @@ map{
   "Order":<{ship_address:{street:string,zip:string},user:{id:int64}}>,
   "Cart":<{user:{id:int64}}>,
   "Account":<{home_address:{street:string,zip:string},user:{id:int64,email:string}}>,
-  "Profile":<{user:{id:int64,email:string}}>
+  "Profile":<{user:{id:int64,email:string},admin:{id:int64,email:string}}>
 }
 # expected output
-type Userv1={id:int64}
+type User_v2={id:int64}
 type Address={street:string,zip:string}
-type Userv2={id:int64,email:string}
-map{"Cart":<{user:Userv1}>,"Order":<{ship_address:Address,user:Userv1}>,"Account":<{home_address:Address,user:Userv2}>,"Profile":<{user:Userv2}>}
+type User={id:int64,email:string}
+map{"Cart":<{user:User_v2}>,"Order":<{ship_address:Address,user:User_v2}>,"Account":<{home_address:Address,user:User}>,"Profile":<{user:User,admin:User}>}
 ```
 
 ---

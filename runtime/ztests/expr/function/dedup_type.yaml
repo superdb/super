@@ -2,7 +2,7 @@
 # map's types (at any depth), deriving the name from the fields with the type:
 # the field name in CamelCase (in the singular for an element of a list), the
 # words the field names end with, the most frequent field name, or the names
-# tied for most frequent.  Types that derive the same name are versioned.
+# tied for most frequent.
 spq: values dedup_type(this)
 
 input: |
@@ -11,7 +11,6 @@ input: |
   map{"PR":<{head:{ref:string,sha:string},base:{ref:string,sha:string}}>}
   map{"A":<{user:{login:string,id:int64}}>,"B":<{user:{login:string,id:int64},owner:{login:string,id:int64}}>}
   map{"A":<{commits:[{sha:string}]}>,"B":<{commits:[{sha:string}],entries:set[{k:string,v:string}],more_entries:[{k:string,v:string}]}>}
-  map{"A":<{user:{login:string}}>,"B":<{user:{login:string},author:{user:{id:int64},x:{user:{id:int64}}}}>}
   map{"A":<{opt?:{a:string}}>,"B":<{u:{a:string}|null}>}
 
 output: |
@@ -26,11 +25,24 @@ output: |
   type Commit={sha:string}
   type Entry={k:string,v:string}
   map{"A":<{commits:[Commit]}>,"B":<{commits:[Commit],entries:set[Entry],more_entries:[Entry]}>}
-  type Userv1={login:string}
-  type Userv2={id:int64}
-  map{"A":<{user:Userv1}>,"B":<{user:Userv1,author:{user:Userv2,x:{user:Userv2}}}>}
   type OptU={a:string}
   map{"A":<{opt?:OptU}>,"B":<{u:OptU|null}>}
+
+---
+
+# Types that derive the same name are ranked by how many times they appear
+# (and then by the order they first appear): the first gets the name and the
+# others are versioned with suffixes _v2, _v3, and so on.
+spq: values dedup_type(this)
+
+input: |
+  map{"A":<{user:{login:string}}>,"B":<{user:{login:string}}>,"C":<{user:{id:int64}}>,"D":<{user:{id:int64}}>,"E":<{user:{id:int64}}>,"F":<{user:{n:string}}>,"G":<{user:{n:string}}>}
+
+output: |
+  type User_v2={login:string}
+  type User={id:int64}
+  type User_v3={n:string}
+  map{"A":<{user:User_v2}>,"B":<{user:User_v2}>,"C":<{user:User}>,"D":<{user:User}>,"E":<{user:User}>,"F":<{user:User_v3}>,"G":<{user:User_v3}>}
 
 ---
 
@@ -68,10 +80,10 @@ input: |
   map{"A":<{thing:{a:int64}}>,"B":<{thing:{a:int64}}>,"C":<Thing>}
 
 output: |
-  type Thingv1={a:int64}
+  type Thing_v2={a:int64}
   type Thing=string
-  map{"A":<{thing:Thingv1}>,"B":<{thing:Thingv1}>,"C":<Thing>}
-  map{"A":<{thing:Thingv1}>,"B":<{thing:Thingv1}>,"C":<Thing>}
+  map{"A":<{thing:Thing_v2}>,"B":<{thing:Thing_v2}>,"C":<Thing>}
+  map{"A":<{thing:Thing_v2}>,"B":<{thing:Thing_v2}>,"C":<Thing>}
 
 ---
 

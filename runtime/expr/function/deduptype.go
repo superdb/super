@@ -1,6 +1,7 @@
 package function
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -88,7 +89,7 @@ type recInfo struct {
 	names  []string
 	counts map[string]int
 	// base and version give the name chosen for the type if it's shared,
-	// which is base if version is zero and base followed by "v" and version
+	// which is base if version is zero and base followed by "_v" and version
 	// otherwise.
 	base    string
 	version int
@@ -165,8 +166,10 @@ func (d *deduper) walkInnerPlural(typ super.Type, name string, plural bool) {
 }
 
 // chooseNames chooses a name for each record type that's seen more than once.
-// Types whose derived names are the same are versioned with suffixes v1, v2,
-// and so on in the order first seen so each type gets a unique name.
+// Types whose derived names are the same are ranked by how many times they're
+// seen (and then by the order first seen) so each type gets a unique name: the
+// first gets the name and the others are versioned with suffixes _v2, _v3, and
+// so on.
 func (d *deduper) chooseNames() {
 	var byName []string
 	groups := make(map[string][]*super.TypeRecord)
@@ -186,10 +189,13 @@ func (d *deduper) chooseNames() {
 	}
 	for _, name := range byName {
 		recs := groups[name]
+		slices.SortStableFunc(recs, func(a, b *super.TypeRecord) int {
+			return cmp.Compare(d.recs[b].count, d.recs[a].count)
+		})
 		for i, rec := range recs {
 			info := d.recs[rec]
 			info.base = name
-			if len(recs) > 1 {
+			if i > 0 {
 				info.version = i + 1
 			}
 		}
@@ -200,7 +206,7 @@ func versionName(base string, version int) string {
 	if version == 0 {
 		return base
 	}
-	return fmt.Sprintf("%sv%d", base, version)
+	return fmt.Sprintf("%s_v%d", base, version)
 }
 
 // deriveName derives a type name from the names of the fields with the type:
@@ -309,8 +315,8 @@ func (d *deduper) rewrite(typ super.Type) super.Type {
 
 // bind binds the name given by base and version to typ.  If the name is
 // already used for a different type, whether by this deduper or in the
-// query's type context, the next free version is used instead (e.g., Userv3
-// if Userv2 is taken).
+// query's type context, the next free version is used instead (e.g., User_v3
+// if User_v2 is taken or User_v2 if User is taken).
 func (d *deduper) bind(base string, version int, typ super.Type) *super.TypeNamed {
 	for range 1000 {
 		name := versionName(base, version)
@@ -321,6 +327,9 @@ func (d *deduper) bind(base string, version int, typ super.Type) *super.TypeName
 			}
 		}
 		version++
+		if version == 1 {
+			version = 2
+		}
 	}
 	return nil
 }
