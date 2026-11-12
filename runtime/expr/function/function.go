@@ -60,6 +60,8 @@ func New(sctx *super.Context, name string, narg int) (expr.Function, error) {
 		f = &DatePart{sctx}
 	case "superdefuse":
 		f = superDefuse{}
+	case "dedup_type":
+		f = &DedupType{sctx}
 	case "downcast":
 		argmin = 2
 		argmax = 2

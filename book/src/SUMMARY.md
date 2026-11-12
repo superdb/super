@@ -164,6 +164,7 @@
         - [Types](super-sql/functions/types/intro.md)
             - [array_type](super-sql/functions/types/array_type.md)
             - [cast](super-sql/functions/types/cast.md)
+            - [dedup_type](super-sql/functions/types/dedup_type.md)
             - [defuse](super-sql/functions/types/defuse.md)
             - [enum_type](super-sql/functions/types/enum_type.md)
             - [error_type](super-sql/functions/types/error_type.md)

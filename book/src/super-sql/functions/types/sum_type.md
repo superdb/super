@@ -21,6 +21,9 @@ If `m` has a single entry, `sum_type` returns its named type.
 
 If a key of `m` is already bound to a different type, an error is returned.
 
+To give record types shared by the map's types names of their own first,
+use [dedup_type](dedup_type.md).
+
 ## Examples
 
 ---

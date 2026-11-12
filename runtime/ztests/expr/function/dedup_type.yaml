@@ -1,0 +1,43 @@
+# dedup_type names an unnamed record type that's the type of more than one
+# field with the same name (at any depth, including optional fields), naming it
+# the field name in CamelCase.  It names inner records first, leaves a named
+# type's body as is, skips a name that's already bound to a different type or
+# that two record types want, and returns errors for arguments of the wrong type.
+spq: values dedup_type(this)
+
+input: |
+  map{"Foo":<{x:int64,thing:{s:string,b:bool}}>,"Bar":<{q:[string],thing:{s:string,b:bool}}>}
+  map{"A":<{home_address:{street:string,geo:{lat:float64,lon:float64}}}>,"B":<{home_address:{street:string,geo:{lat:float64,lon:float64}},spots:[{geo:{lat:float64,lon:float64}}]}>}
+  map{"A":<{opt?:{a:int64}}>,"B":<{opt?:{a:int64},once:{n:int64}}>}
+  map{"A":<{dup:{a:int64},Dup:{a:int64}}>}
+  map{"A":<{part:{a:int64}}>,"B":<{part:{a:int64}}>,"C":<{part:{b:int64}}>,"D":<{part:{b:int64}}>}
+  type Taken=string
+  map{"A":<{taken:{a:int64}}>,"B":<{taken:{a:int64}}>,"C":<Taken>}
+  type Inner={a:int64}
+  map{"A":<{inner:Inner}>,"B":<{inner:Inner}>}
+  map{"A":<{x:int64}>}
+  map{}
+  map{"x":1}
+  null
+  error("bad")
+
+output: |
+  type Thing={s:string,b:bool}
+  map{"Bar":<{q:[string],thing:Thing}>,"Foo":<{x:int64,thing:Thing}>}
+  type Geo={lat:float64,lon:float64}
+  type HomeAddress={street:string,geo:Geo}
+  map{"A":<{home_address:HomeAddress}>,"B":<{home_address:HomeAddress,spots:[{geo:Geo}]}>}
+  type Opt={a:int64}
+  map{"A":<{opt?:Opt}>,"B":<{opt?:Opt,once:{n:int64}}>}
+  type Dup={a:int64}
+  map{"A":<{dup:Dup,Dup:Dup}>}
+  map{"A":<{part:{a:int64}}>,"B":<{part:{a:int64}}>,"C":<{part:{b:int64}}>,"D":<{part:{b:int64}}>}
+  type Taken=string
+  map{"A":<{taken:{a:int64}}>,"B":<{taken:{a:int64}}>,"C":<Taken>}
+  type Inner={a:int64}
+  map{"A":<{inner:Inner}>,"B":<{inner:Inner}>}
+  map{"A":<{x:int64}>}
+  error({message:"dedup_type: argument is not a map of strings to types",on:map{}})
+  error({message:"dedup_type: argument is not a map of strings to types",on:map{"x":1}})
+  null
+  error({message:"dedup_type: error value encountered",on:error("bad")})
