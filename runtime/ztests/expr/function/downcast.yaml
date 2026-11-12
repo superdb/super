@@ -1,8 +1,7 @@
-# downcast is the mechanism by which superdefuse turns a fusion value back into
-# its subtype, so its test vectors are given as is, i.e., some are fusion values
-# that downcast is expected to downcast.  Superfusing the input (as TestSPQ
-# does with SUPER_FUSEINPUT) would wrap the vectors in additional fusion values
-# whose subtypes aren't the target types of the tests, so it's disabled here.
+# downcast returns an error for a fusion value (a fusion value is turned back
+# into its subtype's value by defuse), so superfusing the input (as TestSPQ
+# does with SUPER_FUSEINPUT) is disabled here.  Embedded fusion values that
+# downcast handles when called by defuse are tested in superdefuse.yaml.
 
 # Test downcast on records.
 spq: downcast(this[0], this[1])
@@ -128,29 +127,22 @@ output: |
 
 ---
 
-# Test downcast on fusion values.
+# Test that downcast returns an error for a value containing a fusion.
 spq: downcast(this[0], this[1])
 
 skip-fuseinput: true
 
 input: |
   [fusion({x?:1,y?:none::string},<{x:int64}>),<{x:int64}>]
-  [{a:fusion(2::(int64|null),<int64>)},<null|{a:int64}>]
-  [{a:fusion(3::option(int64|string),<option(int64)>)},<{a?:int64}>]
-  [fusion({x?:none::int64,y?:"foo"},<{y:string}>),<{y:string}>]
-  // error cases
-  [fusion({x?:1,y?:none::string},<{x:int64}>),<{y?:string}>]
-  // The target type isn't a subtype of the fusion's subtype.
   [fusion({x?:none::int64,y?:"foo"},<{y:string}>),<{y:int64|string}>]
+  [{a:fusion(2::(int64|null),<int64>)},<null|{a:int64}>]
+  [[fusion(1::(int64|string),<int64>)],<[int64]>]
 
 output: |
-  {x:1}
-  {a:2}::(null|{a:int64})
-  {a?:3}
-  {y:"foo"}
-  error({message:"downcast: invalid subtype {y?:string}",on:{x:1}})
-  error({message:"downcast: invalid subtype {y:int64|string}",on:{y:"foo"}})
-
+  error({message:"downcast: cannot downcast a fusion value",on:{x:1}})
+  error({message:"downcast: cannot downcast a fusion value",on:{y:"foo"}})
+  error({message:"downcast: cannot downcast a fusion value",on:{a:2}})
+  error({message:"downcast: cannot downcast a fusion value",on:[1]})
 ---
 
 # Test downcast on error values.

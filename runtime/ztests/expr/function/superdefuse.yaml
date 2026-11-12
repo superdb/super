@@ -296,3 +296,28 @@ output: |
   [1,2,"foo"]
   set[1,2]
   set[1,2,"foo"]
+
+---
+
+# Test superdefuse on fusion values embedded in other values.
+spq: values superdefuse(this)
+
+input: |
+  fusion({x?:1,y?:none::string},<{x:int64}>)
+  {a:fusion(2::(int64|null),<int64>)}
+  {a:fusion(3::option(int64|string),<option(int64)>)}
+  [fusion(1::(int64|string),<int64>),fusion("a"::(int64|string),<string>)]
+  map{"k":fusion(1::(int64|string),<int64>)}
+  error(fusion(1::(int64|string),<int64>))
+  fusion({a:fusion(1::(int64|string),<int64>)},<{a:int64|string}>)
+  fusion({a:fusion(1::(int64|string),<int64>)},<{a:option(int64)}>)
+
+output: |
+  {x:1}
+  {a:2}
+  {a?:3}
+  [1,"a"]
+  map{"k":1}
+  error(1)
+  {a:1::(int64|string)}
+  {a?:1}

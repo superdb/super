@@ -44,7 +44,7 @@
 // before the query runs.  A test whose input must not be fused (e.g., a test
 // of superdefusion) can disable this with
 //
-//	superfuse: false
+//	skip-fuseinput: true
 //
 // Alternatively, tests can be configured to run as shell scripts.
 // In this style of test, arbitrary bash scripts can run chaining together
@@ -279,8 +279,8 @@ type ZTest struct {
 	Input  *string `yaml:"input,omitempty"`
 	Output string  `yaml:"output,omitempty"`
 	Error  string  `yaml:"error,omitempty"`
-	// Superfuse, if false, disables superfusing the input when the test is
-	// run with SUPER_FUSEINPUT set (as TestSPQ does), e.g., for a test of
+	// SkipFuseInput, if true, disables superfusing the input when the test
+	// is run with SUPER_FUSEINPUT set (as TestSPQ does), e.g., for a test of
 	// superdefusion whose input must not be fused.
 	SkipFuseInput bool `yaml:"skip-fuseinput,omitempty"`
 
