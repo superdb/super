@@ -71,11 +71,16 @@ func (s *scalarAggregate) consume(vecs ...vector.Any) vector.Any {
 	n := vecs[0].Len()
 	s.zeros = slices.Grow(s.zeros[:0], int(n))[:n]
 	for i, vec := range vecs {
+		f := s.funcs[i]
 		if s.partialsIn {
-			s.funcs[i].ConsumeAsPartial(s.zeros, vec)
-		} else {
-			s.funcs[i].Consume(s.zeros, vec)
+			f.ConsumeAsPartial(s.zeros, vec)
+			continue
 		}
+		if all, ok := f.(expr.ScalarAggFunc); ok && n > 0 {
+			all.ConsumeAll(vec)
+			continue
+		}
+		f.Consume(s.zeros, vec)
 	}
 	return vector.NewNull(vecs[0].Len())
 }

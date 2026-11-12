@@ -25,6 +25,9 @@ type minMaxState interface {
 	typ() super.Type
 	resize(n uint32)
 	consume(groups []uint32, vec vector.Any)
+	// consumeAll is like consume with every slot of non-empty vec in
+	// group 0.
+	consumeAll(vec vector.Any)
 	result() vector.Any
 }
 
@@ -43,12 +46,22 @@ func (m *minMax) Resize(n uint32) {
 }
 
 func (m *minMax) Consume(groups []uint32, vec vector.Any) {
+	m.consume(groups, vec, false)
+}
+
+func (m *minMax) ConsumeAll(vec vector.Any) {
+	m.consume(nil, vec, true)
+}
+
+// consume is Consume or, if all is true, ConsumeAll, ignoring groups.  Only
+// the slow path needs a slice of zero groups for all.
+func (m *minMax) consume(groups []uint32, vec vector.Any, all bool) {
 	vec = vector.Under(vec)
 	if vec.Kind() == vector.KindError {
 		return
 	}
 	if m.slow != nil {
-		m.slow.consume(groups, vec)
+		m.slow.consume(groupsOrZeros(groups, all, vec.Len()), vec)
 		return
 	}
 	typ := vec.Type()
@@ -61,10 +74,14 @@ func (m *minMax) Consume(groups []uint32, vec vector.Any) {
 		m.state = m.newState(typ)
 		m.state.resize(m.n)
 	} else if m.state.typ() != typ {
-		m.toSlow().consume(groups, vec)
+		m.toSlow().consume(groupsOrZeros(groups, all, vec.Len()), vec)
 		return
 	}
-	m.state.consume(groups, vec)
+	if all {
+		m.state.consumeAll(vec)
+	} else {
+		m.state.consume(groups, vec)
+	}
 }
 
 func (m *minMax) newState(typ super.Type) minMaxState {
@@ -132,26 +149,90 @@ func (s *numericMinMax[T]) resize(n uint32) {
 
 func (s *numericMinMax[T]) consume(groups []uint32, vec vector.Any) {
 	flat, index := flatten(vec)
-	var vals []T
-	switch flat := flat.(type) {
-	case *vector.Int:
-		vals = any(flat.Values).([]T)
-	case *vector.Uint:
-		vals = any(flat.Values).([]T)
-	case *vector.Float:
-		vals = any(flat.Values).([]T)
-	default:
-		panic(flat)
-	}
+	vals := s.values(flat)
 	for slot, g := range groups {
 		i := uint32(slot)
 		if index != nil {
 			i = index[slot]
 		}
-		if v := vals[i]; !s.set[g] || compareNaNLast(v, s.vals[g]) == s.sign {
+		if !s.set[g] {
+			s.vals[g] = vals[i]
+			s.set[g] = true
+			continue
+		}
+		if v := vals[i]; compareNaNLast(v, s.vals[g]) == s.sign {
 			s.vals[g] = v
 			s.set[g] = true
 		}
+	}
+}
+
+func (s *numericMinMax[T]) consumeAll(vec vector.Any) {
+	if !s.set[0] {
+		s.vals[0] = s.firstValue(vec)
+		s.set[0] = true
+	}
+	best := s.vals[0]
+	switch vec := vec.(type) {
+	case *vector.Const:
+		best = s.better(s.values(vec.Any)[0], best)
+	case *vector.Dict:
+		vals := s.values(vec.Any)
+		for k, count := range vec.Counts {
+			if count > 0 {
+				best = s.better(vals[k], best)
+			}
+		}
+	case *vector.View:
+		vals := s.values(vec.Any)
+		for _, i := range vec.Index {
+			best = s.better(vals[i], best)
+		}
+	default:
+		vals := s.values(vec)
+		for i := range vec.Len() {
+			best = s.better(vals[i], best)
+		}
+	}
+	s.vals[0] = best
+}
+
+// better returns v if compareNaNLast(v, best) == s.sign and best otherwise.
+func (s *numericMinMax[T]) better(v, best T) T {
+	if s.sign < 0 {
+		if v < best || (best != best && v == v) {
+			return v
+		}
+	} else if v > best || v != v {
+		return v
+	}
+	return best
+}
+
+// values returns the values of flat numeric vector vec.
+func (s *numericMinMax[T]) values(vec vector.Any) []T {
+	switch vec := vec.(type) {
+	case *vector.Int:
+		return any(vec.Values).([]T)
+	case *vector.Uint:
+		return any(vec.Values).([]T)
+	case *vector.Float:
+		return any(vec.Values).([]T)
+	default:
+		panic(vec)
+	}
+}
+
+func (s *numericMinMax[T]) firstValue(vec vector.Any) T {
+	switch vec.Kind() {
+	case vector.KindInt:
+		return T(vector.IntValue(vec, 0))
+	case vector.KindUint:
+		return T(vector.UintValue(vec, 0))
+	case vector.KindFloat:
+		return T(vector.FloatValue(vec, 0))
+	default:
+		panic(vec)
 	}
 }
 
@@ -202,6 +283,45 @@ func (s *stringMinMax) consume(groups []uint32, vec vector.Any) {
 			s.vals[g] = slices.Clone(b)
 			s.set[g] = true
 		}
+	}
+}
+
+func (s *stringMinMax) consumeAll(vec vector.Any) {
+	if !s.set[0] {
+		s.vals[0] = []byte(vector.StringValue(vec, 0))
+		s.set[0] = true
+	}
+	best := s.vals[0]
+	switch vec := vec.(type) {
+	case *vector.Const:
+		v := vec.Any.(*vector.String).Table().Bytes(0)
+		if bytes.Compare(v, best) == s.sign {
+			best = v
+		}
+	case *vector.Dict:
+		table := vec.Any.(*vector.String).Table()
+		for k, count := range vec.Counts {
+			if count > 0 && bytes.Compare(table.Bytes(uint32(k)), best) == s.sign {
+				best = table.Bytes(uint32(k))
+			}
+		}
+	case *vector.View:
+		table := vec.Any.(*vector.String).Table()
+		for _, idx := range vec.Index {
+			if b := table.Bytes(idx); bytes.Compare(b, best) == s.sign {
+				best = b
+			}
+		}
+	default:
+		table := vec.(*vector.String).Table()
+		for k := range vec.Len() {
+			if b := table.Bytes(k); bytes.Compare(b, best) == s.sign {
+				best = b
+			}
+		}
+	}
+	if !bytes.Equal(s.vals[0], best) {
+		s.vals[0] = slices.Clone(best)
 	}
 }
 

@@ -118,3 +118,11 @@ func (a *avg) ResultAsPartial(sctx *super.Context) vector.Any {
 	})
 	return vector.NewRecord(typ, []vector.Any{sum, count}, uint32(len(a.sums)))
 }
+
+func (a *avg) ConsumeAll(vec vector.Any) {
+	vec = vector.Under(vec)
+	if super.IsNumber(vec.Type().ID()) {
+		a.sums[0] = sumVec(a.sums[0], vec)
+		a.counts[0] += uint64(vec.Len())
+	}
+}

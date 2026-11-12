@@ -47,12 +47,22 @@ func (s *sum) Resize(n uint32) {
 }
 
 func (s *sum) Consume(groups []uint32, vec vector.Any) {
+	s.consume(groups, vec, false)
+}
+
+func (s *sum) ConsumeAll(vec vector.Any) {
+	s.consume(nil, vec, true)
+}
+
+// consume is Consume or, if all is true, ConsumeAll, ignoring groups.  Only
+// the slow path needs a slice of zero groups for all.
+func (s *sum) consume(groups []uint32, vec vector.Any, all bool) {
 	vec = vector.Under(vec)
 	if vec.Kind() == vector.KindError {
 		return
 	}
 	if s.slow != nil {
-		s.slow.consume(groups, vec)
+		s.slow.consume(groupsOrZeros(groups, all, vec.Len()), vec)
 		return
 	}
 	typ := numericStateType(vec.Type())
@@ -60,7 +70,7 @@ func (s *sum) Consume(groups []uint32, vec vector.Any) {
 		if vec.Kind() == vector.KindString {
 			// Strings don't sum but must be tracked to detect a mix
 			// of strings and numbers.
-			s.toSlow().consume(groups, vec)
+			s.toSlow().consume(groupsOrZeros(groups, all, vec.Len()), vec)
 		}
 		return
 	}
@@ -76,7 +86,19 @@ func (s *sum) Consume(groups []uint32, vec vector.Any) {
 		}
 		s.set = make([]bool, s.n)
 	} else if s.typ != typ {
-		s.toSlow().consume(groups, vec)
+		s.toSlow().consume(groupsOrZeros(groups, all, vec.Len()), vec)
+		return
+	}
+	if all {
+		switch {
+		case s.ints != nil:
+			s.ints[0] = sumVec(s.ints[0], vec)
+		case s.uints != nil:
+			s.uints[0] = sumVec(s.uints[0], vec)
+		default:
+			s.floats[0] = sumVec(s.floats[0], vec)
+		}
+		s.set[0] = true
 		return
 	}
 	flat, index := flatten(vec)
@@ -105,10 +127,11 @@ func addTo[T int64 | uint64 | float64](sums []T, set []bool, groups []uint32, va
 
 // toSlow switches s to the slow path.
 func (s *sum) toSlow() *slowMath {
-	s.slow = newSlowMath(sumValues, s.n)
+	slow := newSlowMath(sumValues, s.n)
 	if s.typ != nil {
-		s.slow.load(s.fastResult())
+		slow.load(s.Result(nil))
 	}
+	s.slow = slow
 	s.ints, s.uints, s.floats, s.set = nil, nil, nil, nil
 	return s.slow
 }
@@ -129,10 +152,6 @@ func (s *sum) Result(sctx *super.Context) vector.Any {
 	if s.slow != nil {
 		return s.slow.result(sctx, false)
 	}
-	return s.fastResult()
-}
-
-func (s *sum) fastResult() vector.Any {
 	if s.typ == nil {
 		return vector.NewNull(s.n)
 	}
@@ -170,4 +189,60 @@ func compact[T any](vals []T, set []bool, nnulls int) []T {
 
 func (s *sum) ResultAsPartial(sctx *super.Context) vector.Any {
 	return s.Result(sctx)
+}
+
+type numeric interface {
+	int64 | uint64 | float64
+}
+
+// sumVec returns sum plus the sum of the values of numeric vec, converted
+// to S.
+func sumVec[S numeric](sum S, vec vector.Any) S {
+	switch vec := vec.(type) {
+	case *vector.Const:
+		return sum + sumFlat(S(0), vec.Any, nil, nil)*S(vec.Len())
+	case *vector.Dict:
+		return sumFlat(sum, vec.Any, nil, vec.Counts)
+	case *vector.View:
+		return sumFlat(sum, vec.Any, vec.Index, nil)
+	default:
+		return sumFlat(sum, vec, nil, nil)
+	}
+}
+
+func sumFlat[S numeric](sum S, vec vector.Any, index, counts []uint32) S {
+	switch vec := vec.(type) {
+	case *vector.Int:
+		return sumOf(sum, vec.Values, index, counts)
+	case *vector.Uint:
+		return sumOf(sum, vec.Values, index, counts)
+	case *vector.Float:
+		return sumOf(sum, vec.Values, index, counts)
+	default:
+		panic(vec)
+	}
+}
+
+// sumOf returns sum plus vals[i] for each i in index or, if index is nil,
+// each element of vals times its count in counts (or once if counts is nil).
+// The float result can differ in its last bits from adding row by row.
+func sumOf[S, T numeric](sum S, vals []T, index, counts []uint32) S {
+	switch {
+	case index != nil:
+		for _, i := range index {
+			sum += S(vals[i])
+		}
+	case counts != nil:
+		for k, count := range counts {
+			// Skip unused values so, e.g., a NaN doesn't add NaN*0.
+			if count != 0 {
+				sum += S(vals[k]) * S(count)
+			}
+		}
+	default:
+		for _, v := range vals {
+			sum += S(v)
+		}
+	}
+	return sum
 }

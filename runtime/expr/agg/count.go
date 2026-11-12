@@ -58,3 +58,13 @@ func (a *count) ConsumeAsPartial(groups []uint32, partial vector.Any) {
 func (a *count) ResultAsPartial(*super.Context) vector.Any {
 	return a.Result(nil)
 }
+
+func (a *count) ConsumeAll(vec vector.Any) {
+	switch vec.Kind() {
+	case vector.KindNull, vector.KindNone:
+	case vector.KindOption:
+		a.counts[0] += int64(vector.UnderOption(vec).SomeLen())
+	default:
+		a.counts[0] += int64(vec.Len())
+	}
+}

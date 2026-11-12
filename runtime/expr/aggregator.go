@@ -25,6 +25,15 @@ type AggFunc interface {
 	ResultAsPartial(*super.Context) vector.Any
 }
 
+// ScalarAggFunc is implemented by an AggFunc that can reduce a whole vector
+// into group 0 faster than Consume can with a groups slice of zeros, as
+// when aggregating without grouping keys.
+type ScalarAggFunc interface {
+	// ConsumeAll is like Consume with every slot of non-empty vec in
+	// group 0.
+	ConsumeAll(vec vector.Any)
+}
+
 type AggPattern func() AggFunc
 
 type Aggregator struct {

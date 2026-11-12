@@ -14,6 +14,15 @@ func extend[E any](s []E, n uint32) []E {
 	return append(s, make([]E, n-uint32(len(s)))...)
 }
 
+// groupsOrZeros returns n zeros, for consuming every slot into group 0, if
+// all is true and groups otherwise.
+func groupsOrZeros(groups []uint32, all bool, n uint32) []uint32 {
+	if all {
+		return make([]uint32, n)
+	}
+	return groups
+}
+
 func combineNulls(out vector.Any, nullTags []uint32, size uint32) vector.Any {
 	if out.Len() == size {
 		return out
