@@ -119,6 +119,9 @@ func (b *Builder) compileVamBinary(e *dag.BinaryExpr) (expr.Evaluator, error) {
 	case "or":
 		return expr.NewLogicalOr(b.sctx(), lhs, rhs), nil
 	case "in":
+		if in, ok := expr.NewInConst(b.sctx(), lhs, rhs); ok {
+			return in, nil
+		}
 		return expr.NewIn(b.sctx(), lhs, rhs), nil
 	case "==", "!=", "<", "<=", ">", ">=":
 		return expr.NewCompare(b.sctx(), op, lhs, rhs), nil

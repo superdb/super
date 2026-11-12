@@ -1,0 +1,77 @@
+# Test "in" with an array, set, or record of literals on the right.
+spq: |
+  values {
+    in:this,
+    array:this in [1,2.5,"a"],
+    set:this in set[1,"a"],
+    record:this in {x:1,y:"a"},
+    nulls:this in [1,null],
+    whole:this in [1,"a"],
+    casts:this in [2::uint8,"10.0.0.1"::ip]
+  }
+
+input: |
+  1
+  2.5
+  2
+  1::uint8
+  "a"
+  "b"
+  null
+  [1,"a"]
+  {x:1,y:"a"}
+  1::(int64|string)
+  "a"::(int64|string)
+  10.0.0.1
+  error("x")
+
+output: |
+  {in:1,array:true,set:true,record:true,nulls:true,whole:true,casts:false}
+  {in:2.5,array:true,set:false,record:false,nulls:null,whole:false,casts:false}
+  {in:2,array:false,set:false,record:false,nulls:null,whole:false,casts:true}
+  {in:1::uint8,array:true,set:true,record:true,nulls:true,whole:true,casts:false}
+  {in:"a",array:true,set:true,record:true,nulls:null,whole:true,casts:false}
+  {in:"b",array:false,set:false,record:false,nulls:null,whole:false,casts:false}
+  {in:null,array:null,set:null,record:null,nulls:null,whole:null,casts:null}
+  {in:[1,"a"],array:false,set:false,record:false,nulls:null,whole:true,casts:false}
+  {in:{x:1,y:"a"},array:false,set:false,record:true,nulls:null,whole:false,casts:false}
+  {in:1::(int64|string),array:true,set:true,record:true,nulls:true,whole:true,casts:false}
+  {in:"a"::(int64|string),array:true,set:true,record:true,nulls:null,whole:true,casts:false}
+  {in:10.0.0.1,array:false,set:false,record:false,nulls:null,whole:false,casts:true}
+  {in:error("x"),array:error({message:"'in' operator: error value encountered",on:error("x")}),set:error({message:"'in' operator: error value encountered",on:error("x")}),record:error({message:"'in' operator: error value encountered",on:error("x")}),nulls:error({message:"'in' operator: error value encountered",on:error("x")}),whole:error({message:"'in' operator: error value encountered",on:error("x")}),casts:error({message:"'in' operator: error value encountered",on:error("x")})}
+
+---
+
+# Test "in" with literals in a BSUP scan's filter.
+script: |
+  super -f bsup -o f.bsup f.sup
+  super -s -c "from f.bsup | where x in ['a','c',1] | values i"
+  echo ===
+  super -s -c "SELECT i FROM f.bsup WHERE x IN ('b',1)"
+  echo ===
+  super -s -c "SELECT i, x NOT IN ('b',null) AS r FROM f.bsup"
+
+inputs:
+  - name: f.sup
+    data: |
+      {i:1,x:"a"}
+      {i:2,x:"b"}
+      {i:3,x:1}
+      {i:4,x:null}
+      {i:5,x:"c"}
+
+outputs:
+  - name: stdout
+    data: |
+      1
+      3
+      5
+      ===
+      {i:2}
+      {i:3}
+      ===
+      {i:1,r:null}
+      {i:2,r:false}
+      {i:3,r:null}
+      {i:4,r:null}
+      {i:5,r:null}

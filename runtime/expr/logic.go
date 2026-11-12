@@ -227,6 +227,123 @@ func (i *In) eval(vecs ...vector.Any) vector.Any {
 	return i.pw.Eval(vecs[0], vecs[1])
 }
 
+// InConst is an In whose right-hand side is an array, set, or record of
+// literals.  Instead of walking the list for each row, it compares the
+// left-hand side to the list and to each of its elements a vector at a time.
+type InConst struct {
+	sctx   *super.Context
+	lhs    Evaluator
+	list   vector.Any
+	elems  []vector.Any
+	null   bool
+	record bool
+	defuse *SuperDefuse
+	eq     *Compare
+}
+
+// NewInConst returns an InConst and true if rhs is an array, set, or record
+// expression whose elements or field values are all literals.
+func NewInConst(sctx *super.Context, lhs, rhs Evaluator) (*InConst, bool) {
+	var elems []Evaluator
+	switch rhs := rhs.(type) {
+	case *ArrayExpr:
+		elems = listValues(rhs.elems)
+	case *setExpr:
+		elems = listValues(rhs.elems)
+	case *recordExpr:
+		for _, elem := range rhs.elems {
+			field, ok := elem.(*FieldElem)
+			if !ok {
+				return nil, false
+			}
+			elems = append(elems, field.Expr)
+		}
+	}
+	if len(elems) == 0 {
+		return nil, false
+	}
+	var vecs []vector.Any
+	var null bool
+	for _, elem := range elems {
+		if !isLiteral(elem) {
+			return nil, false
+		}
+		val := vector.ValueAt(nil, elem.Eval(vector.NewNull(1)), 0)
+		// Primitive types other than null, missing, and none have IDs below
+		// IDNull.  Missing and none are left to In since array and record
+		// expressions don't hold them as is.
+		switch id := super.TypeID(val.Type()); {
+		case id < super.IDNull:
+			vecs = append(vecs, vector.NewConstFromValue(sctx, val, 1).Any)
+		case id == super.IDNull:
+			null = true
+		default:
+			return nil, false
+		}
+	}
+	list := rhs.Eval(vector.NewNull(1))
+	return &InConst{
+		sctx:   sctx,
+		lhs:    lhs,
+		list:   list,
+		elems:  vecs,
+		null:   null,
+		record: list.Kind() == vector.KindRecord,
+		defuse: NewSuperDefuse(sctx),
+		eq:     NewCompare(sctx, "==", nil, nil),
+	}, true
+}
+
+// listValues returns the value expressions of elems or nil if any is a spread.
+func listValues(elems []ListElem) []Evaluator {
+	var out []Evaluator
+	for _, elem := range elems {
+		if elem.Spread != nil {
+			return nil
+		}
+		out = append(out, elem.Value)
+	}
+	return out
+}
+
+// isLiteral returns true if e is a literal or a cast of a literal to a
+// primitive type.
+func isLiteral(e Evaluator) bool {
+	switch e := e.(type) {
+	case *Literal:
+		return true
+	case *casterPrimitive:
+		_, ok := e.expr.(*Literal)
+		return ok
+	}
+	return false
+}
+
+func (i *InConst) Eval(this vector.Any) vector.Any {
+	return vector.Apply(vector.ApplyRipUnions, i.eval, i.defuse.Eval(i.lhs.Eval(this)))
+}
+
+func (i *InConst) eval(vecs ...vector.Any) vector.Any {
+	if vec, ok := CatchFirst(i.sctx, CatchAll, vecs, "'in' operator"); ok {
+		return vec
+	}
+	lhs := vecs[0]
+	n := lhs.Len()
+	out := i.eq.eval(lhs, vector.NewConst(i.list, n))
+	for _, elem := range i.elems {
+		vec := i.eq.eval(lhs, vector.NewConst(elem, n))
+		if !i.record && vec.Kind() == vector.KindError {
+			// PredicateWalk.evalForList ignores errors from list elements.
+			continue
+		}
+		out = EvalOr(i.sctx, out, vec)
+	}
+	if i.null {
+		out = EvalOr(i.sctx, out, vector.NewNull(n))
+	}
+	return out
+}
+
 type PredicateWalk struct {
 	sctx *super.Context
 	pred func(...vector.Any) vector.Any
