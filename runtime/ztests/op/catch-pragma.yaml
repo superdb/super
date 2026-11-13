@@ -1,18 +1,19 @@
 # The catch pragma puts a catch at the output of every operator and makes its
-# handler the default handler of side errors.
+# handler the default handler of side errors.  The inputs are dynamically
+# typed since the type checker rejects arithmetic on them.
 script: |
   echo "// halt"
-  super -s -c 'pragma catch values x + 1 | where this > 2' halt.sup
+  ! super -dynamic -s -c 'pragma catch values x + 1 | where this > 2' halt.sup
   echo "// handler"
-  super -s -c 'pragma catch = ( values {caught:this} ) values x + 1 | values this * 10' in.sup | super -s -c 'sort this' -
+  super -dynamic -s -c 'pragma catch = ( values {caught:this} ) values x + 1 | values this * 10' in.sup | super -s -c 'sort this' -
   echo "// side errors"
-  super -s -c 'pragma catch = ( values {caught:under(this).on} ) where x + 1 > 2' in.sup | super -s -c 'sort this' -
+  super -dynamic -s -c 'pragma catch = ( values {caught:under(this).on} ) where x + 1 > 2' in.sup | super -s -c 'sort this' -
   echo "// a catch clause takes precedence"
-  super -s -c 'pragma catch = halt where x + 1 > 2 catch ignore' in.sup | super -s -c 'sort this' -
+  super -dynamic -s -c 'pragma catch = halt where x + 1 > 2 catch ignore' in.sup | super -s -c 'sort this' -
   echo "// scoped"
-  super -s -c 'values (pragma catch = ignore values x + 1), x + 1' in.sup | super -s -c 'sort this' -
+  super -dynamic -s -c 'values (pragma catch = ignore values x + 1), x + 1' in.sup | super -s -c 'sort this' -
   echo "// fork and merge"
-  super -s -c 'pragma catch = ignore fork ( values x + 1 ) ( values x * 10 ) | merge this' in.sup
+  super -dynamic -s -c 'pragma catch = ignore fork ( values x + 1 ) ( values x * 10 ) | merge this' in.sup
 
 inputs:
   - name: in.sup
@@ -52,3 +53,6 @@ outputs:
       4
       20
       30
+  - name: stderr
+    data: |
+      query halted

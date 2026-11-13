@@ -2,7 +2,7 @@
 # subquery can be the leaf of a pipe with a table insert (which used to
 # panic).
 script: |
-  super -s -c 'values 10/this | catch ( values {err:this} | output main ) | values {ok:this}' in.sup | super -s -c 'sort this' -
+  super -dynamic -s -c 'values 10/this | catch ( values {err:this} | output main ) | values {ok:this}' in.sup | super -s -c 'sort this' -
   echo ===
   echo '[1,2][3,4]' | super -s -c "unnest this into (sum(this) | output foo)" -
   echo ===

@@ -2,6 +2,7 @@ package op
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"slices"
@@ -74,6 +75,9 @@ func (o *Outputs) send(ctx context.Context, label string, vec vector.Any) error 
 	return o.sendResult(ctx, muxresult{vec: vec, label: label})
 }
 
+// ErrHalted is the error of a query stopped by a halt operator (see Mux).
+var ErrHalted = errors.New("query halted")
+
 // halt sends the value of vec to the mux, which stops the query and returns
 // the value as the query's last value (see Mux).
 func (o *Outputs) halt(ctx context.Context, vec vector.Any) error {
@@ -119,7 +123,8 @@ type muxresult struct {
 //
 // When a halt operator sends its value, the mux cancels the query, which
 // drops any values not yet returned, and returns the halt's value labeled
-// "main" as the query's last value.
+// "main" as the query's last value followed by ErrHalted, so a query that
+// halts fails (e.g., the super command exits with a nonzero status).
 type Mux struct {
 	rctx    *runtime.Context
 	once    sync.Once
@@ -151,7 +156,7 @@ func (m *Mux) Pull(bool) (vector.Any, error) {
 		}
 	})
 	if m.halted {
-		return nil, nil
+		return nil, ErrHalted
 	}
 	for m.running != 0 {
 		select {

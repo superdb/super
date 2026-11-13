@@ -6,7 +6,7 @@ script: |
   super db create -q -orderby k:asc tmp
   super db use -q tmp
   echo '{k:1,v:1} {k:2,v:"x"} {k:3,v:3}' | super db load -q -
-  super db -s -c 'from tmp | where v + 1 > 2 catch ( values {bad:under(this).on} )' | super -s -c 'sort this' -
+  super db -s -c 'from tmp | where cast(v,<int64>) + 1 > 2 catch ( values {bad:under(this).on} )' | super -s -c 'sort this' -
   echo ===
   super db -s -c 'from tmp | where k > 2 catch pass'
 

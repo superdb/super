@@ -5,14 +5,14 @@
 script: |
   for style in "" left right anti; do
     echo "// $style nested loop"
-    super -s -c "from left.sup | $style join (from right.sup) on left.id = right.id and left.v + 1 > 1 catch ( values {bad:under(this).on} )" | super -s -c 'sort this' -
+    super -dynamic -s -c "from left.sup | $style join (from right.sup) on left.id = right.id and left.v + 1 > 1 catch ( values {bad:under(this).on} )" | super -s -c 'sort this' -
     echo "// $style hash"
-    super -s -c "from left.sup | $style join (from right.sup) on left.v + 1 = right.id + 1 catch ( values {bad:under(this).on} )" | super -s -c 'sort this' -
+    super -dynamic -s -c "from left.sup | $style join (from right.sup) on left.v + 1 = right.id + 1 catch ( values {bad:under(this).on} )" | super -s -c 'sort this' -
   done
   echo "// right key"
-  super -s -c "from right.sup | join (from left.sup) on left.id + 1 = right.v + 1 catch ( values under(this) )" | super -s -c 'sort this' -
+  super -dynamic -s -c "from right.sup | join (from left.sup) on left.id + 1 = right.v + 1 catch ( values under(this) )" | super -s -c 'sort this' -
   echo "// without a catch, side errors are dropped"
-  super -s -c "from left.sup | join (from right.sup) on left.id = right.id and left.v + 1 > 1" | super -s -c 'sort this' -
+  super -dynamic -s -c "from left.sup | join (from right.sup) on left.id = right.id and left.v + 1 > 1" | super -s -c 'sort this' -
 
 inputs:
   - name: left.sup

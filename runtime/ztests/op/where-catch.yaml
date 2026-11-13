@@ -10,13 +10,13 @@ script: |
       'where x + 1 > 2 catch ( count() )' \
       'search x + 1 > 2 catch ( values {searched:under(this).on} )'; do
     echo "// $q"
-    super -s -c "$q" in.sup | super -s -c 'sort this' -
+    super -dynamic -s -c "$q" in.sup | super -s -c 'sort this' -
   done
   echo "// halt"
-  super -s -c 'where x + 1 > 2 catch halt' halt.sup
+  ! super -dynamic -s -c 'where x + 1 > 2 catch halt' halt.sup
   echo "// pushdown"
   super -o in.bsup in.sup
-  super -s -c 'from in.bsup | where x + 1 > 2 catch ( values {bad:under(this).on} )' | super -s -c 'sort this' -
+  super -dynamic -s -c 'from in.bsup | where x + 1 > 2 catch ( values {bad:under(this).on} )' | super -s -c 'sort this' -
 
 inputs:
   - name: halt.sup
@@ -71,3 +71,6 @@ outputs:
       {bad:{x:{y:1}}}
       {x:2}
       {x:3}
+  - name: stderr
+    data: |
+      query halted

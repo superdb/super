@@ -21,6 +21,7 @@ import (
 	"github.com/superdb/super/order"
 	"github.com/superdb/super/pkg/storage"
 	"github.com/superdb/super/runtime"
+	"github.com/superdb/super/runtime/op"
 	"github.com/superdb/super/sio"
 	"github.com/superdb/super/sio/anyio"
 	"github.com/superdb/super/sio/csvio"
@@ -448,6 +449,13 @@ func (s *Server) queryTool(ctx context.Context, raw json.RawMessage) (*toolResul
 		writeFormat = "csv"
 	}
 	text, truncated, err := runQuery(ctx, s.db, inputs, writeFormat, limit)
+	if errors.Is(err, op.ErrHalted) {
+		// The query's last value is the halt's value, so return the
+		// results with the error.
+		r := textResult(text, err.Error())
+		r.IsError = true
+		return r, nil
+	}
 	if errors.Is(err, csvio.ErrNotDataFrame) {
 		return nil, fmt.Errorf("format %q requires records with the same fields but the results' fields differ (append \"| fuse\" to the query to unify records)", args.Format)
 	}
@@ -493,6 +501,9 @@ func runQuery(ctx context.Context, database runtime.Database, query []srcfiles.I
 	err = vio.CopyMux(map[string]vio.Pusher{"main": l}, q)
 	if closeErr := w.Close(); err == nil {
 		err = closeErr
+	}
+	if errors.Is(err, op.ErrHalted) {
+		return strings.TrimSuffix(buf.String(), "\n"), l.truncated, err
 	}
 	if err != nil && !errors.Is(err, errLimit) {
 		return "", false, err

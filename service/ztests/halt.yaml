@@ -1,0 +1,26 @@
+# A query that halts fails: the service streams the values before the halt's
+# value and then an error, so the super db command exits with a nonzero
+# status, and the MCP query tool returns the results with isError true.
+script: |
+  DB_EXTRA_FLAGS=-mcp source service.sh
+  super db create -q t
+  echo '{a:1} {a:2} {a:3}' | super db load -q -use t -
+  ! super db -s -c 'from t | sort a | where a == 2 | halt {at:a}'
+  echo ===
+  curl -s -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query","arguments":{"query":"from t | sort a | where a == 2 | halt {at:a}","format":"sup"}}}' \
+    $DB_URL/mcp
+
+inputs:
+  - name: service.sh
+
+outputs:
+  - name: stdout
+    data: |
+      {at:2}
+      ===
+      {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"{at:2}"},{"type":"text","text":"query halted"}],"isError":true}}
+  - name: stderr
+    data: |
+      query halted

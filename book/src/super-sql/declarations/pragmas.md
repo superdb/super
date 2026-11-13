@@ -95,7 +95,7 @@ SELECT 0 AS x, COUNT(*) AS n GROUP BY x
 
 _Stop a query at its first error_
 
-```mdtest-spq
+```mdtest-spq fails
 # spq
 pragma catch
 values this + 1
@@ -105,4 +105,5 @@ values this + 1
 "two"
 # expected output
 error("incompatible types")
+query halted
 ```

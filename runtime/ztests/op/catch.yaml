@@ -1,15 +1,16 @@
 # The catch operator sends the values with an error in them to its handler
 # and passes the others.  The output is sorted since the order of the
-# handler's values and the passed values is undefined.
+# handler's values and the passed values is undefined.  The inputs are
+# dynamically typed since the type checker rejects arithmetic on them.
 script: |
   for q in 'catch ( values {caught:this} )' 'catch ignore' 'catch pass' \
       'catch ( count() )' \
       'catch ( values 10/this | catch ( values {nested:this} ) )'; do
     echo "// $q"
-    super -s -c "$q" in.sup | super -s -c 'sort this' -
+    super -dynamic -s -c "$q" in.sup | super -s -c 'sort this' -
   done
   echo "// halt"
-  super -s -c 'catch halt' halt.sup
+  ! super -dynamic -s -c 'catch halt' halt.sup
 
 inputs:
   - name: in.sup
@@ -53,3 +54,6 @@ outputs:
       {nested:error({message:"/: error value encountered",on:error("bad")})}
       // halt
       error("first")
+  - name: stderr
+    data: |
+      query halted

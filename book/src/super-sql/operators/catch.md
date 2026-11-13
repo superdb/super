@@ -107,13 +107,14 @@ values 10/this | catch ignore
 ---
 
 _Stop at the first value with an error_
-```mdtest-spq
+```mdtest-spq fails
 # spq
 values 10/this | catch halt
 # input
 "two"
 # expected output
 error("incompatible types")
+query halted
 ```
 
 ---
