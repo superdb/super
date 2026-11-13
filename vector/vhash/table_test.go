@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/superdb/super"
 	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/bitvec"
 )
 
 func TestTableFindOrInsert(t *testing.T) {
@@ -108,4 +109,36 @@ func strs(vals ...string) vector.Any {
 		b.Append(v)
 	}
 	return b
+}
+
+func TestTableBoolKeys(t *testing.T) {
+	tab := NewTable([]super.Type{super.TypeBool, super.TypeString})
+	keyIDs, created := tab.FindOrInsert([]vector.Any{
+		bools(true, false, true, true, false),
+		strs("a", "a", "a", "b", "a"),
+	})
+	assert.Equal(t, []uint32{0, 1, 0, 2, 1}, keyIDs)
+	assert.Equal(t, []uint32{0, 1, 3}, created)
+
+	// Const and View inputs.
+	keyIDs, _ = tab.FindOrInsert([]vector.Any{vector.NewConstBool(false, 2), strs("b", "a")})
+	assert.Equal(t, []uint32{3, 1}, keyIDs)
+	view := vector.NewView(bools(false, true), []uint32{1, 1, 0})
+	assert.Equal(t, []uint32{0, 2, Miss}, tab.Find([]vector.Any{view, strs("a", "b", "c")}))
+
+	keys := tab.Keys(super.NewContext())
+	b := keys[0].(*vector.Bool)
+	var got []bool
+	for i := range b.Len() {
+		got = append(got, b.IsSet(i))
+	}
+	assert.Equal(t, []bool{true, false, true, false}, got)
+}
+
+func bools(vals ...bool) vector.Any {
+	bits := bitvec.NewFalse(uint32(len(vals)))
+	for i, v := range vals {
+		bits.SetTo(uint32(i), v)
+	}
+	return vector.NewBool(bits)
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/superdb/super"
 	"github.com/superdb/super/pkg/byteconv"
 	"github.com/superdb/super/vector"
+	"github.com/superdb/super/vector/bitvec"
 )
 
 // numericKey is a key of fixed-width values, which are compared by bit
@@ -45,6 +46,32 @@ func newFloatKey(typ super.Type) *numericKey[uint64] {
 		},
 		build: func(vals []uint64) vector.Any {
 			return vector.NewFloat(typ, byteconv.ReinterpretSlice[float64](vals))
+		},
+	}
+}
+
+func newBoolKey() *numericKey[uint32] {
+	var buf []uint32
+	return &numericKey[uint32]{
+		valuesOf: func(vec vector.Any) []uint32 {
+			bits := vec.(*vector.Bool).Bits
+			buf = resize(buf, int(bits.Len()))
+			for i := range buf {
+				buf[i] = 0
+				if bits.IsSet(uint32(i)) {
+					buf[i] = 1
+				}
+			}
+			return buf
+		},
+		build: func(vals []uint32) vector.Any {
+			bits := bitvec.NewFalse(uint32(len(vals)))
+			for i, v := range vals {
+				if v != 0 {
+					bits.Set(uint32(i))
+				}
+			}
+			return vector.NewBool(bits)
 		},
 	}
 }
