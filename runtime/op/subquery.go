@@ -75,30 +75,33 @@ func (s *Subquery) Eval(this vector.Any) vector.Any {
 			msg := s.ctx.Err().Error()
 			return vector.NewStringError(s.sctx, msg, this.Len())
 		}
-		db.Write(s.bodyPull())
+		db.Write(subqueryBodyPull(s.sctx, s.body, s.sql))
 	}
 	return db.Build()
 }
 
-func (s *Subquery) bodyPull() vector.Any {
-	vec, err := s.body.Pull(false)
+func subqueryBodyPull(sctx *super.Context, p vio.Puller, sql bool) vector.Any {
+	vec, err := p.Pull(false)
 	if err != nil {
-		return vector.NewStringError(s.sctx, err.Error(), 1)
+		return vector.NewStringError(sctx, err.Error(), 1)
 	}
 	if vec == nil {
-		return emptyResult(s.sql)
+		if sql {
+			return vector.NewNull(1)
+		}
+		return vector.NewNone(1)
 	}
-	vec2, err := s.body.Pull(false)
+	vec2, err := p.Pull(false)
 	if err != nil {
-		return vector.NewStringError(s.sctx, err.Error(), 1)
+		return vector.NewStringError(sctx, err.Error(), 1)
 	}
 	if vec2 != nil {
-		if _, err := s.body.Pull(true); err != nil {
-			return vector.NewStringError(s.sctx, err.Error(), 1)
+		if _, err := p.Pull(true); err != nil {
+			return vector.NewStringError(sctx, err.Error(), 1)
 		}
 	}
 	if vec2 != nil || vec.Len() > 1 {
-		return vector.NewStringError(s.sctx, "query expression produced multiple values (consider [subquery])", 1)
+		return vector.NewStringError(sctx, "query expression produced multiple values (consider [subquery])", 1)
 	}
 	return vec
 }
@@ -115,13 +118,4 @@ func (s *Subquery) Pull(done bool) (vector.Any, error) {
 	case <-s.ctx.Done():
 		return nil, s.ctx.Err()
 	}
-}
-
-// emptyResult returns the value of a subquery that produces no values: null
-// in a SQL expression and otherwise none.
-func emptyResult(sql bool) vector.Any {
-	if sql {
-		return vector.NewNull(1)
-	}
-	return vector.NewNone(1)
 }

@@ -20,8 +20,7 @@ outputs:
       | where 1<=v and 1>=v
       | output main
       === Test pruner optimization works with in subquery expressions
-      null
-      | values {x:(
+      let 0/subquery = materialized (
         file test.parquet format parquet type {v:int64}
           meta-filter project [v.max,v.min] (
             compare(v.max, 1, true)>=0 and compare(v.min, 1, true)<=0
@@ -29,5 +28,9 @@ outputs:
           data-filter project [v] (
             1<=v and 1>=v
           )
-        | where 1<=v and 1>=v)}
+        | where 1<=v and 1>=v
+      )
+      null
+      | values {x:materialized (
+        materialized 0)}
       | output main

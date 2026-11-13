@@ -165,10 +165,11 @@ FuncDecl
     }
 
 QueryDecl
-  = LET _ name:Identifier __ "=" __ "(" __ body:Query __ ")" {
+  = LET _ name:Identifier __ "=" __ m:(MATERIALIZED __)? "(" __ body:Query __ ")" {
       return &ast.QueryDecl{
         Kind: "QueryDecl",
         Name: name.(*ast.ID),
+        Materialized: m != nil,
         Body: sliceOf[ast.Op](body),
         Loc: loc(c),
       }, nil
@@ -1342,13 +1343,19 @@ Primary
   / Map
   / SQLTimeExpr
   / Literal
-  / id:Identifier               { return &ast.IDExpr{Kind:"IDExpr", ID: *(id.(*ast.ID))}, nil }
   / Tuple
   / "(" __ expr:Expr __ ")" { return expr, nil }
-  / "(" __ expr:SubqueryExpr __ ")" { return expr, nil }
-  / "[" __ expr:SubqueryExpr __ "]" { 
+  / m:(MATERIALIZED __)? "(" __ expr:SubqueryExpr __ ")" {
+      expr.(*ast.SubqueryExpr).Materialized = m != nil
+      return expr, nil
+    }
+  / m:(MATERIALIZED __)? "[" __ !(Expr __ "]") expr:SubqueryExpr __ "]" {
       expr.(*ast.SubqueryExpr).Array = true
-      return expr, nil 
+      expr.(*ast.SubqueryExpr).Materialized = m != nil
+      return expr, nil
+    }
+  / id:Identifier {
+      return &ast.IDExpr{Kind:"IDExpr", ID: *(id.(*ast.ID))}, nil
     }
 
 MatchExpr

@@ -19,9 +19,12 @@ inputs:
         ) on left.left_key = right.right_key 
         | values {...left,left_dest:right.right_source}
       )
+      let q1 = ( values 1 )
+      let q2 = materialized ( values 2 )
+      let qUnused = materialized (values null)
       joinTest "fruit.json", "people.json", flavor, likes, eater, name
       | stamp "bob"
-      | values fib(1), add(2,3)
+      | values fib(1), add(2,3), q1, q2
 
 outputs:
   - name: stdout
@@ -47,15 +50,28 @@ outputs:
         ) on left.left_key=right.right_key
         | values {...left,left_dest:right.right_source}
       )
+      let q1 = (
+        values 1
+      )
+      let q2 = materialized (
+        values 2
+      )
+      let qUnused = materialized (
+        values null
+      )
       call joinTest "fruit.json", "people.json", flavor, likes, eater, name
       | call stamp "bob"
-      | values fib(1), add(2, 3)
+      | values fib(1), add(2, 3), q1, q2
       ===
       fn 0/fib(n): (
         (n<=1) ? n : 0(n-1)+0(n-2)
       )
       fn 1/add(a, b): (
         a+b
+      )
+      let 0/q2 = materialized (
+        null
+        | values 2
       )
       fork
         (
@@ -67,5 +83,7 @@ outputs:
       | inner join as {left,right} on left.left_key==right.right_key
       | values {...left,left_dest:right.right_source}
       | values {...this,assignee:"bob",ts:now()}
-      | values 0(1), 1(2, 3)
+      | values 0(1), 1(2, 3), (
+        values 1), materialized (
+        materialized 0)
       | output main

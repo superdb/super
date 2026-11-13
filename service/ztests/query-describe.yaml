@@ -2,7 +2,7 @@ script: |
   source service.sh
   super db create -q -orderby ts:desc test1
   super db create -q -orderby ts:desc test2
-  for file in multifrom.spq agg.spq agg-no-keys.spq two-channels.spq agg-sort.spq scope.spq auto-combined-channels.spq; do
+  for file in multifrom.spq agg.spq agg-no-keys.spq two-channels.spq agg-sort.spq scope.spq auto-combined-channels.spq materialized.spq; do
     echo // === $file ===
     query="$(cat $file | jq -Rsa .)"
     curl -H "Accept: application/json" -d "{\"query\":$query,\"head\":{\"table\":\"test1\"}}" $DB_URL/query/describe |
@@ -42,6 +42,10 @@ inputs:
   - name: auto-combined-channels.spq
     data: |
       from test1 | fork ( pass ) ( pass )
+  - name: materialized.spq
+    data: |
+      let q = materialized (from test1)
+      from q
 
 outputs:
   - name: stdout
@@ -212,6 +216,23 @@ outputs:
         ]
       }
       // === auto-combined-channels.spq ===
+      {
+        "sources": [
+          {
+            "kind": "Table",
+            "name": "test1",
+            "id": "XXX"
+          }
+        ],
+        "channels": [
+          {
+            "name": "main",
+            "aggregation_keys": [],
+            "sort": []
+          }
+        ]
+      }
+      // === materialized.spq ===
       {
         "sources": [
           {

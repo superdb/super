@@ -2,7 +2,7 @@
 
 A query may be bound to an identifier as a named query with the syntax
 ```
-let <name> = ( <query> )
+let <name> = [ materialized ] ( <query> )
 ```
 where `<name>` is an [identifier](../queries.md#identifiers)
 and `<query>` is any standalone [query](../queries.md) that sources its own input.
@@ -19,6 +19,10 @@ begin with a
 [from](../operators/from.md)  or
 [values](../operators/values.md) operator to provide explicit input.
 
+Use `materialized` to materialize a named query by evaluating it once and
+reusing the result on each invocation.  This is useful when a query is expensive
+or has output that varies across evaluations.
+
 Named queries can also be referenced within an expression, in which case they are
 automatically invoked as an [expression subquery](../expressions/subqueries.md).
 As with any expression subquery, multiple values result in an error, so when
@@ -30,7 +34,7 @@ To create a query that can operate on its input, declare an [operator](operators
 A common use case for a named query is to compute a complex query that returns a scalar,
 then embedding that scalar result in an [expression](../expressions/intro.md).  Even though the named query
 appears syntactically as a subquery in this case, the result is efficient
-because the compiler will materialize the result and reuse it on each invocation.
+because the compiler will automatically materialize it.
 
 ## Examples
 
@@ -76,4 +80,19 @@ values {a:[q1],b:[q2],c:q3}
 
 # expected output
 {a:[1,2,3],b:[3,4],c:5}
+```
+
+---
+
+_A materialized named query is evaluated once_
+
+```mdtest-spq
+# spq
+let q = materialized (values now())
+values q,q,q
+| count(distinct this)
+# input
+
+# expected output
+1
 ```

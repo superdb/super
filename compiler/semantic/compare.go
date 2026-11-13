@@ -43,6 +43,9 @@ func eqOp(aop, bop sem.Op) bool {
 	case *sem.HTTPScan:
 		b, ok := bop.(*sem.HTTPScan)
 		return ok && a.URL == b.URL && a.Format == b.Format && a.Method == b.Method && a.Body == b.Body && eqHeaders(a.Headers, b.Headers)
+	case *sem.MaterializedScan:
+		b, ok := bop.(*sem.MaterializedScan)
+		return ok && a.Tag == b.Tag
 	case *sem.NullScan:
 		_, ok := bop.(*sem.NullScan)
 		return ok
@@ -281,7 +284,7 @@ func eqExpr(aexpr, bexpr sem.Expr) bool {
 		return ok && eqExpr(a.Expr, b.Expr) && eqExpr(a.From, b.From) && eqExpr(a.To, b.To)
 	case *sem.SubqueryExpr:
 		b, ok := bexpr.(*sem.SubqueryExpr)
-		return ok && a.Correlated == b.Correlated && a.Array == b.Array && a.SQL == b.SQL && eqSeq(a.Body, b.Body)
+		return ok && a.Array == b.Array && a.Materialized == b.Materialized && a.SQL == b.SQL && eqSeq(a.Body, b.Body)
 	case *sem.ThisExpr:
 		b, ok := bexpr.(*sem.ThisExpr)
 		if !ok || len(a.Chain) != len(b.Chain) {

@@ -35,10 +35,11 @@ type PragmaDecl struct {
 }
 
 type QueryDecl struct {
-	Kind string `json:"kind" unpack:""`
-	Name *ID    `json:"name"`
-	Body Seq    `json:"body"`
-	Loc  `json:"loc"`
+	Kind         string `json:"kind" unpack:""`
+	Name         *ID    `json:"name"`
+	Materialized bool   `json:"materialized"`
+	Body         Seq    `json:"body"`
+	Loc          `json:"loc"`
 }
 
 type TypeDecl struct {

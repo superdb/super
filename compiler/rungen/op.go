@@ -33,11 +33,13 @@ type Builder struct {
 	// it wraps a Go channel for synchronization and won't block when ctx done.
 	// It's nil when there is no mux (e.g., when an expression is evaluated
 	// at compile time).
-	outputs         *op.Outputs
-	deletes         *sync.Map
-	funcs           map[string]*dag.FuncDef
-	compiledVamUDFs map[string]*expr.UDF
-	mu              sync.Mutex
+	outputs          *op.Outputs
+	deletes          *sync.Map
+	funcs            map[string]*dag.FuncDef
+	compiledVamUDFs  map[string]*expr.UDF
+	materialized     []*op.Materialized     // indexed by dag.MaterializedScan.Tag
+	materializedDefs []*dag.MaterializedDef // indexed by dag.MaterializedScan.Tag
+	mu               sync.Mutex
 }
 
 func NewBuilder(rctx *runtime.Context, env *exec.Environment) *Builder {
@@ -59,20 +61,32 @@ func (b *Builder) Build(main *dag.Main) ([]vio.Puller, *op.Outputs, error) {
 	if !isEntry(main.Body, true) {
 		return nil, nil, errors.New("internal error: DAG entry point is not a data source")
 	}
-	if len(main.Types) != 0 {
-		defs, ok := super.NewTypeDefsFromBytes(main.Types)
-		if !ok {
-			return nil, nil, fmt.Errorf("bad typedefs: %v", main.Types)
-		}
-		b.mapper = super.NewTypeDefsMapper(b.rctx.Sctx, defs)
+	if err := b.init(main.Types, main.Funcs, main.MaterializedDefs); err != nil {
+		return nil, nil, err
 	}
-	leaves, err := b.compileVamMain(main, nil)
+	leaves, err := b.compileVamSeq(main.Body, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 	// A leaf is nil when an output operator has no parent.
 	leaves = slices.DeleteFunc(leaves, func(p vio.Puller) bool { return p == nil })
 	return leaves, b.outputs, nil
+}
+
+func (b *Builder) init(types []byte, funcs []*dag.FuncDef, m []*dag.MaterializedDef) error {
+	if len(types) > 0 {
+		defs, ok := super.NewTypeDefsFromBytes(types)
+		if !ok {
+			return fmt.Errorf("bad typedefs: %v", types)
+		}
+		b.mapper = super.NewTypeDefsMapper(b.rctx.Sctx, defs)
+	}
+	for _, f := range funcs {
+		b.funcs[f.Tag] = f
+	}
+	b.materialized = make([]*op.Materialized, len(m))
+	b.materializedDefs = m
+	return nil
 }
 
 func (b *Builder) sctx() *super.Context {
@@ -184,15 +198,8 @@ func EvalAtCompileTimeWithEnv(ctx context.Context, sctx *super.Context, env *exe
 	// There's no mux so the values of output and debug operators are
 	// discarded.
 	b.outputs = nil
-	for _, f := range main.Funcs {
-		b.funcs[f.Tag] = f
-	}
-	if len(main.Types) != 0 {
-		defs, ok := super.NewTypeDefsFromBytes(main.Types)
-		if !ok {
-			return super.Value{}, fmt.Errorf("bad typedefs: %v", main.Types)
-		}
-		b.mapper = super.NewTypeDefsMapper(b.rctx.Sctx, defs)
+	if err := b.init(main.Types, main.Funcs, main.MaterializedDefs); err != nil {
+		return super.Value{}, err
 	}
 	return b.evalAtCompileTime(main.Expr)
 }
@@ -202,7 +209,7 @@ func isEntry(seq dag.Seq, fileScanIsEntry bool) bool {
 		return false
 	}
 	switch op := seq[0].(type) {
-	case *dag.ListerScan, *dag.HTTPScan, *dag.TableScan, *dag.DBMetaScan, *dag.TableMetaScan, *dag.CommitMetaScan, *dag.NullScan:
+	case *dag.ListerScan, *dag.HTTPScan, *dag.TableScan, *dag.DBMetaScan, *dag.TableMetaScan, *dag.CommitMetaScan, *dag.NullScan, *dag.MaterializedScan:
 		return true
 	case *dag.FileScan:
 		return fileScanIsEntry
