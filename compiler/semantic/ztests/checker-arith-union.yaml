@@ -1,0 +1,53 @@
+# The operands of an arithmetic operator must be numeric (or null or an error,
+# which arithmetic passes through) for every type of a union, so a union with
+# other types must be narrowed.
+script: |
+  ! super -s -c 'values x+1' in.sup
+  ! super -s -c 'values x*2' in.sup
+  ! super -s -c 'values -x' in.sup
+  echo ===
+  super -s -c 'values (x.(int64)??0)+1, -(x.(int64)??0)' in.sup
+  echo ===
+  super -s -c 'values y+1, -y' in.sup
+  echo ===
+  super -s -c 'values e+1, -e' err.sup
+
+inputs:
+  - name: in.sup
+    data: |
+      {x:1,y:1}
+      {x:"foo",y:null}
+  - name: err.sup
+    data: |
+      {e:1}
+      {e:error("x")}
+
+outputs:
+  - name: stderr
+    data: |
+      type mismatch: int64|string + int64 at line 1, column 8:
+      values x+1
+             ~~~
+      numeric type required, encountered int64|string at line 1, column 8:
+      values x*2
+             ~
+      numeric type required, encountered int64|string at line 1, column 9:
+      values -x
+              ~
+  - name: stdout
+    data: |
+      ===
+      2
+      -1
+      1
+      0
+      ===
+      2
+      -1
+      null
+      null
+      ===
+      2
+      -1
+      error({message:"+: error value encountered",on:error("x")})
+      error({message:"unary '-': error value encountered",on:error("x")})
