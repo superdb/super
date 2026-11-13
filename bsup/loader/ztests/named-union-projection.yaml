@@ -1,14 +1,28 @@
 # A projection of a union's named members drops their names (rather than
 # binding them to the projected types) and merges members whose projected
-# types are the same.
+# types are the same, for a union of two members (whose tags are run-length
+# encoded) and of more.  Reading a file both with and without a projection in
+# one query (so in one type context) checks that the names stay bound to
+# their actual types.
 script: |
-  super -o test.bsup -
-  super dev vector project -s test.bsup x
-  echo ===
-  super -s -c 'by typeof(this) | sort this' test.bsup
+  for n in 2 3; do
+    super -o u$n.bsup u$n.sup
+    super dev vector project -s u$n.bsup x
+    echo ===
+    super -s -c "fork (from u$n.bsup | values x) (from u$n.bsup | values typeof(this)) | sort this"
+    echo ===
+  done
 
 inputs:
-  - name: stdin
+  - name: u2.sup
+    data: |
+      type A={x:int64,s:string}
+      type B={x:int64,t:string}
+      type U=A|B
+      {x:1,s:"a"}::A::U
+      {x:2,t:"b"}::B::U
+      {x:3,s:"c"}::A::U
+  - name: u3.sup
     data: |
       type A={x:int64,s:string}
       type B={x:int64,t:string}
@@ -25,10 +39,32 @@ outputs:
       {x:1}
       {x:2}
       {x:3}
+      ===
+      1
+      2
+      3
+      type A={x:int64,s:string}
+      type B={x:int64,t:string}
+      type U=A|B
+      <U>
+      <U>
+      <U>
+      ===
+      {x:1}
+      {x:2}
+      {x:3}
       {x:4}
       ===
+      1
+      2
+      3
+      4
       type A={x:int64,s:string}
       type B={x:int64,t:string}
       type C={x:int64,b:bool}
       type U=A|B|C
       <U>
+      <U>
+      <U>
+      <U>
+      ===

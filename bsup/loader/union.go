@@ -49,7 +49,7 @@ func (u *Union) project(loader *FrameLoader, projection field.Projection) vector
 		// The projection made some member types the same (e.g., records
 		// projected to their common fields), so merge their vectors.
 		if len(u.Values) == 2 {
-			tags = expandRLE(tags, u.Length)
+			tags, _ = vector.TagsFromRLE(tags, u.Length)
 		}
 		vec := vbuild.MergeSameTypesInDynamic(vector.NewDynamic(tags, vecs))
 		if d, ok := vec.(*vector.Dynamic); ok {
@@ -73,21 +73,4 @@ func hasDuplicates(types []super.Type) bool {
 		}
 	}
 	return false
-}
-
-// expandRLE returns the n tags of a union of two member types from rle, the
-// lengths of its alternating runs of tags starting with a run of 1s, where any
-// tags past the runs are 0 (see vector.Union.TagsRLE).
-func expandRLE(rle []uint32, n uint32) []uint32 {
-	tags := make([]uint32, n)
-	var off uint32
-	for k, run := range rle {
-		if k%2 == 0 {
-			for i := range run {
-				tags[off+i] = 1
-			}
-		}
-		off += run
-	}
-	return tags
 }

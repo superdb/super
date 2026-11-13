@@ -68,10 +68,10 @@ func NewUnionNoneRLE(sctx *super.Context, vec Any, length uint32, runlens []uint
 		types = append(types, super.TypeMissing)
 		vecs := slices.Clone(union.Values())
 		noneTag := uint32(len(vecs))
-		// buildTags assumes a single value at tag 0 and a none at tag 1.
+		// TagsFromRLE assumes a single value at tag 0 and a none at tag 1.
 		// we'll build that then convert it from this unions tags, where the
 		// union tags are preserved and the none at tag 1 goes to the last tag (noneTag).
-		tags, missingLen := buildTags(runlens, length)
+		tags, missingLen := TagsFromRLE(runlens, length)
 		vecs = append(vecs, NewMissing(missingLen))
 		var from int
 		fromTags := union.Tags()
@@ -171,7 +171,7 @@ func (u *Union) load() {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	if u.dynamic.Tags == nil {
-		u.dynamic.Tags, _ = buildTags(u.rle, u.Len())
+		u.dynamic.Tags, _ = TagsFromRLE(u.rle, u.Len())
 	}
 }
 
@@ -258,9 +258,13 @@ func (r *RLE) emit(run uint32) {
 	r.runs = append(r.runs, run)
 }
 
-// buildTags returns tags for some/none runs presuming missing tag is 1 and
-// some tag 0 (as is consistent with super.OptionSomeTag and super.OptionNoneTag)
-func buildTags(runlens []uint32, n uint32) ([]uint32, uint32) {
+// TagsFromRLE returns the n tags encoded by runlens, the lengths of
+// alternating runs of tag 1 and tag 0 starting with tag 1, where any tags
+// past the runs are 0, and the number of tags that are 1.  This is the
+// encoding of the tags of a union of two types (see Union.TagsRLE), where tag
+// 1 is consistent with super.OptionNoneTag and tag 0 with
+// super.OptionSomeTag.
+func TagsFromRLE(runlens []uint32, n uint32) ([]uint32, uint32) {
 	tags := make([]uint32, n)
 	off := 0
 	var missingLen uint32
