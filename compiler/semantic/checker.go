@@ -475,8 +475,7 @@ func (c *checker) expr(typ super.Type, e sem.Expr) super.Type {
 		typ = c.expr(typ, e.Operand)
 		switch e.Op {
 		case "-":
-			c.number(e.Operand, typ)
-			return typ
+			return c.negate(e.Operand, typ)
 		case "!":
 			c.boolean(e, typ)
 			return super.TypeBool
@@ -704,6 +703,24 @@ func (c *checker) binary(op string, loc, lloc, rloc ast.Node, lhs, rhs super.Typ
 	default:
 		panic(op)
 	}
+}
+
+// negate checks the operand of unary minus as binary checks the operands of
+// an arithmetic operator.
+func (c *checker) negate(loc ast.Node, typ super.Type) super.Type {
+	under := defuse(typ)
+	if hasMissing(under) {
+		c.error(loc, errMissing)
+		return c.unknown
+	}
+	if hasOption(under) || hasNone(under) {
+		c.error(loc, fmt.Errorf("%s: %w", sup.FormatType(under), errNone))
+		return c.unknown
+	}
+	if !hasUnknown(under) {
+		c.number(loc, under)
+	}
+	return typ
 }
 
 func (c *checker) this(loc ast.Node, this *sem.ThisExpr, typ super.Type) super.Type {
@@ -1196,15 +1213,44 @@ func (c *checker) integer(loc ast.Node, typ super.Type) bool {
 	return ok
 }
 
+// number checks that typ is numeric for an arithmetic operator.  Unlike most
+// checks, it requires that every type of a union be numeric (or null or an
+// error, which arithmetic passes through) since arithmetic on a value of any
+// other type is an error, e.g., x+1 where x is int64|string.  A union like
+// this can be narrowed, e.g., x.(int64)??0.
 func (c *checker) number(loc ast.Node, typ super.Type) bool {
-	ok := typeCheck(typ, func(typ super.Type) bool {
-		id := typ.ID()
-		return super.IsNumber(id) || id == super.IDNull
-	})
+	ok := isNumber(typ)
 	if !ok {
 		c.error(loc, fmt.Errorf("numeric type required, encountered %s", sup.FormatType(typ)))
 	}
 	return ok
+}
+
+// isNumber reports whether typ is numeric or null or, for a union, whether
+// each of its types is numeric, null, or an error and at least one isn't an
+// error.
+func isNumber(typ super.Type) bool {
+	if isUnknown(typ) {
+		return true
+	}
+	switch typ := under(typ).(type) {
+	case *super.TypeUnion:
+		var ok bool
+		for _, t := range typ.Types {
+			if isErrorType(t) {
+				continue
+			}
+			if !isNumber(t) {
+				return false
+			}
+			ok = true
+		}
+		return ok
+	case *super.TypeOption:
+		return isNumber(typ.Type)
+	}
+	id := under(typ).ID()
+	return super.IsNumber(id) || id == super.IDNull
 }
 
 // e ?. f => if e is none, then none otherwise e.f
@@ -1480,27 +1526,11 @@ func (c *checker) plus(loc ast.Node, lhs, rhs super.Type) super.Type {
 	if hasUnknown(lhs) || hasUnknown(rhs) {
 		return c.unknown
 	}
-	if hasNumber(lhs) && hasNumber(rhs) {
+	if isNumber(lhs) && isNumber(rhs) {
 		return c.fuse([]super.Type{lhs, rhs})
 	}
 	c.error(loc, fmt.Errorf("type mismatch: %s + %s", sup.FormatType(lhs), sup.FormatType(rhs)))
 	return c.unknown
-}
-
-func hasNumber(typ super.Type) bool {
-	id := under(typ).ID()
-	if super.IsNumber(id) || id == super.IDNull {
-		return true
-	}
-	if u, ok := under(typ).(*super.TypeUnion); ok {
-		if slices.ContainsFunc(u.Types, hasNumber) {
-			return true
-		}
-	}
-	if o, ok := under(typ).(*super.TypeOption); ok {
-		return hasNumber(o.Type)
-	}
-	return false
 }
 
 func hasString(typ super.Type) bool {

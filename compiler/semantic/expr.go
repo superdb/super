@@ -409,6 +409,9 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 		if e.Op == "+" {
 			return operand, typ
 		}
+		if e.Op == "-" {
+			typ = t.checker.negate(e.Operand, typ)
+		}
 		return sem.NewUnaryExpr(e, e.Op, operand), typ
 	case nil:
 		panic("semantic analysis: illegal null value encountered in AST")

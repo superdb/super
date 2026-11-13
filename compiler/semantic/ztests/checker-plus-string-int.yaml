@@ -2,6 +2,7 @@ spq: |
    values {x:"foo",y:1}, {x:1::int8,y:1}
    | values x+y
 
-output: |
-  error("incompatible types")
-  2
+error: |
+  type mismatch: int8|string + int64 at line 2, column 10:
+  | values x+y
+           ~~~

@@ -1,5 +1,6 @@
 spq: values {x:{y:1,w:1},z:1},1 | drop x.y | values this+1
 
-output: |
-  error("incompatible types")
-  2
+error: |
+  type mismatch: int64|{x:{w:int64},z:int64} + int64 at line 1, column 48:
+  values {x:{y:1,w:1},z:1},1 | drop x.y | values this+1
+                                                 ~~~~~~
