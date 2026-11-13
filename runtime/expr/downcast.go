@@ -134,12 +134,22 @@ func (d *Downcast) downcast(vec vector.Any, to super.Type) vector.Any {
 	}
 }
 
+// downcastFusion downcasts a fusion value embedded in a value being defused,
+// e.g., a field of a record whose fusion's subtype gives the field the type
+// "to".  The fusion value stands for its subtype's value so it's defused to its
+// subtype, which is then downcast to "to" if the types differ.
 func (d *Downcast) downcastFusion(fusion *vector.Fusion, to super.Type) vector.Any {
 	vec := d.To(fusion.Values, fusion.Subtypes)
+	subtypes := make(map[super.Type]struct{})
+	for _, typ := range fusion.Subtypes.Types() {
+		subtypes[typ] = struct{}{}
+	}
 	return vector.Apply(vector.ApplyNone, func(vecs ...vector.Any) vector.Any {
 		vec := vecs[0]
-		if vec.Type() != to {
-			vec = d.errSubtype(vec, to)
+		// Errors from defusing aren't one of the subtypes so they pass
+		// through as is.
+		if _, ok := subtypes[vec.Type()]; ok && vec.Type() != to {
+			vec = d.downcast(vec, to)
 		}
 		return vec
 	}, vec)
