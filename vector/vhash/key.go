@@ -47,8 +47,10 @@ func newKey(typ super.Type) key {
 		return &nullKey{}
 	case *super.TypeOfNone:
 		return &noneKey{}
+	case *super.TypeRecord:
+		return newRecordKey(typ)
 	default:
-		// Everything else (records, arrays, maps,
+		// Everything else (null, arrays, maps,
 		// unions, enums, errors, options, ...) is keyed by its serialized
 		// form for now.
 		return newScodeKey(typ)
