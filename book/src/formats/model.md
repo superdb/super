@@ -77,15 +77,21 @@ type `T` or null is a [union](#25-union) of `T` and `null`,
 e.g., a nullable string has type `string|null`.
 
 The _missing_ type is a primitive type whose only value is `missing`,
-which represents the absence of a value, e.g., in a record type formed by
-[type fusion](../super-sql/type-fusion.md), the value of
-a field that is absent from the original record.
+which marks a field that is absent from some of the values described by
+one type, e.g., a field of a record type formed by
+[type fusion](../super-sql/type-fusion.md) that is absent from some of
+the original records.
 
-The _none_ type is a primitive type whose only value is `none`.  Its
-primary purpose is to be cast to an [option](#29-option) type, yielding
-that option's "none" value.  It is also the element type of an empty array
+The _none_ type is a primitive type whose only value is `none`, which
+means there is no value, e.g., the result of
+[ok](../super-sql/functions/generics/ok.md) applied to an error.
+Cast to an [option](#29-option) type, `none` yields that option's "none"
+value.  It is also the element type of an empty array
 or set and the key and value type of an empty map whose types are not
 otherwise known.
+
+See [None and Missing](../super-sql/types/none.md) for how SuperSQL
+treats these two values.
 
 ### 1.2 All and Any
 

@@ -146,6 +146,17 @@ values x
 error("no such field x")
 ```
 
+SuperSQL does have a type called `missing`, but it plays a different role.
+When values of different shapes are described by one type, e.g., after
+[type fusion](../type-fusion.md), the type must say which fields are absent
+from some of the values.  A field of type `int64|missing`, for instance,
+is an `int64` in the records that include the field and absent from records
+that do not include it.
+So `missing` describes the shape of data rather than being a value that a
+query produces: reading such a field where it's absent is still an error,
+as above.
+See [None and Missing](none.md) for how `missing` relates to `none`.
+
 ## Examples
 
 ---

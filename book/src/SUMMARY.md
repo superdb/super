@@ -61,6 +61,7 @@
         - [Errors](super-sql/types/error.md)
         - [Named Types](super-sql/types/named.md)
         - [Nulls](super-sql/types/null.md)
+        - [None and Missing](super-sql/types/none.md)
     - [Operators](super-sql/operators/intro.md)
         - [aggregate](super-sql/operators/aggregate.md)
         - [assert](super-sql/operators/assert.md)
