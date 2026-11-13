@@ -36,7 +36,7 @@ func NewOption(typ *super.TypeOption, tags []uint32, some Any, none *None) *Opti
 }
 
 func NewOptionFromRLE(sctx *super.Context, some Any, n uint32, rle []uint32) *Option {
-	tags, noneLen := buildTags(rle, n)
+	tags, noneLen := TagsFromRLE(rle, n)
 	optionType := sctx.LookupTypeOption(some.Type())
 	if noneLen == 0 {
 		panic("can't be zero")

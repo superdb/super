@@ -15,8 +15,14 @@ type Named struct {
 
 func (n *Named) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vec := n.Values.project(loader, projection)
-	// Try to preserve the named type if possible but if the projection changes
-	// the underlying type, then just return the inner vector.
+	if len(projection) != 0 {
+		// The projection may change the underlying type, so the name doesn't
+		// apply.  Don't bind the name to the projected type since that would
+		// conflict with its actual type in sctx.
+		return vec
+	}
+	// The name may already be bound to a different type in sctx, in which
+	// case just return the inner vector.
 	named, err := loader.sctx.LookupTypeNamed(n.Name, vec.Type())
 	if err != nil {
 		return vec
