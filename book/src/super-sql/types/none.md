@@ -44,7 +44,7 @@ values {a:this, b:ok(10/this)}, ok(10/this) ?? "bad value"
 ```
 
 The `none` of an [option type](../../formats/model.md#29-option), e.g.,
-`none::int64`, isn't a plain `none`.  It's a value of its option type, and does
+`none::int64`, isn't a plain `none`.  It's a value of its option type, and
 it does not disappear from record fields or from array/set/map values like
 a plain `none` does.
 
