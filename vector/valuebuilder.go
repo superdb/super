@@ -563,11 +563,12 @@ func (n *noneValueBuilder) Build(*super.Context) Any {
 
 func DefuseAny(vec *Fusion) Any {
 	builder := NewDynamicValueBuilder()
-	bytesVec := vec.Values.(*Bytes)
 	typesVec := vec.Subtypes
-	for slot := range bytesVec.Len() {
+	for slot := range vec.Len() {
+		// The values may be a view (e.g., of a picked fusion vector), so use
+		// BytesValue.
 		typ := typesVec.Value(slot)
-		bytes := bytesVec.Value(slot)
+		bytes := BytesValue(vec.Values, slot)
 		builder.Write(super.NewValue(typ, bytes))
 	}
 	return builder.Build(typesVec.sctx)

@@ -3,6 +3,7 @@ package loader
 import (
 	"sync"
 
+	"github.com/superdb/super"
 	"github.com/superdb/super/bsup"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/vector"
@@ -23,8 +24,12 @@ type Dict struct {
 
 func (d *Dict) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	if projection.TypesOnly() {
-		// The type of a dict vector is the type of its values.
-		return vector.NewTypeOnly(d.Values.project(loader, projection).Type(), d.Length)
+		// The type of a dict vector is the type of its values, except that
+		// type values are always loaded (see TypeValue.project) since
+		// functions of their types, like kind, need their values.
+		if typ := loader.vectorType(d.TypeID); super.TypeUnder(typ) != super.TypeType {
+			return vector.NewTypeOnly(typ, d.Length)
+		}
 	}
 	index, counts := d.load(loader)
 	return vector.NewDict(d.Values.project(loader, projection), index, counts)

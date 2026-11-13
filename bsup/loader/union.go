@@ -48,6 +48,14 @@ func (u *Union) project(loader *FrameLoader, projection field.Projection) vector
 	if hasDuplicates(types) {
 		// The projection made some member types the same (e.g., records
 		// projected to their common fields), so merge their vectors.
+		if projection.HasTypesAnywhere() {
+			// Type-only vectors have no data to merge, so load the data
+			// of the paths projected for their types.
+			projection = projection.NoTypes()
+			for i, shadow := range u.Values {
+				vecs[i] = shadow.project(loader, projection)
+			}
+		}
 		if len(u.Values) == 2 {
 			tags, _ = vector.TagsFromRLE(tags, u.Length)
 		}
