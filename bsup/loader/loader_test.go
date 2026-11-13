@@ -2,6 +2,7 @@ package loader_test
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -142,6 +143,53 @@ func TestLoaderNamedConcurrentProjections(t *testing.T) {
 			})
 		}
 		wg.Wait()
+	}
+}
+
+func TestLoaderNamedUnionProjections(t *testing.T) {
+	// A projection of the named members of a union may make their types the
+	// same, and the names mustn't be bound to projected types in the context
+	// since frames loaded fully (or with other projections) in the same
+	// context use the actual types.
+	const input2 = `
+type A={x:int64,s:string}
+type B={x:int64,t:string}
+type U=A|B
+{x:1,s:"a"}::A::U
+{x:2,t:"b"}::B::U
+{x:3,s:"c"}::A::U
+`
+	const input3 = `
+type A={x:int64,s:string}
+type B={x:int64,t:string}
+type C={x:int64,b:bool}
+type U=A|B|C
+{x:1,s:"a"}::A::U
+{x:2,t:"b"}::B::U
+{x:3,b:true}::C::U
+{x:4,s:"d"}::A::U
+`
+	for name, input := range map[string]string{"two members": input2, "three members": input3} {
+		t.Run(name, func(t *testing.T) {
+			frame := newFrame(t, super.NewContext(), input)
+			want := load(newFrameLoader(t, super.NewContext(), input), nil)
+			var wantX strings.Builder
+			for i := range strings.Count(input, "::U\n") {
+				wantX.WriteString(fmt.Sprintf("{x:%d}\n", i+1))
+			}
+			for _, order := range [][]string{{"x", ""}, {"", "x"}} {
+				sctx := super.NewContext()
+				for _, path := range order {
+					l, err := loader.NewFrameLoader(sctx, frame)
+					require.NoError(t, err)
+					if path == "" {
+						assert.Equal(t, want, load(l, nil))
+					} else {
+						assert.Equal(t, wantX.String(), load(l, projection(path)))
+					}
+				}
+			}
+		})
 	}
 }
 

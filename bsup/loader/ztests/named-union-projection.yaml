@@ -1,0 +1,34 @@
+# A projection of a union's named members drops their names (rather than
+# binding them to the projected types) and merges members whose projected
+# types are the same.
+script: |
+  super -o test.bsup -
+  super dev vector project -s test.bsup x
+  echo ===
+  super -s -c 'by typeof(this) | sort this' test.bsup
+
+inputs:
+  - name: stdin
+    data: |
+      type A={x:int64,s:string}
+      type B={x:int64,t:string}
+      type C={x:int64,b:bool}
+      type U=A|B|C
+      {x:1,s:"a"}::A::U
+      {x:2,t:"b"}::B::U
+      {x:3,b:true}::C::U
+      {x:4,s:"d"}::A::U
+
+outputs:
+  - name: stdout
+    data: |
+      {x:1}
+      {x:2}
+      {x:3}
+      {x:4}
+      ===
+      type A={x:int64,s:string}
+      type B={x:int64,t:string}
+      type C={x:int64,b:bool}
+      type U=A|B|C
+      <U>
