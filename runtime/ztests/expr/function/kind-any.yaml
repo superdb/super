@@ -1,0 +1,11 @@
+# The kind of a fusion(all) value that holds a type value is the kind of the
+# type it holds.
+script: |
+  super -s -c 'values {f:<int64>::any}, {f:<{a:int64}>::any}, {f:1::any} | values kind(f)'
+
+outputs:
+  - name: stdout
+    data: |
+      "primitive"
+      "record"
+      "primitive"

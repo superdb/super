@@ -1,0 +1,67 @@
+# When a type projection makes the members of a union the same type, the
+# members are merged with the data of the paths projected for their types,
+# whether a member's field is a named type, an option, a union with an error
+# type, or a constant.
+script: |
+  for f in named option error const; do
+    super -o $f.bsup $f.sup
+  done
+  super -s -c 'values typeof(a), kind(a)' named.bsup
+  echo ===
+  super -s -c 'values typeof(o)' option.bsup
+  echo ===
+  super -s -c 'values typeof(e)' error.bsup
+  echo ===
+  super -s -c 'values typeof(c)' const.bsup
+
+inputs:
+  - name: named.sup
+    data: |
+      type A={id:int64,s:string}
+      type U={a:A,x:string}|{a:A,y:string}
+      {a:{id:1,s:"p"}::A,x:"q"}::U
+      {a:{id:2,s:"r"}::A,y:"z"}::U
+      {a:{id:3,s:"t"}::A,x:"w"}::U
+  - name: option.sup
+    data: |
+      type U={o?:int64,x:string}|{o?:int64,y:string}
+      {o?:1,x:"q"}::U
+      {o?:none::int64,y:"z"}::U
+      {o?:3,x:"w"}::U
+  - name: error.sup
+    data: |
+      type U={e:int64|error(string),x:string}|{e:int64|error(string),y:string}
+      {e:1::(int64|error(string)),x:"q"}::U
+      {e:error("bad")::(int64|error(string)),y:"z"}::U
+      {e:3::(int64|error(string)),x:"w"}::U
+  - name: const.sup
+    data: |
+      type U={c:int64,x:string}|{c:int64,y:string}
+      {c:7,x:"q"}::U
+      {c:7,x:"w"}::U
+      {c:2,y:"z"}::U
+      {c:3,y:"v"}::U
+
+outputs:
+  - name: stdout
+    data: |
+      type A={id:int64,s:string}
+      <A>
+      "record"
+      <A>
+      "record"
+      <A>
+      "record"
+      ===
+      <option(int64)>
+      <option(int64)>
+      <option(int64)>
+      ===
+      <int64|error(string)>
+      <int64|error(string)>
+      <int64|error(string)>
+      ===
+      <int64>
+      <int64>
+      <int64>
+      <int64>
