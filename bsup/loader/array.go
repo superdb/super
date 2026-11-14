@@ -20,6 +20,14 @@ type Array struct {
 }
 
 func (a *Array) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		// The type of an array doesn't depend on its offsets but if the
+		// elements contain a fusion value, then the data is needed to
+		// compute the type of the superdefused value.
+		if typ := loader.vectorType(a.TypeID); !hasFusion(typ) {
+			return vector.NewTypeOnly(typ, a.Length)
+		}
+	}
 	vec := a.Values.project(loader, nil)
 	typ := loader.sctx.LookupTypeArray(vec.Type())
 	return vector.NewArray(typ, a.load(loader), vec)
@@ -57,6 +65,12 @@ type Set struct {
 }
 
 func (s *Set) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		// See Array.project.
+		if typ := loader.vectorType(s.TypeID); !hasFusion(typ) {
+			return vector.NewTypeOnly(typ, s.Length)
+		}
+	}
 	vec := s.Values.project(loader, nil)
 	typ := loader.sctx.LookupTypeSet(vec.Type())
 	return vector.NewSet(typ, s.load(loader), vec)

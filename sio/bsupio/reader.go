@@ -173,7 +173,7 @@ func newReader(ctx context.Context, sctx *super.Context, d *dispatcher, pushdown
 		searchFilter:       searchFilter,
 		projection:         projection,
 		unordered:          unordered,
-		dfProjContainsProj: dataFilter != nil && dataFilter.Projection.Contains(projection),
+		dfProjContainsProj: dataFilter != nil && !dataFilter.Projection.HasTypesAnywhere() && dataFilter.Projection.Contains(projection),
 	}, nil
 }
 

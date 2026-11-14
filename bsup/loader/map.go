@@ -20,6 +20,12 @@ type Map struct {
 }
 
 func (m *Map) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		// See Array.project.
+		if typ := loader.vectorType(m.TypeID); !hasFusion(typ) {
+			return vector.NewTypeOnly(typ, m.Length)
+		}
+	}
 	keys := m.Keys.project(loader, nil)
 	vals := m.Values.project(loader, nil)
 	typ := loader.sctx.LookupTypeMap(keys.Type(), vals.Type())

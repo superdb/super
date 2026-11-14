@@ -24,6 +24,12 @@ func DemandForSeq(seq dag.Seq, downstreams ...demand.Demand) []demand.Demand {
 
 type demandAnalyzer struct {
 	table demandTable
+	// materializing is true if the values flowing into the op being analyzed
+	// reach an operator that materializes them (e.g., sort), in which case
+	// the demand for them can't be type-only.  A materializing operator sees
+	// all of the fields of its input values, including those demanded only
+	// for their types by other operators upstream of it or on other paths.
+	materializing bool
 }
 
 func (a *demandAnalyzer) demandForSeq(seq dag.Seq, downstreams ...demand.Demand) []demand.Demand {
@@ -34,14 +40,44 @@ func (a *demandAnalyzer) demandForSeq(seq dag.Seq, downstreams ...demand.Demand)
 }
 
 func (a *demandAnalyzer) demandForOp(op dag.Op, downstreams []demand.Demand) []demand.Demand {
+	out := a.demandForOpInput(op, downstreams)
+	switch op.(type) {
+	case *dag.AggregateOp, *dag.UnnestOp, *dag.ValuesOp:
+		// The input values don't flow through these operators.
+		a.materializing = false
+	case *dag.HashJoinOp, *dag.InferOp, *dag.MergeOp, *dag.SortOp, *dag.TopOp:
+		a.materializing = true
+	}
+	if a.materializing {
+		for i := range out {
+			out[i] = demand.WithoutTypes(out[i])
+		}
+	}
+	return out
+}
+
+// demandForPath returns the demand for the input of path, which is one of
+// several paths whose input values are shared (e.g., by a fork), and sets
+// *materializing if they reach a materializing operator on the path.
+func (a *demandAnalyzer) demandForPath(path dag.Seq, downstream demand.Demand, materializing *bool) demand.Demand {
+	save := a.materializing
+	d := demand.Union(a.demandForSeq(path, downstream)...)
+	*materializing = *materializing || a.materializing
+	a.materializing = save
+	return d
+}
+
+func (a *demandAnalyzer) demandForOpInput(op dag.Op, downstreams []demand.Demand) []demand.Demand {
 	a.table[op] = demand.Union(downstreams...)
 	switch op := op.(type) {
 	case *dag.ForkOp:
 		var out []demand.Demand
+		var materializing bool
 		for i, p := range op.Paths {
 			i := min(i, len(downstreams)-1)
-			out = append(out, demand.Union(a.demandForSeq(p, downstreams[i])...))
+			out = append(out, a.demandForPath(p, downstreams[i], &materializing))
 		}
+		a.materializing = materializing
 		return out
 	case *dag.HashJoinOp:
 		downstream := downstreams[0]
@@ -57,18 +93,22 @@ func (a *demandAnalyzer) demandForOp(op dag.Op, downstreams []demand.Demand) []d
 		return []demand.Demand{left, right}
 	case *dag.ScatterOp:
 		d := demand.None()
+		var materializing bool
 		for i, p := range op.Paths {
 			i := min(i, len(downstreams)-1)
-			d = demand.Union(d, demand.Union(a.demandForSeq(p, downstreams[i])...))
+			d = demand.Union(d, a.demandForPath(p, downstreams[i], &materializing))
 		}
+		a.materializing = materializing
 		return []demand.Demand{d}
 	case *dag.SwitchOp:
 		d := a.demandForExpr(op.Expr)
+		var materializing bool
 		for i, c := range op.Cases {
 			d = demand.Union(d, a.demandForExpr(c.Expr))
 			i := min(i, len(downstreams)-1)
-			d = demand.Union(d, demand.Union(a.demandForSeq(c.Path, downstreams[i])...))
+			d = demand.Union(d, a.demandForPath(c.Path, downstreams[i], &materializing))
 		}
+		a.materializing = materializing
 		return []demand.Demand{d}
 	default:
 		return []demand.Demand{a.demandForSimpleOp(op, demand.Union(downstreams...))}
@@ -101,7 +141,9 @@ func (a *demandAnalyzer) demandForSimpleOp(op dag.Op, downstream demand.Demand) 
 		return demand.Union(downstream, a.demandForExpr(op.Expr))
 	case *dag.FuseOp:
 		return demand.All()
-	case *dag.HeadOp, *dag.InferOp:
+	case *dag.HeadOp:
+		return downstream
+	case *dag.InferOp:
 		return downstream
 	case *dag.LoadOp:
 		return demand.All()
@@ -166,12 +208,23 @@ func (a *demandAnalyzer) demandForExpr(expr dag.Expr) demand.Demand {
 	case nil:
 		return demand.None()
 	case *dag.AggExpr:
+		if expr.Name == "fuse" || expr.Name == "superfuse" {
+			// These depend only on the types of their argument.
+			if d, ok := typeDemand(expr.Expr); ok {
+				return demand.Union(d, a.demandForExpr(expr.Filter))
+			}
+		}
 		return demand.Union(a.demandForExpr(expr.Expr), a.demandForExpr(expr.Filter))
 	case *dag.ArrayExpr:
 		return a.demandForArrayOrSetExpr(expr.Elems)
 	case *dag.BinaryExpr:
 		return demand.Union(a.demandForExpr(expr.LHS), a.demandForExpr(expr.RHS))
 	case *dag.CallExpr:
+		if isTypeFunc(expr) {
+			if d, ok := typeDemand(expr.Args[0]); ok {
+				return d
+			}
+		}
 		d := demand.None()
 		for _, arg := range expr.Args {
 			d = demand.Union(d, a.demandForExpr(arg))
@@ -233,7 +286,12 @@ func (a *demandAnalyzer) demandForExpr(expr dag.Expr) demand.Demand {
 		return demand.Union(a.demandForExpr(expr.Expr),
 			demand.Union(a.demandForExpr(expr.From), a.demandForExpr(expr.To)))
 	case *dag.SubqueryExpr:
-		return demand.Union(a.demandForSeq(expr.Body, demand.All())...)
+		// The body's input values don't flow past it.
+		save := a.materializing
+		a.materializing = false
+		d := demand.Union(a.demandForSeq(expr.Body, demand.All())...)
+		a.materializing = save
+		return d
 	case *dag.ThisExpr:
 		d := demand.All()
 		for _, elem := range slices.Backward(expr.Chain) {
@@ -244,6 +302,44 @@ func (a *demandAnalyzer) demandForExpr(expr dag.Expr) demand.Demand {
 		return a.demandForExpr(expr.Operand)
 	}
 	panic(expr)
+}
+
+// typeDemand returns the demand for the type of expr and true if the type
+// depends only on the types of paths of this (and on the tags of their
+// unions and options, which a type-only projection loads), e.g., a path,
+// under applied to a path, or a field of either.
+func typeDemand(expr dag.Expr) (demand.Demand, bool) {
+	switch expr := expr.(type) {
+	case *dag.ThisExpr:
+		d := demand.TypesOnly()
+		for _, elem := range slices.Backward(expr.Chain) {
+			d = demand.Key(elem.ID, d)
+		}
+		return d, true
+	case *dag.CallExpr:
+		if expr.Tag == "under" && len(expr.Args) == 1 {
+			return typeDemand(expr.Args[0])
+		}
+	case *dag.DotExpr:
+		// The type of a field of a value depends only on the type of the
+		// value, e.g., typeof(under(this).a), since a type-only projection
+		// of a record has all of its fields.
+		return typeDemand(expr.LHS)
+	}
+	return nil, false
+}
+
+// isTypeFunc returns true if call is a call to a built-in function whose
+// result depends only on the type of its argument.
+func isTypeFunc(call *dag.CallExpr) bool {
+	if len(call.Args) != 1 {
+		return false
+	}
+	switch call.Tag {
+	case "kind", "typeof", "supertypeof":
+		return true
+	}
+	return false
 }
 
 func (a *demandAnalyzer) demandForArrayOrSetExpr(elems []dag.VectorElem) demand.Demand {

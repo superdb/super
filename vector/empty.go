@@ -21,7 +21,11 @@ func NewEmpty(typ super.Type) *Empty {
 }
 
 func (e *Empty) Kind() Kind {
-	typ := e.typ
+	return kindOf(e.typ)
+}
+
+// kindOf returns the vector Kind of a vector of type typ.
+func kindOf(typ super.Type) Kind {
 	for {
 		switch t := typ.(type) {
 		case *super.TypeOfUint8, *super.TypeOfUint16, *super.TypeOfUint32, *super.TypeOfUint64:

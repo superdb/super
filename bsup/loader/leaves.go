@@ -42,7 +42,10 @@ type Int struct {
 	vals   []int64
 }
 
-func (i *Int) project(loader *FrameLoader, _ field.Projection) vector.Any {
+func (i *Int) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		return vector.NewTypeOnly(i.typ, i.Length)
+	}
 	return vector.NewInt(i.typ, i.load(loader))
 }
 
@@ -67,7 +70,10 @@ type Uint struct {
 	vals   []uint64
 }
 
-func (u *Uint) project(loader *FrameLoader, _ field.Projection) vector.Any {
+func (u *Uint) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		return vector.NewTypeOnly(u.typ, u.Length)
+	}
 	return vector.NewUint(u.typ, u.load(loader))
 }
 
@@ -92,7 +98,10 @@ type Float struct {
 	vals   []float64
 }
 
-func (f *Float) project(loader *FrameLoader, _ field.Projection) vector.Any {
+func (f *Float) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		return vector.NewTypeOnly(f.typ, f.Length)
+	}
 	return vector.NewFloat(f.typ, f.load(loader))
 }
 
@@ -115,7 +124,10 @@ type Bool struct {
 	bits   *bitvec.Bits
 }
 
-func (b *Bool) project(loader *FrameLoader, _ field.Projection) vector.Any {
+func (b *Bool) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		return vector.NewTypeOnly(super.TypeBool, b.Length)
+	}
 	return vector.NewBool(b.load(loader))
 }
 
@@ -144,7 +156,10 @@ type Bytes struct {
 	table   *vector.BytesTable
 }
 
-func (b *Bytes) project(loader *FrameLoader, _ field.Projection) vector.Any {
+func (b *Bytes) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		return vector.NewTypeOnly(b.vectorType(), b.Length)
+	}
 	table := b.load(loader)
 	switch b.TypeID {
 	case super.IDString:
@@ -158,6 +173,21 @@ func (b *Bytes) project(loader *FrameLoader, _ field.Projection) vector.Any {
 			vals[k] = super.DecodeUUID(table.Bytes(uint32(k)))
 		}
 		return vector.NewUUID(vals)
+	default:
+		panic(b.TypeID)
+	}
+}
+
+// vectorType returns the type of the vector built by project.
+func (b *Bytes) vectorType() super.Type {
+	switch b.TypeID {
+	case super.IDString:
+		return super.TypeString
+	case super.IDBytes, super.IDAll:
+		// The values of a fusion(all) vector are bytes.
+		return super.TypeBytes
+	case super.IDUUID:
+		return super.TypeUUID
 	default:
 		panic(b.TypeID)
 	}
@@ -207,7 +237,10 @@ type IP struct {
 	vals    []netip.Addr
 }
 
-func (i *IP) project(loader *FrameLoader, _ field.Projection) vector.Any {
+func (i *IP) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		return vector.NewTypeOnly(super.TypeIP, i.Length)
+	}
 	return vector.NewIP(i.load(loader))
 }
 
@@ -237,7 +270,10 @@ type Net struct {
 	vals    []netip.Prefix
 }
 
-func (n *Net) project(loader *FrameLoader, _ field.Projection) vector.Any {
+func (n *Net) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	if projection.TypesOnly() {
+		return vector.NewTypeOnly(super.TypeNet, n.Length)
+	}
 	return vector.NewNet(n.load(loader))
 }
 

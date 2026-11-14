@@ -1,0 +1,14 @@
+# A dict vector of type values isn't type-only under a type projection since
+# functions like kind need the values.
+script: |
+  for i in $(seq 100); do
+    echo '{t:<int64>} {t:<{a:int64}>} {t:<[string]>}'
+  done | super -o d.bsup -
+  super -s -c 'count() by k:=kind(t), typ:=typeof(t) | sort k' d.bsup
+
+outputs:
+  - name: stdout
+    data: |
+      {k:"array",typ:<type>,count:100}
+      {k:"primitive",typ:<type>,count:100}
+      {k:"record",typ:<type>,count:100}

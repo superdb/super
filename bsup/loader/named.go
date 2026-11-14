@@ -15,7 +15,7 @@ type Named struct {
 
 func (n *Named) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vec := n.Values.project(loader, projection)
-	if len(projection) != 0 {
+	if len(projection) != 0 && !projection.HasTypes() {
 		// The projection may change the underlying type, so the name doesn't
 		// apply.  Don't bind the name to the projected type since that would
 		// conflict with its actual type in sctx.
@@ -52,6 +52,10 @@ type Enum struct {
 }
 
 func (e *Enum) project(loader *FrameLoader, projection field.Projection) vector.Any {
+	enum := loader.sctx.LookupTypeEnum(e.Symbols)
+	if projection.TypesOnly() {
+		return vector.NewTypeOnly(enum, e.Length)
+	}
 	vec := e.Values.project(loader, projection).(*vector.Uint)
-	return &vector.Enum{Uint: vec, Typ: loader.sctx.LookupTypeEnum(e.Symbols)}
+	return &vector.Enum{Uint: vec, Typ: enum}
 }
