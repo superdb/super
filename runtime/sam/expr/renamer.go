@@ -60,6 +60,10 @@ func (r *Renamer) EvalToValAndError(this super.Value) (super.Value, error) {
 		}
 		m[string(r.fieldsStr)] = typ
 	}
+	if typ == super.TypeRecordOf(this.Type()) {
+		// Nothing was renamed so keep any named type.
+		return this, nil
+	}
 	return super.NewValue(typ, this.Bytes()), nil
 }
 
@@ -113,15 +117,19 @@ func (r *Renamer) dstType(typ *super.TypeRecord, src, dst field.Path) (*super.Ty
 	}
 	var innerType super.Type
 	if len(src) > 1 {
-		recType, ok := typ.Fields[i].Type.(*super.TypeRecord)
+		recType, ok := super.TypeUnder(typ.Fields[i].Type).(*super.TypeRecord)
 		if !ok {
 			return typ, nil
 		}
-		typ, err := r.dstType(recType, src[1:], dst[1:])
+		inner, err := r.dstType(recType, src[1:], dst[1:])
 		if err != nil {
 			return nil, err
 		}
-		innerType = typ
+		if inner == recType {
+			// Nothing was renamed so keep any named type.
+			return typ, nil
+		}
+		innerType = inner
 	} else {
 		innerType = typ.Fields[i].Type
 	}

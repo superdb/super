@@ -1042,7 +1042,8 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 		var assignments []sem.Assignment
 		var paths []pathType
 		for _, fa := range o.Args {
-			assign, path := t.assignment(&fa, inType)
+			// The source fields are type checked by renamePaths below.
+			assign, path := t.assignment(&fa, t.checker.unknown)
 			if _, ok := isLval(assign.RHS); !ok {
 				t.error(fa.RHS, fmt.Errorf("illegal right-hand side of assignment"))
 			}
@@ -1058,11 +1059,11 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 			assignments = append(assignments, assign)
 			paths = append(paths, path)
 		}
-		// Type checking for rename TBD.  Return unknown here.
-		return append(seq, &sem.RenameOp{
+		op := &sem.RenameOp{
 			Node: o,
 			Args: assignments,
-		}), t.checker.unknown
+		}
+		return append(seq, op), t.checker.rename(inType, op)
 	case *ast.FuseOp:
 		return append(seq, &sem.FuseOp{Node: o, Complete: o.Complete}), inType
 	case *ast.JoinOp:

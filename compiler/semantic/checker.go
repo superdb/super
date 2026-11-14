@@ -138,8 +138,7 @@ func (c *checker) op(typ super.Type, op sem.Op) super.Type {
 	case *sem.PutOp:
 		return c.putPaths(typ, c.assignments(typ, op.Args))
 	case *sem.RenameOp:
-		// TBD
-		return c.unknown
+		return c.rename(typ, op)
 	case *sem.SkipOp:
 		return typ
 	case *sem.SortOp:
@@ -1115,11 +1114,10 @@ func deoption(typ super.Type) super.Type {
 }
 
 func (c *checker) putPaths(inType super.Type, puts []pathType) super.Type {
-	// Fuse each path as a single-record path into the input type.
-	//fuser.fuse(typ)
-	recType, ok := under(inType).(*super.TypeRecord)
-	if !ok {
-		return c.unknown
+	// A union is treated as the values of its members.
+	types := []super.Type{inType}
+	if u, ok := under(inType).(*super.TypeUnion); ok {
+		types = u.Types
 	}
 	for _, put := range puts {
 		// A field whose value is a plain none disappears from the record
@@ -1128,41 +1126,162 @@ func (c *checker) putPaths(inType super.Type, puts []pathType) super.Type {
 		if isNoneType(leaf) {
 			leaf = super.TypeMissing
 		}
-		typ := c.putInto(recType, put.elems, leaf)
-		var ok bool
-		recType, ok = typ.(*super.TypeRecord)
+		var out []super.Type
+		for _, typ := range types {
+			recType, ok := under(typ).(*super.TypeRecord)
+			if !ok {
+				return c.unknown
+			}
+			out = append(out, c.putInto(recType, put.elems, leaf)...)
+		}
+		types = super.Flatten(out)
+	}
+	if len(types) == 1 {
+		return types[0]
+	}
+	return c.union(types)
+}
+
+// putInto returns the types of the values of type recType after putting a
+// value of type leaf at path.  Putting into a union field puts into each of its
+// members.
+func (c *checker) putInto(recType *super.TypeRecord, path []string, leaf super.Type) []super.Type {
+	if len(path) == 0 {
+		return []super.Type{leaf}
+	}
+	if recType == nil {
+		var out []super.Type
+		for _, inner := range c.putInto(nil, path[1:], leaf) {
+			out = append(out, c.t.sctx.MustLookupTypeRecord([]super.Field{super.NewField(path[0], inner)}))
+		}
+		return out
+	}
+	index, ok := recType.IndexOfField(path[0])
+	if !ok {
+		var out []super.Type
+		for _, inner := range c.putInto(nil, path[1:], leaf) {
+			fields := append(slices.Clone(recType.Fields), super.NewField(path[0], inner))
+			out = append(out, c.t.sctx.MustLookupTypeRecord(fields))
+		}
+		return out
+	}
+	// Put into an existing record field so its other fields are kept, as
+	// the runtime does.  A field that isn't a record is replaced by a
+	// record holding the rest of the path, but the fields of a field of
+	// unknown type aren't known, so putting into it leaves it unknown.
+	var inners []super.Type
+	switch typ := recType.Fields[index].Type; {
+	case len(path) == 1:
+		inners = []super.Type{leaf}
+	case hasUnknown(typ):
+		inners = []super.Type{c.unknown}
+	default:
+		members := []super.Type{defuse(typ)}
+		if u, ok := under(members[0]).(*super.TypeUnion); ok {
+			members = u.Types
+		}
+		for _, member := range members {
+			inner, _ := under(defuse(member)).(*super.TypeRecord)
+			inners = append(inners, c.putInto(inner, path[1:], leaf)...)
+		}
+	}
+	var out []super.Type
+	for _, inner := range inners {
+		fields := slices.Clone(recType.Fields)
+		fields[index].Type = inner
+		out = append(out, c.t.sctx.MustLookupTypeRecord(fields))
+	}
+	return out
+}
+
+// renamePath returns the types of the values of type typ after renaming the
+// field at src to the field at dst (whose paths differ only in their last
+// elements) or false if no record has the field.  A union is treated as the
+// values of its members.  If the field collides with an existing field (which
+// is a runtime error), renamePath returns the unknown type.
+func (c *checker) renamePath(typ super.Type, src, dst []string) ([]super.Type, bool) {
+	if hasUnknown(typ) {
+		return []super.Type{c.unknown}, true
+	}
+	// The runtime defuses values before renaming.
+	members := []super.Type{defuse(typ)}
+	if u, ok := under(members[0]).(*super.TypeUnion); ok {
+		members = u.Types
+	}
+	var out []super.Type
+	var found bool
+	for _, member := range members {
+		rec, ok := under(defuse(member)).(*super.TypeRecord)
 		if !ok {
+			out = append(out, member)
+			continue
+		}
+		off, ok := rec.IndexOfField(src[0])
+		if !ok {
+			out = append(out, member)
+			continue
+		}
+		var inners []super.Type
+		if len(src) == 1 {
+			inners = []super.Type{rec.Fields[off].Type}
+		} else {
+			if inners, ok = c.renamePath(rec.Fields[off].Type, src[1:], dst[1:]); !ok {
+				out = append(out, member)
+				continue
+			}
+		}
+		found = true
+		for _, inner := range inners {
+			fields := slices.Clone(rec.Fields)
+			fields[off] = super.NewField(dst[0], inner)
+			typ, err := c.t.sctx.LookupTypeRecord(fields)
+			if err != nil {
+				// Duplicate field.
+				out = append(out, c.unknown)
+				continue
+			}
+			out = append(out, typ)
+		}
+	}
+	return out, found
+}
+
+// rename returns the type of the values of type typ after op.
+func (c *checker) rename(typ super.Type, op *sem.RenameOp) super.Type {
+	var lhs, rhs []sem.Expr
+	for _, a := range op.Args {
+		lhs = append(lhs, a.LHS)
+		rhs = append(rhs, a.RHS)
+	}
+	srcs, dsts := c.lvalsToPaths(rhs), c.lvalsToPaths(lhs)
+	if srcs == nil || dsts == nil {
+		return c.unknown
+	}
+	for k, src := range srcs {
+		if len(src.elems) != len(dsts[k].elems) {
+			// This error is reported elsewhere.
 			return c.unknown
 		}
 	}
-	return recType
+	return c.renamePaths(typ, srcs, dsts)
 }
 
-func (c *checker) putInto(recType *super.TypeRecord, path []string, leaf super.Type) super.Type {
-	if len(path) == 0 {
-		return leaf
-	}
-	if recType != nil {
-		fields := slices.Clone(recType.Fields)
-		if index, ok := recType.IndexOfField(path[0]); ok {
-			// Put into an existing record field so its other fields are
-			// kept, as the runtime does.  A field that isn't a record is
-			// replaced by a record holding the rest of the path, but the
-			// fields of a field of unknown type aren't known, so putting
-			// into it leaves it unknown.
-			switch typ := fields[index].Type; {
-			case len(path) > 1 && hasUnknown(typ):
-				fields[index].Type = c.unknown
-			default:
-				inner, _ := under(defuse(typ)).(*super.TypeRecord)
-				fields[index].Type = c.putInto(inner, path[1:], leaf)
-			}
-		} else {
-			fields = append(fields, super.NewField(path[0], c.putInto(nil, path[1:], leaf)))
+// renamePaths returns the type of the values of type typ after the renames
+// from srcs to dsts and reports an error for a src that no record has.
+func (c *checker) renamePaths(typ super.Type, srcs, dsts []path) super.Type {
+	for k, src := range srcs {
+		types, ok := c.renamePath(typ, src.elems, dsts[k].elems)
+		if !ok {
+			c.error(src.loc, fmt.Errorf("no such field %q", src.elems[len(src.elems)-1]))
+			return c.unknown
 		}
-		return c.t.sctx.MustLookupTypeRecord(fields)
+		if types = super.Flatten(types); len(types) == 1 {
+			typ = types[0]
+		} else {
+			typ = c.union(types)
+		}
 	}
-	return c.t.sctx.MustLookupTypeRecord([]super.Field{super.NewField(path[0], c.putInto(nil, path[1:], leaf))})
+	return typ
 }
 
 type path struct {

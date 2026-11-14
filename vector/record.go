@@ -35,7 +35,7 @@ func (r *Record) ChangeType(typ *super.TypeRecord) *Record {
 	fields := slices.Clone(r.Fields)
 	for i, f := range typ.Fields {
 		if rtyp, ok := f.Type.(*super.TypeRecord); ok {
-			fields[i] = PushView(r.Fields[i]).(*Record).ChangeType(rtyp)
+			fields[i] = PushView(Under(r.Fields[i])).(*Record).ChangeType(rtyp)
 		}
 	}
 	return &Record{typ, fields, r.len}

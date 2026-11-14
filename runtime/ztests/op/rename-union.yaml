@@ -1,0 +1,58 @@
+# rename treats a union (named or not) as the value of its member, so if it
+# renames a field of any member, the union is replaced by the values of its
+# members, as for the type computed by the semantic checker.  A named type is
+# kept where no field is renamed.  It is an error if no record has a field.
+script: |
+  super -s -c 'from in.sup | rename w:=x | values {v:this,t:typeof(this)}'
+  echo ===
+  super -s -c 'from nested.sup | rename a.w:=a.x, b.v:=b.y'
+  echo ===
+  super -s -c 'from nested.sup | rename c2:=c'
+  echo ===
+  super -s -dynamic -c 'rename a.w:=a.x, b.v:=b.q' named.sup
+  echo ===
+  ! super -s -c 'from nested.sup | rename a.w:=a.q' 2>&1
+
+inputs:
+  - name: in.sup
+    data: |
+      type Foo={x:int64,z:int64} type Bar={y:int64} type Baz=Foo|Bar
+      {x:1,z:3}::Foo::Baz
+      {y:2}::Bar::Baz
+  - name: nested.sup
+    data: |
+      type Foo={x:int64,z:int64} type Bar={y:int64} type Baz=Foo|Bar
+      {a:{x:1,z:3}::Foo::Baz,b:{y:7}::Bar::Baz,c:1}
+      {a:{y:2}::Bar::Baz,b:{x:8,z:9}::Foo::Baz,c:2}
+      {a:{y:3}::Bar::Baz,b:{y:4}::Bar::Baz,c:3}
+  - name: named.sup
+    data: |
+      type N={x:int64} type M={y:int64}
+      {a:{x:1}::N,b:{y:2}::M}
+
+outputs:
+  - name: stdout
+    data: |
+      {v:{w:1,z:3},t:<{w:int64,z:int64}>}
+      type Bar={y:int64}
+      {v:{y:2}::Bar,t:<Bar>}
+      ===
+      {a:{w:1,z:3},b:{v:7},c:1}
+      type Bar={y:int64}
+      type Foo={x:int64,z:int64}
+      {a:{y:2}::Bar,b:{x:8,z:9}::Foo,c:2}
+      {a:{y:3}::Bar,b:{v:4},c:3}
+      ===
+      type Bar={y:int64}
+      type Foo={x:int64,z:int64}
+      type Baz=Bar|Foo
+      {a:{x:1,z:3}::Foo::Baz,b:{y:7}::Bar::Baz,c2:1}
+      {a:{y:2}::Bar::Baz,b:{x:8,z:9}::Foo::Baz,c2:2}
+      {a:{y:3}::Bar::Baz,b:{y:4}::Bar::Baz,c2:3}
+      ===
+      type M={y:int64}
+      {a:{w:1},b:{y:2}::M}
+      ===
+      no such field "q" at line 1, column 31:
+      from nested.sup | rename a.w:=a.q
+                                    ~~~

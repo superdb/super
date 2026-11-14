@@ -57,6 +57,10 @@ func (r *recordExpr) Eval(this vector.Any) vector.Any {
 			vec = elem.Expr.Eval(this)
 		case *SpreadElem:
 			vec = r.defuse.Eval(elem.Expr.Eval(this))
+			if u, ok := vector.Under(vec).(*vector.Union); ok {
+				// Spread the values of the members.
+				vec = u.Dynamic()
+			}
 		default:
 			panic(elem)
 		}

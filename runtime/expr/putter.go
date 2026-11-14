@@ -21,7 +21,8 @@ func (p *putter) Eval(vec vector.Any) vector.Any {
 	// XXX At some point we should do something more optimized than calling
 	// defuse.Eval but something like this is needed to do puts on fused
 	// records while keeping the original shape.
-	return vector.Apply(vector.ApplyNone, p.eval, p.defuse.Eval(vec))
+	// A union is treated as the values of its members.
+	return vector.Apply(vector.ApplyRipUnions, p.eval, p.defuse.Eval(vec))
 }
 
 func (p *putter) eval(vecs ...vector.Any) vector.Any {

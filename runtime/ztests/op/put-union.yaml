@@ -1,0 +1,43 @@
+# put and spread treat a union (named or not) as the value of its member, as
+# does the type computed by the semantic checker.
+script: |
+  super -s -c 'from in.sup | put z:=1 | values {v:this,t:typeof(this)}'
+  echo ===
+  super -s -c 'from nested.sup | put a.q:=1'
+  echo ===
+  super -s -c 'from in.sup | values {...this, n:1}'
+  echo ===
+  super -s -c 'from nested.sup | values {...a, n:1}'
+
+inputs:
+  - name: in.sup
+    data: |
+      type Foo={x:int64,z:int64} type Bar={y:int64} type Baz=Foo|Bar
+      {x:1,z:3}::Foo::Baz
+      {y:2}::Bar::Baz
+  - name: nested.sup
+    data: |
+      type Foo={x:int64,z:int64} type Bar={y:int64} type Baz=Foo|Bar
+      {a:{x:1,z:3}::Foo::Baz,b:{y:7}::Bar::Baz,c:1}
+      {a:{y:2}::Bar::Baz,b:{x:8,z:9}::Foo::Baz,c:2}
+      {a:{y:3}::Bar::Baz,b:{y:4}::Bar::Baz,c:3}
+
+outputs:
+  - name: stdout
+    data: |
+      {v:{x:1,z:1},t:<{x:int64,z:int64}>}
+      {v:{y:2,z:1},t:<{y:int64,z:int64}>}
+      ===
+      type Bar={y:int64}
+      type Foo={x:int64,z:int64}
+      type Baz=Bar|Foo
+      {a:{x:1,z:3,q:1},b:{y:7}::Bar::Baz,c:1}
+      {a:{y:2,q:1},b:{x:8,z:9}::Foo::Baz,c:2}
+      {a:{y:3,q:1},b:{y:4}::Bar::Baz,c:3}
+      ===
+      {x:1,z:3,n:1}
+      {y:2,n:1}
+      ===
+      {x:1,z:3,n:1}
+      {y:2,n:1}
+      {y:3,n:1}
