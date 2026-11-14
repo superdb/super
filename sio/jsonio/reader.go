@@ -34,7 +34,9 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p vio.Push
 	}
 	var proj field.Projection
 	if p != nil {
-		proj = p.Projection()
+		// Type-only projections aren't supported so the data for
+		// those paths is read.
+		proj = p.Projection().NoTypes()
 	}
 	return &Reader{
 		sctx:       sctx,

@@ -29,6 +29,20 @@ func (r *Record) project(loader *FrameLoader, projection field.Projection) vecto
 		}
 		return vector.NewRecord(loader.sctx.MustLookupTypeRecord(types), valFields, r.Length)
 	}
+	if projection.HasTypes() {
+		// Build the whole record with any field not in the projection
+		// projected for its type only.
+		for k, name := range r.Names {
+			proj, ok := projection.Lookup(name)
+			if !ok {
+				proj = typesOnly
+			}
+			val := r.Fields[k].project(loader, proj)
+			valFields = append(valFields, val)
+			types = append(types, super.NewField(name, val.Type()))
+		}
+		return vector.NewRecord(loader.sctx.MustLookupTypeRecord(types), valFields, r.Length)
+	}
 	for _, node := range projection {
 		var val vector.Any
 		if k := slices.Index(r.Names, node.Name); k >= 0 {

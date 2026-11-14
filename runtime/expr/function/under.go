@@ -41,6 +41,12 @@ func (u *Under) Call(args ...vector.Any) vector.Any {
 		}, vec)
 	case *vector.Union:
 		out = vec.Dynamic()
+	case *vector.TypeOnly:
+		// A type-only vector (see typeDemand in the optimizer) never has a
+		// named, error, option, or union type since the loader builds those
+		// vectors with their tags around type-only values, so under leaves
+		// it as is just as it would its data.
+		return args[0]
 	case *vector.TypeValue:
 		b := vector.NewDynamicValueBuilder()
 		for i := range vec.Len() {

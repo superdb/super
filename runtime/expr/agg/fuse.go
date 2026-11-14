@@ -34,16 +34,19 @@ func (f *fuse) Resize(n uint32) {
 }
 
 func (f *fuse) Consume(groups []uint32, vec vector.Any) {
-	vec = f.defuse.Eval(vec)
-	if d, ok := vec.(*vector.Dynamic); ok {
-		for slot, g := range groups {
-			f.consume(g, d.TypeOf(uint32(slot)))
+	// Only the types of the superdefused values are needed, which
+	// SuperDefuse.Types computes without the values' data (which might not
+	// be loaded; see typeDemand in the optimizer).
+	types := f.defuse.Types(vec)
+	if c, ok := types.(*vector.Const); ok {
+		typ := vector.TypeValueValue(c, 0)
+		for _, g := range groups {
+			f.consume(g, typ)
 		}
 		return
 	}
-	typ := vec.Type()
-	for _, g := range groups {
-		f.consume(g, typ)
+	for slot, g := range groups {
+		f.consume(g, vector.TypeValueValue(types, uint32(slot)))
 	}
 }
 
