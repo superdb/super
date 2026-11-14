@@ -1,0 +1,65 @@
+# drop treats a union (named or not) as the value of its member, so if it
+# modifies any member, the union is replaced by the values of its members,
+# whose types match the types computed by the semantic checker.
+script: |
+  super -s -c 'drop x' u.sup
+  echo ===
+  super -s -c 'from in.sup | drop x | values {v:this,t:typeof(this)}'
+  echo ===
+  super -s -c 'from in.sup | drop y'
+  echo ===
+  super -s -c 'from nested.sup | drop a.x, b.y'
+  echo ===
+  super -s -c 'from nested.sup | drop a.y, b.y, c'
+  echo ===
+  ! super -s -c 'from in.sup | drop x | values x' 2>&1
+  echo ===
+  ! super -s -c 'from nested.sup | drop a.q' 2>&1
+
+inputs:
+  - name: u.sup
+    data: |
+      type Foo={x:int64} type Bar={y:int64} type Baz=Foo|Bar {x:1}::Foo::Baz
+  - name: in.sup
+    data: |
+      type Foo={x:int64,z:int64} type Bar={y:int64} type Baz=Foo|Bar
+      {x:1,z:3}::Foo::Baz
+      {y:2}::Bar::Baz
+  - name: nested.sup
+    data: |
+      type Foo={x:int64,z:int64} type Bar={y:int64} type Baz=Foo|Bar
+      {a:{x:1,z:3}::Foo::Baz,b:{y:7}::Bar::Baz,c:1}
+      {a:{y:2}::Bar::Baz,b:{x:8,z:9}::Foo::Baz,c:2}
+      {a:{y:3}::Bar::Baz,b:{y:4}::Bar::Baz,c:3}
+
+outputs:
+  - name: stdout
+    data: |
+      {}
+      ===
+      {v:{z:3},t:<{z:int64}>}
+      type Bar={y:int64}
+      {v:{y:2}::Bar,t:<Bar>}
+      ===
+      type Foo={x:int64,z:int64}
+      {x:1,z:3}::Foo
+      {}
+      ===
+      {a:{z:3},c:1}
+      type Bar={y:int64}
+      type Foo={x:int64,z:int64}
+      {a:{y:2}::Bar,b:{x:8,z:9}::Foo,c:2}
+      {a:{y:3}::Bar,c:3}
+      ===
+      type Foo={x:int64,z:int64}
+      {a:{x:1,z:3}::Foo}
+      {b:{x:8,z:9}::Foo}
+      {}
+      ===
+      no such field "x": . applied to Bar|{z:int64} at line 1, column 31:
+      from in.sup | drop x | values x
+                                    ~
+      ===
+      no such field "q" at line 1, column 24:
+      from nested.sup | drop a.q
+                             ~~~

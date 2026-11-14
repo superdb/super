@@ -1032,58 +1032,79 @@ func (c *checker) pathsToType(paths []pathType) super.Type {
 
 func (c *checker) dropPaths(typ super.Type, drops []path) super.Type {
 	for _, drop := range drops {
-		typ = c.dropPath(typ, drop)
+		types, ok := c.dropPath(typ, drop)
+		if !ok {
+			if !hasUnknown(typ) {
+				c.error(drop.loc, fmt.Errorf("no such field %q", drop.elems[len(drop.elems)-1]))
+			}
+			return c.unknown
+		}
+		for k, t := range types {
+			if t == nil {
+				// Dropped all fields of a top-level record.
+				types[k] = c.t.sctx.MustLookupTypeRecord(nil)
+			}
+		}
+		if types = super.Flatten(types); len(types) == 1 {
+			typ = types[0]
+		} else {
+			typ = c.union(types)
+		}
 	}
 	return typ
 }
 
-func (c *checker) dropPath(typ super.Type, drop path) super.Type {
+// dropPath returns the types of the values of type typ after drop drops a field
+// from them, where a nil type is a record whose fields were all dropped.  Drop
+// passes through non-record values, and for a union, each member is
+// considered.  If no value has the field, dropPath returns false.
+func (c *checker) dropPath(typ super.Type, drop path) ([]super.Type, bool) {
 	if len(drop.elems) == 0 {
-		return nil
+		return []super.Type{nil}, true
 	}
-	// Drop is a little tricky since it passes through non-record values so
-	// we need to preserve any union type presented to its input. pickRec returns
-	// a copy of the types slice so we can modify it.
-	types, pick := pickRec(typ)
-	if types == nil {
-		// drop passes through non-records
-		return typ
+	members := []super.Type{typ}
+	if u, ok := deoption(under(typ)).(*super.TypeUnion); ok {
+		members = u.Types
 	}
-	rec := under(types[pick]).(*super.TypeRecord)
-	off, ok := rec.IndexOfField(drop.elems[0])
-	if !ok {
-		if !hasUnknown(typ) {
-			c.error(drop.loc, fmt.Errorf("no such field %q", drop.elems[0]))
+	var out []super.Type
+	var hasRecord, found bool
+	for _, member := range members {
+		rec, ok := deoption(under(member)).(*super.TypeRecord)
+		if !ok {
+			out = append(out, member)
+			continue
 		}
-		return c.unknown
-	}
-	fields := slices.Clone(rec.Fields)
-	childType := c.dropPath(fields[off].Type, path{drop.loc, drop.elems[1:]})
-	if childType == nil {
-		fields = slices.Delete(fields, off, off+1)
-	} else {
-		fields[off].Type = childType
-	}
-	types[pick] = c.t.sctx.MustLookupTypeRecord(fields)
-	if len(types) > 1 {
-		return c.union(super.Flatten(types))
-	}
-	return types[0]
-}
-
-func pickRec(typ super.Type) ([]super.Type, int) {
-	switch typ := deoption(under(typ)).(type) {
-	case *super.TypeRecord:
-		return []super.Type{typ}, 0
-	case *super.TypeUnion:
-		types := slices.Clone(typ.Types)
-		for k := range types {
-			if _, ok := under(types[k]).(*super.TypeRecord); ok {
-				return types, k
+		hasRecord = true
+		off, ok := rec.IndexOfField(drop.elems[0])
+		if !ok {
+			out = append(out, member)
+			continue
+		}
+		children, ok := c.dropPath(rec.Fields[off].Type, path{drop.loc, drop.elems[1:]})
+		if !ok {
+			out = append(out, member)
+			continue
+		}
+		found = true
+		for _, child := range children {
+			fields := slices.Clone(rec.Fields)
+			if child == nil {
+				fields = slices.Delete(fields, off, off+1)
+			} else {
+				fields[off].Type = child
+			}
+			if len(fields) == 0 {
+				out = append(out, nil)
+			} else {
+				out = append(out, c.t.sctx.MustLookupTypeRecord(fields))
 			}
 		}
 	}
-	return nil, 0
+	if !hasRecord {
+		// drop passes through non-records
+		return []super.Type{typ}, true
+	}
+	return out, found
 }
 
 func deoption(typ super.Type) super.Type {
