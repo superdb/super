@@ -26,10 +26,21 @@ type Fuser struct {
 	subtypes map[Type]struct{}
 	// ordered caches super with ordered record fields.
 	ordered Type
+	// fused and merged memoize fuse and merge by the IDs of their operands.
+	fused  map[uint64]Type
+	merged map[uint64]Type
+	// normalized memoizes normalize.
+	normalized map[Type]Type
 }
 
 func NewFuser(sctx *Context) *Fuser {
-	return &Fuser{sctx: sctx, subtypes: make(map[Type]struct{})}
+	return &Fuser{
+		sctx:       sctx,
+		subtypes:   make(map[Type]struct{}),
+		fused:      make(map[uint64]Type),
+		merged:     make(map[uint64]Type),
+		normalized: make(map[Type]Type),
+	}
 }
 
 func (f *Fuser) SuperType() Type {
@@ -66,10 +77,26 @@ func (f *Fuser) Fuse(t Type) {
 	}
 }
 
+// pairKey returns a key for the pair of types a and b, which are in the same
+// type context.
+func pairKey(a, b Type) uint64 {
+	return uint64(uint32(TypeID(a)))<<32 | uint64(uint32(TypeID(b)))
+}
+
 func (f *Fuser) fuse(a, b Type) Type {
 	if a == b {
 		return a
 	}
+	key := pairKey(a, b)
+	if typ, ok := f.fused[key]; ok {
+		return typ
+	}
+	typ := f.fuse1(a, b)
+	f.fused[key] = typ
+	return typ
+}
+
+func (f *Fuser) fuse1(a, b Type) Type {
 	if typ, ok := a.(*TypeFusion); ok {
 		return f.fuse(typ.Type, b)
 	}
@@ -225,6 +252,15 @@ func (f *Fuser) redefPanic(named *TypeNamed) {
 }
 
 func (f *Fuser) normalize(typ Type) Type {
+	if out, ok := f.normalized[typ]; ok {
+		return out
+	}
+	out := f.normalize1(typ)
+	f.normalized[typ] = out
+	return out
+}
+
+func (f *Fuser) normalize1(typ Type) Type {
 	if typ, ok := typ.(*TypeFusion); ok {
 		// fusion(all) normalizes to all, which is any in the supertype.
 		return f.normalize(typ.Type)
@@ -303,6 +339,16 @@ func orderPreserved(fused, child *TypeRecord) bool {
 }
 
 func (f *Fuser) merge(super, sub Type) Type {
+	key := pairKey(super, sub)
+	if typ, ok := f.merged[key]; ok {
+		return typ
+	}
+	typ := f.merge1(super, sub)
+	f.merged[key] = typ
+	return typ
+}
+
+func (f *Fuser) merge1(super, sub Type) Type {
 	if isAny(super) || unionHasAny(super) {
 		// A value fused into any (or a union containing any) is a value
 		// of fusion(all), which carries the value's own type.

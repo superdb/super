@@ -208,6 +208,12 @@ func (a *demandAnalyzer) demandForExpr(expr dag.Expr) demand.Demand {
 	case nil:
 		return demand.None()
 	case *dag.AggExpr:
+		if expr.Name == "fuse" || expr.Name == "superfuse" {
+			// These depend only on the types of their argument.
+			if d, ok := typeDemand(expr.Expr); ok {
+				return demand.Union(d, a.demandForExpr(expr.Filter))
+			}
+		}
 		return demand.Union(a.demandForExpr(expr.Expr), a.demandForExpr(expr.Filter))
 	case *dag.ArrayExpr:
 		return a.demandForArrayOrSetExpr(expr.Elems)

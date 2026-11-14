@@ -1,4 +1,5 @@
-# typeof() and kind() of values read from BSUP use type-only projections
+# typeof(), kind(), fuse(), and superfuse() of values read from BSUP use
+# type-only projections
 # (see compiler/ztests/pushdown-types.yaml) so the data for these paths isn't
 # read except for type values and for arrays, sets, and maps containing fusion
 # values.  The results must be the same as when all the data is read.
@@ -13,6 +14,8 @@ script: |
     super -dynamic -s -c "from $f | values {t:typeof(b),c:b.c,k:kind(m),kt:kind(t)}"
     super -dynamic -s -c "from $f | sort -r a | values typeof(u)"
     super -dynamic -s -c "from $f | uniq | values kind(this)"
+    super -dynamic -s -c "from $f | fuse(this)"
+    super -dynamic -s -c "from $f | superfuse(this)"
   done
   echo === nested.bsup
   super -s -c "from nested.bsup | values typeof(this), typeof(arr)"
@@ -68,6 +71,8 @@ outputs:
       "record"
       "record"
       "primitive"
+      <int64|{a:int64|string|missing|{x:int64},b:null|missing|{c:string,d:int64|string},e:missing|[int64|string],m:missing|map{string:int64|string},u:int64|string|missing,t:type|missing,w:missing|{x?:int64,y?:string}}>
+      <fusion(int64|{a:fusion(int64|string|missing|{x:int64}),b:fusion(null|missing|{c:string,d:fusion(int64|string)}),e:fusion(missing|[fusion(int64|string)]),m:fusion(missing|map{string:fusion(int64|string)}),u:fusion(int64|string|missing),t:fusion(type|missing),w:fusion(missing|{x?:int64,y?:string})})>
       === fused.bsup
       <{a:int64,b:{c:string,d:int64},e:[int64],m:map{string:int64},u:int64|string,t:type}>
       <{a:string,b:{c:string,d:string},e:[string],m:map{string:string},u:int64|string,t:type}>
@@ -91,6 +96,8 @@ outputs:
       "record"
       "record"
       "primitive"
+      <int64|{a:int64|string|missing|{x:int64},b:null|missing|{c:string,d:int64|string},e:missing|[int64|string],m:missing|map{string:int64|string},u:int64|string|missing,t:type|missing,w:missing|{x?:int64,y?:string}}>
+      <fusion(int64|{a:fusion(int64|string|missing|{x:int64}),b:fusion(null|missing|{c:string,d:fusion(int64|string)}),e:fusion(missing|[fusion(int64|string)]),m:fusion(missing|map{string:fusion(int64|string)}),u:fusion(int64|string|missing),t:fusion(type|missing),w:fusion(missing|{x?:int64,y?:string})})>
       === nested.bsup
       <{a:int64,arr:[int64|string]}>
       <[int64|string]>

@@ -6,6 +6,8 @@
 # uniq) need all of the data of the fields that reach them, including those
 # demanded only for their types upstream or on another path, but not past an
 # operator that makes new values (e.g., aggregate).
+# The fuse and superfuse aggregate functions need only the types of their
+# argument.
 script: |
   super compile -C -O -dynamic 'from /dev/null | values typeof(this) | output main' | head -1
   super compile -C -O -dynamic 'from /dev/null | values typeof(a), kind(b.c) | output main' | head -1
@@ -22,6 +24,8 @@ script: |
   super compile -C -O -dynamic 'from /dev/null | put t:=typeof(b) | sort a | values a, t | output main' | head -1
   super compile -C -O -dynamic 'from /dev/null | fork (sort a | values a) (values typeof(b)) | output main' | head -1
   super compile -C -O -dynamic 'from /dev/null | count() by typeof(this) | sort this | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | fuse(this) | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | superfuse(a) by b | output main' | head -1
 
 outputs:
   - name: stdout
@@ -41,3 +45,5 @@ outputs:
       file /dev/null unordered project [a,b]
       file /dev/null unordered project [a,b]
       file /dev/null unordered project [typeof(this)]
+      file /dev/null unordered project [typeof(this)]
+      file /dev/null unordered project [b,typeof(a)]
