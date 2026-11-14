@@ -1,0 +1,67 @@
+# Unions are written as a struct with one field per member and read back
+# as unions using the type stored in the Parquet key-value metadata.
+# Record fields that are empty records are dropped and restored from the
+# stored type.  An empty record union member is written as a boolean.
+script: |
+  super -o t.parquet a.sup
+  super -s -i parquet t.parquet
+  echo ===
+  super -o t.parquet b.sup
+  super -s -i parquet t.parquet
+  echo ===
+  super -o t.parquet c.sup
+  super -s -i parquet t.parquet
+  echo ===
+  super -o t.parquet d.sup
+  super -s -i parquet t.parquet
+
+inputs:
+  - name: a.sup
+    data: |
+      type A={a:int64}
+      type B={b:string,c?:[A]}
+      type U=A|B
+      {a:1}::A::U
+      {b:"x",c?:[{a:2}::A]}::B::U
+      {b:"y",c?:none::[A]}::B::U
+  - name: b.sup
+    data: |
+      {x:1::(int64|string|null),y:[1,"a"],z:{s:"s"}::({s:string}|{n:int64})}
+      {x:"a"::(int64|string|null),y:[2]::[int64|string],z:{n:1}::({s:string}|{n:int64})}
+      {x:null::(int64|string|null),y:["b"]::[int64|string],z:{n:2}::({s:string}|{n:int64})}
+  - name: c.sup
+    data: |
+      type en=enum(a,b)
+      type er=error(int64)
+      {u:{x:1}::({x:int64}|{x:string}),ip:1.2.3.4,n:10.0.0.0/8,t:<[int64]>,e:"b"::en,er:error(1)::er,o:"a"::(string|null|missing),i:1.2.3.4::(ip|string)}
+      {u:{x:"a"}::({x:int64}|{x:string}),ip:::1,n:::/0,t:<string>,e:"a"::en,er:error(2)::er,o:missing::(string|null|missing),i:"s"::(ip|string)}
+  - name: d.sup
+    data: |
+      type E={}
+      type X={x:{}}
+      {a:1,b:{},c:{x:{}}::X,d:{}::E,u:{p:{}}::({p:{}}|{q:int64})}
+      {a:2,b:{},c:{x:{}}::X,d:{}::E,u:{q:3}::({p:{}}|{q:int64})}
+
+outputs:
+  - name: stdout
+    data: |
+      type A={a:int64}
+      type B={b:string,c?:[A]}
+      type U=A|B
+      {a:1}::"A"::U
+      {b:"x",c?:[{a:2}]}::"B"::U
+      {b:"y"}::"B"::U
+      ===
+      {x:1::(int64|string|null),y:[1,"a"],z:{s:"s"}::({n:int64}|{s:string})}
+      {x:"a"::(int64|string|null),y:[2]::[int64|string],z:{n:1}::({n:int64}|{s:string})}
+      {x:null::(int64|string|null),y:["b"]::[int64|string],z:{n:2}::({n:int64}|{s:string})}
+      ===
+      type en=enum(a,b)
+      type er=error(int64)
+      {u:{x:1}::({x:int64}|{x:string}),ip:1.2.3.4,n:10.0.0.0/8,t:<[int64]>,e:"b"::en,er:error(1)::er,o:"a"::(string|null|missing),i:1.2.3.4::(string|ip)}
+      {u:{x:"a"}::({x:int64}|{x:string}),ip:::1,n:::/0,t:<string>,e:"a"::en,er:error(2)::er,o:null::(string|null|missing),i:"s"::(string|ip)}
+      ===
+      type X={x:{}}
+      type E={}
+      {a:1,b:{},c:{x:{}}::X,d:{}::"E",u:{p:{}}::({p:{}}|{q:int64})}
+      {a:2,b:{},c:{x:{}}::X,d:{}::"E",u:{q:3}::({p:{}}|{q:int64})}
