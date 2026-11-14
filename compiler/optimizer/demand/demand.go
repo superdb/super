@@ -119,33 +119,43 @@ func Key(key string, value Demand) Demand {
 	return keys{key: value}
 }
 
-// Delete deletes entries in b from a.
+// Delete deletes entries in b from a.  If a is a demand for types, the
+// types of the deleted entries are still needed (as part of the type of a)
+// but their data is not.
 func Delete(a, b Demand) Demand {
-	aa, ok := a.(keys)
-	if !ok {
-		return a
-	}
 	bb, ok := b.(keys)
 	if !ok {
 		return a
 	}
-	copyOnWrite := true
+	var m map[string]Demand
+	switch a := a.(type) {
+	case keys:
+		m = a
+	case types:
+		m = a
+	default:
+		return a
+	}
+	out := maps.Clone(m)
 	for k, bv := range bb {
-		av, ok := aa[k]
+		av, ok := out[k]
 		if !ok {
 			continue
 		}
-		if copyOnWrite {
-			aa = maps.Clone(aa)
-			copyOnWrite = false
-		}
 		if IsAll(bv) {
-			delete(aa, k)
+			delete(out, k)
 			continue
 		}
-		aa[k] = Delete(av, bv)
+		if av = Delete(av, bv); IsNone(av) || isTypesOnly(av) {
+			delete(out, k)
+		} else {
+			out[k] = av
+		}
 	}
-	return aa
+	if _, ok := a.(types); ok {
+		return types(out)
+	}
+	return keys(out)
 }
 
 func Union(demands ...Demand) Demand {

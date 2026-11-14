@@ -8,6 +8,8 @@
 # operator that makes new values (e.g., aggregate).
 # The fuse and superfuse aggregate functions need only the types of their
 # argument.
+# A field assigned by put is not projected for its data, even when the type
+# of the value is needed.
 script: |
   super compile -C -O -dynamic 'from /dev/null | values typeof(this) | output main' | head -1
   super compile -C -O -dynamic 'from /dev/null | values typeof(a), kind(b.c) | output main' | head -1
@@ -26,6 +28,8 @@ script: |
   super compile -C -O -dynamic 'from /dev/null | count() by typeof(this) | sort this | output main' | head -1
   super compile -C -O -dynamic 'from /dev/null | fuse(this) | output main' | head -1
   super compile -C -O -dynamic 'from /dev/null | superfuse(a) by b | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | put x:=1 | values {t:typeof(this),v:x} | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | put a.b:=1 | values {t:typeof(this),v:a.b,w:a.c} | output main' | head -1
 
 outputs:
   - name: stdout
@@ -47,3 +51,5 @@ outputs:
       file /dev/null unordered project [typeof(this)]
       file /dev/null unordered project [typeof(this)]
       file /dev/null unordered project [b,typeof(a)]
+      file /dev/null project [typeof(this)]
+      file /dev/null project [a.c,typeof(a),typeof(this)]

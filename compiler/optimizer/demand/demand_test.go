@@ -55,3 +55,27 @@ func TestTypes(t *testing.T) {
 	require.True(t, IsAll(Union(TypesOnly(), All())))
 	require.Equal(t, TypesOnly(), GetKey(TypesOnly(), "x"))
 }
+
+func TestDelete(t *testing.T) {
+	cases := []struct {
+		demand Demand
+		fields string
+		types  string
+	}{
+		// typeof(this), x minus x
+		{Delete(Union(TypesOnly(), path(All(), "x")), path(All(), "x")), "", "this"},
+		// typeof(this), a.b, a.c minus a.b
+		{Delete(Union(TypesOnly(), path(All(), "a", "b"), path(All(), "a", "c")), path(All(), "a", "b")), "a.c", "a,this"},
+		// typeof(this), a.b minus a.b
+		{Delete(Union(TypesOnly(), path(All(), "a", "b")), path(All(), "a", "b")), "", "this"},
+		// a.b minus a.b
+		{Delete(path(All(), "a", "b"), path(All(), "a", "b")), "", ""},
+		// a.b, c minus a.b
+		{Delete(Union(path(All(), "a", "b"), path(All(), "c")), path(All(), "a", "b")), "c", ""},
+	}
+	for _, c := range cases {
+		require.True(t, IsValid(c.demand))
+		require.Equal(t, c.fields, paths(Fields(c.demand)))
+		require.Equal(t, c.types, paths(TypeFields(c.demand)))
+	}
+}
