@@ -43,12 +43,16 @@ type Writer struct {
 	// struct with one nullable field per member, named for the member type,
 	// where exactly one field is non-null.  A top-level union is written as
 	// the schema itself.  Used for Parquet, which has no union type.
-	UnionsAsStructs  bool
-	w                io.WriteCloser
-	writer           WriteCloser
-	builder          *array.RecordBuilder
-	unionTagMappings map[super.Type][]int
-	typ              super.Type
+	UnionsAsStructs bool
+	// DropEmptyRecordFields omits record fields whose type is an empty
+	// record (see IsEmptyRecord), which have no data.  Used for Parquet,
+	// which has no empty struct type.
+	DropEmptyRecordFields bool
+	w                     io.WriteCloser
+	writer                WriteCloser
+	builder               *array.RecordBuilder
+	unionTagMappings      map[super.Type][]int
+	typ                   super.Type
 	// valType is the type of the first value written, which may be a
 	// named type whose underlying type is typ.
 	valType super.Type
@@ -127,10 +131,7 @@ func (w *Writer) Write(val super.Value) error {
 	if isUnion {
 		w.buildUnionFields(w.builder.Fields(), unionType, val.Bytes())
 	} else {
-		it := val.Bytes().Iter()
-		for i, builder := range w.builder.Fields() {
-			w.buildArrowValue(builder, recType.Fields[i].Type, it.Next())
-		}
+		w.buildRecordFields(w.builder.Fields(), recType, val.Bytes())
 	}
 	return w.flush(recordBatchSize)
 }
@@ -256,11 +257,17 @@ func (w *Writer) newArrowDataType(typ super.Type) (arrow.DataType, error) {
 		}
 		var fields []arrow.Field
 		for _, f := range typ.Fields {
+			if w.dropField(f.Type) {
+				continue
+			}
 			field, err := w.newArrowField(f.Name, f.Type)
 			if err != nil {
 				return nil, err
 			}
 			fields = append(fields, field)
+		}
+		if len(fields) == 0 {
+			return nil, fmt.Errorf("%w: empty record", ErrUnsupportedType)
 		}
 		return arrow.StructOf(fields...), nil
 	case *super.TypeArray, *super.TypeSet:
@@ -492,10 +499,11 @@ func (w *Writer) buildArrowValue(b array.Builder, typ super.Type, bytes scode.By
 		}
 		b.Append(true)
 		recType := super.TypeRecordOf(typ)
-		it := bytes.Iter()
-		for i, field := range recType.Fields {
-			w.buildArrowValue(b.FieldBuilder(i), field.Type, it.Next())
+		builders := make([]array.Builder, b.NumField())
+		for i := range builders {
+			builders[i] = b.FieldBuilder(i)
 		}
+		w.buildRecordFields(builders, recType, bytes)
 	case *array.DenseUnionBuilder:
 		it := bytes.Iter()
 		tag := super.DecodeUint(it.Next())
@@ -560,6 +568,13 @@ func (w *Writer) newUnionStructType(u *super.TypeUnion) (arrow.DataType, error) 
 			return nil, fmt.Errorf("%w: union member name %q not unique in %s", ErrUnsupportedType, name, sup.FormatType(u))
 		}
 		seen[key] = struct{}{}
+		if w.DropEmptyRecordFields && IsEmptyRecord(typ) {
+			// An empty record has no data so the field is a boolean
+			// that's true where this member is the value.
+			mapping[k] = len(fields)
+			fields = append(fields, arrow.Field{Name: name, Type: arrow.FixedWidthTypes.Boolean, Nullable: true})
+			continue
+		}
 		f, err := w.newArrowField(name, typ)
 		if err != nil {
 			return nil, err
@@ -615,11 +630,49 @@ func (w *Writer) buildUnionFields(builders []array.Builder, u *super.TypeUnion, 
 	}
 	for i, b := range builders {
 		if i == which {
-			w.buildArrowValue(b, u.Types[tag], body)
+			if w.DropEmptyRecordFields && IsEmptyRecord(u.Types[tag]) {
+				b.(*array.BooleanBuilder).Append(true)
+			} else {
+				w.buildArrowValue(b, u.Types[tag], body)
+			}
 		} else {
 			b.AppendNull()
 		}
 	}
+}
+
+// buildRecordFields appends the fields of a record of type typ in bytes to
+// builders, which omit any fields dropped by dropField.
+func (w *Writer) buildRecordFields(builders []array.Builder, typ *super.TypeRecord, bytes scode.Bytes) {
+	it := bytes.Iter()
+	var i int
+	for _, f := range typ.Fields {
+		b := it.Next()
+		if w.dropField(f.Type) {
+			continue
+		}
+		w.buildArrowValue(builders[i], f.Type, b)
+		i++
+	}
+}
+
+func (w *Writer) dropField(typ super.Type) bool {
+	return w.DropEmptyRecordFields && IsEmptyRecord(typ)
+}
+
+// IsEmptyRecord returns true if typ is a record whose fields (if any) all
+// have types that are empty records.
+func IsEmptyRecord(typ super.Type) bool {
+	rec, ok := super.TypeUnder(typ).(*super.TypeRecord)
+	if !ok {
+		return false
+	}
+	for _, f := range rec.Fields {
+		if !IsEmptyRecord(f.Type) {
+			return false
+		}
+	}
+	return true
 }
 
 func unionTag(bytes scode.Bytes) int {

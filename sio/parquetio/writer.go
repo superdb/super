@@ -21,14 +21,15 @@ type Writer struct {
 func NewWriter(wc io.WriteCloser) *Writer {
 	aw := arrowio.NewWriter(wc)
 	aw.UnionsAsStructs = true
+	aw.DropEmptyRecordFields = true
 	aw.NewWriterFunc = func(w io.Writer, s *arrow.Schema) (arrowio.WriteCloser, error) {
 		fw, err := pqarrow.NewFileWriter(s, sio.NopCloser(w), nil, pqarrow.DefaultWriterProps())
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", arrowio.ErrUnsupportedType, err)
 		}
-		if typ := aw.Type(); hasUnionStruct(typ) {
+		if typ := aw.Type(); needsType(typ) {
 			// Store the type so the reader can decode the structs back
-			// into unions.
+			// into unions and restore dropped empty records.
 			text, err := formatType(typ)
 			if err != nil {
 				return nil, err
