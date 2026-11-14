@@ -13,8 +13,19 @@ type Bits struct {
 
 var Zero Bits
 
+// New returns Bits of length length whose storage is bits, which may hold
+// more words than needed (e.g., from a file), and only the needed words are
+// kept.
 func New(bits []uint64, length uint32) Bits {
+	if n := words(length); len(bits) > n {
+		bits = bits[:n]
+	}
 	return Bits{length: length, bits: bits}
+}
+
+// words returns the number of words needed for length bits.
+func words(length uint32) int {
+	return int((uint64(length) + 63) / 64)
 }
 
 func NewFalse(length uint32) Bits {
@@ -37,15 +48,17 @@ func (b Bits) IsZero() bool {
 	return b.length == 0
 }
 
-// GetBits returns b's underlying storage with used bits cleared.
-// GetBits may modify the underlying storage.
+// GetBits returns the words of b's underlying storage that are needed for
+// its length with unused bits cleared.  GetBits may modify the underlying
+// storage.
 func (b Bits) GetBits() []uint64 {
+	bits := b.bits[:words(b.length)]
 	if unusedBits := 64 - (b.length % 64); unusedBits < 64 {
 		// Clear unused bits.
 		mask := ^uint64(0) >> unusedBits
-		b.bits[len(b.bits)-1] &= mask
+		bits[len(bits)-1] &= mask
 	}
-	return b.bits
+	return bits
 }
 
 func (b Bits) IsSet(slot uint32) bool {
@@ -104,7 +117,7 @@ func (b *Bits) Resize(n uint32) {
 
 func (b *Bits) Append(v bool) {
 	b.length++
-	n := int(b.length>>6) + 1
+	n := words(b.length)
 	b.bits = slices.Grow(b.bits, n)[:n]
 	if v {
 		b.Set(b.length - 1)
@@ -145,12 +158,13 @@ func (b Bits) TrueCount() uint32 {
 		return 0
 	}
 	var n uint32
-	for _, bs := range b.bits {
+	used := b.bits[:words(b.length)]
+	for _, bs := range used {
 		n += uint32(bits.OnesCount64(bs))
 	}
 	if numTailBits := b.Len() % 64; numTailBits > 0 {
 		mask := ^uint64(0) << numTailBits
-		unusedBits := b.bits[len(b.bits)-1] & mask
+		unusedBits := used[len(used)-1] & mask
 		n -= uint32(bits.OnesCount64(unusedBits))
 	}
 	return n
@@ -174,7 +188,7 @@ func (b Bits) String() string {
 
 func Not(a Bits) Bits {
 	not := NewFalse(a.Len())
-	for i := range a.bits {
+	for i := range not.bits {
 		not.bits[i] = ^a.bits[i]
 	}
 	return not
@@ -191,7 +205,7 @@ func Or(a, b Bits) Bits {
 		panic("or'ing two different length bool vectors")
 	}
 	out := NewFalse(a.Len())
-	for i := range len(a.bits) {
+	for i := range out.bits {
 		out.bits[i] = a.bits[i] | b.bits[i]
 	}
 	return out
@@ -205,7 +219,7 @@ func And(a, b Bits) Bits {
 		panic("and'ing two different length bool vectors")
 	}
 	out := NewFalse(a.Len())
-	for i := range len(a.bits) {
+	for i := range out.bits {
 		out.bits[i] = a.bits[i] & b.bits[i]
 	}
 	return out
