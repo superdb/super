@@ -19,15 +19,27 @@ type Writer struct {
 }
 
 func NewWriter(wc io.WriteCloser) *Writer {
-	w := arrowio.NewWriter(wc)
-	w.NewWriterFunc = func(w io.Writer, s *arrow.Schema) (arrowio.WriteCloser, error) {
+	aw := arrowio.NewWriter(wc)
+	aw.UnionsAsStructs = true
+	aw.NewWriterFunc = func(w io.Writer, s *arrow.Schema) (arrowio.WriteCloser, error) {
 		fw, err := pqarrow.NewFileWriter(s, sio.NopCloser(w), nil, pqarrow.DefaultWriterProps())
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", arrowio.ErrUnsupportedType, err)
 		}
+		if typ := aw.Type(); hasUnionStruct(typ) {
+			// Store the type so the reader can decode the structs back
+			// into unions.
+			text, err := formatType(typ)
+			if err != nil {
+				return nil, err
+			}
+			if err := fw.AppendKeyValueMetadata(unionTypeKey, text); err != nil {
+				return nil, err
+			}
+		}
 		return fw, nil
 	}
-	return &Writer{w}
+	return &Writer{aw}
 }
 
 func (w *Writer) Push(vec vector.Any) error {

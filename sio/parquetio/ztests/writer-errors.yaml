@@ -4,6 +4,7 @@ script: |
   ! echo {} | super -f parquet -
   ! echo 'type T={a:T|int64} {a:1}::T' | super -f parquet -
   ! echo {a:1s} | super -f parquet -
+  ! super -f parquet -c 'type Foo={a:int64} type foo={b:string} values {a:1}::Foo::(Foo|foo)'
 
 
 outputs:
@@ -14,3 +15,4 @@ outputs:
         parquetio: unsupported type: empty record
         parquetio: unsupported type: T
         parquetio: unsupported type: not implemented: support for DURATION
+        parquetio: unsupported type: union member name "foo" not unique in Foo|foo

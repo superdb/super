@@ -40,6 +40,10 @@ type Reader struct {
 	metadataColIndexes []int
 	metadataFilters    []expr.Evaluator
 
+	// want is the type written to the file if it has a union (see
+	// unionTypeKey) and nil otherwise.
+	want super.Type
+
 	nextRowGroup *atomic.Int64
 	rrs          []pqarrow.RecordReader
 	vbs          []vectorBuilder
@@ -65,11 +69,22 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p vio.Push
 	if err != nil {
 		return nil, err
 	}
+	var want super.Type
+	if text := pr.MetaData().KeyValueMetadata().FindValue(unionTypeKey); text != nil {
+		if want, err = parseType(sctx, *text); err != nil {
+			return nil, fmt.Errorf("Parquet %s metadata: %w", unionTypeKey, err)
+		}
+	}
 	var emptyProjection bool
 	var metadataColIndexes []int
 	var metadataFilters []expr.Evaluator
 	var fields []field.Path
-	if p != nil {
+	if p != nil && want != nil {
+		// The paths of a projection or metadata filter are paths of the
+		// values, whose unions are structs in the file, so read all
+		// of the columns.
+		emptyProjection = p.Projection().IsEmpty()
+	} else if p != nil {
 		emptyProjection = p.Projection().IsEmpty()
 		fields = p.Projection().Paths()
 		filter, err := p.MetaFilter()
@@ -106,6 +121,7 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p vio.Push
 		emptyProjection:    emptyProjection,
 		metadataColIndexes: metadataColIndexes,
 		metadataFilters:    metadataFilters,
+		want:               want,
 		nextRowGroup:       &atomic.Int64{},
 		rrs:                make([]pqarrow.RecordReader, concurrentReaders),
 		vbs:                vbs,
@@ -189,6 +205,9 @@ func (r *Reader) ConcurrentPull(done bool, id int) (vector.Any, error) {
 			}
 			return nil, err
 		}
+		if r.want != nil {
+			return r.vbs[id].buildTyped(array.RecordToStructArray(batch), false, r.want)
+		}
 		return r.vbs[id].build(array.RecordToStructArray(batch), false)
 	}
 }
@@ -197,6 +216,9 @@ func (r *Reader) Type() (super.Type, error) {
 	s, err := r.fr.Schema()
 	if err != nil {
 		return nil, err
+	}
+	if r.want != nil {
+		return r.vbs[0].typedType(arrow.StructOf(s.Fields()...), false, r.want)
 	}
 	return arrowio.NewTypeFromSchema(r.sctx, s)
 }

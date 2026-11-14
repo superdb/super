@@ -38,12 +38,20 @@ var (
 // dictionaries are not part of the super-structured data model, write support could be added
 // using a named type.)
 type Writer struct {
-	NewWriterFunc    func(io.Writer, *arrow.Schema) (WriteCloser, error)
+	NewWriterFunc func(io.Writer, *arrow.Schema) (WriteCloser, error)
+	// UnionsAsStructs encodes each union (other than a nullable union) as a
+	// struct with one nullable field per member, named for the member type,
+	// where exactly one field is non-null.  A top-level union is written as
+	// the schema itself.  Used for Parquet, which has no union type.
+	UnionsAsStructs  bool
 	w                io.WriteCloser
 	writer           WriteCloser
 	builder          *array.RecordBuilder
 	unionTagMappings map[super.Type][]int
-	typ              *super.TypeRecord
+	typ              super.Type
+	// valType is the type of the first value written, which may be a
+	// named type whose underlying type is typ.
+	valType super.Type
 }
 
 type WriteCloser interface {
@@ -83,17 +91,26 @@ func (w *Writer) Close() error {
 
 const recordBatchSize = 1024
 
+// Type returns the type of the first value written, which is set by the
+// first call to Write (before NewWriterFunc is called).
+func (w *Writer) Type() super.Type {
+	return w.valType
+}
+
 func (w *Writer) Write(val super.Value) error {
-	recType, ok := super.TypeUnder(val.Type()).(*super.TypeRecord)
-	if !ok {
+	typ := super.TypeUnder(val.Type())
+	recType, isRecord := typ.(*super.TypeRecord)
+	unionType, isUnion := typ.(*super.TypeUnion)
+	if !isRecord && !(isUnion && w.UnionsAsStructs && !isNullableUnion(unionType)) {
 		return fmt.Errorf("%w: %s", ErrNotRecord, sup.FormatValue(val))
 	}
 	if w.typ == nil {
-		if isRecursive(recType, make(map[string]struct{})) {
+		if isRecursive(typ, make(map[string]struct{})) {
 			return fmt.Errorf("%w: %s", ErrUnsupportedType, sup.FormatType(val.Type()))
 		}
-		w.typ = recType
-		dt, err := w.newArrowDataType(recType)
+		w.typ = typ
+		w.valType = val.Type()
+		dt, err := w.newArrowDataType(typ)
 		if err != nil {
 			return err
 		}
@@ -104,12 +121,16 @@ func (w *Writer) Write(val super.Value) error {
 		if err != nil {
 			return err
 		}
-	} else if w.typ != recType {
-		return fmt.Errorf("%w: %s and %s", ErrMultipleTypes, sup.FormatType(w.typ), sup.FormatType(recType))
+	} else if w.typ != typ {
+		return fmt.Errorf("%w: %s and %s", ErrMultipleTypes, sup.FormatType(w.typ), sup.FormatType(typ))
 	}
-	it := val.Bytes().Iter()
-	for i, builder := range w.builder.Fields() {
-		w.buildArrowValue(builder, recType.Fields[i].Type, it.Next())
+	if isUnion {
+		w.buildUnionFields(w.builder.Fields(), unionType, val.Bytes())
+	} else {
+		it := val.Bytes().Iter()
+		for i, builder := range w.builder.Fields() {
+			w.buildArrowValue(builder, recType.Fields[i].Type, it.Next())
+		}
 	}
 	return w.flush(recordBatchSize)
 }
@@ -273,6 +294,9 @@ func (w *Writer) newArrowDataType(typ super.Type) (arrow.DataType, error) {
 		}
 		return arrow.MapOfFields(keyField, itemField), nil
 	case *super.TypeUnion:
+		if w.UnionsAsStructs {
+			return w.newUnionStructType(typ)
+		}
 		if len(typ.Types) > math.MaxUint8 {
 			return nil, fmt.Errorf("%w: union with more than %d fields", ErrUnsupportedType, math.MaxUint8)
 		}
@@ -315,6 +339,9 @@ func (w *Writer) newArrowField(name string, typ super.Type) (arrow.Field, error)
 	} else {
 		// pqarrow requires that an arrow.NULL field be nullable.
 		nullable = typ == super.TypeNull || typ == super.TypeMissing || typ == super.TypeNone || opt
+		if u, ok := super.TypeUnder(typ).(*super.TypeUnion); ok && w.UnionsAsStructs && hasNullMember(u) {
+			nullable = true
+		}
 	}
 	dt, err := w.newArrowDataType(typ)
 	if err != nil {
@@ -459,6 +486,10 @@ func (w *Writer) buildArrowValue(b array.Builder, typ super.Type, bytes scode.By
 	case *array.ListBuilder:
 		w.buildArrowListValue(b, typ, bytes)
 	case *array.StructBuilder:
+		if u, ok := typ.(*super.TypeUnion); ok {
+			w.buildUnionStruct(b, u, bytes)
+			break
+		}
 		b.Append(true)
 		recType := super.TypeRecordOf(typ)
 		it := bytes.Iter()
@@ -508,6 +539,105 @@ func (w *Writer) buildArrowValue(b array.Builder, typ super.Type, bytes scode.By
 	default:
 		panic(fmt.Sprintf("unknown builder type %T", b))
 	}
+}
+
+// newUnionStructType returns a struct type encoding union u with one
+// nullable field per non-null member, named for that member's type.  Null,
+// missing, and none members have no field and are encoded as a null struct.
+func (w *Writer) newUnionStructType(u *super.TypeUnion) (arrow.DataType, error) {
+	var fields []arrow.Field
+	mapping := make([]int, len(u.Types))
+	seen := map[string]struct{}{}
+	for k, typ := range u.Types {
+		if isNullType(typ) {
+			mapping[k] = -1
+			continue
+		}
+		name := unionMemberName(typ, k)
+		// Case-insensitive since some readers (e.g., DuckDB) ignore case.
+		key := strings.ToLower(name)
+		if _, ok := seen[key]; ok {
+			return nil, fmt.Errorf("%w: union member name %q not unique in %s", ErrUnsupportedType, name, sup.FormatType(u))
+		}
+		seen[key] = struct{}{}
+		f, err := w.newArrowField(name, typ)
+		if err != nil {
+			return nil, err
+		}
+		f.Nullable = true
+		mapping[k] = len(fields)
+		fields = append(fields, f)
+	}
+	if len(fields) == 0 {
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedType, sup.FormatType(u))
+	}
+	w.unionTagMappings[u] = mapping
+	return arrow.StructOf(fields...), nil
+}
+
+// unionMemberName returns the struct field name for the member typ at
+// position k of a union: the type name for named and primitive types and
+// "member<k>" otherwise.
+func unionMemberName(typ super.Type, k int) string {
+	if n, ok := typ.(*super.TypeNamed); ok {
+		return n.Name
+	}
+	if super.IsPrimitiveType(typ) {
+		return super.PrimitiveName(typ)
+	}
+	return fmt.Sprintf("member%d", k)
+}
+
+func (w *Writer) buildUnionStruct(b *array.StructBuilder, u *super.TypeUnion, bytes scode.Bytes) {
+	if bytes == nil || w.unionTagMappings[u][unionTag(bytes)] < 0 {
+		b.AppendNull()
+		return
+	}
+	b.Append(true)
+	builders := make([]array.Builder, b.NumField())
+	for i := range builders {
+		builders[i] = b.FieldBuilder(i)
+	}
+	w.buildUnionFields(builders, u, bytes)
+}
+
+// buildUnionFields appends a value of union u to builders, one per member
+// field, appending the member value to its field and null to the others.
+func (w *Writer) buildUnionFields(builders []array.Builder, u *super.TypeUnion, bytes scode.Bytes) {
+	which := -1
+	var tag int
+	var body scode.Bytes
+	if bytes != nil {
+		it := bytes.Iter()
+		tag = int(super.DecodeUint(it.Next()))
+		body = it.Next()
+		which = w.unionTagMappings[u][tag]
+	}
+	for i, b := range builders {
+		if i == which {
+			w.buildArrowValue(b, u.Types[tag], body)
+		} else {
+			b.AppendNull()
+		}
+	}
+}
+
+func unionTag(bytes scode.Bytes) int {
+	it := bytes.Iter()
+	return int(super.DecodeUint(it.Next()))
+}
+
+func isNullType(typ super.Type) bool {
+	return typ == super.TypeNull || typ == super.TypeMissing || typ == super.TypeNone
+}
+
+func hasNullMember(u *super.TypeUnion) bool {
+	return slices.ContainsFunc(u.Types, isNullType)
+}
+
+func isNullableUnion(u *super.TypeUnion) bool {
+	_, which := nullableUnion(u)
+	return which >= 0
 }
 
 func (w *Writer) buildArrowListValue(b array.ListLikeBuilder, typ super.Type, bytes scode.Bytes) {
