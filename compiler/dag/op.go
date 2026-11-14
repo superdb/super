@@ -324,10 +324,14 @@ type (
 		// TypeProjection is the paths whose types are needed but not
 		// their data (except for the paths in Projection).
 		TypeProjection []field.Path `json:"type_projection"`
-		DataFilter     *ScanFilter  `json:"data_filter"`
-		MetaFilter     *ScanFilter  `json:"meta_filter"`
-		SearchFilter   *ScanFilter  `json:"search_filter"`
-		Unordered      bool         `json:"unordered"`
+		// AssertProjection leads to the values used only through type
+		// assertions (see field.Projection), which are not in
+		// Projection or TypeProjection.
+		AssertProjection []field.AssertPath `json:"assert_projection"`
+		DataFilter       *ScanFilter        `json:"data_filter"`
+		MetaFilter       *ScanFilter        `json:"meta_filter"`
+		SearchFilter     *ScanFilter        `json:"search_filter"`
+		Unordered        bool               `json:"unordered"`
 	}
 	ScanFilter struct {
 		HasProjection  bool         `json:"has_projection"`

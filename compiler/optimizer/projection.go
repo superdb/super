@@ -3,6 +3,7 @@ package optimizer
 import (
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/compiler/optimizer/demand"
+	"github.com/superdb/super/pkg/field"
 )
 
 // setProjections pushes the demand in table down into the scans so they
@@ -16,7 +17,8 @@ func setProjections(table demandTable) {
 				mf.Projection = demand.Fields(demand.WithoutTypes(demandForExpr(mf.Expr)))
 			}
 			if df := op.Pushdown.DataFilter; df != nil {
-				exprDemand := demandForExpr(df.Expr)
+				// The filters don't use projections with assertions.
+				exprDemand := demand.WithoutAsserts(demandForExpr(df.Expr))
 				if demand.IsAll(exprDemand) {
 					// If the predicate wants to look at the entire this, then it is a candidate
 					// for search.  We don't check for sure if it is and let the compiler do
@@ -32,6 +34,7 @@ func setProjections(table demandTable) {
 			op.Pushdown.HasProjection = !demand.IsAll(downstream)
 			op.Pushdown.Projection = demand.Fields(downstream)
 			op.Pushdown.TypeProjection = demand.TypeFields(downstream)
+			op.Pushdown.AssertProjection = field.FlattenAsserts(demand.AssertProjection(downstream))
 		case *dag.SeqScan:
 			d := demand.Union(downstream, demandForExpr(op.Filter))
 			d = demand.Union(d, demandForExpr(op.KeyPruner))

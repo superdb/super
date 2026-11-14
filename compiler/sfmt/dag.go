@@ -378,7 +378,7 @@ func (c *canonDAG) op(o dag.Op) {
 			c.write(" unordered")
 		}
 		if o.Pushdown.HasProjection {
-			c.project(o.Pushdown.Projection, o.Pushdown.TypeProjection)
+			c.project(o.Pushdown.Projection, o.Pushdown.TypeProjection, o.Pushdown.AssertProjection)
 		}
 		c.scanFilter("meta-filter", o.Pushdown.MetaFilter)
 		c.scanFilter("search-filter", o.Pushdown.SearchFilter)
@@ -443,7 +443,7 @@ func (c *canonDAG) op(o dag.Op) {
 			c.write(")")
 		}
 		if len(o.Fields) > 0 {
-			c.project(o.Fields, nil)
+			c.project(o.Fields, nil, nil)
 		}
 		if o.Filter != nil {
 			c.write(" filter (")
@@ -679,7 +679,7 @@ func (c *canonDAG) scanFilter(which string, sf *dag.ScanFilter) {
 		c.ret()
 		c.open()
 		c.open(which)
-		c.project(sf.Projection, sf.TypeProjection)
+		c.project(sf.Projection, sf.TypeProjection, nil)
 		c.write(" (")
 		c.ret()
 		c.expr(sf.Expr, "")
@@ -691,7 +691,15 @@ func (c *canonDAG) scanFilter(which string, sf *dag.ScanFilter) {
 	}
 }
 
-func (c *canonDAG) project(fields, typeFields []field.Path) {
+func (c *canonDAG) project(fields, typeFields []field.Path, asserts []field.AssertPath) {
+	c.write(" project [%s]", strings.Join(c.projectionItems(fields, typeFields, asserts, -1), ","))
+}
+
+// projectionItems returns the items of a projection whose assertions have
+// parent in asserts (see field.AssertPath).  An assertion is shown as
+// path.(T) followed by the items of its projection in brackets unless it
+// needs all of the data.
+func (c *canonDAG) projectionItems(fields, typeFields []field.Path, asserts []field.AssertPath, parent int) []string {
 	var ss []string
 	for _, f := range fields {
 		ss = append(ss, f.String())
@@ -699,8 +707,18 @@ func (c *canonDAG) project(fields, typeFields []field.Path) {
 	for _, f := range typeFields {
 		ss = append(ss, "typeof("+f.String()+")")
 	}
+	for i, a := range asserts {
+		if a.Parent != parent {
+			continue
+		}
+		s := a.Path.String() + ".(" + c.typeName(&dag.TypeExpr{ID: a.TypeID}) + ")"
+		if a.HasProjection {
+			s += "[" + strings.Join(c.projectionItems(a.Projection, a.TypeProjection, asserts, i), ",") + "]"
+		}
+		ss = append(ss, s)
+	}
 	slices.Sort(ss)
-	c.write(" project [%s]", strings.Join(ss, ","))
+	return ss
 }
 
 func (c *canonDAG) unnest(u *dag.UnnestOp) {
