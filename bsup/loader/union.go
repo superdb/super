@@ -40,7 +40,7 @@ func (u *Union) project(loader *FrameLoader, projection field.Projection) vector
 	vecs := make([]vector.Any, 0, len(u.Values))
 	types := make([]super.Type, 0, len(u.Values))
 	for _, shadow := range u.Values {
-		vec := shadow.project(loader, projection)
+		vec := project(loader, shadow, projection)
 		vecs = append(vecs, vec)
 		types = append(types, vec.Type())
 	}
@@ -53,7 +53,7 @@ func (u *Union) project(loader *FrameLoader, projection field.Projection) vector
 			// of the paths projected for their types.
 			projection = projection.NoTypes()
 			for i, shadow := range u.Values {
-				vecs[i] = shadow.project(loader, projection)
+				vecs[i] = project(loader, shadow, projection)
 			}
 		}
 		if len(u.Values) == 2 {

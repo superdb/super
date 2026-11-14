@@ -73,6 +73,75 @@ func (n *Node) Len() uint32 {
 	return n.Length
 }
 
+func (n *Node) typeID() uint32 {
+	return n.TypeID
+}
+
+// project returns the projection of s, resolving the assertion nodes of
+// projection (if any) for s first (see resolveAsserts).
+func project(loader *FrameLoader, s Shadow, projection field.Projection) vector.Any {
+	if projection.HasAsserts() {
+		projection = loader.resolveAsserts(s, projection)
+	}
+	return s.project(loader, projection)
+}
+
+// resolveAsserts returns the projection for s of projection, which consists
+// of assertion nodes (see field.Projection), following how a type assertion
+// matches the values of s (see expr.TypeAssert): the projection of the node
+// whose type s has (or all of the data if s has more than one); projection
+// itself if s is the dynamic root or a type assertion looks inside its values
+// (unions and options); all of the data if a type assertion passes the values
+// through (errors, missing, and none) or needs their data (fusions); and
+// otherwise the type only.
+func (f *FrameLoader) resolveAsserts(s Shadow, projection field.Projection) field.Projection {
+	if _, ok := s.(*Dynamic); ok {
+		return projection
+	}
+	typ := f.vectorType(s.(interface{ typeID() uint32 }).typeID())
+	var match field.Projection
+	var n int
+	for _, node := range projection.Asserts() {
+		target, err := f.sctx.LookupType(node.TypeID)
+		if err != nil {
+			return nil
+		}
+		if hasType(typ, target) {
+			match = node.Proj
+			n++
+		}
+	}
+	if n == 1 {
+		return match
+	}
+	if n > 1 {
+		return nil
+	}
+	switch under := super.TypeUnder(typ).(type) {
+	case *super.TypeUnion, *super.TypeOption:
+		return projection
+	case *super.TypeError, *super.TypeFusion:
+		return nil
+	default:
+		if under == super.TypeMissing || under == super.TypeNone {
+			return nil
+		}
+	}
+	return typesOnly
+}
+
+// hasType returns true if a value of type typ has the asserted type target
+// (see expr.TypeAssert).
+func hasType(typ, target super.Type) bool {
+	if typ == target {
+		return true
+	}
+	if u, ok := super.TypeUnder(target).(*super.TypeUnion); ok {
+		return slices.Contains(u.Types, typ)
+	}
+	return false
+}
+
 // Unmarshal returns the root shadow of a frame whose vector typedefs table is
 // defs, whose locator section is locators, and whose data section is dataSize
 // bytes, or an error if the typedefs or locators are malformed.  The root

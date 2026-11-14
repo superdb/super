@@ -1,0 +1,32 @@
+# A path used only through type assertions of type expressions, possibly
+# followed by fields, is projected for the assertions (shown as path.(T)
+# followed by the projection of the values that have type T, which keeps
+# their type, in brackets unless all of their data is needed).  Elsewhere the
+# values are projected for their types only.  A path that is used otherwise
+# too is projected for its type and the data of every assertion, and an
+# operator that materializes its input needs all of the data.
+script: |
+  super compile -C -O -dynamic 'from /dev/null | values this.(int64) | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | values a.({x:int64,y:string})?.x | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | values a.({x:int64})?.x, b.(string) | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | values a.({x:int64})?.x, a.({y:string})?.y | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | values typeof(this), a.({x:int64})?.x | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | values a.({x:int64})?.x, a | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | values a.({x:int64})?.x, a.y | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | values a.({r:{x:int64}|string})?.r.({x:int64})?.x | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | put b:=1 | values a.({x:int64})?.x | output main' | head -1
+  super compile -C -O -dynamic 'from /dev/null | sort c | values a.({x:int64})?.x | output main' | head -1
+
+outputs:
+  - name: stdout
+    data: |
+      file /dev/null project [this.(int64)]
+      file /dev/null project [a.({x:int64,y:string})[typeof(this),x]]
+      file /dev/null project [a.({x:int64})[typeof(this),x],b.(string)]
+      file /dev/null project [a.({x:int64})[typeof(this),x],a.({y:string})[typeof(this),y]]
+      file /dev/null project [a.({x:int64})[typeof(this),x],typeof(this)]
+      file /dev/null project [a]
+      file /dev/null project [a.x,a.y,typeof(a)]
+      file /dev/null project [a.({r:string|{x:int64}})[r.({x:int64})[typeof(this),x],typeof(this)]]
+      file /dev/null project [a.({x:int64})[typeof(this),x]]
+      file /dev/null unordered project [a,c]

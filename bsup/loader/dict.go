@@ -32,7 +32,7 @@ func (d *Dict) project(loader *FrameLoader, projection field.Projection) vector.
 		}
 	}
 	index, counts := d.load(loader)
-	return vector.NewDict(d.Values.project(loader, projection), index, counts)
+	return vector.NewDict(project(loader, d.Values, projection), index, counts)
 }
 
 func (d *Dict) load(loader *FrameLoader) ([]byte, []uint32) {

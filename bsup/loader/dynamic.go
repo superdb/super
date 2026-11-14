@@ -23,7 +23,7 @@ type Dynamic struct {
 func (d *Dynamic) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	vecs := make([]vector.Any, 0, len(d.Values))
 	for _, value := range d.Values {
-		vecs = append(vecs, value.project(loader, projection))
+		vecs = append(vecs, project(loader, value, projection))
 	}
 	return vector.NewDynamic(d.load(loader), vecs)
 }

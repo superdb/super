@@ -106,7 +106,7 @@ func (f *FrameLoader) Load(projection field.Projection) vector.Any {
 	// data vector is loaded just once and such loads may be executed concurrently (even
 	// when only one thread is calling load).  If paths is nil, then the entire value
 	// is loaded.
-	return f.Root().project(f, projection)
+	return project(f, f.Root(), projection)
 }
 
 type Loader interface {
@@ -142,7 +142,7 @@ func (s *shadowLoader) Len() uint32 {
 }
 
 func (s *shadowLoader) Load(projection field.Projection) vector.Any {
-	return s.shadow.project(s.frameLoader, projection)
+	return project(s.frameLoader, s.shadow, projection)
 }
 
 // Strings loads every string buffer in the frame (string columns, dict

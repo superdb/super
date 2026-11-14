@@ -14,8 +14,8 @@ type Named struct {
 }
 
 func (n *Named) project(loader *FrameLoader, projection field.Projection) vector.Any {
-	vec := n.Values.project(loader, projection)
-	if len(projection) != 0 && !projection.HasTypes() {
+	vec := project(loader, n.Values, projection)
+	if len(projection) != 0 && !projection.HasTypes() && !projection.HasAsserts() {
 		// The projection may change the underlying type, so the name doesn't
 		// apply.  Don't bind the name to the projected type since that would
 		// conflict with its actual type in sctx.
@@ -38,7 +38,7 @@ type Error struct {
 }
 
 func (e *Error) project(loader *FrameLoader, projection field.Projection) vector.Any {
-	vec := e.Values.project(loader, projection)
+	vec := project(loader, e.Values, projection)
 	typ := loader.sctx.LookupTypeError(vec.Type())
 	return vector.NewError(typ, vec)
 }

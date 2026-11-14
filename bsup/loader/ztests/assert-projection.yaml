@@ -1,0 +1,109 @@
+# A type assertion projection (see compiler/ztests/pushdown-asserts.yaml)
+# loads the data of the values that have the asserted type and only the types
+# of the others, which the assertion does not match, for the dynamic root
+# vector, unions (named or not, and with a null member), options, and nested
+# assertions.  Errors pass through an assertion so all of their data is loaded.
+script: |
+  for f in root l n; do
+    super -o $f.bsup $f.sup
+  done
+  super -s -c 'from root.bsup | values this.(A)?.id'
+  echo ===
+  super -s -c 'from root.bsup | values this.(A)'
+  echo ===
+  super -s -c 'from l.bsup | values x.(A)?.s'
+  echo ===
+  super -s -c 'from l.bsup | values x.(B)'
+  echo ===
+  super -s -c 'from l.bsup | values x.(U)'
+  echo ===
+  super -s -c 'from l.bsup | values typeof(this), x.(A)?.id'
+  echo ===
+  super -s -c 'from l.bsup | values o.(A)?.s'
+  echo ===
+  super -s -c 'from l.bsup | values e.(A)'
+  echo ===
+  super -s -c 'from l.bsup | values p.(int64)'
+  echo ===
+  super -s -c 'from l.bsup | values m.(A)?.s, m.(B)?.t'
+  echo ===
+  super -s -c 'from n.bsup | values v.(R)?.q.(C)?.c'
+  echo ===
+  super -s -c 'from n.bsup | values {q:v.(R)?.q, r:v.(R)?.r}'
+
+inputs:
+  - name: root.sup
+    data: |
+      type A={id:int64,s:string}
+      type B={id:string,t:int64}
+      {id:1,s:"x"}::A
+      {id:"b",t:2}::B
+      {id:3,s:"y"}::A
+  - name: l.sup
+    data: |
+      type A={id:int64,s:string}
+      type B={id:string,t:int64}
+      type U=A|B
+      {x:{id:1,s:"a"}::A::U,o?:{id:5,s:"o"}::A,e:{id:1,s:"a"}::A::(A|error(string)),p:1::(int64|string),m:{id:1,s:"z"}::A::(A|B|null)}
+      {x:{id:"b",t:2}::B::U,o?:none::A,e:error("bad")::(A|error(string)),p:"s"::(int64|string),m:null::(A|B|null)}
+      {x:{id:3,s:"c"}::A::U,o?:{id:6,s:"p"}::A,e:{id:2,s:"b"}::A::(A|error(string)),p:2::(int64|string),m:{id:"m",t:9}::B::(A|B|null)}
+  - name: n.sup
+    data: |
+      type C={c:int64,d:string}
+      type R={q:C|string,r:int64}
+      {v:{q:{c:1,d:"x"}::C::(C|string),r:5}::R::(R|int64)}
+      {v:{q:"s"::(C|string),r:6}::R::(R|int64)}
+      {v:7::(R|int64)}
+
+outputs:
+  - name: stdout
+    data: |
+      1
+      3
+      ===
+      type A={id:int64,s:string}
+      {id:1,s:"x"}::"A"
+      {id:3,s:"y"}::"A"
+      ===
+      "a"
+      "c"
+      ===
+      type B={id:string,t:int64}
+      {id:"b",t:2}::"B"
+      ===
+      type A={id:int64,s:string}
+      type B={id:string,t:int64}
+      type U=A|B
+      {id:1,s:"a"}::"A"::U
+      {id:"b",t:2}::"B"::U
+      {id:3,s:"c"}::"A"::U
+      ===
+      type A={id:int64,s:string}
+      type B={id:string,t:int64}
+      type U=A|B
+      <{x:U,o?:A,e:A|error(string),p:int64|string,m:A|B|null}>
+      1
+      <{x:U,o?:A,e:A|error(string),p:int64|string,m:A|B|null}>
+      <{x:U,o?:A,e:A|error(string),p:int64|string,m:A|B|null}>
+      3
+      ===
+      "o"
+      "p"
+      ===
+      type A={id:int64,s:string}
+      {id:1,s:"a"}::"A"
+      error("bad")
+      {id:2,s:"b"}::"A"
+      ===
+      1
+      2
+      ===
+      "z"
+      9
+      ===
+      1
+      ===
+      type C={c:int64,d:string}
+      {q:{c:1,d:"x"}::"C"::(C|string),r:5}
+      {q:"s"::(C|string),r:6}
+      {}

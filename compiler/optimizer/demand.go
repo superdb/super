@@ -234,12 +234,20 @@ func (a *demandAnalyzer) demandForExpr(expr dag.Expr) demand.Demand {
 		return demand.Union(a.demandForExpr(expr.Cond),
 			demand.Union(a.demandForExpr(expr.Then), a.demandForExpr(expr.Else)))
 	case *dag.DotExpr:
+		if hasTypeAssert(expr.LHS) {
+			if d, ok := pathDemand(expr, demand.All()); ok {
+				return d
+			}
+		}
 		return a.demandForExpr(expr.LHS)
 	case *dag.IndexExpr:
 		return demand.Union(a.demandForExpr(expr.Expr), a.demandForExpr(expr.Index))
 	case *dag.IsNullExpr:
 		return a.demandForExpr(expr.Expr)
 	case *dag.TypeAssertExpr:
+		if d, ok := pathDemand(expr, demand.All()); ok {
+			return d
+		}
 		return demand.Union(a.demandForExpr(expr.Expr), a.demandForExpr(expr.Type))
 	case *dag.MatchExpr:
 		// The results are evaluated on their inputs, not on this, so only
@@ -327,6 +335,37 @@ func typeDemand(expr dag.Expr) (demand.Demand, bool) {
 		return typeDemand(expr.LHS)
 	}
 	return nil, false
+}
+
+// pathDemand returns the demand for expr, where inner is the demand for the
+// value of expr, and true if expr is a path of this through fields and type
+// assertions of type expressions, e.g., this.(T).a or this.a.(T).
+func pathDemand(expr dag.Expr, inner demand.Demand) (demand.Demand, bool) {
+	switch expr := expr.(type) {
+	case *dag.ThisExpr:
+		d := inner
+		for _, elem := range slices.Backward(expr.Chain) {
+			d = demand.Key(elem.ID, d)
+		}
+		return d, true
+	case *dag.DotExpr:
+		return pathDemand(expr.LHS, demand.Key(expr.RHS, inner))
+	case *dag.TypeAssertExpr:
+		if typ, ok := expr.Type.(*dag.TypeExpr); ok {
+			return pathDemand(expr.Expr, demand.Assert(typ.ID, inner))
+		}
+	}
+	return nil, false
+}
+
+func hasTypeAssert(expr dag.Expr) bool {
+	switch expr := expr.(type) {
+	case *dag.DotExpr:
+		return hasTypeAssert(expr.LHS)
+	case *dag.TypeAssertExpr:
+		return true
+	}
+	return false
 }
 
 // isTypeFunc returns true if call is a call to a built-in function whose

@@ -79,3 +79,43 @@ func TestDelete(t *testing.T) {
 		require.Equal(t, c.types, paths(TypeFields(c.demand)))
 	}
 }
+
+func TestAsserts(t *testing.T) {
+	assertA := Assert(1, path(All(), "x"))
+	assertB := Assert(2, path(All(), "y"))
+	// a.(A).x, a.(B).y
+	d := Union(path(assertA, "a"), path(assertB, "a"))
+	require.True(t, IsValid(d))
+	require.Equal(t, "", paths(Fields(d)))
+	require.Equal(t, "", paths(TypeFields(d)))
+	p := AssertProjection(d)
+	require.Len(t, p, 1)
+	require.Equal(t, "a", p[0].Name)
+	require.Len(t, p[0].Proj, 2)
+	// The projection of each assertion keeps the asserted type.
+	require.True(t, p[0].Proj[0].Proj.HasTypes())
+	// typeof(this), a.(A).x keeps the assertion.
+	d = Union(TypesOnly(), path(assertA, "a"))
+	require.Equal(t, "this", paths(TypeFields(d)))
+	require.Len(t, AssertProjection(d), 1)
+	// a.(A).x, typeof(a) keeps the assertion too.
+	d = Union(path(TypesOnly(), "a"), path(assertA, "a"))
+	require.Equal(t, "", paths(TypeFields(d)))
+	require.Len(t, AssertProjection(d), 1)
+	// a.(A).x, a.z needs the type of a and the data of a.x and a.z.
+	d = Union(path(assertA, "a"), path(All(), "a", "z"))
+	require.True(t, IsValid(d))
+	require.Equal(t, "a.x,a.z", paths(Fields(d)))
+	require.Equal(t, "a", paths(TypeFields(d)))
+	require.Nil(t, AssertProjection(d))
+	// a.(A).x, a needs all of a.
+	d = Union(path(assertA, "a"), path(All(), "a"))
+	require.Equal(t, "a", paths(Fields(d)))
+	require.Nil(t, AssertProjection(d))
+	// A materializing operator needs all of a.
+	require.Equal(t, "a", paths(Fields(WithoutTypes(path(assertA, "a")))))
+	// Without assertions, a.(A).x needs the type of a and the data of a.x.
+	d = WithoutAsserts(path(assertA, "a"))
+	require.Equal(t, "a.x", paths(Fields(d)))
+	require.Equal(t, "a", paths(TypeFields(d)))
+}
