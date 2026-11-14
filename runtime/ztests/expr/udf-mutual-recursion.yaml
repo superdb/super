@@ -18,3 +18,61 @@ output: |
   false
   false
   true
+
+---
+
+# Whether a recursive function used as an operator is a filter (when its
+# result is Boolean) can't be known in general, so an explicit operator is
+# required.
+spq: |
+  fn is_even(n): (
+    n == 0 ? true : is_odd(n-1)
+  )
+
+  fn is_odd(n): (
+    n == 0 ? false: is_even(n-1)
+  )
+
+  is_even(this)
+
+input: |
+  10
+  11
+
+error: |
+  expression with a recursive function call requires an explicit operator (e.g., values or where) at line 9, column 1:
+  is_even(this)
+  ~~~~~~~~~~~~~
+
+---
+
+spq: |
+  fn is_even(n): (
+    n == 0 ? true : is_odd(n-1)
+  )
+
+  fn is_odd(n): (
+    n == 0 ? false: is_even(n-1)
+  )
+
+  where is_even(this)
+
+input: |
+  10
+  11
+
+output: |
+  10
+
+---
+
+# A recursive function whose result plainly isn't Boolean is not a filter.
+spq: |
+  fn fact(n): (n <= 1 ? 1 : n*fact(n-1))
+  fact(this)
+
+input: |
+  5
+
+output: |
+  120

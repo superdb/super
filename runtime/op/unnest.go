@@ -64,6 +64,11 @@ func (u *Unnest) flatten(vec vector.Any, record bool) (vector.Any, []uint32) {
 		return nil, nil
 	}
 	vec = vector.Under(vec)
+	if c, ok := vec.(*vector.Const); ok {
+		// Expand a constant (e.g., under(<int64|string>)) so it can be
+		// unnested like any other vector.
+		vec = vector.Under(vector.Pick(c.Any, make([]uint32, c.Len())))
+	}
 	switch vec.Kind() {
 	case vector.KindNull:
 		return nil, nil

@@ -1720,7 +1720,12 @@ func (t *translator) exprOp(e ast.Expr, seq sem.Seq, inType super.Type) (sem.Seq
 		}
 	}
 	out, typ := t.expr(e, inType)
-	if t.isBool(out) {
+	isBool, ok := t.isBool(out)
+	if !ok {
+		t.error(e, errors.New("expression with a recursive function call requires an explicit operator (e.g., values or where)"))
+		return append(seq, badOp), t.checker.unknown
+	}
+	if isBool {
 		return append(seq, &sem.FilterOp{Node: e, Expr: out}), t.checker.narrow(inType, out)
 	}
 	// As with the values operator, the value must not be missing and a
@@ -1729,41 +1734,63 @@ func (t *translator) exprOp(e ast.Expr, seq sem.Seq, inType super.Type) (sem.Seq
 	return append(seq, sem.NewValues(e, out)), t.checker.values([]super.Type{typ})
 }
 
-func (t *translator) isBool(e sem.Expr) bool {
+// isBool returns whether e has a Boolean result (so that e as an operator is a
+// filter) and true or, if that depends on the result of a recursive function
+// call, false.
+func (t *translator) isBool(e sem.Expr) (bool, bool) {
+	return t.isBoolExpr(e, map[string]bool{})
+}
+
+func (t *translator) isBoolExpr(e sem.Expr, checking map[string]bool) (bool, bool) {
 	switch e := e.(type) {
 	case *sem.PrimitiveExpr:
-		return e.Value == "true" || e.Value == "false"
+		return e.Value == "true" || e.Value == "false", true
 	case *sem.UnaryExpr:
-		return t.isBool(e.Operand)
+		return t.isBoolExpr(e.Operand, checking)
 	case *sem.BinaryExpr:
 		switch e.Op {
 		case "and", "or", "in", "==", "!=", "<", "<=", ">", ">=":
-			return true
+			return true, true
 		default:
-			return false
+			return false, true
 		}
 	case *sem.CondExpr:
-		return t.isBool(e.Then) && t.isBool(e.Else)
+		thenBool, ok := t.isBoolExpr(e.Then, checking)
+		if !ok {
+			return false, false
+		}
+		elseBool, ok := t.isBoolExpr(e.Else, checking)
+		if !ok {
+			return false, false
+		}
+		return thenBool && elseBool, true
 	case *sem.CallExpr:
 		if funcDef, ok := t.resolver.funcs[e.Tag]; ok {
-			return t.isBool(funcDef.body)
+			if checking[e.Tag] {
+				// A recursive call, whose result can't be known
+				// without the result of this function.
+				return false, false
+			}
+			checking[e.Tag] = true
+			defer delete(checking, e.Tag)
+			return t.isBoolExpr(funcDef.body, checking)
 		}
 		if e.Tag == "cast" {
 			if len(e.Args) != 2 {
-				return false
+				return false, true
 			}
 			if typval, ok := e.Args[1].(*sem.PrimitiveExpr); ok {
-				return typval.Value == "bool"
+				return typval.Value == "bool", true
 			}
-			return false
+			return false, true
 		}
-		return function.HasBoolResult(e.Tag)
+		return function.HasBoolResult(e.Tag), true
 	case *sem.IsNullExpr:
-		return true
+		return true, true
 	case *sem.SearchTermExpr, *sem.RegexpMatchExpr, *sem.RegexpSearchExpr:
-		return true
+		return true, true
 	default:
-		return false
+		return false, true
 	}
 }
 
