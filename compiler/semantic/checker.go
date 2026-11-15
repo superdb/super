@@ -518,7 +518,16 @@ func (c *checker) ok(typ super.Type, call *sem.CallExpr) super.Type {
 // the type errors found in e.  ok() turns an error or missing value into none,
 // so the type errors in e aren't reported, and the value of ok(e) is either of
 // one of the types of e that isn't an error or missing, or none.
+//
+// An error for a field access that can never succeed (see errNoSuchField) is
+// reported nonetheless since it's almost certainly a mistake like a typo,
+// which ok() would otherwise hide.
 func (c *checker) checkOk(typ super.Type, call *sem.CallExpr, errs []errloc) super.Type {
+	for _, e := range errs {
+		if errors.Is(e.err, errNoSuchField) {
+			c.error(e.loc, e.err)
+		}
+	}
 	typ, ok := c.withoutTypes(defuse(typ), func(typ super.Type) bool {
 		return isMissingType(typ) || isErrorType(typ)
 	})
@@ -664,7 +673,7 @@ func (c *checker) binary(op string, loc, lloc, rloc ast.Node, lhs, rhs super.Typ
 			return c.unknown
 		}
 		if hasOption(lhs) || hasNone(lhs) {
-			c.error(lloc, fmt.Errorf("%s: %w", sup.FormatType(lhs), errNone))
+			c.error(lloc, fmt.Errorf("%s: %w", c.formatType(lhs), errNone))
 			return c.unknown
 		}
 		if hasMissing(rhs) {
@@ -672,7 +681,7 @@ func (c *checker) binary(op string, loc, lloc, rloc ast.Node, lhs, rhs super.Typ
 			return c.unknown
 		}
 		if hasOption(rhs) || hasNone(rhs) {
-			c.error(rloc, fmt.Errorf("%s: %w", sup.FormatType(rhs), errNone))
+			c.error(rloc, fmt.Errorf("%s: %w", c.formatType(rhs), errNone))
 			return c.unknown
 		}
 	}
@@ -716,7 +725,7 @@ func (c *checker) negate(loc ast.Node, typ super.Type) super.Type {
 		return c.unknown
 	}
 	if hasOption(under) || hasNone(under) {
-		c.error(loc, fmt.Errorf("%s: %w", sup.FormatType(under), errNone))
+		c.error(loc, fmt.Errorf("%s: %w", c.formatType(under), errNone))
 		return c.unknown
 	}
 	if !hasUnknown(under) {
@@ -922,6 +931,58 @@ func (c *checker) unionOf(types []super.Type) super.Type {
 		return types[0]
 	}
 	return c.union(types)
+}
+
+// formatType formats typ for an error message without its fusion types, which
+// describe how values were combined rather than what they can be, so they
+// don't help a query writer understand a type error.  (fusion(all), the any
+// type, is kept.)
+func (c *checker) formatType(typ super.Type) string {
+	return sup.FormatType(c.stripFusion(typ))
+}
+
+func (c *checker) stripFusion(typ super.Type) super.Type {
+	switch typ := typ.(type) {
+	case *super.TypeFusion:
+		if typ.Type == super.TypeAll {
+			return typ
+		}
+		return c.stripFusion(typ.Type)
+	case *super.TypeRecord:
+		fields := slices.Clone(typ.Fields)
+		for i := range fields {
+			fields[i].Type = c.stripFusion(fields[i].Type)
+		}
+		if out, err := c.t.sctx.LookupTypeRecord(fields); err == nil {
+			return out
+		}
+	case *super.TypeArray:
+		return c.t.sctx.LookupTypeArray(c.stripFusion(typ.Type))
+	case *super.TypeSet:
+		return c.t.sctx.LookupTypeSet(c.stripFusion(typ.Type))
+	case *super.TypeMap:
+		return c.t.sctx.LookupTypeMap(c.stripFusion(typ.KeyType), c.stripFusion(typ.ValType))
+	case *super.TypeOption:
+		return c.t.sctx.LookupTypeOption(c.stripFusion(typ.Type))
+	case *super.TypeError:
+		return c.t.sctx.LookupTypeError(c.stripFusion(typ.Type))
+	case *super.TypeUnion:
+		var types []super.Type
+		for _, t := range typ.Types {
+			types = append(types, c.stripFusion(t))
+		}
+		// A member that was a fusion of a union is now a union, whose
+		// types are members of the union.
+		types = super.Flatten(types)
+		if len(types) == 1 {
+			return types[0]
+		}
+		if out, ok := c.t.sctx.LookupTypeUnion(types); ok {
+			return out
+		}
+	}
+	// Named types and the rest are kept.
+	return typ
 }
 
 func (c *checker) union(types []super.Type) super.Type {
@@ -1182,7 +1243,7 @@ func (c *checker) boolean(loc ast.Node, typ super.Type) bool {
 		return typ == super.TypeBool || typ == super.TypeNull
 	})
 	if !ok {
-		c.error(loc, fmt.Errorf("boolean type required, encountered type %q", sup.FormatType(typ)))
+		c.error(loc, fmt.Errorf("boolean type required, encountered type %q", c.formatType(typ)))
 	}
 	return ok
 }
@@ -1210,7 +1271,7 @@ func (c *checker) integer(loc ast.Node, typ super.Type) bool {
 		return super.IsInteger(typ.ID())
 	})
 	if !ok {
-		c.error(loc, fmt.Errorf("integer type required, encountered %s", sup.FormatType(typ)))
+		c.error(loc, fmt.Errorf("integer type required, encountered %s", c.formatType(typ)))
 	}
 	return ok
 }
@@ -1223,7 +1284,7 @@ func (c *checker) integer(loc ast.Node, typ super.Type) bool {
 func (c *checker) number(loc ast.Node, typ super.Type) bool {
 	ok := isNumber(typ)
 	if !ok {
-		c.error(loc, fmt.Errorf("numeric type required, encountered %s", sup.FormatType(typ)))
+		c.error(loc, fmt.Errorf("numeric type required, encountered %s", c.formatType(typ)))
 	}
 	return ok
 }
@@ -1258,6 +1319,12 @@ func isNumber(typ super.Type) bool {
 // e ?. f => if e is none, then none otherwise e.f
 // so typeof(e?.f) is option(typeof(e.f))
 // but only if e is an option type, otherwise the type is error|typeof(e.f)
+// errNoSuchField is wrapped by the error for a field access that can never
+// succeed, i.e., where no type of the value has the field.  It isn't wrapped
+// by the error for a field access on a union where only some of the types
+// have the field, which is what ok() handles (see checkOk).
+var errNoSuchField = errors.New("no such field")
+
 func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish bool) super.Type {
 	if isUnknown(inType) {
 		return c.unknown
@@ -1270,7 +1337,7 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 		which, ok := typ.IndexOfField(field)
 		if !ok {
 			if !hasUnknown(typ) {
-				c.error(loc, fmt.Errorf("no such field %q", field))
+				c.error(loc, fmt.Errorf("%w %q", errNoSuchField, field))
 			}
 			return c.unknown
 		}
@@ -1281,7 +1348,7 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 			// has no type to carry, so e?.f is a bare none when e is and
 			// e.f doesn't handle none.
 			if !noneish {
-				c.error(loc, fmt.Errorf("%s: %w", sup.FormatType(typ), errNone))
+				c.error(loc, fmt.Errorf("%s: %w", c.formatType(typ), errNone))
 				return c.unknown
 			}
 			rest, ok := c.withoutTypes(typ, isNoneType)
@@ -1298,6 +1365,9 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 		// or a case or conditional expression can remove types from the
 		// union first, e.g., where kind(x) == "record" (see narrow).
 		var types, failed []super.Type
+		// found is true if a type has the field, i.e., other than null and
+		// missing, whose fields are null and missing.
+		var found bool
 		for _, t := range typ.Types {
 			if t == super.TypeNull {
 				types = append(types, t)
@@ -1307,16 +1377,24 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 			fieldType := c.deref(loc, t, field, noneish)
 			if len(c.popErrs()) == 0 {
 				types = append(types, fieldType)
+				if t != super.TypeMissing {
+					found = true
+				}
 			} else {
 				failed = append(failed, t)
 			}
 		}
 		if len(types) == 0 {
-			c.error(loc, fmt.Errorf("no such field %q: . applied to %s", field, sup.FormatType(inType)))
+			c.error(loc, fmt.Errorf("%w %q: . applied to %s", errNoSuchField, field, c.formatType(inType)))
 			return c.unknown
 		}
 		if len(failed) > 0 {
-			c.error(loc, fmt.Errorf("no such field %q: . applied to %s in %s", field, sup.FormatType(c.unionOf(failed)), sup.FormatType(inType)))
+			err := fmt.Errorf("no such field %q: . applied to %s in %s", field, c.formatType(c.unionOf(failed)), c.formatType(inType))
+			if !found {
+				// No type has the field.
+				err = fmt.Errorf("%w %q: . applied to %s in %s", errNoSuchField, field, c.formatType(c.unionOf(failed)), c.formatType(inType))
+			}
+			c.error(loc, err)
 		}
 		return c.fuse(types)
 	case *super.TypeOption:
@@ -1325,13 +1403,13 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 		// none.  The plain none disappears from a record expression (e.g.,
 		// {y:e?.f} has no field y when e is none), an array, or a map.
 		if !noneish {
-			c.error(loc, fmt.Errorf("%s: %w", sup.FormatType(inType), errNone))
+			c.error(loc, fmt.Errorf("%s: %w", c.formatType(inType), errNone))
 			return c.unknown
 		}
 		return c.orNone(c.deref(loc, typ.Type, field, noneish))
 	case *super.TypeOfNone:
 		if !noneish {
-			c.error(loc, fmt.Errorf("%s: %w", sup.FormatType(inType), errNone))
+			c.error(loc, fmt.Errorf("%s: %w", c.formatType(inType), errNone))
 			return c.unknown
 		}
 		return typ
@@ -1344,7 +1422,7 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 		// in the type for whatever uses it to catch.
 		return typ
 	}
-	c.error(loc, fmt.Errorf("no such field %q: . applied to %s", field, sup.FormatType(inType)))
+	c.error(loc, fmt.Errorf("%w %q: . applied to %s", errNoSuchField, field, c.formatType(inType)))
 	return c.unknown
 
 }
@@ -1410,7 +1488,7 @@ func (c *checker) in(loc, lloc, rloc ast.Node, lhs, rhs super.Type) bool {
 		// and is true for equality of any value as well as equality containment
 		// of the LHS in the RHS.
 		if !comparable(lhs, rhs) {
-			c.error(loc, fmt.Errorf("scalar type mismatch for 'in' operator where right-hand side is not container type: %s", sup.FormatType(typ)))
+			c.error(loc, fmt.Errorf("scalar type mismatch for 'in' operator where right-hand side is not container type: %s", c.formatType(typ)))
 		}
 		return false
 	}
@@ -1531,7 +1609,7 @@ func (c *checker) plus(loc ast.Node, lhs, rhs super.Type) super.Type {
 	if isNumber(lhs) && isNumber(rhs) {
 		return c.fuse([]super.Type{lhs, rhs})
 	}
-	c.error(loc, fmt.Errorf("type mismatch: %s + %s", sup.FormatType(lhs), sup.FormatType(rhs)))
+	c.error(loc, fmt.Errorf("type mismatch: %s + %s", c.formatType(lhs), c.formatType(rhs)))
 	return c.unknown
 }
 

@@ -17,6 +17,8 @@ It is a shortcut for `ok(val)!=none`.
 This function is often used to determine the existence of fields in a
 record, e.g., `is_ok(x)` is true when `this` is a record and has
 the field `x`, provided its value is not an error or none.
+As with `ok`, the type checker reports an error for a field that no
+value can have.
 
 It's also useful in shaping messy data when applying conditional logic based on the
 presence of certain fields:

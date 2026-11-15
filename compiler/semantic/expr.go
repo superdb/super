@@ -710,6 +710,22 @@ func (t *translator) semCaseExpr(c *ast.CaseExpr, inType super.Type) (sem.Expr, 
 	return out, t.checker.fuse(types)
 }
 
+// isOk returns the expression for is_ok(e), i.e., (ok(e) ?? none) != none,
+// where okCall is ok(e).
+func isOk(call *ast.CallExpr, okCall sem.Expr, defs *super.Context) sem.Expr {
+	return &sem.BinaryExpr{
+		Node: call,
+		Op:   "!=",
+		LHS: &sem.BinaryExpr{
+			Node: call,
+			Op:   "??",
+			LHS:  okCall,
+			RHS:  sem.NewLiteral(call, super.None, defs),
+		},
+		RHS: sem.NewLiteral(call, super.None, defs),
+	}
+}
+
 func (t *translator) semCall(call *ast.CallExpr, inType super.Type) (sem.Expr, super.Type) {
 	if e, typ := t.maybeConvertAgg(call, inType); e != nil {
 		return e, typ
@@ -725,6 +741,19 @@ func (t *translator) semCall(call *ast.CallExpr, inType super.Type) (sem.Expr, s
 			e, typ := t.expr(call.Args[0], inType)
 			call := sem.NewCall(call, "ok", []sem.Expr{e})
 			return call, t.checker.checkOk(typ, call, t.checker.popErrs())
+		}
+		if strings.EqualFold(f.Name, "is_ok") {
+			// is_ok(e) is ok(e) != none so the type errors in e are
+			// handled as for ok().
+			if err := function.CheckArgCount(len(call.Args), 1, 1); err != nil {
+				t.error(call, err)
+				return badExpr, t.checker.unknown
+			}
+			t.checker.pushErrs()
+			e, typ := t.expr(call.Args[0], inType)
+			okCall := sem.NewCall(call, "ok", []sem.Expr{e})
+			t.checker.checkOk(typ, okCall, t.checker.popErrs())
+			return isOk(call, okCall, t.defs), super.TypeBool
 		}
 		args, argTypes := t.exprs(call.Args, inType)
 		return t.semCallByName(call, f.Name, args, argTypes, inType)
@@ -816,17 +845,7 @@ func (t *translator) semCallByName(call *ast.CallExpr, name string, args []sem.E
 			t.error(call, err)
 			return badExpr, t.checker.unknown
 		}
-		return &sem.BinaryExpr{
-			Node: call,
-			Op:   "!=",
-			LHS: &sem.BinaryExpr{
-				Node: call,
-				Op:   "??",
-				LHS:  sem.NewCall(call, "ok", args),
-				RHS:  sem.NewLiteral(call, super.None, t.defs),
-			},
-			RHS: sem.NewLiteral(call, super.None, t.defs),
-		}, super.TypeBool
+		return isOk(call, sem.NewCall(call, "ok", args), t.defs), super.TypeBool
 	case nameLower == "map":
 		return t.semMapCall(call, args, argTypes)
 	case nameLower == "grep":
