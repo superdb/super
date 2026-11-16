@@ -14,12 +14,17 @@ import (
 	"github.com/superdb/super/vector/vio"
 )
 
+// FilterFactory returns a new filter evaluator.  The objects of a partition are
+// scanned concurrently and evaluators may cache state, so each object scanner
+// gets its own evaluator.
+type FilterFactory func() (expr.Evaluator, error)
+
 // TableScanner implements an op that pulls metadata partitions to scan
 // from its parent and for each partition, scans the object.
 type TableScanner struct {
 	parent      vio.Puller
 	scanner     vio.Puller
-	where       expr.Evaluator
+	where       FilterFactory
 	pruner      samexpr.Evaluator
 	rctx        *runtime.Context
 	table       *db.Table
@@ -29,7 +34,7 @@ type TableScanner struct {
 	err         error
 }
 
-func NewTableScanner(rctx *runtime.Context, parent vio.Puller, table *db.Table, where expr.Evaluator, pruner samexpr.Evaluator, progress *vio.Progress) *TableScanner {
+func NewTableScanner(rctx *runtime.Context, parent vio.Puller, table *db.Table, where FilterFactory, pruner samexpr.Evaluator, progress *vio.Progress) *TableScanner {
 	u := super.NewUnmarshaler()
 	u.SetContext(rctx.Sctx)
 	return &TableScanner{
@@ -92,7 +97,7 @@ func (t *TableScanner) close(err error) {
 	t.done = true
 }
 
-func newScanner(ctx context.Context, sctx *super.Context, table *db.Table, u *super.Unmarshaler, pruner samexpr.Evaluator, where expr.Evaluator, progress *vio.Progress, val super.Value) (vio.Puller, *data.Object, error) {
+func newScanner(ctx context.Context, sctx *super.Context, table *db.Table, u *super.Unmarshaler, pruner samexpr.Evaluator, where FilterFactory, progress *vio.Progress, val super.Value) (vio.Puller, *data.Object, error) {
 	named, ok := val.Type().(*super.TypeNamed)
 	if !ok {
 		return nil, nil, errors.New("system error: SequenceScanner encountered unnamed object")
@@ -115,7 +120,7 @@ func newScanner(ctx context.Context, sctx *super.Context, table *db.Table, u *su
 	return scanner, objects[0], err
 }
 
-func newObjectsScanner(ctx context.Context, sctx *super.Context, table *db.Table, objects []*data.Object, pruner samexpr.Evaluator, filter expr.Evaluator, progress *vio.Progress) (vio.Puller, error) {
+func newObjectsScanner(ctx context.Context, sctx *super.Context, table *db.Table, objects []*data.Object, pruner samexpr.Evaluator, newFilter FilterFactory, progress *vio.Progress) (vio.Puller, error) {
 	pullers := make([]vio.Puller, 0, len(objects))
 	pullersDone := func() {
 		for _, puller := range pullers {
@@ -123,6 +128,14 @@ func newObjectsScanner(ctx context.Context, sctx *super.Context, table *db.Table
 		}
 	}
 	for _, object := range objects {
+		var filter expr.Evaluator
+		if newFilter != nil {
+			var err error
+			if filter, err = newFilter(); err != nil {
+				pullersDone()
+				return nil, err
+			}
+		}
 		s, err := newObjectScanner(ctx, sctx, table, object, filter, progress)
 		if err != nil {
 			pullersDone()

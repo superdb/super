@@ -7,7 +7,6 @@ import (
 	"github.com/superdb/super"
 	"github.com/superdb/super/db"
 	"github.com/superdb/super/runtime"
-	"github.com/superdb/super/runtime/expr"
 	samexpr "github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sbuf"
 	"github.com/superdb/super/vector"
@@ -17,7 +16,7 @@ import (
 type Deleter struct {
 	parent      sbuf.Puller
 	scanner     vio.Puller
-	where       expr.Evaluator
+	where       FilterFactory
 	pruner      samexpr.Evaluator
 	rctx        *runtime.Context
 	table       *db.Table
@@ -28,7 +27,7 @@ type Deleter struct {
 	deletes     *sync.Map
 }
 
-func NewDeleter(rctx *runtime.Context, parent sbuf.Puller, table *db.Table, where expr.Evaluator, pruner samexpr.Evaluator, progress *vio.Progress, deletes *sync.Map) *Deleter {
+func NewDeleter(rctx *runtime.Context, parent sbuf.Puller, table *db.Table, where FilterFactory, pruner samexpr.Evaluator, progress *vio.Progress, deletes *sync.Map) *Deleter {
 	u := super.NewUnmarshaler()
 	u.SetContext(super.NewContext())
 	return &Deleter{
