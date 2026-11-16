@@ -1,0 +1,9 @@
+script: |
+  super -f bsup -c 'values [1][2]' | super -s -
+  super -f bsup -c 'values {a:1}["b"]' | super -s -
+
+outputs:
+  - name: stdout
+    data: |
+      error({message:"index out of range",on:2})
+      error({message:"invalid record index",on:"b"})
