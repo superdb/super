@@ -26,7 +26,7 @@ func requireTypeOnly(t *testing.T, vec vector.Any) {
 
 func TestTypeOnlyProjection(t *testing.T) {
 	sctx := super.NewContext()
-	typesOnly := field.NewProjectionMaybe(true, nil, []field.Path{{}})
+	typesOnly := field.NewProjectionMaybe(true, nil, []field.Path{{}}, nil)
 	vec := loadTypes(t, sctx, typesOnly,
 		`{a:1,b:{c:"x"},e:[1,2],u:1::(int64|string)}`,
 		`{a:2,b:{c:"y"},e:[3],u:"s"::(int64|string)}`)
@@ -48,7 +48,7 @@ func TestTypeOnlyProjection(t *testing.T) {
 func TestTypeOnlyProjectionWithData(t *testing.T) {
 	sctx := super.NewContext()
 	// The type of this plus the data for b.c.
-	projection := field.NewProjectionMaybe(true, []field.Path{{"b", "c"}}, []field.Path{{}, {"b"}})
+	projection := field.NewProjectionMaybe(true, []field.Path{{"b", "c"}}, []field.Path{{}, {"b"}}, nil)
 	vec := loadTypes(t, sctx, projection, `{a:1,b:{c:"x",d:2}}`)
 	require.Equal(t, `{a:int64,b:{c:string,d:int64}}`, sup.FormatType(vec.Type()))
 	rec := vec.(*vector.Record)
@@ -60,7 +60,7 @@ func TestTypeOnlyProjectionWithData(t *testing.T) {
 
 func TestTypeOnlyProjectionFusion(t *testing.T) {
 	sctx := super.NewContext()
-	typesOnly := field.NewProjectionMaybe(true, nil, []field.Path{{}})
+	typesOnly := field.NewProjectionMaybe(true, nil, []field.Path{{}}, nil)
 	vec := loadTypes(t, sctx, typesOnly,
 		`fusion({x?:1,y?:none::string},<{x:int64}>)`,
 		`fusion({x?:none::int64,y?:"foo"},<{y:string}>)`)
@@ -70,4 +70,43 @@ func TestTypeOnlyProjectionFusion(t *testing.T) {
 	require.Equal(t, `{x:int64}`, sup.FormatType(fusion.Subtypes.Value(0)))
 	require.Equal(t, `{y:string}`, sup.FormatType(fusion.Subtypes.Value(1)))
 	require.Panics(t, func() { fusion.Values.Serialize(scode.NewBuilder(), 0) })
+}
+
+func TestAssertProjection(t *testing.T) {
+	sctx := super.NewContext()
+	a, err := sup.ParseType(sctx, `{id:int64,s:string}`)
+	require.NoError(t, err)
+	// u.(A) with the type of A and the data for its id.
+	inner := field.NewProjectionMaybe(true, []field.Path{{"id"}}, []field.Path{{}}, nil)
+	asserts := field.UnflattenAsserts([]field.AssertPath{{
+		Parent:         -1,
+		Path:           field.Path{"u"},
+		TypeID:         super.TypeID(a),
+		HasProjection:  true,
+		Projection:     inner.Paths(),
+		TypeProjection: []field.Path{{}},
+	}})
+	projection := field.NewProjectionMaybe(true, nil, nil, asserts)
+	vec := loadTypes(t, sctx, projection,
+		`{u:{id:1,s:"a"}::({id:int64,s:string}|{t:int64}|error(string)),v:1}`,
+		`{u:{t:2}::({id:int64,s:string}|{t:int64}|error(string)),v:2}`,
+		`{u:error("e")::({id:int64,s:string}|{t:int64}|error(string)),v:3}`)
+	// The union keeps its type and only u is loaded.
+	require.Equal(t, `{u:{t:int64}|{id:int64,s:string}|error(string)}`, sup.FormatType(vec.Type()))
+	union := vec.(*vector.Record).Fields[0].(*vector.Union)
+	for _, member := range union.Values() {
+		switch member.Type() {
+		case a:
+			// The asserted member keeps its type with the data of id.
+			rec := member.(*vector.Record)
+			require.Equal(t, `1`, sup.FormatValue(vector.ValueAt(nil, rec.Fields[0], 0)))
+			requireTypeOnly(t, rec.Fields[1])
+		case sctx.LookupTypeError(super.TypeString):
+			// Errors pass through an assertion, so they are loaded.
+			require.Equal(t, `error("e")`, sup.FormatValue(vector.ValueAt(nil, member, 0)))
+		default:
+			// The other member is a record of type-only fields.
+			requireTypeOnly(t, member.(*vector.Record).Fields[0])
+		}
+	}
 }

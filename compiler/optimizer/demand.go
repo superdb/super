@@ -5,6 +5,7 @@ import (
 
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/compiler/optimizer/demand"
+	"github.com/superdb/super/pkg/field"
 )
 
 type demandTable map[dag.Op]demand.Demand
@@ -136,7 +137,7 @@ func (a *demandAnalyzer) demandForSimpleOp(op dag.Op, downstream demand.Demand) 
 	case *dag.DistinctOp:
 		return demand.Union(downstream, a.demandForExpr(op.Expr))
 	case *dag.DropOp:
-		return downstream
+		return withoutAssertsOn(downstream, op.Args)
 	case *dag.FilterOp:
 		return demand.Union(downstream, a.demandForExpr(op.Expr))
 	case *dag.FuseOp:
@@ -154,9 +155,9 @@ func (a *demandAnalyzer) demandForSimpleOp(op dag.Op, downstream demand.Demand) 
 	case *dag.PassOp:
 		return downstream
 	case *dag.PutOp:
-		return a.demandForAssignments(op.Args, downstream)
+		return a.demandForAssignments(op.Args, withoutAssertsOn(downstream, assignmentLvals(op.Args, false)))
 	case *dag.RenameOp:
-		return a.demandForAssignments(op.Args, downstream)
+		return a.demandForAssignments(op.Args, withoutAssertsOn(downstream, assignmentLvals(op.Args, true)))
 	case *dag.SkipOp:
 		return downstream
 	case *dag.SortOp:
@@ -234,12 +235,20 @@ func (a *demandAnalyzer) demandForExpr(expr dag.Expr) demand.Demand {
 		return demand.Union(a.demandForExpr(expr.Cond),
 			demand.Union(a.demandForExpr(expr.Then), a.demandForExpr(expr.Else)))
 	case *dag.DotExpr:
+		if hasTypeAssert(expr.LHS) {
+			if d, ok := pathDemand(expr, demand.All()); ok {
+				return d
+			}
+		}
 		return a.demandForExpr(expr.LHS)
 	case *dag.IndexExpr:
 		return demand.Union(a.demandForExpr(expr.Expr), a.demandForExpr(expr.Index))
 	case *dag.IsNullExpr:
 		return a.demandForExpr(expr.Expr)
 	case *dag.TypeAssertExpr:
+		if d, ok := pathDemand(expr, demand.All()); ok {
+			return d
+		}
 		return demand.Union(a.demandForExpr(expr.Expr), a.demandForExpr(expr.Type))
 	case *dag.MatchExpr:
 		// The results are evaluated on their inputs, not on this, so only
@@ -327,6 +336,67 @@ func typeDemand(expr dag.Expr) (demand.Demand, bool) {
 		return typeDemand(expr.LHS)
 	}
 	return nil, false
+}
+
+// withoutAssertsOn returns d for the output of an operator that changes the
+// values at lvals (e.g., put) with the demands for assertions replaced (see
+// demand.WithoutAssertsOn) for the values whose types the operator changes,
+// since a value may have an asserted type in the output but not in the input.
+func withoutAssertsOn(d demand.Demand, lvals []dag.Expr) demand.Demand {
+	var paths []field.Path
+	for _, lval := range lvals {
+		this, ok := lval.(*dag.ThisExpr)
+		if !ok {
+			// A dynamic path may change any value.
+			return demand.WithoutAsserts(d)
+		}
+		paths = append(paths, this.Chain.Path())
+	}
+	return demand.WithoutAssertsOn(d, paths)
+}
+
+// assignmentLvals returns the paths changed by assignments, which are the
+// LHSs and, if rhs is true (for a rename), the RHSs too.
+func assignmentLvals(assignments []dag.Assignment, rhs bool) []dag.Expr {
+	var lvals []dag.Expr
+	for _, a := range assignments {
+		lvals = append(lvals, a.LHS)
+		if rhs {
+			lvals = append(lvals, a.RHS)
+		}
+	}
+	return lvals
+}
+
+// pathDemand returns the demand for expr, where inner is the demand for the
+// value of expr, and true if expr is a path of this through fields and type
+// assertions of type expressions, e.g., this.(T).a or this.a.(T).
+func pathDemand(expr dag.Expr, inner demand.Demand) (demand.Demand, bool) {
+	switch expr := expr.(type) {
+	case *dag.ThisExpr:
+		d := inner
+		for _, elem := range slices.Backward(expr.Chain) {
+			d = demand.Key(elem.ID, d)
+		}
+		return d, true
+	case *dag.DotExpr:
+		return pathDemand(expr.LHS, demand.Key(expr.RHS, inner))
+	case *dag.TypeAssertExpr:
+		if typ, ok := expr.Type.(*dag.TypeExpr); ok {
+			return pathDemand(expr.Expr, demand.Assert(typ.ID, inner))
+		}
+	}
+	return nil, false
+}
+
+func hasTypeAssert(expr dag.Expr) bool {
+	switch expr := expr.(type) {
+	case *dag.DotExpr:
+		return hasTypeAssert(expr.LHS)
+	case *dag.TypeAssertExpr:
+		return true
+	}
+	return false
 }
 
 // isTypeFunc returns true if call is a call to a built-in function whose

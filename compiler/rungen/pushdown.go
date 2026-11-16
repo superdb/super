@@ -1,6 +1,9 @@
 package rungen
 
 import (
+	"slices"
+
+	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/dag"
 	"github.com/superdb/super/pkg/field"
 	"github.com/superdb/super/vector/vio"
@@ -57,4 +60,19 @@ func (p *pushdown) Projection() field.Projection {
 
 func (p *pushdown) Unordered() bool {
 	return p.unordered
+}
+
+// resolveAsserts returns the Projection for asserts with the DAG type ID of
+// each assertion replaced with the ID of the type in the query's type context
+// (see field.ProjectionNode).
+func (b *Builder) resolveAsserts(asserts []field.AssertPath) (field.Projection, error) {
+	resolved := slices.Clone(asserts)
+	for i, a := range resolved {
+		typ, err := b.lookupType(a.TypeID)
+		if err != nil {
+			return nil, err
+		}
+		resolved[i].TypeID = super.TypeID(typ)
+	}
+	return field.UnflattenAsserts(resolved), nil
 }

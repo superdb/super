@@ -16,7 +16,7 @@ type Fusion struct {
 func (f *Fusion) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	if len(projection) != 0 && !projection.TypesOnly() {
 		if !projection.HasTypes() {
-			return f.Values.project(loader, projection)
+			return project(loader, f.Values, projection)
 		}
 		// The type of the fusion value is needed along with some of
 		// its data so load all of it.
@@ -24,7 +24,7 @@ func (f *Fusion) project(loader *FrameLoader, projection field.Projection) vecto
 	}
 	// If only the type is needed, the values are projected for their
 	// types and the subtypes are loaded lazily.
-	vec := f.Values.project(loader, projection)
+	vec := project(loader, f.Values, projection)
 	typ := loader.sctx.MustLookupTypeFusion(vec.Type())
 	return vector.NewFusionWithLoader(loader.sctx, typ, f.Subtypes.newLoader(loader), vec)
 }
@@ -35,6 +35,6 @@ type FusionAll struct {
 }
 
 func (a *FusionAll) project(loader *FrameLoader, projection field.Projection) vector.Any {
-	vec := a.Values.project(loader, projection)
+	vec := project(loader, a.Values, projection)
 	return vector.NewFusionWithLoader(loader.sctx, loader.sctx.FusionAll(), a.Subtypes.newLoader(loader), vec)
 }

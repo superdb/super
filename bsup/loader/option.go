@@ -35,7 +35,7 @@ func (o *Option) load(loader *FrameLoader) []uint32 {
 
 func (o *Option) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	typ := loader.vectorType(o.TypeID).(*super.TypeOption)
-	vec := o.Values.project(loader, projection)
+	vec := project(loader, o.Values, projection)
 	if vec.Kind() == vector.KindNone {
 		return vector.NewOptionNone(typ, vec.Len())
 	}
