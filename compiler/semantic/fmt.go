@@ -42,6 +42,8 @@ func clrOp(op sem.Op) {
 		op.Node = nil
 	case *sem.DeleteScan:
 		op.Node = nil
+	case *sem.MaterializedScan:
+		op.Node = nil
 	case *sem.NullScan:
 		op.Node = nil
 	//

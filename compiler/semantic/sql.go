@@ -14,6 +14,12 @@ import (
 	"github.com/superdb/super/pkg/field"
 )
 
+type sqlCTE struct {
+	node  *ast.SQLCTE
+	body  sem.Seq
+	table *staticTable
+}
+
 // Analyze a SQL select expression which may have arbitrary nested subqueries
 // and may or may not have its sources embedded.
 // The output of a select expression is a record that wraps its input and
@@ -536,19 +542,18 @@ func (t *translator) orderBy(op *ast.SQLOrderBy, scope relScope, seq sem.Seq, in
 	return append(seq, &sem.SortOp{Node: op, Exprs: exprs})
 }
 
-func (t *translator) sqlWith(with *ast.SQLWith) map[string]*ast.SQLCTE {
+func (t *translator) sqlWith(with *ast.SQLWith) map[string]*sqlCTE {
 	if with.Recursive {
 		t.error(with, errors.New("recursive WITH queries not currently supported"))
 	}
 	old := t.scope.ctes
 	t.scope.ctes = maps.Clone(t.scope.ctes)
-	for k, c := range with.CTEs {
-		// XXX Materialized option not currently supported.
+	for _, c := range with.CTEs {
 		name := strings.ToLower(c.Name.Name)
 		if _, ok := t.scope.ctes[name]; ok {
 			t.error(c.Name, errors.New("duplicate WITH clause name"))
 		}
-		t.scope.ctes[name] = &with.CTEs[k]
+		t.scope.ctes[name] = &sqlCTE{node: &c}
 	}
 	return old
 }

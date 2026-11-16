@@ -30,3 +30,112 @@ outputs:
       {x:[{y:2}]}
       ===
       {e:error("foo")}
+
+---
+
+spq: |
+  let q = (values 1)
+  select q+1 as x
+
+output: |
+  {x:2}
+
+---
+
+spq: |
+  let q = (values {a:1})
+  select q as x
+
+output: |
+  {x:{a:1}}
+
+---
+
+spq: |
+  let q = (values 1,2)
+  select [q] as x
+
+output: |
+  {x:[1,2]}
+
+---
+
+spq: |
+  op o: (values 5)
+  select o() as x
+
+output: |
+  {x:5}
+
+---
+
+# A materialized subquery in a select expression matches its grouping key.
+spq: |
+  select x + materialized (select 1) as k, count(*) as c
+  from (values (1),(1),(2)) t(x)
+  group by 1
+  order by k
+
+output: |
+  {k:2,c:2}
+  {k:3,c:1}
+
+---
+
+# A materialized subquery that's also a sort key is evaluated once.
+script: |
+  super compile -C -O 'select materialized (select now()) as a from (values (1),(2)) t(x) order by a'
+  echo ===
+  super compile -C -P 2 'select (select count(*) from a.sup) as a from (values (1),(2)) t(x) order by a'
+
+inputs:
+  - name: a.sup
+    data: |
+      {x:1}
+
+outputs:
+  - name: stdout
+    data: |
+      let 0/subquery = materialized (
+        null
+        | values {now:now()}
+      )
+      null
+      | values {}, {}
+      | values {}
+      | values {}
+      | values {out:{a:materialized (
+        materialized 0
+        | values (is_error(this)) ? this : (len(this)==1) ? this[0] : error({message:"subquery expression cannot have multiple columns",on:this}))}}
+      | sort materialized (
+        materialized 0
+        | values (is_error(this)) ? this : (len(this)==1) ? this[0] : error({message:"subquery expression cannot have multiple columns",on:this})) asc nulls last
+      | values out
+      | output main
+      ===
+      let 0/subquery = materialized (
+        file a.sup format sup type {x:int64} unordered project []
+        | scatter
+          (
+            aggregate partials-out
+                t0:=count()
+          )
+          (
+            aggregate partials-out
+                t0:=count()
+          )
+        | combine
+        | aggregate partials-in
+            t0:=count()
+        | values {count:t0}
+        | values (is_error(this)) ? this : (len(this)==1) ? this[0] : error({message:"subquery expression cannot have multiple columns",on:this})
+      )
+      null
+      | values {}, {}
+      | values {}
+      | values {out:{a:materialized (
+        materialized 0)}}
+      | sort materialized (
+        materialized 0) asc nulls last
+      | values out
+      | output main

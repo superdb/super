@@ -177,13 +177,6 @@ func (b *Builder) compileVamSwitch(swtch *dag.SwitchOp, parent vio.Puller) ([]vi
 	return exits, nil
 }
 
-func (b *Builder) compileVamMain(main *dag.Main, parents []vio.Puller) ([]vio.Puller, error) {
-	for _, f := range main.Funcs {
-		b.funcs[f.Tag] = f
-	}
-	return b.compileVamSeq(main.Body, parents)
-}
-
 func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error) {
 	switch o := o.(type) {
 	case *dag.AggregateOp:
@@ -312,6 +305,8 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		return op.NewLister(b.rctx.Context, b.mctx, table, o.Commit, pruner)
 	case *dag.LoadOp:
 		return op.NewLoad(b.rctx, b.env.DB(), parent, o.Table, o.Branch, o.Author, o.Message, o.Meta), nil
+	case *dag.MaterializedScan:
+		return b.compileMaterializedScan(o.Tag)
 	case *dag.NullScan:
 		return vio.NewPuller(vector.NewNull(1)), nil
 	case *dag.OutputOp:
@@ -534,4 +529,17 @@ func (b *Builder) compileVamAgg(ag *dag.AggExpr) (*expr.Aggregator, error) {
 		return nil, err
 	}
 	return expr.NewAggregator(name, ag.Distinct, arg, filter, pattern)
+}
+
+func (b *Builder) compileMaterializedScan(tag int) (vio.Puller, error) {
+	if m := b.materialized[tag]; m != nil {
+		return m.NewPuller(), nil
+	}
+	exits, err := b.compileVamSeq(b.materializedDefs[tag].Body, nil)
+	if err != nil {
+		return nil, err
+	}
+	m := op.NewMaterialized(b.combineVam(exits))
+	b.materialized[tag] = m
+	return m.NewPuller(), nil
 }

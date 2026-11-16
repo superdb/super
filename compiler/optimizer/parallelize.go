@@ -17,7 +17,23 @@ func (o *Optimizer) Parallelize(main *dag.Main, concurrency int) error {
 		return nil
 	}
 	concurrency = max(concurrency/o.nent, 2)
-	seq, err := walkEntries(main.Body, func(seq dag.Seq) (dag.Seq, error) {
+	for _, m := range main.MaterializedDefs {
+		seq, err := o.parallelizeSeq(m.Body, concurrency)
+		if err != nil {
+			return err
+		}
+		m.Body = seq
+	}
+	seq, err := o.parallelizeSeq(main.Body, concurrency)
+	if err != nil {
+		return err
+	}
+	main.Body = seq
+	return nil
+}
+
+func (o *Optimizer) parallelizeSeq(seq dag.Seq, concurrency int) (dag.Seq, error) {
+	seq, err := walkEntries(seq, func(seq dag.Seq) (dag.Seq, error) {
 		if len(seq) == 0 {
 			return seq, nil
 		}
@@ -47,11 +63,10 @@ func (o *Optimizer) Parallelize(main *dag.Main, concurrency int) error {
 		return append(front, parallel...), nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	o.optimizeParallels(seq)
-	main.Body = removePassOps(seq)
-	return nil
+	return removePassOps(seq), nil
 }
 
 func matchSource(seq dag.Seq) (*dag.ListerScan, *dag.SlicerOp, dag.Seq) {

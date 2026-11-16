@@ -74,6 +74,12 @@ Then, for each input value `3` and `4`, the result is emitted, e.g.,
 {that:4,count:3}
 ```
 
+A subquery can be made independent explicitly by placing `materialized` before
+its parentheses or square brackets, as in
+```
+materialized ( <query> )
+```
+
 ## Correlated Subqueries
 
 When a subquery appears within a [SQL operator](../sql/intro.md),

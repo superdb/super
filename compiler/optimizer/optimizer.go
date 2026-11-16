@@ -121,7 +121,22 @@ func walkEntries(seq dag.Seq, post func(dag.Seq) (dag.Seq, error)) (dag.Seq, err
 // source's pushdown predicate.  This should be called before ParallelizeScan().
 // TBD: we need to do pushdown for search/cut to optimize columnar extraction.
 func (o *Optimizer) Optimize(main *dag.Main) error {
-	seq := main.Body
+	for _, m := range main.MaterializedDefs {
+		seq, err := o.optimizeSeq(m.Body)
+		if err != nil {
+			return err
+		}
+		m.Body = seq
+	}
+	seq, err := o.optimizeSeq(main.Body)
+	if err != nil {
+		return err
+	}
+	main.Body = seq
+	return nil
+}
+
+func (o *Optimizer) optimizeSeq(seq dag.Seq) (dag.Seq, error) {
 	seq = liftFilterOps(seq)
 	seq = mergeFilters(seq)
 	seq = mergeValuesOps(seq)
@@ -135,7 +150,7 @@ func (o *Optimizer) Optimize(main *dag.Main) error {
 	seq = mergeFilters(seq)
 	seq, err := o.optimizeSourcePaths(seq)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	seq = removePassOps(seq)
 	table := analyzeDemand(seq)
@@ -144,8 +159,7 @@ func (o *Optimizer) Optimize(main *dag.Main) error {
 	}
 	setProjections(table)
 	setPushdownUnordered(seq, false)
-	main.Body = seq
-	return nil
+	return seq, nil
 }
 
 func (o *Optimizer) OptimizeDeleter(main *dag.Main, replicas int) error {

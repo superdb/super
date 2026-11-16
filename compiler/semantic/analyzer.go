@@ -44,7 +44,7 @@ func Analyze(ctx context.Context, p *parser.AST, env *exec.Environment, extInput
 			seq.Prepend(&sem.NullScan{})
 		}
 	}
-	main := newDagen(t.reporter).assemble(seq, t.getTypes(), t.resolver.funcs)
+	main := newDagen(t.reporter).assemble(seq, t.getTypes(), t.resolver.funcs, t.materializedDefs)
 	if env.FuseInput {
 		dag.WalkT(reflect.ValueOf(main), fuseInput)
 	}
@@ -68,17 +68,33 @@ func fuseInput(seq dag.Seq) dag.Seq {
 // to dataflow.
 type translator struct {
 	reporter
-	ctx      context.Context
-	resolver *resolver
-	checker  *checker
-	opCnt    map[*ast.OpDecl]int
-	opStack  []string
-	cteStack []*ast.SQLCTE
-	env      *exec.Environment
-	scope    *Scope
-	sctx     *super.Context
-	types    *sup.Analyzer
-	defs     *super.Context
+	ctx              context.Context
+	resolver         *resolver
+	checker          *checker
+	opCnt            map[*ast.OpDecl]int
+	opStack          []string
+	cteStack         []*sqlCTE
+	env              *exec.Environment
+	scope            *Scope
+	sctx             *super.Context
+	types            *sup.Analyzer
+	defs             *super.Context
+	materializedDefs []*materializedDef // indexed by sem.MaterializedScan.Tag
+}
+
+type materializedDef struct {
+	name string
+	body sem.Seq
+	typ  super.Type
+	// subquery is non-nil for a definition hoisted from a subquery
+	// expression (see translator.subqueryMaterializedScan).
+	subquery *subqueryKey
+}
+
+type subqueryKey struct {
+	// node is the subquery's AST node if it's explicitly materialized and
+	// nil otherwise.
+	node ast.Node
 }
 
 func newTranslator(ctx context.Context, r reporter, env *exec.Environment) *translator {
@@ -108,7 +124,7 @@ func HasSource(seq sem.Seq) bool {
 		return false
 	}
 	switch op := seq[0].(type) {
-	case *sem.FileScan, *sem.HTTPScan, *sem.TableScan, *sem.DBMetaScan, *sem.TableMetaScan, *sem.CommitMetaScan, *sem.DeleteScan, *sem.NullScan:
+	case *sem.FileScan, *sem.HTTPScan, *sem.TableScan, *sem.DBMetaScan, *sem.TableMetaScan, *sem.CommitMetaScan, *sem.DeleteScan, *sem.MaterializedScan, *sem.NullScan:
 		return true
 	case *sem.ForkOp:
 		for _, path := range op.Paths {

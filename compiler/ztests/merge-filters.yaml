@@ -36,7 +36,6 @@ outputs:
       ===
       file /dev/null project [a]
       | unnest (
-        -- correlated
         unnest [a]
         | where b and c
         | aggregate

@@ -1,0 +1,185 @@
+spq: |
+  let q = (values 1)
+  values q,q
+
+output: |
+  1
+  1
+
+---
+
+spq: |
+  let q = (values 1)
+  values 1,2
+  | values q
+
+output: |
+  1
+  1
+
+---
+
+spq: |
+  let q = materialized (values now())
+  values q,q,q,q,q,q,q,q,q
+  | count(),distinct:=count(distinct this)
+
+output: |
+  {count:9,distinct:1}
+
+---
+
+spq: |
+  let q = materialized (
+    let q = materialized (values now())
+    values [q,now()]
+  )
+  values q,q,q,q,q,q,q,q,q
+  | count(),distinct:=count(distinct this)
+
+output: |
+  {count:9,distinct:1}
+
+---
+
+spq: |
+  let q = materialized (values now())
+  values 1,2,3,4,5,6,7,8,9
+  | values q
+  | count(),distinct:=count(distinct this)
+
+output: |
+  {count:9,distinct:1}
+
+---
+
+spq: |
+  let q = materialized (values now())
+  values 1,2,3,4,5,6,7,8,9
+  | values materialized (from q)
+  | count(),distinct:=count(distinct this)
+
+output: |
+  {count:9,distinct:1}
+
+---
+
+spq: |
+  let q = materialized (values 1,2)
+  const c = [q]
+  values c
+
+output: |
+  [1,2]
+
+---
+
+spq: |
+  let q = materialized (values <int64>)
+  type T = (values q)
+  values 1::T
+  | typeof(this)
+
+output: |
+  type T=int64
+  <T>
+
+---
+
+spq: |
+  let q = materialized (values {x:1})
+  values q.x
+
+output: |
+  1
+
+---
+
+spq: |
+  let q = materialized (values 1 | output main)
+  from q
+
+output: |
+  1
+
+---
+
+spq: |
+  let q = materialized (values 1 | output foo | values 2)
+  from q
+
+error: |
+  output operator must be a flowgraph leaf at line 1, column 34:
+  let q = materialized (values 1 | output foo | values 2)
+                                   ~~~~~~~~~~
+
+---
+
+spq: |
+  let q = materialized (values 1 | values x)
+  values q
+
+error: |
+  no such field "x": . applied to int64 at line 1, column 41:
+  let q = materialized (values 1 | values x)
+                                          ~
+
+---
+
+spq: |
+  let q = materialized (values 1)
+  from q | values x
+
+error: |
+  no such field "x": . applied to int64 at line 2, column 17:
+  from q | values x
+                  ~
+
+---
+
+spq: |
+  let q = materialized (values {x:1})
+  values q.y
+
+error: |
+  no such field "y" at line 2, column 10:
+  values q.y
+           ~
+
+---
+
+spq: |
+  let q = materialized (values {x:1} | where false)
+  values q.x
+
+error: |
+  none|{x:int64}: none not handled (consider ?? or ?.) at line 2, column 10:
+  values q.x
+           ~
+
+---
+
+spq: |
+  values {materialized:{a:1}}
+  | values materialized["a"]
+
+output: |
+  1
+
+---
+
+spq: |
+  let q = materialized(values 1)
+  values q
+
+output: |
+  1
+
+---
+
+# An independent subquery that produces multiple values is an error.
+spq: |
+  values (values 1,2)
+
+output: |
+  error("query expression produced multiple values (consider [subquery])")

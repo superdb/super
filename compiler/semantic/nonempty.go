@@ -10,19 +10,24 @@ import (
 // e.g., (values a) or (sum(x)), and true if it might not, in which case the
 // value of a pipe subquery is none.  It's conservative: a body that's not
 // known to produce a value may be empty.
-func mayBeEmpty(e *sem.SubqueryExpr) bool {
-	// A correlated subquery runs on the value of its outer expression.
-	nonEmpty := e.Correlated
-	for _, op := range e.Body {
-		nonEmpty = producesValue(op, nonEmpty)
+func (t *translator) mayBeEmpty(e *sem.SubqueryExpr) bool {
+	// An unmaterialized subquery runs on the value of its outer expression.
+	return !t.producesValues(e.Body, !e.Materialized)
+}
+
+func (t *translator) producesValues(seq sem.Seq, nonEmpty bool) bool {
+	for _, op := range seq {
+		nonEmpty = t.producesValue(op, nonEmpty)
 	}
-	return !nonEmpty
+	return nonEmpty
 }
 
 // producesValue returns true if op is known to produce a value when its input
 // is nonEmpty.
-func producesValue(op sem.Op, nonEmpty bool) bool {
+func (t *translator) producesValue(op sem.Op, nonEmpty bool) bool {
 	switch op := op.(type) {
+	case *sem.MaterializedScan:
+		return t.producesValues(t.materializedDefs[op.Tag].body, false)
 	case *sem.NullScan:
 		return true
 	case *sem.AggregateOp:

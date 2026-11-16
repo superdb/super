@@ -44,6 +44,8 @@ var unpacker = unpack.New(
 	LoadOp{},
 	MapCallExpr{},
 	MapExpr{},
+	MaterializedDef{},
+	MaterializedScan{},
 	MergeOp{},
 	NullScan{},
 	OutputOp{},

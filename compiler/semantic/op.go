@@ -156,7 +156,7 @@ func (t *translator) sqlTableExpr(e ast.SQLTableExpr, seq sem.Seq) (sem.Seq, rel
 					return seq, badTable
 				}
 				if alias == nil {
-					alias = c.Name
+					alias = c.node.Name
 				}
 				seq, table = t.fromCTE(input, c)
 			} else {
@@ -199,7 +199,7 @@ func (t *translator) sqlTableExpr(e ast.SQLTableExpr, seq sem.Seq) (sem.Seq, rel
 	}
 }
 
-func (t *translator) maybeCTE(source ast.FromSource) (*ast.SQLCTE, string) {
+func (t *translator) maybeCTE(source ast.FromSource) (*sqlCTE, string) {
 	if text, ok := source.(*ast.Text); ok {
 		if c, ok := t.scope.ctes[strings.ToLower(text.Text)]; ok {
 			return c, text.Text
@@ -208,7 +208,10 @@ func (t *translator) maybeCTE(source ast.FromSource) (*ast.SQLCTE, string) {
 	return nil, ""
 }
 
-func (t *translator) fromCTE(node ast.Node, c *ast.SQLCTE) (sem.Seq, relTable) {
+func (t *translator) fromCTE(node ast.Node, c *sqlCTE) (sem.Seq, relTable) {
+	if c.body != nil {
+		return c.body, c.table
+	}
 	if slices.Contains(t.cteStack, c) {
 		t.error(node, errors.New("recursive WITH relations not currently supported"))
 		return sem.Seq{badOp}, badTable
@@ -217,8 +220,48 @@ func (t *translator) fromCTE(node ast.Node, c *ast.SQLCTE) (sem.Seq, relTable) {
 	defer func() {
 		t.cteStack = t.cteStack[:len(t.cteStack)-1]
 	}()
-	seq, scope := t.sqlQueryBody(c.Body, nil, nil, nil)
-	return scope.endScope(node, seq)
+	body, scope := t.sqlQueryBody(c.node.Body, nil, nil, nil)
+	body, table := scope.endScope(c.node, body)
+	if c.node.Materialized {
+		body = t.newMaterializedScan(c.node, c.node.Name.Name, body, table.typ)
+	}
+	// Force caller to copy on append.
+	body = slices.Clip(body)
+	c.body, c.table = body, table
+	return body, table
+}
+
+func (t *translator) newMaterializedScan(node ast.Node, name string, body sem.Seq, typ super.Type) sem.Seq {
+	if !HasSource(body) {
+		body.Prepend(&sem.NullScan{})
+	}
+	t.materializedDefs = append(t.materializedDefs, &materializedDef{name: name, body: body, typ: typ})
+	return sem.Seq{&sem.MaterializedScan{Node: node, Tag: len(t.materializedDefs) - 1}}
+}
+
+// subqueryMaterializedScan is like newMaterializedScan for the body of a
+// subquery expression except that it reuses an existing definition with an
+// equal body.  An expression may be translated more than once (e.g., a SQL
+// select expression that's also a grouping or sort key), and each translation
+// must refer to the same definition so that the body is evaluated only once
+// and the translations compare as equal.  Explicitly materialized subqueries
+// share a definition only when they come from the same AST node.
+func (t *translator) subqueryMaterializedScan(node ast.Node, explicit bool, body sem.Seq, typ super.Type) sem.Seq {
+	if !HasSource(body) {
+		body.Prepend(&sem.NullScan{})
+	}
+	var key subqueryKey
+	if explicit {
+		key.node = node
+	}
+	for tag, d := range t.materializedDefs {
+		if d.subquery != nil && *d.subquery == key && eqSeq(d.body, body) {
+			return sem.Seq{&sem.MaterializedScan{Node: node, Tag: tag}}
+		}
+	}
+	seq := t.newMaterializedScan(node, "subquery", body, typ)
+	t.materializedDefs[len(t.materializedDefs)-1].subquery = &key
+	return seq
 }
 
 func (t *translator) fromFString(entity *ast.FromEval, args []ast.OpArg, seq sem.Seq) (sem.Seq, string) {
@@ -1491,7 +1534,11 @@ func (q *queryDecl) resolve(t *translator) (sem.Seq, super.Type) {
 				q.pending = false
 				t.scope = save
 			}()
-			q.body, q.typ = t.seq(q.decl.Body, super.TypeNull)
+			body, typ := t.seq(q.decl.Body, super.TypeNull)
+			if q.decl.Materialized {
+				body = t.newMaterializedScan(q.decl, q.decl.Name.Name, body, typ)
+			}
+			q.body, q.typ = body, typ
 		} else {
 			t.error(q.decl.Name, fmt.Errorf("named query %q involved in cyclic dependency", q.decl.Name.Name))
 			q.body = sem.Seq{badOp}

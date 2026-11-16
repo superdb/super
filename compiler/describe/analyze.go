@@ -70,7 +70,7 @@ func AnalyzeDAG(ctx context.Context, main *dag.Main, src *exec.Environment) (*In
 	entry := main.Body
 	var err error
 	var info Info
-	if info.Sources, err = describeSources(ctx, src.DB(), entry[0]); err != nil {
+	if info.Sources, err = describeSources(ctx, src.DB(), main.MaterializedDefs, entry[0]); err != nil {
 		return nil, err
 	}
 	sortKeys, err := optimizer.New(ctx, src).SortKeys(entry)
@@ -100,18 +100,20 @@ func AnalyzeDAG(ctx context.Context, main *dag.Main, src *exec.Environment) (*In
 	return &info, nil
 }
 
-func describeSources(ctx context.Context, root *db.Root, o dag.Op) ([]Source, error) {
+func describeSources(ctx context.Context, root *db.Root, m []*dag.MaterializedDef, o dag.Op) ([]Source, error) {
 	switch o := o.(type) {
 	case *dag.ForkOp:
 		var s []Source
 		for _, p := range o.Paths {
-			out, err := describeSources(ctx, root, p[0])
+			out, err := describeSources(ctx, root, m, p[0])
 			if err != nil {
 				return nil, err
 			}
 			s = append(s, out...)
 		}
 		return s, nil
+	case *dag.MaterializedScan:
+		return describeSources(ctx, root, m, m[o.Tag].Body[0])
 	case *dag.NullScan:
 		return []Source{&Null{Kind: "Null"}}, nil
 	case *dag.FileScan:

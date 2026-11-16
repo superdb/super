@@ -307,7 +307,7 @@ func (b *Builder) compileVamRecordExpr(e *dag.RecordExpr) (expr.Evaluator, error
 }
 
 func (b *Builder) compileVamSubquery(query *dag.SubqueryExpr) (expr.Evaluator, error) {
-	if !query.Correlated {
+	if query.Materialized {
 		exits, err := b.compileVamSeq(query.Body, nil)
 		if err != nil {
 			return nil, err

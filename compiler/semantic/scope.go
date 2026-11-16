@@ -14,7 +14,7 @@ type Scope struct {
 	parent  *Scope
 	pragmas map[string]any
 	symbols map[string]*entry
-	ctes    map[string]*ast.SQLCTE
+	ctes    map[string]*sqlCTE
 	sql     relScope
 }
 
@@ -23,7 +23,7 @@ func NewScope(parent *Scope) *Scope {
 		parent:  parent,
 		pragmas: make(map[string]any),
 		symbols: make(map[string]*entry),
-		ctes:    make(map[string]*ast.SQLCTE),
+		ctes:    make(map[string]*sqlCTE),
 	}
 }
 

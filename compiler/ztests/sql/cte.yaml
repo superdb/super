@@ -59,3 +59,48 @@ outputs:
       duplicate WITH clause name at line 1, column 30:
       with x as ( select 1 as y ), x as ( select 2 as y ) select * from x
                                    ~
+---
+
+spq: |
+  with t as materialized (select now() as x)
+  select x from t
+  union all
+  select x from t
+  union all
+  select x from t
+  union all
+  select x from t
+  union all
+  select x from t
+  union all
+  select x from t
+  union all
+  select x from t
+  union all
+  select x from t
+  union all
+  select x from t
+  | count(),distinct:=count(distinct this)
+
+output: |
+  {count:9,distinct:1}
+
+---
+
+spq: |
+  op o x: (with t as materialized (select x) select x from t)
+  fork (o 1) (o 2)
+  | sort x
+
+output: |
+  {x:1}
+  {x:2}
+
+---
+
+spq: |
+  with t as (select 1 as x, 2 as y)
+  select a.p, b.r from t as a(p,q), t as b(r,s)
+
+output: |
+  {p:1,r:1}

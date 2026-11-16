@@ -26,12 +26,10 @@ outputs:
       ===
       null
       | values (
-        -- correlated
         unnest [this]
         | where search("b"))
       | unnest [this]
       | unnest (
-        -- correlated
         unnest [this]
         | where search("b")
         | aggregate

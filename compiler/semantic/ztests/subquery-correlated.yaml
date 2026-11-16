@@ -31,55 +31,74 @@ outputs:
   - name: stdout
     data: |
       === dag.FileScan
+      let 0/subquery = materialized (
+        file /dev/null
+      )
       null
-      | values (
-        file /dev/null)
+      | values materialized (
+        materialized 0)
       | output main
       === dag.HTTPScan
+      let 0/subquery = materialized (
+        get http://host format auto
+      )
       null
-      | values (
-        get http://host format auto)
+      | values materialized (
+        materialized 0)
       | output main
       === dag.RobotScan
       null
       | values (
-        -- correlated
         robot cast(this, <string>))
       | output main
       === dag.CommitMetaScan
+      let 0/subquery = materialized (
+        table xxx@00000000-0000-0000-0000-000000000000:objects
+      )
       null
-      | values (
-        table xxx@00000000-0000-0000-0000-000000000000:objects)
+      | values materialized (
+        materialized 0)
       | output main
       === dag.DBMetaScan
+      let 0/subquery = materialized (
+        :tables
+      )
       null
-      | values (
-        :tables)
+      | values materialized (
+        materialized 0)
       | output main
       === dag.TableMetaScan
+      let 0/subquery = materialized (
+        table xxx:branches
+      )
       null
-      | values (
-        table xxx:branches)
+      | values materialized (
+        materialized 0)
       | output main
       === dag.TableScan
+      let 0/subquery = materialized (
+        table xxx
+      )
       null
-      | values (
-        table xxx)
+      | values materialized (
+        materialized 0)
       | output main
       === dag.ForkOp
-      null
-      | values (
+      let 0/subquery = materialized (
         fork
           (
             file /dev/null
           )
           (
             file /dev/null
-          ))
+          )
+      )
+      null
+      | values materialized (
+        materialized 0)
       | output main
       null
       | values (
-        -- correlated
         fork
           (
             file /dev/null
@@ -90,7 +109,6 @@ outputs:
       | output main
       null
       | values (
-        -- correlated
         fork
           (
             head 1
@@ -101,7 +119,6 @@ outputs:
       | output main
       null
       | values (
-        -- correlated
         fork
           (
             head 1
@@ -113,7 +130,6 @@ outputs:
       === dag.SwitchOp
       null
       | values (
-        -- correlated
         switch
           case true (
             file /dev/null

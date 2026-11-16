@@ -10,9 +10,10 @@ import (
 )
 
 type MainExpr struct {
-	Types []byte     `json:"types"`
-	Funcs []*FuncDef `json:"funcs"`
-	Expr  Expr       `json:"expr"`
+	Types            []byte             `json:"types"`
+	Funcs            []*FuncDef         `json:"funcs"`
+	MaterializedDefs []*MaterializedDef `json:"materialized_defs"`
+	Expr             Expr               `json:"expr"`
 }
 
 type (
@@ -144,8 +145,8 @@ type (
 		Nulls order.Nulls `json:"nulls"`
 	}
 	SubqueryExpr struct {
-		Kind       string `json:"kind" unpack:""`
-		Correlated bool   `json:"correlated"`
+		Kind         string `json:"kind" unpack:""`
+		Materialized bool   `json:"materialized"`
 		// SQL is true for a subquery in a SQL expression, whose value is
 		// null when the subquery produces no values.  Otherwise, the value
 		// is none.

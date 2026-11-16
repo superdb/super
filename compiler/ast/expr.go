@@ -195,10 +195,11 @@ type (
 		Loc   `json:"loc"`
 	}
 	SubqueryExpr struct {
-		Kind  string `json:"kind" unpack:""`
-		Body  Seq    `json:"body"`
-		Array bool   `json:"array"`
-		Loc   `json:"loc"`
+		Kind         string `json:"kind" unpack:""`
+		Materialized bool   `json:"materialized"`
+		Body         Seq    `json:"body"`
+		Array        bool   `json:"array"`
+		Loc          `json:"loc"`
 	}
 	SubstringExpr struct {
 		Kind string `json:"kind" unpack:""`

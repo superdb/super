@@ -58,11 +58,12 @@ func (e *evaluator) maybeEval(sctx *super.Context, expr sem.Expr) (super.Value, 
 	if len(e.errs) > 0 || e.bad {
 		return super.Value{}, false
 	}
-	main := newDagen(e.translator.reporter).assembleExpr(expr, e.translator.getTypes(), e.translator.resolver.funcs)
+	t := e.translator
+	main := newDagen(t.reporter).assembleExpr(expr, t.getTypes(), t.resolver.funcs, t.materializedDefs)
 	var val super.Value
 	var err error
 	if e.readData {
-		val, err = rungen.EvalAtCompileTimeWithEnv(e.translator.ctx, sctx, e.translator.env, main)
+		val, err = rungen.EvalAtCompileTimeWithEnv(t.ctx, sctx, t.env, main)
 	} else {
 		val, err = rungen.EvalAtCompileTime(sctx, main)
 	}
@@ -100,6 +101,8 @@ func (e *evaluator) op(op sem.Op) bool {
 			e.errs.error(op, errors.New("cannot read data in constant expression"))
 		}
 		return false
+	case *sem.MaterializedScan:
+		return e.seq(e.translator.materializedDefs[op.Tag].body)
 	case *sem.NullScan:
 		return true
 	//

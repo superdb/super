@@ -1,0 +1,89 @@
+spq: |
+  values 1,2
+  | values (values this)
+
+output: |
+  1
+  2
+
+---
+
+spq: |
+  values 1,2
+  | values materialized (values this)
+
+output: |
+  null
+  null
+
+---
+
+spq: |
+  values 1,2,3,4,5,6,7,8,9
+  | values materialized (values now())
+  | count(distinct this)
+
+output: |
+  1
+
+---
+
+spq: |
+  values 1,2
+  | values [values this,this]
+
+output: |
+  [1,1]
+  [2,2]
+
+---
+
+spq: |
+  values 1,2
+  | values materialized [values this,this]
+
+output: |
+  [null,null]
+  [null,null]
+
+---
+
+spq: |
+  values 1,2,3,4,5,6,7,8,9
+  | values materialized [values now(),now()]
+  | count(distinct this)
+
+output: |
+  1
+
+---
+
+spq: |
+  op o: (values 1)
+  values 1,2
+  | values o()
+
+output: |
+  1
+  1
+
+---
+
+spq: |
+  values [1,2]
+  | values (values map([1,2], lambda x:x+1))
+
+output: |
+  [2,3]
+
+---
+
+spq: |
+  values {a:1},{a:2}
+  | values materialized (values a)
+
+error: |
+  no such field "a": . applied to null at line 2, column 31:
+  | values materialized (values a)
+                                ~
+

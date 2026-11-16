@@ -18,9 +18,10 @@ import (
 )
 
 type Main struct {
-	Types []byte     `json:"types"`
-	Funcs []*FuncDef `json:"funcs"`
-	Body  Seq        `json:"body"`
+	Types            []byte             `json:"types"`
+	Funcs            []*FuncDef         `json:"funcs"`
+	MaterializedDefs []*MaterializedDef `json:"materialized_defs"`
+	Body             Seq                `json:"body"`
 }
 
 type FuncDef struct {
@@ -29,6 +30,12 @@ type FuncDef struct {
 	Name   string   `json:"name"`
 	Params []string `json:"params"`
 	Expr   Expr     `json:"expr"`
+}
+
+type MaterializedDef struct {
+	Kind string `json:"kind" unpack:""`
+	Name string `json:"name"`
+	Body Seq    `json:"body"`
 }
 
 type Op interface {
@@ -124,6 +131,10 @@ type (
 		Message string    `json:"message"`
 		Meta    string    `json:"meta"`
 	}
+	MaterializedScan struct {
+		Kind string `json:"kind" unpack:""`
+		Tag  int    `json:"tag"`
+	}
 	MergeOp struct {
 		Kind  string     `json:"kind" unpack:""`
 		Exprs []SortExpr `json:"exprs"`
@@ -206,35 +217,36 @@ type (
 	}
 )
 
-func (*AggregateOp) opNode() {}
-func (*CombineOp) opNode()   {}
-func (*CountOp) opNode()     {}
-func (*DebugOp) opNode()     {}
-func (*DistinctOp) opNode()  {}
-func (*DropOp) opNode()      {}
-func (*FilterOp) opNode()    {}
-func (*ForkOp) opNode()      {}
-func (*FuseOp) opNode()      {}
-func (*HashJoinOp) opNode()  {}
-func (*HeadOp) opNode()      {}
-func (*InferOp) opNode()     {}
-func (*JoinOp) opNode()      {}
-func (*LoadOp) opNode()      {}
-func (*MergeOp) opNode()     {}
-func (*OutputOp) opNode()    {}
-func (*PassOp) opNode()      {}
-func (*PutOp) opNode()       {}
-func (*RenameOp) opNode()    {}
-func (*ScatterOp) opNode()   {}
-func (*SkipOp) opNode()      {}
-func (*SlicerOp) opNode()    {}
-func (*SortOp) opNode()      {}
-func (*SwitchOp) opNode()    {}
-func (*TailOp) opNode()      {}
-func (*TopOp) opNode()       {}
-func (*UniqOp) opNode()      {}
-func (*UnnestOp) opNode()    {}
-func (*ValuesOp) opNode()    {}
+func (*AggregateOp) opNode()      {}
+func (*CombineOp) opNode()        {}
+func (*CountOp) opNode()          {}
+func (*DebugOp) opNode()          {}
+func (*DistinctOp) opNode()       {}
+func (*DropOp) opNode()           {}
+func (*FilterOp) opNode()         {}
+func (*ForkOp) opNode()           {}
+func (*FuseOp) opNode()           {}
+func (*HashJoinOp) opNode()       {}
+func (*HeadOp) opNode()           {}
+func (*InferOp) opNode()          {}
+func (*JoinOp) opNode()           {}
+func (*LoadOp) opNode()           {}
+func (*MaterializedScan) opNode() {}
+func (*MergeOp) opNode()          {}
+func (*OutputOp) opNode()         {}
+func (*PassOp) opNode()           {}
+func (*PutOp) opNode()            {}
+func (*RenameOp) opNode()         {}
+func (*ScatterOp) opNode()        {}
+func (*SkipOp) opNode()           {}
+func (*SlicerOp) opNode()         {}
+func (*SortOp) opNode()           {}
+func (*SwitchOp) opNode()         {}
+func (*TailOp) opNode()           {}
+func (*TopOp) opNode()            {}
+func (*UniqOp) opNode()           {}
+func (*UnnestOp) opNode()         {}
+func (*ValuesOp) opNode()         {}
 
 // Scanner sources also implement Op and all have suffix "Scan".
 type (
