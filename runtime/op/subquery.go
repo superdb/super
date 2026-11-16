@@ -75,38 +75,63 @@ func (s *Subquery) Eval(this vector.Any) vector.Any {
 			msg := s.ctx.Err().Error()
 			return vector.NewStringError(s.sctx, msg, this.Len())
 		}
-		db.Write(subqueryBodyPull(s.sctx, s.body, s.sql))
+		vec, err := subqueryBodyPull(s.sctx, s.body, s.sql)
+		if err != nil {
+			vec = s.bodyErr(err)
+		}
+		db.Write(vec)
 	}
 	return db.Build()
 }
 
-func subqueryBodyPull(sctx *super.Context, p vio.Puller, sql bool) vector.Any {
+// subqueryBodyPull pulls the result of one subquery evaluation from p.
+// An error from p is returned as err so the caller can reset the body.
+func subqueryBodyPull(sctx *super.Context, p vio.Puller, sql bool) (vector.Any, error) {
 	vec, err := p.Pull(false)
 	if err != nil {
-		return vector.NewStringError(sctx, err.Error(), 1)
+		return nil, err
 	}
 	if vec == nil {
 		if sql {
-			return vector.NewNull(1)
+			return vector.NewNull(1), nil
 		}
-		return vector.NewNone(1)
+		return vector.NewNone(1), nil
 	}
 	vec2, err := p.Pull(false)
 	if err != nil {
-		return vector.NewStringError(sctx, err.Error(), 1)
+		return nil, err
 	}
 	if vec2 != nil {
 		if _, err := p.Pull(true); err != nil {
-			return vector.NewStringError(sctx, err.Error(), 1)
+			return nil, err
 		}
 	}
 	if vec2 != nil || vec.Len() > 1 {
-		return vector.NewStringError(sctx, "query expression produced multiple values (consider [subquery])", 1)
+		return vector.NewStringError(sctx, "query expression produced multiple values (consider [subquery])", 1), nil
 	}
-	return vec
+	return vec, nil
+}
+
+// bodyErr returns err as an error value after resetting the body so that it
+// is ready for the next value.  The body stopped at the error, so it may not
+// have pulled this subquery to EOS and its operators may hold partial state.
+func (s *Subquery) bodyErr(err error) vector.Any {
+	s.body.Pull(true)
+	s.eos = false
+	select {
+	case <-s.ch:
+	default:
+	}
+	return vector.NewStringError(s.sctx, err.Error(), 1)
 }
 
 func (s *Subquery) Pull(done bool) (vector.Any, error) {
+	if done {
+		// The body is done with the current value whether or not it
+		// pulled it, so don't block waiting for another.
+		s.eos = false
+		return nil, nil
+	}
 	if s.eos {
 		s.eos = false
 		return nil, nil

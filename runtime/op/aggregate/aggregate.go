@@ -58,7 +58,10 @@ func New(parent vio.Puller, sctx *super.Context, aggNames []field.Path, aggExprs
 
 func (a *Aggregate) Pull(done bool) (vector.Any, error) {
 	if done {
-		_, err := a.parent.Pull(done)
+		// Discard any partial results.
+		clear(a.tables)
+		a.results = nil
+		_, err := a.parent.Pull(true)
 		return nil, err
 	}
 	if a.results != nil {

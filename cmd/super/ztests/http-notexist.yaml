@@ -8,4 +8,4 @@ inputs:
 outputs:
   - name: stderr
     regexp: |
-      http://127.0.0.1:\d+/does/not/exist: file does not exist
+      http://127.0.0.1:\d+/does/not/exist: 404 .+
