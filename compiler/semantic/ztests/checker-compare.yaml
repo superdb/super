@@ -55,16 +55,6 @@ error: |
 
 ---
 
-# Nets have no order.
-spq: values 10.0.0.0/8<10.0.0.0/8
-
-error: |
-  type net incompatible with '<' operator at line 1, column 8:
-  values 10.0.0.0/8<10.0.0.0/8
-         ~~~~~~~~~~~~~~~~~~~~~
-
----
-
 # When the checker doesn't know the types, the runtime reports the same error.
 spq: values x==1, x<y
 

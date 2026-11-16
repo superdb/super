@@ -88,11 +88,12 @@ types that are coerced to a common type as in SQL.
   An option compared with a value that isn't an option is an error until the
   option is handled, e.g., with `??` or `unwrap`, or the value is wrapped
   with `some`.
-* Values of type [net](../types/network.md) have no order, so they are
-  comparable only with `==` and `!=`.
 * Values of type `bool` and `type`, and records, arrays, sets, maps, and
-  enums, have no order either, but `<` and `>` are `false` for them while
-  `<=` and `>=` are equality.
+  enums, have no order, so `<` and `>` are `false` for them while `<=` and
+  `>=` are equality.
+
+Values of type [net](../types/network.md) are ordered by address family
+(IPv4 before IPv6), then by network address, and then by prefix length.
 
 Any other comparison is a type mismatch, e.g., a number and a string, a number
 and a `time` or `duration`, or an `ip` and a `net`.  The compiler reports a

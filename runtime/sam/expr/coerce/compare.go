@@ -202,27 +202,6 @@ func isFusion(typ super.Type) bool {
 	return ok
 }
 
-// IsOrdered reports whether values of type typ, which has no names, can be
-// compared with an ordering operator (<, <=, >, >=).  Nets have no order.
-// Bools, type values, and complex values have none either but are allowed:
-// < and > are false while <= and >= are equality.
-func IsOrdered(typ super.Type) bool {
-	if typ.Kind() != super.PrimitiveKind {
-		return true
-	}
-	switch typ.ID() {
-	case super.IDNet:
-		return false
-	}
-	return true
-}
-
-// Unordered returns the message of the error for a comparison with ordering
-// operator op of values of type typ, which has no order.
-func Unordered(op string, typ super.Type) string {
-	return fmt.Sprintf("type %s incompatible with '%s' operator", sup.FormatType(typ), op)
-}
-
 // TypeMismatch returns the message of the error for a comparison with
 // operator op of values of types a and b that can't be compared.
 func TypeMismatch(op string, a, b super.Type) string {

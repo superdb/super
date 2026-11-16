@@ -1,14 +1,15 @@
-spq: values a==b, a!=b, a<b, a<=b, a>=b, a>b
-
-flags: -dynamic
+spq: values [a==b, a!=b, a<b, a<=b, a>=b, a>b]
 
 input: |
-  {a:192.168.0.0/23,b:192.168.1.0/23}
+  {a:192.168.0.0/23,b:192.168.0.0/23}
+  {a:192.168.0.0/23,b:192.168.2.0/23}
+  {a:192.168.0.0/23,b:192.168.0.0/24}
+  {a:192.168.0.0/23,b:10.0.0.0/8}
+  {a:192.168.0.0/23,b:fe80::/64}
 
 output: |
-  true
-  false
-  error("type net incompatible with '<' operator")
-  error("type net incompatible with '<=' operator")
-  error("type net incompatible with '>=' operator")
-  error("type net incompatible with '>' operator")
+  [true,false,false,true,true,false]
+  [false,true,true,true,false,false]
+  [false,true,true,true,false,false]
+  [false,true,false,false,true,true]
+  [false,true,true,true,false,false]

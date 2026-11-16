@@ -128,9 +128,6 @@ func (c *Compare) evalCaught(vecs ...vector.Any) vector.Any {
 			return c.evalAllowingOption(vecs...)
 		}, lhs, rhs)
 	}
-	if c.opCode != vector.CompEQ && c.opCode != vector.CompNE && !coerce.IsOrdered(lhs.Type()) {
-		return vector.NewStringError(c.sctx, coerce.Unordered(c.op, lhs.Type()), lhs.Len())
-	}
 	switch kind {
 	case vector.KindBool:
 		return c.compareBool(lhs, rhs)
@@ -367,11 +364,7 @@ func (c *Compare) compareNets(lhs, rhs vector.Any) vector.Any {
 	for i := range lhs.Len() {
 		l := vector.NetValue(lhs, i)
 		r := vector.NetValue(rhs, i)
-		set := l == r
-		if c.opCode == vector.CompNE {
-			set = !set
-		}
-		if set {
+		if isCompareOpSatisfied(c.opCode, l.Compare(r)) {
 			out.Set(i)
 		}
 	}
