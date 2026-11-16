@@ -1,0 +1,20 @@
+script: |
+  super db init -q test
+  super db attach -q test
+  super db create -q data
+  super db load -q -use data in.sup
+  super db -f bsup -c 'from data | values n == "x" ? this : this' | super -s -c 'sort n, d' -
+
+inputs:
+  - name: in.sup
+    data: |
+      {n:"x",d:"s"}
+      {n:"y",d:"s"}
+      {n:"y",d:null}
+
+outputs:
+  - name: stdout
+    data: |
+      {n:"x",d:"s"}
+      {n:"y",d:"s"}
+      {n:"y",d:null}
