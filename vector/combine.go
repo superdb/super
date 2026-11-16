@@ -64,5 +64,6 @@ func (c *Combiner) Result() Any {
 			baseTags = baseTags[1:]
 		}
 	}
-	return NewDynamic(tags, append(baseVecs, c.vecs...))
+	// Flatten any Dynamics among c.vecs so the result never nests a Dynamic.
+	return stitch(tags, append(baseVecs, c.vecs...))
 }
