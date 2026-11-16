@@ -47,3 +47,18 @@ superfuse | superdefuse(this)
 {x:2,y:3}
 {x:4,z?:none::int64}
 ```
+
+---
+
+_Defuse the value in an option_
+
+```mdtest-spq {data-layout="stacked"}
+# spq
+values {x:upcast(some(1), <option(fusion(int64|string))>)}
+| values superdefuse(this), typeof(x)
+# input
+
+# expected output
+{x?:1}
+<option(int64)>
+```

@@ -1,8 +1,8 @@
 script: |
   echo // hash join
-  super -s -c 'from a.sup | inner join (from b.sup) on left.a=right.b | values left | sort'
+  super -dynamic -s -c 'from a.sup | inner join (from b.sup) on left.a=right.b | values left | sort'
   echo // nested loop join
-  super -s -c 'from a.sup | inner join (from b.sup) on left.a<right.b | values left | sort'
+  super -dynamic -s -c 'from a.sup | inner join (from b.sup) on left.a<right.b | values left | sort'
 
 inputs:
   - name: a.sup

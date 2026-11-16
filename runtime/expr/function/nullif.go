@@ -11,7 +11,7 @@ type NullIf struct {
 }
 
 func newNullIf(sctx *super.Context) *NullIf {
-	return &NullIf{expr.NewCompare(sctx, "==", nil, nil)}
+	return &NullIf{expr.NewLenientCompare(sctx, "==")}
 }
 
 func (*NullIf) ApplyOpt() vector.ApplyOpt { return vector.ApplyNone }

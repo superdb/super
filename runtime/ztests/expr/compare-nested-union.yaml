@@ -1,0 +1,81 @@
+# A value whose type has a nested union compares by value with a type that
+# the union holds or with a union that shares one of its types.
+spq: fuse | values [l==[1,2], l==["a"], r=={a:1}, l==l]
+
+flags: -dynamic
+
+input: |
+  {l:[1,2],r:{a:1}}
+  {l:["a"],r:{a:"s"}}
+
+output: |
+  [true,false,true,true]
+  [false,true,false,true]
+
+---
+
+# The result doesn't depend on the order of the operands or of the types of
+# their unions.
+spq: |
+  values [1,"a"]==[1,2], [1,"a"]==["a",1], [1,"a"]==[1,"a",true],
+         [1,"a",null]==[1,null], [1,"b"]==[1::int8,"a"], [1::int8,"a"]==[1,"b"],
+         [2::(int8|int64)]==[2], ["a",true]==[1::int8,2,"a"]
+
+output: |
+  false
+  false
+  false
+  false
+  false
+  false
+  true
+  false
+
+---
+
+spq: values [1,"a"]==[true]
+
+error: |
+  type mismatch: [int64|string] == [bool] at line 1, column 8:
+  values [1,"a"]==[true]
+         ~~~~~~~~~~~~~~~
+
+---
+
+# A type that's comparable only by promotion isn't shared with a union.
+spq: values [1,"a"]==[1::int8], [1::int8]==[1,"a"]
+
+error: |
+  type mismatch: [int64|string] == [int8] at line 1, column 8:
+  values [1,"a"]==[1::int8], [1::int8]==[1,"a"]
+         ~~~~~~~~~~~~~~~~~~
+  type mismatch: [int8] == [int64|string] at line 1, column 28:
+  values [1,"a"]==[1::int8], [1::int8]==[1,"a"]
+                             ~~~~~~~~~~~~~~~~~~
+
+---
+
+# A lenient comparison (map indexing, in, nullif, search) of integers that
+# no common type holds is unequal rather than an error or a panic.
+spq: values {i:m[k] ?? "none", n:nullif(u, k), s:k in a, t:u in a}
+
+flags: -dynamic
+
+input: |
+  {m:map{18446744073709551615::uint64:"x"},k:-1,u:18446744073709551615::uint64,a:[18446744073709551615::uint64]}
+
+output: |
+  {i:"none",n:18446744073709551615::uint64,s:false,t:true}
+
+---
+
+spq: search -1 | values k
+
+flags: -dynamic
+
+input: |
+  {m:map{18446744073709551615::uint64:"x"},k:-1}
+  {m:map{18446744073709551615::uint64:"x"},k:1}
+
+output: |
+  -1

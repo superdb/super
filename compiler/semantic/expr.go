@@ -63,8 +63,8 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 				RHS:  upper,
 			},
 		}
-		t.checker.comparison(lowerType, valType)
-		t.checker.comparison(valType, upperType)
+		t.checker.comparison(">=", e.Lower, valType, lowerType)
+		t.checker.comparison("<=", e.Upper, valType, upperType)
 		if e.Not {
 			return sem.NewUnaryExpr(e, "!", expr), super.TypeBool
 		}
@@ -631,7 +631,7 @@ func (t *translator) binaryExpr(e *ast.BinaryExpr, inType super.Type) (sem.Expr,
 		Op:   op,
 		LHS:  lhs,
 		RHS:  rhs,
-	}, t.checker.binary(e.Op, e, e.LHS, e.RHS, lhsType, rhsType)
+	}, t.checker.binary(op, e, e.LHS, e.RHS, lhsType, rhsType)
 }
 
 var errNoneOperand = errors.New("illegal use of none value (consider ??)")
@@ -681,7 +681,7 @@ func (t *translator) semCaseExpr(c *ast.CaseExpr, inType super.Type) (sem.Expr, 
 		cond, condType := t.expr(when.Cond, inType)
 		if e != nil {
 			cond = sem.NewBinaryExpr(c, "==", e, cond)
-			t.checker.comparison(exprType, condType)
+			t.checker.comparison("==", when.Cond, exprType, condType)
 		} else {
 			t.checker.boolean(when.Cond, condType)
 		}
@@ -889,10 +889,8 @@ func (t *translator) semCallByName(call *ast.CallExpr, name string, args []sem.E
 			return badExpr, t.checker.unknown
 		}
 	}
-	if nameLower == "cast" && nargs == 2 {
-		return sem.NewCall(call, nameLower, args), t.checker.castType(argTypes[0], args[1])
-	}
-	return sem.NewCall(call, nameLower, args), t.checker.unknown
+	e := sem.NewCall(call, nameLower, args)
+	return e, t.checker.callBuiltin(e, argTypes)
 }
 
 func (t *translator) maybeSubqueryCall(call *ast.CallExpr, name string, inType super.Type) (*sem.SubqueryExpr, super.Type) {

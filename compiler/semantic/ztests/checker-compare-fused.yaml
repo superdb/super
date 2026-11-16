@@ -1,0 +1,43 @@
+# Each value of a fused type nested in the type of an operand has one of the
+# fused types, so every one of them must be comparable with the other operand.
+script: |
+  ! super -s -c 'values a == b' in.sup
+  ! super -s -c 'values val between lower and upper' in.sup
+  ! super -dynamic -s -c 'values {x:a,y:1} == {x:1,z:2}' in.sup
+  ! super -s -c 'values r == s' opt.sup
+  super -dynamic -s -c 'values a == b' in.sup
+
+inputs:
+  - name: in.sup
+    data: |
+      {a:[1],b:["x"],val:1,lower:5,upper:10}
+      {a:["x"],b:[1],val:"a",lower:"b",upper:"c"}
+      {a:[2],b:[2],val:3,lower:1,upper:5}
+  - name: opt.sup
+    data: |
+      {r:{x?:[1]},s:{x?:["a"]}}
+      {r:{x?:["a"]},s:{x?:[1]}}
+
+outputs:
+  - name: stderr
+    data: |
+      type mismatch: [fusion(int64|string)] == [fusion(int64|string)] at line 1, column 8:
+      values a == b
+             ~~~~~~
+      type mismatch: int64|string >= int64|string at line 1, column 20:
+      values val between lower and upper
+                         ~~~~~
+      type mismatch: int64|string <= int64|string at line 1, column 30:
+      values val between lower and upper
+                                   ~~~~~
+      type mismatch: {x:any,y:int64} == {x:int64,z:int64} at line 1, column 8:
+      values {x:a,y:1} == {x:1,z:2}
+             ~~~~~~~~~~~~~~~~~~~~~~
+      type mismatch: {x:fusion(option([fusion(int64|string)]))} == {x:fusion(option([fusion(int64|string)]))} at line 1, column 8:
+      values r == s
+             ~~~~~~
+  - name: stdout
+    data: |
+      error("type mismatch: [int64] == [string]")
+      error("type mismatch: [string] == [int64]")
+      true

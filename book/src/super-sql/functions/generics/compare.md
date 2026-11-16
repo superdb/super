@@ -12,7 +12,12 @@ compare(a: any, b: any [, nullsMax: bool]) -> int64
 
 The `compare` function returns an integer comparing two values. The result will
 be 0 if a is equal to b, +1 if a is greater than b, and -1 if a is less than b.
-`compare` differs from [comparison expressions](../../expressions/comparisons.md) in that it will work for any type (e.g., `compare(1, "1")`).
+`compare` differs from [comparison expressions](../../expressions/comparisons.md),
+for which values of different types are a
+[type mismatch](../../expressions/comparisons.md#type-checking),
+in that it is polymorphic and works for values of any types (e.g., `compare(1, "1")`).
+For example, `compare(a, b) == 0` and `compare(a, b) < 0` are the polymorphic forms
+of `a == b` and `a < b`.
 
 Values are compared via byte order.  Between values of type `string`, this is
 equivalent to [C/POSIX collation](https://www.postgresql.org/docs/current/collation.html#COLLATION-MANAGING-STANDARD)

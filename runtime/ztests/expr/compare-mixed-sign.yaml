@@ -1,0 +1,58 @@
+# An unsigned integer too large for the signed type of the other operand
+# compares by value rather than failing to cast.
+spq: values [u==i, u!=i, u<i, u<=i, u>i, u>=i, i<u]
+
+flags: -dynamic
+
+input: |
+  {u:18446744073709551615::uint64,i:-1}
+  {u:18446744073709551615::uint64,i:9223372036854775807}
+  {u:1::uint64,i:1}
+  {u:1::uint64,i:2}
+  {u:4294967295::uint32,i:-1::int32}
+  {u:4294967295::uint32,i:-1::int8}
+  {u:200::uint8,i:-56::int8}
+  {u:5::uint16,i:5}
+
+output: |
+  [false,true,false,false,true,true,true]
+  [false,true,false,false,true,true,true]
+  [true,false,false,true,false,true,false]
+  [false,true,true,true,false,false,false]
+  [false,true,false,false,true,true,true]
+  [false,true,false,false,true,true,true]
+  [false,true,false,false,true,true,true]
+  [true,false,false,true,false,true,false]
+
+---
+
+# A signed constant compares with an unsigned value of any size.
+spq: values [u>1, u<1, u==-1, u>-1, 1<u, -1<u]
+
+flags: -dynamic
+
+input: |
+  {u:18446744073709551615::uint64}
+  {u:1::uint64}
+
+output: |
+  [true,false,false,true,true,true]
+  [false,false,false,true,false,true]
+
+---
+
+# A nested unsigned value too large for the comparison type is unequal, both
+# when every value fails to cast and when only some do.
+spq: values [a==b, a!=b, a in [b]], nullif(a, b)
+
+flags: -dynamic
+
+input: |
+  {a:{x:18446744073709551615::uint64},b:{x:-1}}
+  {a:{x:1::uint64},b:{x:1}}
+
+output: |
+  [false,true,false]
+  {x:18446744073709551615::uint64}
+  [true,false,true]
+  null

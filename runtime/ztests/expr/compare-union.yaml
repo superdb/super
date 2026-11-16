@@ -1,6 +1,8 @@
 spq: |
   values a == b
 
+flags: -dynamic
+
 input: |
   {a:"foo"::(int64|string),b:"foo"}
   {a:"foo",b:"foo"::(int64|string)}

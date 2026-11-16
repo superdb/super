@@ -3,25 +3,48 @@ package expr
 //go:generate go run gencomparefuncs.go
 
 import (
-	"fmt"
+	"cmp"
 
 	"github.com/superdb/super"
+	"github.com/superdb/super/runtime/expr/cast"
 	"github.com/superdb/super/runtime/sam/expr/coerce"
+	samfunc "github.com/superdb/super/runtime/sam/expr/function"
 	"github.com/superdb/super/scode"
 	"github.com/superdb/super/vector"
 )
 
 type Compare struct {
-	sctx   *super.Context
-	defuse *SuperDefuse
-	opCode int
-	lhs    Evaluator
-	rhs    Evaluator
-	op     string
+	sctx    *super.Context
+	defuse  *SuperDefuse
+	opCode  int
+	lhs     Evaluator
+	rhs     Evaluator
+	op      string
+	lenient bool
+
+	hasFusion samfunc.FusionChecker
+	// comparisonTypes caches coerce.ComparisonType for pairs of operand
+	// types.
+	comparisonTypes map[[2]super.Type]comparisonType
 }
 
+type comparisonType struct {
+	typ super.Type
+	ok  bool
+}
+
+// NewCompare returns an evaluator for comparison operator op, for which
+// values whose types have no coerce.ComparisonType are an error.
 func NewCompare(sctx *super.Context, op string, lhs, rhs Evaluator) *Compare {
-	return &Compare{sctx, NewSuperDefuse(sctx), vector.CompareOpFromString(op), lhs, rhs, op}
+	return &Compare{sctx: sctx, defuse: NewSuperDefuse(sctx), opCode: vector.CompareOpFromString(op), lhs: lhs, rhs: rhs, op: op}
+}
+
+// NewLenientCompare is like NewCompare but values whose types can't be
+// compared are unequal rather than an error, as for the in operator.
+func NewLenientCompare(sctx *super.Context, op string) *Compare {
+	c := NewCompare(sctx, op, nil, nil)
+	c.lenient = true
+	return c
 }
 
 func (c *Compare) Compare(vec0, vec1 vector.Any) vector.Any {
@@ -35,36 +58,78 @@ func (c *Compare) Eval(val vector.Any) vector.Any {
 }
 
 func (c *Compare) eval(vecs ...vector.Any) vector.Any {
-	if vec, ok := CatchFirst(c.sctx, CatchOption, vecs, c.op); ok {
+	if vecs[0].Kind() == vector.KindOption && vecs[1].Kind() == vector.KindOption {
+		return c.compareOptions(vecs[0], vecs[1])
+	}
+	// An error or null operand takes precedence over an unhandled option.
+	if vec, ok := CatchFirst(c.sctx, CatchBasic|CatchOption, vecs, c.op); ok {
 		return vec
 	}
-	return c.evalAllowingOption(vecs...)
+	return c.evalCaught(vecs...)
 }
 
 func (c *Compare) evalAllowingOption(vecs ...vector.Any) vector.Any {
 	if vec, ok := CatchFirst(c.sctx, CatchBasic, vecs, c.op); ok {
 		return vec
 	}
+	return c.evalCaught(vecs...)
+}
+
+// evalCaught is evalAllowingOption for operands already checked for errors
+// and nulls.
+func (c *Compare) evalCaught(vecs ...vector.Any) vector.Any {
 	if vecs[0].Kind() == vector.KindOption || vecs[1].Kind() == vector.KindOption {
 		return c.compareOptions(vecs[0], vecs[1])
 	}
-	lhs := vector.Under(vector.Super(vecs[0]))
-	rhs := vector.Under(vector.Super(vecs[1]))
+	lhs, rhs := vector.Super(vecs[0]), vector.Super(vecs[1])
+	ltyp, rtyp := lhs.Type(), rhs.Type()
+	lhs, rhs = vector.Under(lhs), vector.Under(rhs)
 	if which, ok := compareNones(lhs, rhs); ok {
 		if c.opCode == vector.CompNE {
 			which = !which
 		}
 		return vector.NewConstBool(which, lhs.Len())
 	}
-	lhs, rhs, errVal := coerceVals(c.sctx, lhs, rhs)
-	if errVal != nil {
-		// Incompatible types so return true for != and false otherwise.
-		return vector.NewConstBool(c.opCode == vector.CompNE, errVal.Len())
+	if vec, ok := c.compareNone(lhs, rhs); ok {
+		return vec
 	}
-	//XXX need to handle overflow (see sam)
+	if vec, ok := c.compareMixedInts(lhs, rhs); ok {
+		return vec
+	}
+	lhs, rhs, ok, defused := c.coerce(lhs, rhs)
+	if defused {
+		return vector.Apply(vector.ApplyRipUnions, c.evalAllowingOption, lhs, rhs)
+	}
+	if !ok {
+		if c.lenient {
+			return vector.NewConstBool(c.opCode == vector.CompNE, lhs.Len())
+		}
+		return vector.NewStringError(c.sctx, coerce.TypeMismatch(c.op, ltyp, rtyp), lhs.Len())
+	}
 	kind := lhs.Kind()
-	if kind != rhs.Kind() {
-		panic("vector kind mismatch after coerce")
+	if kind != rhs.Kind() || kind == vector.KindError {
+		// A value couldn't be cast to the comparison type (e.g., a uint64
+		// too large for int64), leaving an error in its place, so it's
+		// unequal, as when a nested value couldn't be cast (see
+		// compareComplex).
+		if lhs.Kind() == vector.KindError || rhs.Kind() == vector.KindError {
+			return vector.NewConstBool(c.opCode == vector.CompNE, lhs.Len())
+		}
+		_, lok := lhs.(*vector.Dynamic)
+		_, rok := rhs.(*vector.Dynamic)
+		if !lok && !rok {
+			panic("vector kind mismatch after coerce")
+		}
+		// Some values couldn't be cast, so handle each part as above.
+		return vector.Apply(vector.ApplyRipUnions, func(vecs ...vector.Any) vector.Any {
+			if vecs[0].Kind() == vector.KindError || vecs[1].Kind() == vector.KindError || vecs[0].Type() != vecs[1].Type() {
+				return vector.NewConstBool(c.opCode == vector.CompNE, vecs[0].Len())
+			}
+			return c.evalAllowingOption(vecs...)
+		}, lhs, rhs)
+	}
+	if c.opCode != vector.CompEQ && c.opCode != vector.CompNE && !coerce.IsOrdered(lhs.Type()) {
+		return vector.NewStringError(c.sctx, coerce.Unordered(c.op, lhs.Type()), lhs.Len())
 	}
 	switch kind {
 	case vector.KindBool:
@@ -84,6 +149,10 @@ func (c *Compare) evalAllowingOption(vecs ...vector.Any) vector.Any {
 		vector.KindEnum:
 		return c.compareComplex(lhs, rhs)
 	}
+	return c.compareForms(kind, lhs, rhs)
+}
+
+func (c *Compare) compareForms(kind vector.Kind, lhs, rhs vector.Any) vector.Any {
 	lform, ok := vector.FormOf(lhs)
 	if !ok {
 		return vector.NewStringError(c.sctx, coerce.ErrIncompatibleTypes.Error(), lhs.Len())
@@ -108,19 +177,120 @@ func (c *Compare) compareOptions(lhs, rhs vector.Any) vector.Any {
 		}
 		lhs := vector.UnderOption(vecs[0]).Any
 		rhs := vector.UnderOption(vecs[1]).Any
-		lhsNone, rhsNone := lhs.Kind() == vector.KindNone, rhs.Kind() == vector.KindNone
-		if lhsNone || rhsNone {
-			eq := lhsNone && rhsNone
-			switch c.opCode {
-			case vector.CompEQ:
-				return vector.NewConstBool(eq, lhs.Len())
-			case vector.CompNE:
-				return vector.NewConstBool(!eq, lhs.Len())
-			}
-			return vector.NewConstBool(false, lhs.Len())
+		if vec, ok := c.compareNone(lhs, rhs); ok {
+			return vec
 		}
 		return vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, c.evalAllowingOption, lhs, rhs)
 	}, lhs, rhs)
+}
+
+// compareNone compares lhs and rhs if either is none, which equals only
+// none and has no order.
+func (c *Compare) compareNone(lhs, rhs vector.Any) (vector.Any, bool) {
+	lhsNone, rhsNone := lhs.Kind() == vector.KindNone, rhs.Kind() == vector.KindNone
+	if !lhsNone && !rhsNone {
+		return nil, false
+	}
+	eq := lhsNone && rhsNone
+	return vector.NewConstBool(c.opCode == vector.CompEQ && eq || c.opCode == vector.CompNE && !eq, lhs.Len()), true
+}
+
+// compareMixedInts compares an unsigned integer with a signed integer that
+// is no wider, for which the signed type they would otherwise be cast to
+// can't hold every unsigned value (e.g., a uint64 greater than the maximum
+// int64).  It returns false for any other types.
+func (c *Compare) compareMixedInts(lhs, rhs vector.Any) (vector.Any, bool) {
+	isUnsigned := func(id int) bool { return id >= super.IDUint8 && id <= super.IDUint64 }
+	isSigned := func(id int) bool { return id >= super.IDInt8 && id <= super.IDInt64 }
+	lid, rid := lhs.Type().ID(), rhs.Type().ID()
+	var flip bool
+	switch {
+	case isUnsigned(lid) && isSigned(rid):
+	case isSigned(lid) && isUnsigned(rid):
+		lhs, rhs, flip = rhs, lhs, true
+	default:
+		return nil, false
+	}
+	if coerce.UintBits(lhs.Type()) < coerce.IntBits(rhs.Type()) {
+		return nil, false
+	}
+	n := lhs.Len()
+	if _, ok := rhs.(*vector.Const); ok && n > 0 && vector.IntValue(rhs, 0) >= 0 {
+		// The signed constant fits the unsigned type, so use the
+		// vectorized comparison.
+		rhs = cast.To(c.sctx, rhs, lhs.Type())
+		if flip {
+			lhs, rhs = rhs, lhs
+		}
+		return c.compareForms(vector.KindUint, lhs, rhs), true
+	}
+	out := vector.NewFalse(n)
+	for i := range n {
+		u, s := vector.UintValue(lhs, i), vector.IntValue(rhs, i)
+		v := 1
+		if s >= 0 {
+			v = cmp.Compare(u, uint64(s))
+		}
+		if flip {
+			v = -v
+		}
+		if isCompareOpSatisfied(c.opCode, v) {
+			out.Set(i)
+		}
+	}
+	return out, true
+}
+
+// coerce returns lhs and rhs cast as needed to their comparison type or false
+// if their types can't be compared.  If their types contain fusion types that
+// leave the comparison type unknown, it instead returns them defused, with
+// defused true, to be compared again.
+func (c *Compare) coerce(lhs, rhs vector.Any) (vector.Any, vector.Any, bool, bool) {
+	ltyp, rtyp := lhs.Type(), rhs.Type()
+	if ltyp == rtyp {
+		return lhs, rhs, true, false
+	}
+	key := [2]super.Type{ltyp, rtyp}
+	ct, cached := c.comparisonTypes[key]
+	if !cached {
+		ct.typ, ct.ok = coerce.ComparisonType(c.sctx, c.hasFusion.Check, ltyp, rtyp)
+		if c.comparisonTypes == nil {
+			c.comparisonTypes = make(map[[2]super.Type]comparisonType)
+		}
+		c.comparisonTypes[key] = ct
+	}
+	typ, ok := ct.typ, ct.ok
+	if !ok {
+		return lhs, rhs, false, false
+	}
+	if coerce.IsUnknown(typ) {
+		if c.hasFusion.Check(ltyp) || c.hasFusion.Check(rtyp) {
+			lhs, rhs := c.defuse.Eval(lhs), c.defuse.Eval(rhs)
+			// Compare again only if defusing removed the fusion types so
+			// this can't recur forever.
+			if c.defused(lhs) && c.defused(rhs) {
+				return lhs, rhs, true, true
+			}
+		}
+		return lhs, rhs, false, false
+	}
+	to := cast.To
+	if typ.Kind() != super.PrimitiveKind {
+		to = cast.Cast
+	}
+	if ltyp != typ {
+		lhs = to(c.sctx, lhs, typ)
+	}
+	if rtyp != typ {
+		rhs = to(c.sctx, rhs, typ)
+	}
+	return vector.Under(lhs), vector.Under(rhs), true, false
+}
+
+// defused reports whether vec, the result of defusing a vector, has no fusion
+// types (or is a Dynamic, whose parts are checked when compared).
+func (c *Compare) defused(vec vector.Any) bool {
+	return vector.IsDynamic(vec) || !c.hasFusion.Check(vec.Type())
 }
 
 func compareNones(a, b vector.Any) (bool, bool) {
@@ -193,10 +363,6 @@ func (c *Compare) compareUUIDs(lhs, rhs vector.Any) vector.Any {
 }
 
 func (c *Compare) compareNets(lhs, rhs vector.Any) vector.Any {
-	if c.opCode != vector.CompEQ && c.opCode != vector.CompNE {
-		s := fmt.Sprintf("type net incompatible with '%s' operator", vector.CompareOpToString(c.opCode))
-		return vector.NewStringError(c.sctx, s, lhs.Len())
-	}
 	out := vector.NewFalse(lhs.Len())
 	for i := range lhs.Len() {
 		l := vector.NetValue(lhs, i)
@@ -250,8 +416,12 @@ func (c *Compare) compareTypeVals(lhs, rhs vector.Any) vector.Any {
 }
 
 func (c *Compare) compareComplex(lhs, rhs vector.Any) vector.Any {
-	if c.opCode == vector.CompLT || c.opCode == vector.CompGT ||
-		lhs.Type().ID() != rhs.Type().ID() {
+	if lhs.Type() != rhs.Type() {
+		// A nested value couldn't be cast to the comparison type (e.g., a
+		// uint64 too large for int64), so the values are unequal.
+		return vector.NewConstBool(c.opCode == vector.CompNE, lhs.Len())
+	}
+	if c.opCode == vector.CompLT || c.opCode == vector.CompGT {
 		return vector.NewConstBool(false, lhs.Len())
 	}
 	var lb, rb scode.Builder

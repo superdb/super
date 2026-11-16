@@ -1,5 +1,7 @@
 spq: values a==b, a!=b, a<b, a<=b, a>=b, a>b
 
+flags: -dynamic
+
 input: |
   {a:192.168.0.0/23,b:192.168.1.0/23}
 

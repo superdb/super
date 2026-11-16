@@ -38,6 +38,9 @@ outputs:
       join expression cannot refer to "this" at line 1, column 30:
       fork (pass) (pass) | join on this=1
                                    ~~~~~~
+      type mismatch: {left:null,right:null} == int64 at line 1, column 30:
+      fork (pass) (pass) | join on this=1
+                                   ~~~~~~
       // ===
       parse error at line 1, column 12:
       cross join on left.key=1+2

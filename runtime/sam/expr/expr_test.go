@@ -132,59 +132,27 @@ func TestCompareNumbers(t *testing.T) {
 			testSuccessful(t, "x >= p", record, "false")
 			testSuccessful(t, "p >= x", record, "true")
 
-			// time
-			testSuccessful(t, "x == t", record, "false")
-			testSuccessful(t, "t == x", record, "false")
-			testSuccessful(t, "x != t", record, "true")
-			testSuccessful(t, "t != x", record, "true")
-			testSuccessful(t, "x < t", record, "true")
-			testSuccessful(t, "t < x", record, "false")
-			testSuccessful(t, "x <= t", record, "true")
-			testSuccessful(t, "t <= x", record, "false")
-			testSuccessful(t, "x > t", record, "false")
-			testSuccessful(t, "t > x", record, "true")
-			testSuccessful(t, "x >= t", record, "false")
-			testSuccessful(t, "t >= x", record, "true")
-
-			// duration
-			testSuccessful(t, "x == d", record, "false")
-			testSuccessful(t, "d == x", record, "false")
-			testSuccessful(t, "x != d", record, "true")
-			testSuccessful(t, "d != x", record, "true")
-			testSuccessful(t, "x < d", record, "true")
-			testSuccessful(t, "d < x", record, "false")
-			testSuccessful(t, "x <= d", record, "true")
-			testSuccessful(t, "d <= x", record, "false")
-			testSuccessful(t, "x > d", record, "false")
-			testSuccessful(t, "d > x", record, "true")
-			testSuccessful(t, "x >= d", record, "false")
-			testSuccessful(t, "d >= x", record, "true")
+			// A number is not comparable with a time or duration.
+			for _, op := range []string{"==", "!=", "<", "<=", ">", ">="} {
+				for _, other := range []struct{ field, typ string }{{"t", "timestamp"}, {"d", "duration"}} {
+					exp := fmt.Sprintf("x %s %s", op, other.field)
+					testSuccessful(t, exp, record, fmt.Sprintf("error(\"type mismatch: %s %s %s\")", typ, op, other.typ))
+					exp = fmt.Sprintf("%s %s x", other.field, op)
+					testSuccessful(t, exp, record, fmt.Sprintf("error(\"type mismatch: %s %s %s\")", other.typ, op, typ))
+				}
+			}
 		}
 
 		// Test this against non-numeric types
 		record = fmt.Sprintf(
 			`{x:%s::%s,s:"hello",i:10.1.1.1,n:10.1.0.0/16}`, one, typ)
 
-		testSuccessful(t, "x == s", record, "false")
-		testSuccessful(t, "x != s", record, "true")
-		testSuccessful(t, "x < s", record, "false")
-		testSuccessful(t, "x <= s", record, "false")
-		testSuccessful(t, "x > s", record, "false")
-		testSuccessful(t, "x >= s", record, "false")
-
-		testSuccessful(t, "x == i", record, "false")
-		testSuccessful(t, "x != i", record, "true")
-		testSuccessful(t, "x < i", record, "false")
-		testSuccessful(t, "x <= i", record, "false")
-		testSuccessful(t, "x > i", record, "false")
-		testSuccessful(t, "x >= i", record, "false")
-
-		testSuccessful(t, "x == n", record, "false")
-		testSuccessful(t, "x != n", record, "true")
-		testSuccessful(t, "x < n", record, "false")
-		testSuccessful(t, "x <= n", record, "false")
-		testSuccessful(t, "x > n", record, "false")
-		testSuccessful(t, "x >= n", record, "false")
+		for _, op := range []string{"==", "!=", "<", "<=", ">", ">="} {
+			for _, other := range []struct{ field, typ string }{{"s", "string"}, {"i", "ip"}, {"n", "net"}} {
+				exp := fmt.Sprintf("x %s %s", op, other.field)
+				testSuccessful(t, exp, record, fmt.Sprintf("error(\"type mismatch: %s %s %s\")", typ, op, other.typ))
+			}
+		}
 	}
 
 	// Test comparison between signed and unsigned and also
@@ -289,12 +257,7 @@ type port=uint16
 			}
 			for _, op := range allOperators {
 				exp := fmt.Sprintf("%s %s %s", t1.field, op, t2.field)
-				// XXX we no longer have a way to
-				// propagate boolean "warnings"...
-				expected := "false"
-				if op == "!=" {
-					expected = "true"
-				}
+				expected := fmt.Sprintf("error(\"type mismatch: %s %s %s\")", t1.typ, op, t2.typ)
 				testSuccessful(t, exp, record, expected)
 			}
 		}

@@ -3,7 +3,7 @@ script: |
   echo ===
   super -s -c 'select l.a,r.b from "a.sup" l join "b.sup" r on l.c==r.c'
   echo ===
-  super -s -c 'select l.a,m.s from "a.sup" l join "messy.sup" m on l.c==m.s'
+  super -s -c 'select l.a,m.s from "a.sup" l join "messy.sup" m on l.c==m.s::int64'
 
 inputs:
   - name: a.sup

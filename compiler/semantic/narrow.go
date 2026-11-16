@@ -6,6 +6,7 @@ import (
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/semantic/sem"
 	"github.com/superdb/super/pkg/field"
+	"github.com/superdb/super/runtime/sam/expr/coerce"
 	"github.com/superdb/super/sup"
 )
 
@@ -133,7 +134,7 @@ func (c *checker) narrowBy(typ super.Type, e sem.Expr, orNull bool) super.Type {
 			// IS NULL of an error is the error, so NOT of it is too.
 			if ref, ok := plainPath(operand.Expr); ok {
 				return c.narrowPath(typ, ref, func(t super.Type) bool {
-					return notErrorLike(t) && under(t) != super.TypeNull
+					return notErrorLike(t) && coerce.Under(t) != super.TypeNull
 				})
 			}
 		case *sem.CallExpr:
@@ -212,14 +213,14 @@ func (c *checker) narrowAt(typ super.Type, path field.Chain, keep refiner) (supe
 			if _, ok := keep(typ); ok {
 				return typ, true
 			}
-			if _, ok := under(named).(*super.TypeUnion); !ok {
+			if _, ok := coerce.Under(named).(*super.TypeUnion); !ok {
 				return typ, false
 			}
 		}
 		_, ok := c.narrowAt(named.Type, path, keep)
 		return typ, ok
 	}
-	if u, ok := under(typ).(*super.TypeUnion); ok {
+	if u, ok := coerce.Under(typ).(*super.TypeUnion); ok {
 		// A value of a union type is a value of one of its member types.
 		var types []super.Type
 		changed := false
@@ -245,7 +246,7 @@ func (c *checker) narrowAt(typ super.Type, path field.Chain, keep refiner) (supe
 	if len(path) == 0 {
 		return keep(typ)
 	}
-	switch t := under(typ).(type) {
+	switch t := coerce.Under(typ).(type) {
 	case *super.TypeRecord:
 		if path[0].Nullish {
 			// A missing value of a SQL column reference is null.
@@ -361,7 +362,7 @@ func fits(target, typ super.Type) bool {
 func (c *checker) narrowWhole(typ super.Type, path field.Chain, target super.Type) (super.Type, bool) {
 	at := typ
 	for _, elem := range path {
-		rec, ok := under(defuse(at)).(*super.TypeRecord)
+		rec, ok := coerce.Under(defuse(at)).(*super.TypeRecord)
 		if !ok {
 			return nil, false
 		}
@@ -486,11 +487,11 @@ func hasKind(typ super.Type, kind string) bool {
 		// A missing value is an error at runtime.
 		return kind == "error"
 	}
-	if under(typ) == super.TypeType {
+	if coerce.Under(typ) == super.TypeType {
 		// The kind of a type value is the kind of its type.
 		return true
 	}
-	return under(typ).Kind().String() == kind
+	return coerce.Under(typ).Kind().String() == kind
 }
 
 // isPresent returns true if a value of type typ may satisfy is_ok(), i.e.,
@@ -523,5 +524,5 @@ func missingAsNull(keep refiner) refiner {
 // isComparable returns true if a value of type typ may be true in a comparison,
 // i.e., it's not an error, missing, or null.
 func isComparable(typ super.Type) bool {
-	return !isErrorType(typ) && !isMissingType(typ) && under(typ) != super.TypeNull
+	return !isErrorType(typ) && !isMissingType(typ) && coerce.Under(typ) != super.TypeNull
 }

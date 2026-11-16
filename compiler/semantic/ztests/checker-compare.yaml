@@ -1,0 +1,205 @@
+# Comparisons aren't polymorphic: operands whose types can't be coerced to a
+# common type are an error, reported by the checker when it knows the types
+# and otherwise by the runtime.
+
+# Every type of a union must be comparable with the other operand.
+spq: values {x:1,y:1},{x:"foo",y:1} | values x==1
+
+error: |
+  type mismatch: int64|string == int64 at line 1, column 41:
+  values {x:1,y:1},{x:"foo",y:1} | values x==1
+                                          ~~~~
+
+---
+
+spq: values {x:1,y:1},{x:"foo",y:1} | where x<y
+
+error: |
+  type mismatch: int64|string < int64 at line 1, column 40:
+  values {x:1,y:1},{x:"foo",y:1} | where x<y
+                                         ~~~
+
+---
+
+# Scalars, arrays, and records whose types can't be coerced to a common type.
+spq: values 1==2020-01-01T00:00:00Z, [1]==["a"], {a:1}=={b:1}
+
+error: |
+  type mismatch: int64 == timestamp at line 1, column 8:
+  values 1==2020-01-01T00:00:00Z, [1]==["a"], {a:1}=={b:1}
+         ~~~~~~~~~~~~~~~~~~~~~~~
+  type mismatch: [int64] == [string] at line 1, column 33:
+  values 1==2020-01-01T00:00:00Z, [1]==["a"], {a:1}=={b:1}
+                                  ~~~~~~~~~~
+  type mismatch: {a:int64} == {b:int64} at line 1, column 45:
+  values 1==2020-01-01T00:00:00Z, [1]==["a"], {a:1}=={b:1}
+                                              ~~~~~~~~~~~~
+
+---
+
+spq: values 1 between 1 and "b"
+
+error: |
+  type mismatch: int64 <= string at line 1, column 24:
+  values 1 between 1 and "b"
+                         ~~~
+
+---
+
+spq: values case 1 when "a" then 1 else 2 end
+
+error: |
+  type mismatch: int64 == string at line 1, column 20:
+  values case 1 when "a" then 1 else 2 end
+                     ~~~
+
+---
+
+# Nets have no order.
+spq: values 10.0.0.0/8<10.0.0.0/8
+
+error: |
+  type net incompatible with '<' operator at line 1, column 8:
+  values 10.0.0.0/8<10.0.0.0/8
+         ~~~~~~~~~~~~~~~~~~~~~
+
+---
+
+# When the checker doesn't know the types, the runtime reports the same error.
+spq: values x==1, x<y
+
+flags: -dynamic
+
+input: |
+  {x:1,y:1}
+  {x:"foo",y:1}
+
+output: |
+  true
+  false
+  error("type mismatch: string == int64")
+  error("type mismatch: string < int64")
+
+---
+
+# Numbers, and arrays and records of them, are coerced.  Null and errors
+# pass through.
+spq: |
+  values {y:1,z:1,e:1},{y:1,z:null,e:error("x")}
+  | values y==1.0, y<2::uint8, [y]==[1.0], {a:y}=={a:1::int8}, y==z, e==1
+
+output: |
+  true
+  true
+  true
+  true
+  true
+  true
+  true
+  true
+  true
+  true
+  null
+  error({message:"==: error value encountered",on:error("x")})
+
+---
+
+# A union narrowed to comparable types.
+spq: values {x:1,y:1},{x:"foo",y:1} | where is(x, <int64>) and x==1
+
+output: |
+  {x:1,y:1}
+
+---
+
+# The compare function compares values of any types.
+spq: values {x:1,y:1},{x:"foo",y:1} | values compare(x, 1)==0
+
+output: |
+  true
+  false
+
+---
+
+# A comparison in a join condition is checked like any other.
+spq: |
+  values {x:1},{x:"foo"}
+  | join (values {x:1},{x:"foo"}) on left.x=right.x
+  | values left.x
+
+error: |
+  type mismatch: int64|string == int64|string at line 2, column 36:
+  | join (values {x:1},{x:"foo"}) on left.x=right.x
+                                     ~~~~~~~~~~~~~~
+
+---
+
+# Type values likewise.
+spq: values <int64><=<int64>, <int64><=<string>, <int64><<string>
+
+output: |
+  true
+  false
+  false
+
+---
+
+# Bools and complex values are allowed with an ordering operator but have no
+# order: < and > are false while <= and >= are equality.
+spq: values false<true, false<=false, [1]>[0], [1]<=[1.0], {a:1}>={a:0}
+
+output: |
+  false
+  true
+  false
+  true
+  false
+
+---
+
+# An option must be handled before it's compared.
+spq: values {r:{x?:"a"}} | values r.x=="a"
+
+error: |
+  option(string): option value not handled (consider ??) at line 1, column 30:
+  values {r:{x?:"a"}} | values r.x=="a"
+                               ~~~~~~~~
+
+---
+
+# some(x) is an option of x's type, except that an option, an error, or
+# missing passes through unchanged.
+spq: |
+  values {a:1}
+  | values some(a)==some(1), some(some(a))==some(a), typeof(some(some(a)))
+
+output: |
+  true
+  true
+  <option(int64)>
+
+---
+
+spq: values {a:1} | where some(a)=="x"
+
+error: |
+  option(int64): option value not handled (consider ??) at line 1, column 22:
+  values {a:1} | where some(a)=="x"
+                       ~~~~~~~~~~~~
+
+---
+
+# An error or null operand takes precedence over an unhandled option.
+spq: values r.x==t.y, null==t.y
+
+flags: -dynamic
+
+input: |
+  {r:{x?:"a"},t:{y?:"a"}}
+  {r:{},t:{y?:"a"}}
+
+output: |
+  true
+  null
+  error({message:"==: error value encountered",on:error("no such field x")})
+  null
