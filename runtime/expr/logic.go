@@ -5,6 +5,8 @@ import (
 
 	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/superdb/super"
+	"github.com/superdb/super/runtime/sam/expr/coerce"
+	samfunc "github.com/superdb/super/runtime/sam/expr/function"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/bitvec"
 )
@@ -203,15 +205,16 @@ func FlattenBool(vec vector.Any) *vector.Bool {
 }
 
 type In struct {
-	sctx   *super.Context
-	lhs    Evaluator
-	rhs    Evaluator
-	defuse *SuperDefuse
-	pw     *PredicateWalk
+	sctx      *super.Context
+	lhs       Evaluator
+	rhs       Evaluator
+	defuse    *SuperDefuse
+	pw        *PredicateWalk
+	hasFusion samfunc.FusionChecker
 }
 
 func NewIn(sctx *super.Context, lhs, rhs Evaluator) *In {
-	return &In{sctx, lhs, rhs, NewSuperDefuse(sctx), NewPredicateWalk(sctx, NewLenientCompare(sctx, "==").eval)}
+	return &In{sctx: sctx, lhs: lhs, rhs: rhs, defuse: NewSuperDefuse(sctx), pw: NewPredicateWalk(sctx, NewLenientCompare(sctx, "==").eval)}
 }
 
 func (i *In) Eval(this vector.Any) vector.Any {
@@ -223,6 +226,9 @@ func (i *In) Eval(this vector.Any) vector.Any {
 func (i *In) eval(vecs ...vector.Any) vector.Any {
 	if vec, ok := CatchFirst(i.sctx, CatchAll, vecs, "'in' operator"); ok {
 		return vec
+	}
+	if rtyp := vecs[1].Type(); !coerce.Containable(i.sctx, i.hasFusion.Check, vecs[0].Type(), rtyp) {
+		return vector.NewStringError(i.sctx, coerce.InMismatch(rtyp), vecs[0].Len())
 	}
 	return i.pw.Eval(vecs[0], vecs[1])
 }

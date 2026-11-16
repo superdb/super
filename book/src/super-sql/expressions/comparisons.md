@@ -88,9 +88,9 @@ types that are coerced to a common type as in SQL.
   An option compared with a value that isn't an option is an error until the
   option is handled, e.g., with `??` or `unwrap`, or the value is wrapped
   with `some`.
-* Values of type `bool` and `type`, and records, arrays, sets, maps, and
-  enums, have no order, so `<` and `>` are `false` for them while `<=` and
-  `>=` are equality.
+* Values of type `type`, and records, arrays, sets, maps, and enums, have no
+  order, so `<` and `>` are `false` for them while `<=` and `>=` are
+  equality.
 
 For values of type [bool](../types/bool.md), `false` is less than `true`.
 
@@ -116,10 +116,6 @@ holds or with a union that shares one of its types.
 To compare values of any types without error, use the
 [compare](../functions/generics/compare.md) function, which orders values
 of different types by type.
-
->[!NOTE]
-> The [`in`](containment.md) operator is false for values whose types
-> aren't comparable.
 
 ## Examples
 

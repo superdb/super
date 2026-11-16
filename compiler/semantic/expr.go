@@ -755,6 +755,16 @@ func (t *translator) semCall(call *ast.CallExpr, inType super.Type) (sem.Expr, s
 			t.checker.checkOk(typ, okCall, t.checker.popErrs())
 			return isOk(call, okCall, t.defs), super.TypeBool
 		}
+		if strings.EqualFold(f.Name, "position") && len(call.Args) == 1 {
+			// The in of SQL's position(sub IN s) is syntax rather than
+			// the in operator so it isn't checked as one.
+			if b, ok := call.Args[0].(*ast.BinaryExpr); ok && strings.EqualFold(b.Op, "in") {
+				lhs, _ := t.expr(b.LHS, inType)
+				rhs, _ := t.expr(b.RHS, inType)
+				args := []sem.Expr{sem.NewBinaryExpr(b, "in", lhs, rhs)}
+				return t.semCallByName(call, f.Name, args, []super.Type{super.TypeBool}, inType)
+			}
+		}
 		args, argTypes := t.exprs(call.Args, inType)
 		return t.semCallByName(call, f.Name, args, argTypes, inType)
 	case *ast.LambdaExpr:

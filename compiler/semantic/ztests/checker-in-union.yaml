@@ -1,3 +1,6 @@
+# The left-hand side of in must be comparable with the right-hand side or
+# with some value nested in it for every type of a union.  The runtime
+# reports the same error when the checker doesn't know the types.
 spq: |
   fork
     (values 'foo')
@@ -5,6 +8,56 @@ spq: |
   | sort this
   | values 1 in this
 
+error: |
+  scalar type mismatch for 'in' operator where right-hand side is not container type: string at line 5, column 10:
+  | values 1 in this
+           ~~~~~~~~~
+
+---
+
+spq: values a in b
+
+flags: -dynamic
+
+input: |
+  {a:1,b:"foo"}
+  {a:1,b:[1,2]}
+  {a:"x",b:[1,2]}
+  {a:1,b:[]}
+  {a:1,b:[null]}
+  {a:1,b:1.}
+  {a:[1],b:[[1.],[2.]]}
+  {a:1,b:{c:{d:[2,1]}}}
+  {a:"x",b:{c:{d:[2,1]}}}
+  {a:10.0.0.1,b:10.0.0.0/8}
+
 output: |
+  error("scalar type mismatch for 'in' operator where right-hand side is not container type: string")
+  true
+  error("left-hand side of in operator not compatible with array type")
+  false
+  null
+  true
+  true
+  true
+  error("left-hand side of in operator not compatible with any fields of record on right-hand side")
+  error("right-hand side of in operator cannot be type net; consider cidr_match()")
+
+---
+
+# A type nested in the right-hand side need only be one of several.
+spq: values 1 in [1,"a"], "b" in [1,"a"], 1 not in {x:"a",y:[2]}
+
+output: |
+  true
   false
   true
+
+---
+
+spq: values "a" in [1,null]
+
+error: |
+  left-hand side of in operator not compatible with array type at line 1, column 8:
+  values "a" in [1,null]
+         ~~~

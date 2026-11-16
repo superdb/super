@@ -1,6 +1,8 @@
 spq: |
   values [1 in this, 9 in this, null in this]
 
+flags: -dynamic
+
 input: |
   1
   {a:1}
@@ -61,6 +63,8 @@ output: |
 spq: |
   values this in [{a:1},[2],set[3],map{4:4},"b"::enum(b,c)]
 
+flags: -dynamic
+
 input: |
   {a:1}
   {a:2}
@@ -85,7 +89,7 @@ output: |
   true
   false
   true
-  false
+  error("left-hand side of in operator not compatible with array type")
   true
   true
 
