@@ -1,0 +1,20 @@
+# A constant array (e.g., from under() of a constant type value) can be
+# unnested.
+spq: unnest under(this)
+
+input: |
+  <int64|string>
+
+output: |
+  <int64>
+  <string>
+
+---
+
+spq: unnest under(this) into (collect(this))
+
+input: |
+  <int64|string>
+
+output: |
+  [<int64>,<string>]
