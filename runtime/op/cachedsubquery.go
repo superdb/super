@@ -23,7 +23,11 @@ func NewCachedSubquery(sctx *super.Context, body vio.Puller, sql bool) expr.Eval
 
 func (c *cachedSubquery) Eval(this vector.Any) vector.Any {
 	if c.cached == nil {
-		c.cached = subqueryBodyPull(c.sctx, c.body, c.sql)
+		vec, err := subqueryBodyPull(c.sctx, c.body, c.sql)
+		if err != nil {
+			vec = vector.NewStringError(c.sctx, err.Error(), 1)
+		}
+		c.cached = vec
 	}
 	index := make([]uint32, this.Len())
 	return vector.Pick(c.cached, index)

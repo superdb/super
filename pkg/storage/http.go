@@ -28,12 +28,19 @@ func (*HTTPEngine) Get(ctx context.Context, u *URI) (Reader, error) {
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, fs.ErrNotExist
+			return nil, &notFoundError{resp.Status}
 		}
 		return nil, errors.New(resp.Status)
 	}
 	return &notSupportedReaderAt{resp.Body}, nil
 }
+
+// notFoundError reports an HTTP 404 by its status (e.g., "404 Not Found")
+// rather than as "file does not exist" while still matching fs.ErrNotExist.
+type notFoundError struct{ status string }
+
+func (e *notFoundError) Error() string { return e.status }
+func (*notFoundError) Unwrap() error   { return fs.ErrNotExist }
 
 type notSupportedReaderAt struct{ io.ReadCloser }
 

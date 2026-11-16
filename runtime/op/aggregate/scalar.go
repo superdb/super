@@ -41,12 +41,18 @@ func NewScalar(parent vio.Puller, sctx *super.Context, aggs []*expr.Aggregator, 
 }
 
 func (s *scalarAggregate) Pull(done bool) (vector.Any, error) {
+	if done {
+		// Discard any partial results.
+		s.funcs = newFuncs(s.aggs)
+		_, err := s.parent.Pull(true)
+		return nil, err
+	}
 	if s.funcs == nil {
 		s.funcs = newFuncs(s.aggs)
 		return nil, nil
 	}
 	for {
-		vec, err := s.parent.Pull(done)
+		vec, err := s.parent.Pull(false)
 		if err != nil {
 			return nil, err
 		}

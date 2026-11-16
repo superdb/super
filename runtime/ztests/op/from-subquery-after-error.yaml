@@ -1,0 +1,21 @@
+script: |
+  super -s -c 'values "absent.txt", "ok.txt" | values {f: this, n: len([from f"{this}" (format line)])}'
+  echo ===
+  super -s -c 'values "absent.txt", "ok.txt", "absent.txt", "ok.txt" | values len([from f"{this}" (format line)])'
+
+inputs:
+  - name: ok.txt
+    data: |
+      a
+      b
+
+outputs:
+  - name: stdout
+    data: |
+      {f:"absent.txt",n:error({message:"len()",on:error("absent.txt: file does not exist")})}
+      {f:"ok.txt",n:2}
+      ===
+      error({message:"len()",on:error("absent.txt: file does not exist")})
+      2
+      error({message:"len()",on:error("absent.txt: file does not exist")})
+      2
