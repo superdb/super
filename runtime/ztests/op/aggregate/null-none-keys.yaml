@@ -1,0 +1,14 @@
+# Null and none keys each form a single group.  A none key comes from ok()
+# on a missing field and is dropped from the output record.
+spq: count() by k:=a.ok(),n:=null,b | sort b
+
+input: |
+  {a:1,b:1}
+  {b:2}
+  {b:2}
+  {b:3}
+
+output: |
+  {k:1,n:null,b:1,count:1}
+  {n:null,b:2,count:2}
+  {n:null,b:3,count:1}
