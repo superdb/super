@@ -45,7 +45,7 @@ func NewWrappedError(sctx *super.Context, msg string, val Any) *Error {
 }
 
 func NewCombinedError(sctx *super.Context, msg string, vec, on Any, index []uint32) Any {
-	return Combine(vec, index, NewWrappedError(sctx, msg, NewView(on, index)))
+	return Combine(vec, index, NewWrappedError(sctx, msg, Pick(on, index)))
 }
 
 func NewVecWrappedError(sctx *super.Context, msg Any, val Any) *Error {

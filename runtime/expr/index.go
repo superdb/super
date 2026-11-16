@@ -153,7 +153,7 @@ func indexRecord(sctx *super.Context, vec, indexVec vector.Any, base1 bool) vect
 		viewIndexes[k] = append(viewIndexes[k], idx)
 	}
 	out := make([]vector.Any, n+1)
-	out[n] = vector.NewWrappedError(sctx, "invalid record index", vector.NewView(indexVec, errs))
+	out[n] = vector.NewWrappedError(sctx, "invalid record index", vector.Pick(indexVec, errs))
 	for i, field := range rec.Fields {
 		out[i] = vector.Pick(field, viewIndexes[i])
 	}
