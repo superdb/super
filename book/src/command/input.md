@@ -95,6 +95,10 @@ would produce this output in the default SUP format
 Note that the `line` format cannot be automatically detected and
 requires `-i` or `(format line)` for reading.
 
+A UTF-8 [byte order mark](https://en.wikipedia.org/wiki/Byte_order_mark)
+(BOM) at the start of text input (CSV, JSON, line, SUP, TSV, or Zeek),
+which some Windows applications write, is ignored.
+
 >[!NOTE]
 > Parquet requires a seekable input and cannot be operated upon
 > when read on standard input.

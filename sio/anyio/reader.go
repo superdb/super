@@ -39,7 +39,12 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, opts Reade
 	}
 	if opts.Format == "" {
 		return nil, errors.New("file format required")
-	} else if opts.Format != "auto" {
+	}
+	switch opts.Format {
+	case "csv", "json", "line", "sup", "tsv", "zeek":
+		r = SkipBOM(r)
+	}
+	if opts.Format != "auto" {
 		return lookupReader(ctx, sctx, r, opts)
 	}
 	if opts.InputCap != 0 {
@@ -69,6 +74,12 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, opts Reade
 		return newVioPuller(sctx, r), err
 	}
 	arrowsErr = fmt.Errorf("arrows: %w", arrowsErr)
+	track.Reset()
+
+	// The remaining formats are text, which may begin with a byte order mark.
+	if string(readBOM(track)) == utf8BOM {
+		track = NewTrack(SkipBOM(track.Reader()))
+	}
 	track.Reset()
 
 	zeekErr := match(zeekio.NewReader(super.NewContext(), track), "zeek", 1)
