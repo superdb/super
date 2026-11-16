@@ -92,6 +92,8 @@ types that are coerced to a common type as in SQL.
   enums, have no order, so `<` and `>` are `false` for them while `<=` and
   `>=` are equality.
 
+For values of type [bool](../types/bool.md), `false` is less than `true`.
+
 Values of type [net](../types/network.md) are ordered by address family
 (IPv4 before IPv6), then by network address, and then by prefix length.
 
@@ -127,11 +129,12 @@ _Various scalar comparisons_
 
 ```mdtest-spq
 # spq
-values 1 > 2, 1 < 2, "b" > "a", 1 == 1.0, [1,2] == [1.0,2.0]
+values 1 > 2, 1 < 2, "b" > "a", 1 == 1.0, [1,2] == [1.0,2.0], false < true
 # input
 
 # expected output
 false
+true
 true
 true
 true

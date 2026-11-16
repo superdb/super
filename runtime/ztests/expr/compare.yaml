@@ -1,7 +1,5 @@
 spq: values [a==b, a!=b, a<b, a<=b, a>=b, a>b]
 
-flags: -dynamic
-
 input: |
   {a:false,b:false}
   {a:false,b:true}
@@ -10,8 +8,8 @@ input: |
 
 output: |
   [true,false,false,true,true,false]
-  [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
+  [false,true,true,true,false,false]
+  [false,true,false,false,true,true]
   [true,false,false,true,true,false]
 
 ---
