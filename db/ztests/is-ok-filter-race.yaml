@@ -1,0 +1,23 @@
+script: |
+  set -e
+  super db init -q test
+  super db attach -q test
+  super db create -q t
+  for i in 1 2 3 4 5 6; do super db load -q -use t a.sup; done
+  super db load -q -use t b.sup
+  for i in $(seq 30); do super db -s -c 'from t | where is_ok(f)' > out.sup; done
+  cat out.sup
+
+inputs:
+  - name: a.sup
+    data: |
+      {a:"x",b:null}
+      {a:"y",b:"s",c:1}
+  - name: b.sup
+    data: |
+      {a:"z",b:"s",c:1,f:"H"}
+
+outputs:
+  - name: stdout
+    data: |
+      {a:"z",b:"s",c:1,f:"H"}

@@ -227,10 +227,10 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		if b.deletes == nil {
 			b.deletes = &sync.Map{}
 		}
-		var whereNot expr.Evaluator
+		var whereNot op.FilterFactory
 		if o.Where != nil {
-			whereNot, err = b.compileVamExpr(invertForDeleteWhere(o.Where))
-			if err != nil {
+			e := invertForDeleteWhere(o.Where)
+			if whereNot, err = b.newFilterFactory(e); err != nil {
 				return nil, err
 			}
 		}
@@ -374,14 +374,13 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 				return nil, err
 			}
 		}
-		var filter expr.Evaluator
+		var newFilter op.FilterFactory
 		if o.Filter != nil {
-			filter, err = b.compileVamExpr(o.Filter)
-			if err != nil {
+			if newFilter, err = b.newFilterFactory(o.Filter); err != nil {
 				return nil, err
 			}
 		}
-		return op.NewTableScanner(b.rctx, parent, table, filter, pruner, b.progress), nil
+		return op.NewTableScanner(b.rctx, parent, table, newFilter, pruner, b.progress), nil
 	case *dag.SkipOp:
 		return op.NewSkip(parent, o.Count), nil
 	case *dag.SlicerOp:
@@ -546,4 +545,19 @@ func (b *Builder) compileMaterializedScan(tag int) (vio.Puller, error) {
 	m := op.NewMaterialized(b.combineVam(exits))
 	b.materialized[tag] = m
 	return m.NewPuller(), nil
+}
+
+// newFilterFactory returns an op.FilterFactory that compiles a fresh
+// evaluator for e on each call since evaluators may cache state and are not
+// safe for concurrent use.  It compiles e once here to report any error.
+func (b *Builder) newFilterFactory(e dag.Expr) (op.FilterFactory, error) {
+	if _, err := b.compileVamExpr(e); err != nil {
+		return nil, err
+	}
+	return func() (expr.Evaluator, error) {
+		// Scanners may call this concurrently at run time.
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		return b.compileVamExpr(e)
+	}, nil
 }
