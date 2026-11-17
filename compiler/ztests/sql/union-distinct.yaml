@@ -2,10 +2,10 @@ spq: |
   select * from (values (1),(2),(3))
   union distinct
   select * from (values (2),(3),(4))
-  | sort c0
+  | sort column1
 
 output: |
-  {c0:1}
-  {c0:2}
-  {c0:3}
-  {c0:4}
+  {column1:1}
+  {column1:2}
+  {column1:3}
+  {column1:4}

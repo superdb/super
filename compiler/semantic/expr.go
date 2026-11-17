@@ -390,7 +390,7 @@ func (t *translator) expr(e ast.Expr, inType super.Type) (sem.Expr, super.Type) 
 		fields := make([]super.Field, 0, len(e.Elems))
 		for colno, elem := range e.Elems {
 			e, typ := t.expr(elem, inType)
-			name := fmt.Sprintf("c%d", colno)
+			name := fmt.Sprintf("column%d", colno+1)
 			elems = append(elems, &sem.FieldElem{
 				Node:  elem,
 				Name:  name,

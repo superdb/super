@@ -26,8 +26,8 @@ outputs:
   - name: stdout
     data: |
       null
-      | values {c0:1,c1:2,c2:3}
-      | values {a:this!.c0,b:this!.c1,c:this!.c2}
+      | values {column1:1,column2:2,column3:3}
+      | values {a:this!.column1,b:this!.column2,c:this!.column3}
       | values {in:this}
       | values {in:in,out:{a:this!.in!.a,a_1:this!.in!.a,b:this!.in!.b,c:this!.in!.c}}
       | values out
@@ -36,12 +36,12 @@ outputs:
       null
       | fork
         (
-          values {c0:1,c1:"dodgers"}
-          | values {id:this!.c0,team:this!.c1}
+          values {column1:1,column2:"dodgers"}
+          | values {id:this!.column1,team:this!.column2}
         )
         (
-          values {c0:1,c1:1,c2:"ted"}
-          | values {id:this!.c0,team_id:this!.c1,player:this!.c2}
+          values {column1:1,column2:1,column3:"ted"}
+          | values {id:this!.column1,team_id:this!.column2,player:this!.column3}
         )
       | inner join as {left,right} on this!.left!.id==this!.right!.team_id
       | values {in:this}
@@ -52,12 +52,12 @@ outputs:
       null
       | fork
         (
-          values {c0:1,c1:2,c2:"a"}
-          | values {aid:this!.c0,bid:this!.c1,a:this!.c2}
+          values {column1:1,column2:2,column3:"a"}
+          | values {aid:this!.column1,bid:this!.column2,a:this!.column3}
         )
         (
-          values {c0:1,c1:2,c2:"b"}
-          | values {aid:this!.c0,bid:this!.c1,b:this!.c2}
+          values {column1:1,column2:2,column3:"b"}
+          | values {aid:this!.column1,bid:this!.column2,b:this!.column3}
         )
       | inner join as {left,right} on this!.left!.aid==this!.right!.aid and this!.left!.bid==this!.right!.bid
       | values {in:this}

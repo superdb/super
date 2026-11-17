@@ -5,8 +5,8 @@ outputs:
   - name: stdout
     data: |
       null
-      | values {c0:1}, {c0:2}
-      | values {a:this!.c0}
+      | values {column1:1}, {column1:2}
+      | values {a:this!.column1}
       | aggregate
           t0:=max(this!.a)
       | values {g:this,out:{max:t0,max_1:t0}}

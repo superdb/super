@@ -54,7 +54,7 @@ outputs:
       {kind:"create_table",stmt:"create table any_t",info:{table:"any_t",created:true},error:null}
       {kind:"insert",stmt:"insert into any_t values (1, 'a')",info:{table:"any_t",values:1::uint64},error:null}
       {kind:"insert",stmt:"insert into any_t (x, y) values (2, 'b')",info:{table:"any_t",values:1::uint64},error:null}
-      {c0:1,c1:"a"}
+      {column1:1,column2:"a"}
       {x:2,y:"b"}
       {kind:"query",stmt:"from any_t | sort this",info:{values:2::uint64},error:null}
       {kind:"drop_table",stmt:"drop table any_t",info:{table:"any_t",dropped:true},error:null}

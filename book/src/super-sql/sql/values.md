@@ -18,11 +18,11 @@ that must evaluate to a compile-time constant.
 
 Each tuple in the `VALUES` clause forms a row and the collection of
 tuples form a table with an [output scope](intro.md#output-scope)
-whose columns are named `c0`, `c1`, etc.
+whose columns are named `column1`, `column2`, etc.
 
 There is no tuple type in SuperSQL.  Instead, the tuple expressions are
 translated to a record (i.e., relational row) with column names
-`c0`, `c1`, etc.
+`column1`, `column2`, etc.
 
 As it produces an output scope, the result of `VALUES` does not have a
 table name.  Typically, a `VALUES` clause is used as a table subquery
@@ -40,7 +40,7 @@ VALUES ('hello, world')
 # input
 
 # expected output
-{c0:"hello, world"}
+{column1:"hello, world"}
 ```
 
 ---
