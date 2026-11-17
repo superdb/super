@@ -97,7 +97,7 @@ output: |
 ---
 
 # The result of an expression subquery may be none.
-spq: values {v:(values y.ok())}, [(values y.ok())]
+spq: values {v:(values none)}, [(values none)]
 
 input: |
   {x:1}

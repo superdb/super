@@ -20,6 +20,11 @@ array, or a map and is dropped from the output of the
 [values](../../operators/values.md) operator, so `??` is needed only to replace
 it with another value.
 
+Since `ok` handles errors, the type checker doesn't report the type errors in
+`val` (e.g., for a field that some but not all values have), except for a field
+that no value can have, which is almost certainly a mistake like a misspelled
+field name.
+
 ## Examples
 
 ---

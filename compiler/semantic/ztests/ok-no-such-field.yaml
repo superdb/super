@@ -1,0 +1,134 @@
+# ok() turns errors into none, so the type errors in its argument aren't
+# reported, except for a field access that can never succeed, which is
+# almost certainly a mistake like a typo.
+
+# A misspelled field in ok() is an error when no type has the field.
+spq: values y.ok()
+
+input: |
+  {x:1}::({x:int64}|string)
+  "s"::({x:int64}|string)
+
+error: |
+  no such field "y": . applied to string|{x:int64} at line 1, column 8:
+  values y.ok()
+         ~
+
+---
+
+# Likewise for a record.
+spq: values ok(y)
+
+input: |
+  {x:1}
+
+error: |
+  no such field "y" at line 1, column 11:
+  values ok(y)
+            ~
+
+---
+
+# Likewise within an expression.
+spq: values {a:x.ok(), b:ok(x + yy)}
+
+input: |
+  {x:1}
+
+error: |
+  no such field "yy" at line 1, column 28:
+  values {a:x.ok(), b:ok(x + yy)}
+                             ~~
+
+---
+
+# ok() turns the error for a field that only some types have into none.
+spq: values x.ok()
+
+input: |
+  {x:1}::({x:int64}|string)
+  "s"::({x:int64}|string)
+
+output: |
+  1
+
+---
+
+# Likewise for a field that only some values have.
+spq: values y.ok()
+
+input: |
+  {x:1}
+  {y:2}
+
+output: |
+  2
+
+---
+
+# is_ok() is ok() != none.
+spq: values is_ok(x), y.is_ok()
+
+input: |
+  {x:1}::({x:int64}|string)
+  "s"::({x:int64}|string)
+
+error: |
+  no such field "y": . applied to string|{x:int64} at line 1, column 18:
+  values is_ok(x), y.is_ok()
+                   ~
+
+---
+
+spq: values is_ok(x)
+
+input: |
+  {x:1}::({x:int64}|string)
+  "s"::({x:int64}|string)
+
+output: |
+  true
+  false
+
+---
+
+# A field of a missing value is missing, so a missing value doesn't have the
+# field for this purpose.
+spq: values a.y.ok()
+
+input: |
+  {a:{x:1}}
+  {b:2}
+
+error: |
+  no such field "y": . applied to {x:int64} in missing|{x:int64} at line 1, column 10:
+  values a.y.ok()
+           ~
+
+---
+
+spq: values a.x.ok()
+
+input: |
+  {a:{x:1}}
+  {b:2}
+
+output: |
+  1
+
+---
+
+# Type errors show types without their fusions (e.g., the type of zip here is
+# a fusion of int64 and missing).
+spq: values addr.cty.ok()
+
+input: |
+  {addr:{city:"a"}}
+  {addr:{city:"b",zip:1}}
+  {addr:"x"}
+  {id:1}
+
+error: |
+  no such field "cty": . applied to string|{city:string,zip:int64|missing} in string|missing|{city:string,zip:int64|missing} at line 1, column 13:
+  values addr.cty.ok()
+              ~~~
