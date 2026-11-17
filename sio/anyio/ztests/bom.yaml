@@ -1,0 +1,54 @@
+# A UTF-8 byte order mark at the start of text input is skipped.
+
+script: |
+  for f in bom.csv bom.json bom.sup bom.tsv bom.txt; do
+    super -s $f
+  done
+  super -s -i zeek bom.zeek
+  gzip -c bom.json > bom.json.gz
+  super -s bom.json.gz
+  echo === auto-detection
+  for f in bom.csv bom.json bom.sup bom.tsv bom.zeek; do
+    super -s - < $f
+    cat $f | super -s -
+  done
+  echo === args
+  cat bom.txt | super -s -c 'values args' -- -
+
+inputs:
+  - name: bom.csv
+    data: "\ufeffa,b\n1,foo\n"
+  - name: bom.json
+    data: "\ufeff{\"a\":1}\n"
+  - name: bom.sup
+    data: "\ufeff{a:1}\n"
+  - name: bom.tsv
+    data: "\ufeffa\tb\n1\tfoo\n"
+  - name: bom.txt
+    data: "\ufeffhello\n"
+  - name: bom.zeek
+    data: "\ufeff#separator \\x09\n#fields\ta\n#types\tcount\n1\n"
+
+outputs:
+  - name: stdout
+    data: |
+      {a:1.,b:"foo"}
+      {a:1}
+      {a:1}
+      {a:1.,b:"foo"}
+      "hello"
+      {a:1::uint64::(uint64|null)}
+      {a:1}
+      === auto-detection
+      {a:1.,b:"foo"}
+      {a:1.,b:"foo"}
+      {a:1}
+      {a:1}
+      {a:1}
+      {a:1}
+      {a:1.,b:"foo"}
+      {a:1.,b:"foo"}
+      {a:1::uint64::(uint64|null)}
+      {a:1::uint64::(uint64|null)}
+      === args
+      ["hello"]

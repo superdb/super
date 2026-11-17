@@ -8,6 +8,7 @@ import (
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/srcfiles"
+	"github.com/superdb/super/sio/anyio"
 	"github.com/superdb/super/sio/lineio"
 	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector/vio"
@@ -78,7 +79,7 @@ func (FileInput) String() string {
 // ReadArgs returns the lines of r (as for the line input format) as the
 // strings of the args constant.
 func ReadArgs(r io.Reader) ([]string, error) {
-	lr := lineio.NewReader(r)
+	lr := lineio.NewReader(anyio.SkipBOM(r))
 	args := []string{}
 	for {
 		val, err := lr.Read()
