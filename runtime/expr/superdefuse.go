@@ -44,7 +44,7 @@ func (d *SuperDefuse) eval(in vector.Any) vector.Any {
 	case vector.KindMap:
 		return d.defuseMap(in)
 	case vector.KindUnion:
-		u := vector.PushView(in).(*vector.Union)
+		u := vector.PushViewOrConst(in).(*vector.Union)
 		return d.Eval(u.Dynamic())
 	case vector.KindError:
 		return d.defuseError(in)
@@ -54,7 +54,7 @@ func (d *SuperDefuse) eval(in vector.Any) vector.Any {
 		if in.Len() == 0 {
 			return vector.NewMissing(0)
 		}
-		fusion := vector.PushView(in).(*vector.Fusion)
+		fusion := vector.PushViewOrConst(in).(*vector.Fusion)
 		if super.IsFusionAll(fusion.Type()) {
 			return vector.DefuseAny(fusion)
 		}
@@ -67,7 +67,7 @@ func (d *SuperDefuse) eval(in vector.Any) vector.Any {
 }
 
 func (d *SuperDefuse) defuseRecord(vec vector.Any) vector.Any {
-	rec := vector.PushView(vec).(*vector.Record)
+	rec := vector.PushViewOrConst(vec).(*vector.Record)
 	var vecs []vector.Any
 	for _, vec := range rec.Fields {
 		vecs = append(vecs, d.eval(vec))
@@ -193,7 +193,7 @@ func (d *SuperDefuse) defuseType(typ super.Type) (super.Type, bool) {
 }
 
 func (d *SuperDefuse) defuseArray(in vector.Any) vector.Any {
-	array := vector.PushView(in).(*vector.Array)
+	array := vector.PushViewOrConst(in).(*vector.Array)
 	inner := mergeSameTypes(d.eval(array.Values))
 	if !vector.IsDynamic(inner) {
 		return vector.NewArray(d.sctx.LookupTypeArray(inner.Type()), array.Offsets, inner)
@@ -211,7 +211,7 @@ func (d *SuperDefuse) defuseArray(in vector.Any) vector.Any {
 }
 
 func (d *SuperDefuse) defuseSet(in vector.Any) vector.Any {
-	set := vector.PushView(in).(*vector.Set)
+	set := vector.PushViewOrConst(in).(*vector.Set)
 	inner := mergeSameTypes(d.eval(set.Values))
 	if !vector.IsDynamic(inner) {
 		return vector.NewSet(d.sctx.LookupTypeSet(inner.Type()), set.Offsets, inner)
@@ -229,7 +229,7 @@ func (d *SuperDefuse) defuseSet(in vector.Any) vector.Any {
 }
 
 func (d *SuperDefuse) defuseMap(in vector.Any) vector.Any {
-	vmap := vector.PushView(in).(*vector.Map)
+	vmap := vector.PushViewOrConst(in).(*vector.Map)
 	keys := d.eval(vmap.Keys)
 	vals := d.eval(vmap.Values)
 	if !vector.IsDynamic(keys) && !vector.IsDynamic(vals) {
@@ -272,7 +272,7 @@ func mergeSameTypes(vec vector.Any) vector.Any {
 }
 
 func (d *SuperDefuse) defuseError(in vector.Any) vector.Any {
-	errVec := vector.PushView(in).(*vector.Error)
+	errVec := vector.PushViewOrConst(in).(*vector.Error)
 	valsVec := d.eval(errVec.Vals)
 	return vector.Apply(vector.ApplyNone, func(vecs ...vector.Any) vector.Any {
 		vec := vecs[0]
@@ -305,10 +305,10 @@ func (d *SuperDefuse) types(in vector.Any) vector.Any {
 	case vector.KindRecord:
 		return d.recordTypes(in)
 	case vector.KindUnion:
-		u := vector.PushView(in).(*vector.Union)
+		u := vector.PushViewOrConst(in).(*vector.Union)
 		return d.Types(u.Dynamic())
 	case vector.KindError:
-		errVec := vector.PushView(in).(*vector.Error)
+		errVec := vector.PushViewOrConst(in).(*vector.Error)
 		vals := d.Types(errVec.Vals)
 		types := make([]super.Type, in.Len())
 		for i := range in.Len() {
@@ -316,7 +316,7 @@ func (d *SuperDefuse) types(in vector.Any) vector.Any {
 		}
 		return d.typesVector(types)
 	case vector.KindFusion:
-		return d.typesVector(vector.PushView(in).(*vector.Fusion).Subtypes.Types())
+		return d.typesVector(vector.PushViewOrConst(in).(*vector.Fusion).Subtypes.Types())
 	default:
 		// The type of a superdefused array, set, or map depends on the
 		// types of its elements so we defuse the data.
@@ -327,7 +327,7 @@ func (d *SuperDefuse) types(in vector.Any) vector.Any {
 }
 
 func (d *SuperDefuse) recordTypes(in vector.Any) vector.Any {
-	rec := vector.PushView(in).(*vector.Record)
+	rec := vector.PushViewOrConst(in).(*vector.Record)
 	vecs := make([]vector.Any, 0, len(rec.Fields))
 	for _, vec := range rec.Fields {
 		vecs = append(vecs, d.Types(vec))

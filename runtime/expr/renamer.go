@@ -24,7 +24,7 @@ func (r *Renamer) Eval(vec vector.Any) vector.Any {
 
 func (r *Renamer) eval(vecs ...vector.Any) vector.Any {
 	vec := vecs[0]
-	recVec, ok := vector.PushView(vector.Under(vec)).(*vector.Record)
+	recVec, ok := vector.PushViewOrConst(vector.Under(vec)).(*vector.Record)
 	if !ok {
 		return vec
 	}

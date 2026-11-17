@@ -133,5 +133,11 @@ func (r *recordExpr) spread(vec vector.Any) {
 				r.addOrUpdateField(f.Name, vector.Pick(rec.Fields[k], vec.Index))
 			}
 		}
+	case *vector.Const:
+		if rec, ok := vector.PushViewOrConst(vec).(*vector.Record); ok {
+			for k, f := range super.TypeRecordOf(rec.Type()).Fields {
+				r.addOrUpdateField(f.Name, rec.Fields[k])
+			}
+		}
 	}
 }

@@ -62,10 +62,7 @@ func indexArrayOrSet(sctx *super.Context, vec, indexVec vector.Any, base1 bool) 
 	} else if !super.IsInteger(id) {
 		return vector.NewWrappedError(sctx, "index is not an integer", indexVec)
 	}
-	var index []uint32
-	if view, ok := vec.(*vector.View); ok {
-		vec, index = view.Any, view.Index
-	}
+	vec, index := vector.UnwrapViewOrConst(vec)
 	offsets, vals := arrayOrSetContents(vec)
 	var errs []uint32
 	var viewIndexes []uint32
@@ -111,16 +108,7 @@ func indexRecord(sctx *super.Context, vec, indexVec vector.Any, base1 bool) vect
 		}
 		return vector.NewWrappedError(sctx, "invalid value for record index", indexVec)
 	}
-	var rec *vector.Record
-	var index []uint32
-	switch vec := vec.(type) {
-	case *vector.Record:
-		rec = vec
-	case *vector.View:
-		rec, index = vec.Any.(*vector.Record), vec.Index
-	default:
-		panic(vec)
-	}
+	rec := vector.PushViewOrConst(vec).(*vector.Record)
 	var errs []uint32
 	tags := make([]uint32, vec.Len())
 	n := len(rec.Typ.Fields)
@@ -146,12 +134,8 @@ func indexRecord(sctx *super.Context, vec, indexVec vector.Any, base1 bool) vect
 			errs = append(errs, i)
 			continue
 		}
-		idx := i
-		if index != nil {
-			idx = index[i]
-		}
 		tags[i] = uint32(k)
-		viewIndexes[k] = append(viewIndexes[k], idx)
+		viewIndexes[k] = append(viewIndexes[k], i)
 	}
 	out := make([]vector.Any, n+1)
 	out[n] = vector.NewWrappedError(sctx, "invalid record index", vector.Pick(indexVec, errs))
@@ -168,7 +152,7 @@ func indexMap(keyEq *Compare, vec, indexVec vector.Any) vector.Any {
 	if _, ok := indexVec.(*vector.Error); ok {
 		return indexVec
 	}
-	m := vector.PushView(vec).(*vector.Map)
+	m := vector.PushViewOrConst(vec).(*vector.Map)
 	var pick []uint32
 	for i := range vec.Len() {
 		for range m.Offsets[i+1] - m.Offsets[i] {

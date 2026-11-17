@@ -20,7 +20,7 @@ func (o *optionBuilder) Write(vec vector.Any) {
 	if vec.Len() == 0 {
 		return
 	}
-	option := vector.PushView(vec).(*vector.Option)
+	option := vector.PushViewOrConst(vec).(*vector.Option)
 	option.Apply(func(tags []uint32, some vector.Any, none *vector.None) vector.Any {
 		if some == nil {
 			n := none.Len()

@@ -249,12 +249,7 @@ func (p *PredicateWalk) Eval(vecs ...vector.Any) vector.Any {
 func (p *PredicateWalk) eval(vecs ...vector.Any) vector.Any {
 	lhs, rhs := vecs[0], vecs[1]
 	out := p.pred(lhs, rhs)
-	rhs = vector.Under(rhs)
-	var index []uint32
-	if view, ok := rhs.(*vector.View); ok {
-		rhs = view.Any
-		index = view.Index
-	}
+	rhs, index := vector.UnwrapViewOrConst(vector.Under(rhs))
 	switch rhs := rhs.(type) {
 	case *vector.Record:
 		for _, vec := range rhs.Fields {

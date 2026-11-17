@@ -27,7 +27,7 @@ func newRecordKey(typ *super.TypeRecord) *recordKey {
 }
 
 func (k *recordKey) bind(vec vector.Any) {
-	rec := vector.PushView(vector.Under(vec)).(*vector.Record)
+	rec := vector.PushViewOrConst(vector.Under(vec)).(*vector.Record)
 	for i, f := range k.fields {
 		f.bind(rec.Fields[i])
 	}

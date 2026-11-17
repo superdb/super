@@ -83,7 +83,7 @@ func (d *Downcast) to(from vector.Any, types []super.Type) vector.Any {
 // of type "to" intermixed with one or more other error types.  The caller
 // can check for success by comparing the return vector's type with "to".
 func (d *Downcast) downcast(vec vector.Any, to super.Type) vector.Any {
-	vec = vector.PushView(vec)
+	vec = vector.PushViewOrConst(vec)
 	// XXX this shouldn't happen but for some reason fusion vectors
 	// show up with dynamics in the fusion.Values fields so this dynamic
 	// ends up here.

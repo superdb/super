@@ -16,7 +16,7 @@ func newAnyBuilder(typ *super.TypeFusion) Builder {
 }
 
 func (a *anyBuilder) Write(vec vector.Any) {
-	fusion := vector.PushView(vec).(*vector.Fusion)
+	fusion := vector.PushViewOrConst(vec).(*vector.Fusion)
 	a.bytes.Write(fusion.Values)
 	a.subtypes.Write(fusion.Subtypes)
 }

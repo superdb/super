@@ -30,7 +30,26 @@ func UnwrapView(vec Any) (Any, []uint32) {
 	return vec, nil
 }
 
-func PushView(val Any) Any {
+// UnwrapViewOrConst is like UnwrapView but also unwraps a Const into its
+// underlying value and an index that refers to that value for every slot.
+func UnwrapViewOrConst(vec Any) (Any, []uint32) {
+	if c, ok := vec.(*Const); ok {
+		return c.Any, make([]uint32, c.Len())
+	}
+	return UnwrapView(vec)
+}
+
+func PushViewOrConst(val Any) Any {
+	if c, ok := val.(*Const); ok {
+		switch c.Kind() {
+		case KindArray, KindSet, KindMap, KindRecord:
+			// Expand a container Const into a view of its value
+			// repeated for every slot.
+			val = Pick(c.Any, make([]uint32, c.Len()))
+		default:
+			return val
+		}
+	}
 	view, ok := val.(*View)
 	if !ok {
 		return val

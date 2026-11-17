@@ -84,7 +84,7 @@ func (f *fuse) ConsumeAsPartial(groups []uint32, partial vector.Any) {
 	if kind == vector.KindNull || kind == vector.KindMissing {
 		return
 	}
-	typeVec, ok := vector.PushView(partial).(*vector.TypeValue)
+	typeVec, ok := vector.PushViewOrConst(partial).(*vector.TypeValue)
 	if !ok {
 		panic("fuse: partial not a type value")
 	}

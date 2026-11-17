@@ -27,7 +27,7 @@ func (m *mapBuilder) Write(vec vector.Any) {
 	if n == 0 {
 		return
 	}
-	vmap := vector.PushView(vec).(*vector.Map)
+	vmap := vector.PushViewOrConst(vec).(*vector.Map)
 	m.keys.Write(vmap.Keys)
 	m.vals.Write(vmap.Values)
 	for i := range n {

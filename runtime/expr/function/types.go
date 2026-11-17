@@ -240,9 +240,9 @@ func (k *Kind) Call(args ...vector.Any) vector.Any {
 		// union containing one).
 		switch vec.Kind() {
 		case vector.KindFusion:
-			return k.fusionKind(vector.PushView(vec).(*vector.Fusion))
+			return k.fusionKind(vector.PushViewOrConst(vec).(*vector.Fusion))
 		case vector.KindUnion:
-			u := vector.PushView(vec).(*vector.Union)
+			u := vector.PushViewOrConst(vec).(*vector.Union)
 			return vector.Apply(vector.ApplyNone, k.Call, u.Dynamic())
 		}
 	}
@@ -289,7 +289,7 @@ func (k *Kind) kind(args ...vector.Any) vector.Any {
 		}
 		return out
 	case vector.KindFusion:
-		return k.kind(vector.PushView(vec).(*vector.Fusion).Subtypes)
+		return k.kind(vector.PushViewOrConst(vec).(*vector.Fusion).Subtypes)
 	default:
 		return vector.NewConstString(vec.Type().Kind().String(), vec.Len())
 	}

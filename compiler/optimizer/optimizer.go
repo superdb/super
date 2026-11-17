@@ -610,9 +610,9 @@ func pullupExpr(alias string, expr dag.Expr) (dag.Expr, bool) {
 	}
 	var c dag.Expr
 	var this *dag.ThisExpr
-	if t, ok := e.LHS.(*dag.ThisExpr); ok && isConst(e.RHS) {
+	if t, ok := e.LHS.(*dag.ThisExpr); ok && dag.IsConst(e.RHS) {
 		this, c = t, e.RHS
-	} else if t, ok := e.RHS.(*dag.ThisExpr); ok && isConst(e.LHS) {
+	} else if t, ok := e.RHS.(*dag.ThisExpr); ok && dag.IsConst(e.LHS) {
 		this, c = t, e.LHS
 	}
 	if c == nil || this == nil || len(this.Chain) < 1 || this.Chain[0].ID != alias {
@@ -620,31 +620,6 @@ func pullupExpr(alias string, expr dag.Expr) (dag.Expr, bool) {
 	}
 	path := slices.Clone(this.Chain[1:])
 	return dag.NewBinaryExpr(e.Op, dag.NewThis(path), c), true
-}
-
-func isConst(e dag.Expr) bool {
-	switch e := e.(type) {
-	case *dag.PrimitiveExpr:
-		return true
-	case *dag.RecordExpr:
-		for _, elem := range e.Elems {
-			if field, ok := elem.(*dag.Field); ok && isConst(field.Value) {
-				continue
-			}
-			return false
-		}
-		return true
-	case *dag.ArrayExpr, *dag.SetExpr:
-		for _, elem := range vectorElems(e) {
-			if val, ok := elem.(*dag.VectorValue); ok && isConst(val.Expr) {
-				continue
-			}
-			return false
-		}
-		return true
-	default:
-		return false
-	}
 }
 
 func liftFilterOps(seq dag.Seq) dag.Seq {

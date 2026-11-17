@@ -77,7 +77,7 @@ const (
 )
 
 func (a *avg) ConsumeAsPartial(groups []uint32, partial vector.Any) {
-	rec, ok := vector.PushView(partial).(*vector.Record)
+	rec, ok := vector.PushViewOrConst(partial).(*vector.Record)
 	if !ok {
 		panic("avg: invalid partial")
 	}

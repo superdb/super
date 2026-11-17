@@ -30,17 +30,8 @@ func (r *recordBuilder) Write(vec vector.Any) {
 	if n == 0 {
 		return
 	}
-	var index []uint32
-	if view, ok := vec.(*vector.View); ok {
-		vec = view.Any
-		index = view.Index
-	}
-	rec := vec.(*vector.Record)
+	rec := vector.PushViewOrConst(vec).(*vector.Record)
 	for i, vec := range rec.Fields {
-		if index != nil {
-			// XXX Optionals will return a dynamic.
-			vec = vector.Pick(vec, index)
-		}
 		r.fields[i].Write(vec)
 	}
 	r.len += n

@@ -74,13 +74,13 @@ func (u *Unnest) flatten(vec vector.Any, record bool) (vector.Any, []uint32) {
 		return nil, nil
 	case vector.KindRecord:
 		if record {
-			return u.flattenRecord(vector.PushView(vec).(*vector.Record))
+			return u.flattenRecord(vector.PushViewOrConst(vec).(*vector.Record))
 		}
 	case vector.KindArray:
-		array := vector.PushView(vec).(*vector.Array)
+		array := vector.PushViewOrConst(vec).(*vector.Array)
 		return vector.Deunion(array.Values), array.Offsets
 	case vector.KindSet:
-		set := vector.PushView(vec).(*vector.Set)
+		set := vector.PushViewOrConst(vec).(*vector.Set)
 		return vector.Deunion(set.Values), set.Offsets
 	}
 	return vector.NewWrappedError(u.sctx, "unnest: encountered non-array value", vec), nil

@@ -22,7 +22,8 @@ func (b *Builder) compileVamExpr(e dag.Expr) (expr.Evaluator, error) {
 	}
 	switch e := e.(type) {
 	case *dag.ArrayExpr:
-		return b.compileVamArrayExpr(e)
+		evaluator, err := b.compileVamArrayExpr(e)
+		return b.literalIfConst(e, evaluator, err)
 	case *dag.BinaryExpr:
 		return b.compileVamBinary(e)
 	case *dag.CondExpr:
@@ -50,7 +51,8 @@ func (b *Builder) compileVamExpr(e dag.Expr) (expr.Evaluator, error) {
 	case *dag.MapCallExpr:
 		return b.compileVamMapCallExpr(e)
 	case *dag.MapExpr:
-		return b.compileVamMapExpr(e)
+		evaluator, err := b.compileVamMapExpr(e)
+		return b.literalIfConst(e, evaluator, err)
 	case *dag.PrimitiveExpr:
 		val, err := sup.ParseValue(b.sctx(), e.Value)
 		if err != nil {
@@ -58,7 +60,8 @@ func (b *Builder) compileVamExpr(e dag.Expr) (expr.Evaluator, error) {
 		}
 		return expr.NewLiteral(b.sctx(), val), nil
 	case *dag.RecordExpr:
-		return b.compileVamRecordExpr(e)
+		evaluator, err := b.compileVamRecordExpr(e)
+		return b.literalIfConst(e, evaluator, err)
 	case *dag.RegexpMatchExpr:
 		return b.compileVamRegexpMatch(e)
 	case *dag.RegexpSearchExpr:
@@ -66,7 +69,8 @@ func (b *Builder) compileVamExpr(e dag.Expr) (expr.Evaluator, error) {
 	case *dag.SearchExpr:
 		return b.compileVamSearch(e)
 	case *dag.SetExpr:
-		return b.compileVamSetExpr(e)
+		evaluator, err := b.compileVamSetExpr(e)
+		return b.literalIfConst(e, evaluator, err)
 	case *dag.SliceExpr:
 		return b.compileVamSliceExpr(e)
 	case *dag.SubqueryExpr:
@@ -84,6 +88,13 @@ func (b *Builder) compileVamExpr(e dag.Expr) (expr.Evaluator, error) {
 	default:
 		return nil, fmt.Errorf("vector expression type %T: not supported", e)
 	}
+}
+
+func (b *Builder) literalIfConst(e dag.Expr, evaluator expr.Evaluator, err error) (expr.Evaluator, error) {
+	if err != nil || !dag.IsConst(e) {
+		return evaluator, err
+	}
+	return expr.NewLiteral(b.sctx(), b.evalEvaluatorAtCompileTime(evaluator)), nil
 }
 
 func (b *Builder) compileVamExprWithEmpty(e dag.Expr) (expr.Evaluator, error) {

@@ -25,7 +25,7 @@ func (a *arraySetBuilder) Write(vec vector.Any) {
 	if n == 0 {
 		return
 	}
-	vec = vector.PushView(vec)
+	vec = vector.PushViewOrConst(vec)
 	var offsets []uint32
 	switch vec := vec.(type) {
 	case *vector.Array:
