@@ -50,7 +50,6 @@ func (v *Values) Pull(done bool) (vector.Any, error) {
 	}
 }
 
-// XXX should work for vector.Dynamic
 func interleave(vals []vector.Any) vector.Any {
 	if len(vals) < 2 {
 		panic("interleave requires two or more vals")
@@ -62,5 +61,5 @@ func interleave(vals []vector.Any) vector.Any {
 		tags[k] = k % nvals
 
 	}
-	return vector.NewDynamic(tags, vals)
+	return vector.Stitch(vector.NewDynamic(tags, vals))
 }

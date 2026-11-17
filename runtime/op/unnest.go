@@ -123,7 +123,7 @@ func (u *Unnest) flattenDynamic(vec *vector.Dynamic, record bool) (vector.Any, [
 		// Every slot is a null or plain none, which produce no values.
 		return nil, nil
 	}
-	return vector.NewDynamic(tags, vecs), offsets
+	return vector.Stitch(vector.NewDynamic(tags, vecs)), offsets
 }
 
 // flattenRecord unnests the field named u.field of each record in vec and

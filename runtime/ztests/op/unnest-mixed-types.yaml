@@ -1,0 +1,53 @@
+# Unnest arrays of different types where some have mixed element types.
+spq: unnest this | sort this
+
+input: |
+  ["x",null]
+  ["y"]
+  [1,"a"]
+  [2]
+
+output: |
+  1
+  2
+  "a"
+  "x"
+  "y"
+  null
+
+---
+
+spq: unnest v:=a with k | left join (values "x") on left.v=right | sort this
+
+input: |
+  {k:1,a:["x",null]}
+  {k:2,a:["y"]}
+
+output: |
+  {left:{v:"y",k:2}}
+  {left:{v:null,k:1}}
+  {left:{v:"x",k:1},right:"x"}
+
+---
+
+spq: |
+  values {k:1,a:["x",null]::([string|null]|[int64])}, {k:2,a:[3]::([string|null]|[int64])}
+  | unnest v:=a with k
+  | sort this
+
+output: |
+  {v:3,k:2}
+  {v:"x",k:1}
+  {v:null,k:1}
+
+---
+
+script: |
+  super -f bsup -c 'values ["x",null], ["y"] | unnest this' | super -s -
+
+outputs:
+  - name: stdout
+    data: |
+      "x"
+      null
+      "y"
