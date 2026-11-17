@@ -4,7 +4,7 @@ input: |
   {x:2}
 
 output: |
-  {c0:1,c1:2,c2:{c0:3,c1:4}}
+  {column1:1,column2:2,column3:{column1:3,column2:4}}
 
 ---
 

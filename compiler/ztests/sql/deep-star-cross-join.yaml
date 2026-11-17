@@ -1,11 +1,11 @@
 spq: SELECT * FROM (VALUES (1,2)) t1, (VALUES (3,4)) t2 CROSS JOIN (VALUES (5,6)) t3
 
 output: |
-  {c0:1,c1:2,c0_1:3,c1_1:4,c0_2:5,c1_2:6}
+  {column1:1,column2:2,column1_1:3,column2_1:4,column1_2:5,column2_2:6}
 
 ---
 
 spq: SELECT * FROM (VALUES (1,2)) t1, (VALUES (3,4)) t2, (VALUES (5,6)) t3
 
 output: |
-  {c0:1,c1:2,c0_1:3,c1_1:4,c0_2:5,c1_2:6}
+  {column1:1,column2:2,column1_1:3,column2_1:4,column1_2:5,column2_2:6}

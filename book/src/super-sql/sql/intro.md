@@ -120,7 +120,7 @@ one or more column names from the top-level tables that
 appear in the `FROM` body.
 
 A [VALUES](from.md) clause creates a relational scope defined by
-the default column names `c0`, `c1`, etc. and typically appears as
+the default column names `column1`, `column2`, etc. and typically appears as
 a table expression in a `FROM` clause with a table alias to rename
 the columns.
 

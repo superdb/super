@@ -1,8 +1,8 @@
 spq: |
   WITH T AS (VALUES (2,2,1))
-  SELECT min(c2) AS c0
+  SELECT min(column3) AS c0
   FROM T
-  GROUP BY c1 HAVING (SUM(c0)) > 1
+  GROUP BY column2 HAVING (SUM(column1)) > 1
 
 output: |
   {c0:1}

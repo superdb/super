@@ -21,6 +21,6 @@ outputs:
           compare("foo", x.min, true)>=0 and compare("foo", x.max, true)<=0 or compare("bar", x.min, true)>=0 and compare("bar", x.max, true)<=0
         )
         data-filter project [x] (
-          x in {c0:"foo",c1:"bar"}
+          x in {column1:"foo",column2:"bar"}
         )
       | output main
