@@ -1,0 +1,31 @@
+# Values from several expressions where some have mixed types.
+spq: values 1, "x" | values this, true | sort this
+
+output: |
+  1
+  true
+  true
+  "x"
+
+---
+
+spq: values 1, "x" | values this, true | left join (values "x") on left=right | sort this
+
+output: |
+  {left:1}
+  {left:true}
+  {left:true}
+  {left:"x",right:"x"}
+
+---
+
+script: |
+  super -f bsup -c 'values 1, "x" | values this, true' | super -s -
+
+outputs:
+  - name: stdout
+    data: |
+      1
+      true
+      "x"
+      true
