@@ -299,8 +299,8 @@ func TestIn(t *testing.T) {
 	testSuccessful(t, "1 in s", record, "false")
 	testSuccessful(t, "4 in s", record, "true")
 
-	testSuccessful(t, `"boo" in a`, record, "false")
-	testSuccessful(t, `"boo" in s`, record, "false")
+	testSuccessful(t, `"boo" in a`, record, `error("left-hand side of in operator not compatible with array type")`)
+	testSuccessful(t, `"boo" in s`, record, `error("left-hand side of in operator not compatible with set type")`)
 }
 
 func TestArithmetic(t *testing.T) {

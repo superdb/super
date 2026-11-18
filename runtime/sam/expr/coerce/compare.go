@@ -202,6 +202,64 @@ func isFusion(typ super.Type) bool {
 	return ok
 }
 
+// Containable reports whether a value of type a can be compared with a value
+// of type b or with some value nested in it, as the in operator requires.
+// The type checker and the runtime both use it so they agree on which uses
+// of in are errors.  A null in a union doesn't count since that would make
+// anything containable in a nullable type.  (The caller handles a top-level
+// union by checking each of its types.)
+func Containable(sctx *super.Context, hasFusion func(super.Type) bool, a, b super.Type) bool {
+	if _, ok := ComparisonType(sctx, hasFusion, a, b); ok {
+		return true
+	}
+	switch b := Under(b).(type) {
+	case *super.TypeOfNone:
+		return true
+	case *super.TypeRecord:
+		for _, f := range b.Fields {
+			if Containable(sctx, hasFusion, a, f.Type) {
+				return true
+			}
+		}
+	case *super.TypeArray:
+		return Containable(sctx, hasFusion, a, b.Type)
+	case *super.TypeSet:
+		return Containable(sctx, hasFusion, a, b.Type)
+	case *super.TypeMap:
+		return Containable(sctx, hasFusion, a, b.KeyType) || Containable(sctx, hasFusion, a, b.ValType)
+	case *super.TypeUnion:
+		for _, t := range b.Types {
+			if t != super.TypeNull && Containable(sctx, hasFusion, a, t) {
+				return true
+			}
+		}
+	case *super.TypeOption:
+		return Containable(sctx, hasFusion, a, b.Type)
+	case *super.TypeError:
+		return Containable(sctx, hasFusion, a, b.Type)
+	}
+	return false
+}
+
+// InMismatch returns the message of the error for the in operator when
+// its left-hand side isn't containable in a right-hand side of type b.
+func InMismatch(b super.Type) string {
+	switch b := Under(b).(type) {
+	case *super.TypeArray:
+		return "left-hand side of in operator not compatible with array type"
+	case *super.TypeSet:
+		return "left-hand side of in operator not compatible with set type"
+	case *super.TypeRecord:
+		return "left-hand side of in operator not compatible with any fields of record on right-hand side"
+	case *super.TypeMap:
+		return "left-hand side of in operator not compatible with map value or key type"
+	case *super.TypeOfNet:
+		return "right-hand side of in operator cannot be type net; consider cidr_match()"
+	default:
+		return "scalar type mismatch for 'in' operator where right-hand side is not container type: " + sup.FormatType(b)
+	}
+}
+
 // TypeMismatch returns the message of the error for a comparison with
 // operator op of values of types a and b that can't be compared.
 func TypeMismatch(op string, a, b super.Type) string {

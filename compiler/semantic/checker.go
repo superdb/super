@@ -1446,67 +1446,69 @@ func (c *checker) logical(lloc, rloc ast.Node, lhs, rhs super.Type) {
 	c.boolean(rloc, rhs)
 }
 
-func (c *checker) in(loc, lloc, rloc ast.Node, lhs, rhs super.Type) bool {
-	if isUnknown(rhs) {
-		return true
+// in checks the operands of the in operator, for which the runtime requires
+// that the left-hand side be comparable with the right-hand side or some
+// value nested in it (see coerce.Containable).  Otherwise the result is a
+// runtime error so this must hold for every type of a union operand.
+func (c *checker) in(loc, lloc, rloc ast.Node, lhs, rhs super.Type) {
+	typ := c.uncontaining(lhs, rhs)
+	if typ == nil {
+		return
 	}
-	switch typ := coerce.Under(rhs).(type) {
-	case *super.TypeOfNull:
-	case *super.TypeArray:
-		if !comparable(lhs, typ.Type) {
-			c.error(lloc, errors.New("left-hand side of in operator be compatible with array type"))
-			return false
-		}
-	case *super.TypeSet:
-		if !comparable(lhs, typ.Type) {
-			c.error(lloc, errors.New("left-hand side of in operator be compatible with set type"))
-			return false
-		}
-	case *super.TypeRecord:
-		var types []super.Type
-		for _, field := range typ.Fields {
-			types = append(types, field.Type)
-		}
-		if !comparable(lhs, c.fuse(types)) {
-			c.error(lloc, errors.New("left-hand side of in operator not compatible with any fields of record on right-hand side"))
-			return false
-		}
-	case *super.TypeMap:
-		if !comparable(lhs, typ.ValType) && !comparable(lhs, typ.KeyType) {
-			c.error(lloc, errors.New("left-hand side of in operator be compatible with map value or key type"))
-			return false
-		}
+	switch typ.(type) {
+	case *super.TypeArray, *super.TypeSet, *super.TypeRecord, *super.TypeMap:
+		loc = lloc
 	case *super.TypeOfNet:
-		c.error(rloc, errors.New("right-hand side of in operator cannot be type net; consider cidr_match()"))
-		return false
-	case *super.TypeUnion:
-		// Push the error stack and if we find some valid deref,
-		// we'll discard the errors.  Otherwise, we'll keep them.
-		c.pushErrs()
-		var valid bool
-		for _, t := range typ.Types {
-			if c.in(loc, lloc, rloc, lhs, t) {
-				valid = true
+		loc = rloc
+	}
+	c.error(loc, errors.New(coerce.InMismatch(typ)))
+}
+
+// uncontaining returns the type in b (b itself or, for a union, one of its
+// types) for which a value of type a isn't containable, or nil if there is
+// none.
+func (c *checker) uncontaining(a, b super.Type) super.Type {
+	a, b = coerce.Under(a), coerce.Under(b)
+	if isUnknown(a) || isUnknown(b) {
+		return nil
+	}
+	if o, ok := a.(*super.TypeOption); ok {
+		return c.uncontaining(o.Type, b)
+	}
+	if o, ok := b.(*super.TypeOption); ok {
+		return c.uncontaining(a, o.Type)
+	}
+	if u, ok := a.(*super.TypeUnion); ok {
+		for _, t := range u.Types {
+			if typ := c.uncontaining(t, b); typ != nil {
+				return typ
 			}
 		}
-		errs := c.popErrs()
-		if !valid {
-			c.keepErrs(errs)
-		}
-		return valid
-	case *super.TypeOption:
-		return c.in(loc, lloc, rloc, lhs, typ.Type)
-	default:
-		// If the RHS is not a container, see if they are compatible in terms of
-		// equality comparison.  The in operator for SuperSQL is broader than SQL
-		// and is true for equality of any value as well as equality containment
-		// of the LHS in the RHS.
-		if !comparable(lhs, rhs) {
-			c.error(loc, fmt.Errorf("scalar type mismatch for 'in' operator where right-hand side is not container type: %s", c.formatType(typ)))
-		}
-		return false
+		return nil
 	}
-	return true
+	if u, ok := b.(*super.TypeUnion); ok {
+		for _, t := range u.Types {
+			if typ := c.uncontaining(a, t); typ != nil {
+				return typ
+			}
+		}
+		return nil
+	}
+	if passesComparison(a) || passesComparison(b) || coerce.Containable(c.t.sctx, c.hasFusion.Check, a, b) {
+		return nil
+	}
+	return b
+}
+
+// passesComparison reports whether a comparison or in with a value of type
+// typ is null or an error, which the runtime decides before it looks at the
+// other type.
+func passesComparison(typ super.Type) bool {
+	switch typ.(type) {
+	case *super.TypeOfNull, *super.TypeOfNone, *super.TypeOfMissing, *super.TypeError:
+		return true
+	}
+	return false
 }
 
 // comparison checks the operands of a comparison operator, which the runtime
@@ -1552,16 +1554,7 @@ func (c *checker) compares(a, b super.Type) bool {
 			return !c.compares(a, t)
 		})
 	}
-	// A comparison with one of these is null, an error, or (for none)
-	// false, which the runtime decides before it looks at the other type.
-	passes := func(typ super.Type) bool {
-		switch typ.(type) {
-		case *super.TypeOfNull, *super.TypeOfNone, *super.TypeOfMissing, *super.TypeError:
-			return true
-		}
-		return false
-	}
-	if passes(a) || passes(b) {
+	if passesComparison(a) || passesComparison(b) {
 		return true
 	}
 	_, ok := coerce.ComparisonType(c.t.sctx, c.hasFusion.Check, a, b)
@@ -1569,8 +1562,8 @@ func (c *checker) compares(a, b super.Type) bool {
 }
 
 // comparable reports whether some value of type a may equal some value of
-// type b, as required by the in operator and map indexing, which (unlike the
-// comparison operators) are false or none for values of other types.
+// type b, as required by map indexing, which (unlike the comparison
+// operators) is none for values of other types.
 func comparable(a, b super.Type) bool {
 	if isUnknown(a) || isUnknown(b) {
 		return true
