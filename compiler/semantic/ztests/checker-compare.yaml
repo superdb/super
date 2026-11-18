@@ -134,13 +134,11 @@ output: |
 
 ---
 
-# Bools and complex values are allowed with an ordering operator but have no
+# Complex values are with an ordering operator but have no
 # order: < and > are false while <= and >= are equality.
-spq: values false<true, false<=false, [1]>[0], [1]<=[1.0], {a:1}>={a:0}
+spq: values [1]>[0], [1]<=[1.0], {a:1}>={a:0}
 
 output: |
-  false
-  true
   false
   true
   false

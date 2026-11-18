@@ -303,10 +303,8 @@ func compareNones(a, b vector.Any) (bool, bool) {
 	return false, false
 }
 
+// compareBool orders false before true.
 func (c *Compare) compareBool(lhs, rhs vector.Any) vector.Any {
-	if c.opCode == vector.CompLT || c.opCode == vector.CompGT {
-		return vector.NewConstBool(false, lhs.Len())
-	}
 	out := vector.NewFalse(lhs.Len())
 	if lhs, ok := lhs.(*vector.Bool); ok {
 		if rhs, ok := rhs.(*vector.Bool); ok {
@@ -314,23 +312,34 @@ func (c *Compare) compareBool(lhs, rhs vector.Any) vector.Any {
 			rhsBits := rhs.GetBits()
 			outBits := out.GetBits()
 			for i := range outBits {
-				// XOR is bit-wise "not equal".
-				outBits[i] = lhsBits[i] ^ rhsBits[i]
-				if c.opCode != vector.CompNE {
-					outBits[i] = ^outBits[i]
+				l, r := lhsBits[i], rhsBits[i]
+				switch c.opCode {
+				case vector.CompEQ:
+					outBits[i] = ^(l ^ r)
+				case vector.CompNE:
+					outBits[i] = l ^ r
+				case vector.CompLT:
+					outBits[i] = ^l & r
+				case vector.CompLE:
+					outBits[i] = ^l | r
+				case vector.CompGT:
+					outBits[i] = l &^ r
+				case vector.CompGE:
+					outBits[i] = l | ^r
 				}
 			}
 			return out
 		}
 	}
 	for i := range lhs.Len() {
-		l := vector.BoolValue(lhs, i)
-		r := vector.BoolValue(rhs, i)
-		v := l == r
-		if c.opCode == vector.CompNE {
-			v = !v
+		var l, r int
+		if vector.BoolValue(lhs, i) {
+			l = 1
 		}
-		if v {
+		if vector.BoolValue(rhs, i) {
+			r = 1
+		}
+		if isCompareOpSatisfied(c.opCode, l-r) {
 			out.Set(i)
 		}
 	}
