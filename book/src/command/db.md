@@ -719,7 +719,7 @@ SuperDB version, whether the server is read-only, and the number of tables,
 * `load` loads a file (by path or S3 URI) or inline text data in format `json`,
 `sup`, `csv`, `tsv`, `line` (a string per line), or `zeek`, or detected with `auto`
 (the default), into a table and commits it, which is much faster than formatting the data as an `INSERT INTO`
-query,
+query (with format `csv`, `delim` sets a field delimiter other than a comma, e.g., `;`),
 * `create_table` creates a table, optionally with a type to which loaded values
 are cast and a sort key (like [create](#super-db-create)), and
 * `drop_table` drops a table and deletes all of its data.

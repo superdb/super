@@ -255,6 +255,7 @@ Returns the commit ID and the number of values loaded.`,
 					"default":     "auto",
 					"description": "Input format: " + quotedList(loadFormats) + `.  "auto" detects it.  Format "line" loads each line as a string.`,
 				},
+				"delim":   map[string]any{"type": "string", "minLength": 1, "maxLength": 1, "description": `The field delimiter for format "csv", a single ASCII character (default ","), e.g., ";".`},
 				"message": map[string]any{"type": "string", "description": "The commit message."},
 			},
 			"required": []string{"table"},
@@ -737,6 +738,7 @@ func (s *Server) loadTool(ctx context.Context, raw json.RawMessage) (*toolResult
 		Path    string `json:"path"`
 		Data    string `json:"data"`
 		Format  string `json:"format"`
+		Delim   string `json:"delim"`
 		Message string `json:"message"`
 	}
 	if err := unmarshalArgs(raw, &args); err != nil {
@@ -757,12 +759,25 @@ func (s *Server) loadTool(ctx context.Context, raw json.RawMessage) (*toolResult
 	if !slices.Contains(loadFormats, args.Format) {
 		return nil, invalidArgs("format must be %s", quotedList(loadFormats))
 	}
+	var delim rune
+	if args.Delim != "" {
+		if len(args.Delim) != 1 {
+			return nil, invalidArgs("delim must be a single ASCII character")
+		}
+		if strings.ContainsAny(args.Delim, "\"\r\n\x00") {
+			return nil, invalidArgs("delim cannot be a double quote, carriage return, newline, or NUL")
+		}
+		if args.Format != "csv" {
+			return nil, invalidArgs(`delim requires format "csv"`)
+		}
+		delim = rune(args.Delim[0])
+	}
 	tableID, err := s.db.TableID(ctx, args.Table)
 	if err != nil {
 		return nil, err
 	}
 	sctx := super.NewContext()
-	opts := anyio.ReaderOpts{Format: args.Format}
+	opts := anyio.ReaderOpts{Format: args.Format, CSV: csvio.ReaderOpts{Delim: delim}}
 	var r vio.Puller
 	switch {
 	case args.Path != "":
