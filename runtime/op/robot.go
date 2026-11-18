@@ -140,7 +140,9 @@ func (o *Robot) nextPuller() (vio.Puller, error) {
 }
 
 func (o *Robot) errOnVal(msg string, vec vector.Any) vio.Puller {
-	out := vector.NewWrappedError(o.rctx.Sctx, msg, vec)
+	out := vector.Apply(vector.ApplyNone, func(vecs ...vector.Any) vector.Any {
+		return vector.NewWrappedError(o.rctx.Sctx, msg, vecs[0])
+	}, vec)
 	return vio.NewPuller(out)
 }
 
