@@ -101,8 +101,10 @@ union to a case for each of its possible types.
 
 Because SuperSQL is polymorphic, union dispatch is not generally needed.
 Instead, union values are simply operated upon and the "right thing happens".
-An exception is [arithmetic](../expressions/arithmetic.md#type-checking),
-which requires a union whose types aren't all numbers to be narrowed first.
+The exceptions are [arithmetic](../expressions/arithmetic.md#type-checking),
+which requires a union whose types aren't all numbers to be narrowed first,
+and [comparisons](../expressions/comparisons.md#type-checking), which require
+each type of a union to be comparable with the other operand.
 
 That said, union dispatch may be accomplished with the
 [`switch`](../operators/switch.md) operator or a

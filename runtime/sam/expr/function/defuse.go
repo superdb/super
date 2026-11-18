@@ -181,6 +181,8 @@ func (f FusionChecker) hasFusion(typ super.Type) bool {
 		has = f.hasFusion(typ.KeyType) || f.hasFusion(typ.ValType)
 	case *super.TypeError:
 		has = f.hasFusion(typ.Type)
+	case *super.TypeOption:
+		has = f.hasFusion(typ.Type)
 	case *super.TypeFusion:
 		has = true
 	}

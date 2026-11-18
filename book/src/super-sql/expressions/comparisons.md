@@ -67,12 +67,56 @@ as found in other SQL databases such as Postgres.
 >[!NOTE]
 > SuperSQL does not yet support the SQL `COLLATE` keyword and variations.
 
-When the operands are coercible to like types, the result is the truth value
-of the comparison.  Otherwise, the result is `false`.  To compare values of
-different types, consider the [compare](../functions/generics/compare.md) function.
-
 If either operand to a comparison
 is `error("missing")`, then the result is `error("missing")`.
+
+## Type Checking
+
+Comparisons are not polymorphic: the operands must have the same type or
+types that are coerced to a common type as in SQL.
+
+* Integers and floating point numbers of any width are comparable with
+  each other and are [coerced](../types/numbers.md#coercion) to a common
+  number type.
+* [Records](../types/record.md) with the same field names in the same order,
+  [arrays](../types/array.md), [sets](../types/set.md), and
+  [maps](../types/map.md) are comparable when their fields or elements are,
+  and are coerced likewise.
+* Any value is comparable with `null`.
+* An option is comparable with an option whose payload type is comparable
+  with its own: their payloads are compared, and `none` equals only `none`.
+  An option compared with a value that isn't an option is an error until the
+  option is handled, e.g., with `??` or `unwrap`, or the value is wrapped
+  with `some`.
+* Values of type [net](../types/network.md) have no order, so they are
+  comparable only with `==` and `!=`.
+* Values of type `bool` and `type`, and records, arrays, sets, maps, and
+  enums, have no order either, but `<` and `>` are `false` for them while
+  `<=` and `>=` are equality.
+
+Any other comparison is a type mismatch, e.g., a number and a string, a number
+and a `time` or `duration`, or an `ip` and a `net`.  The compiler reports a
+type mismatch as an error when it knows the types of the operands.  Otherwise,
+the result of the comparison at runtime is an error value.
+
+When the type of an operand is a [union](../types/union.md), each of its types
+must be comparable with the other operand (apart from `null` and
+[errors](../types/error.md), which pass through a comparison).  Otherwise, the
+union must first be narrowed, e.g., with a
+[type assertion](type-assertions.md) like `x.(int64)??0`, or with a filter
+like `where is(x, <int64>)`.
+
+A union nested in the type of an operand (e.g., the element type of an array)
+is different: its values are compared by value with a type that the union
+holds or with a union that shares one of its types.
+
+To compare values of any types without error, use the
+[compare](../functions/generics/compare.md) function, which orders values
+of different types by type.
+
+>[!NOTE]
+> The [`in`](containment.md) operator is false for values whose types
+> aren't comparable.
 
 ## Examples
 
@@ -82,14 +126,60 @@ _Various scalar comparisons_
 
 ```mdtest-spq
 # spq
-values 1 > 2, 1 < 2, "b" > "a", 1 > "a"
+values 1 > 2, 1 < 2, "b" > "a", 1 == 1.0, [1,2] == [1.0,2.0]
 # input
 
 # expected output
 false
 true
 true
-false
+true
+true
+```
+
+---
+
+_A comparison of values of different types is an error_
+
+```mdtest-spq fails
+# spq
+values 1 > "a"
+# input
+
+# expected output
+type mismatch: int64 > string at line 1, column 8:
+values 1 > "a"
+       ~~~~~~~
+```
+
+---
+
+_A comparison with a union that has a type that isn't comparable is an error_
+
+```mdtest-spq fails
+# spq
+values {x:1},{x:"foo"} | where x == 1
+# input
+
+# expected output
+type mismatch: int64|string == int64 at line 1, column 32:
+values {x:1},{x:"foo"} | where x == 1
+                               ~~~~~~
+```
+
+---
+
+_Narrow the union or use the compare function to compare values of any type_
+
+```mdtest-spq
+# spq
+values {x:1},{x:"foo"}
+| values {narrowed:(x.(int64)??0) == 1, compared:compare(x, 1) == 0}
+# input
+
+# expected output
+{narrowed:true,compared:true}
+{narrowed:false,compared:false}
 ```
 
 ---

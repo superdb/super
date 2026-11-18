@@ -9,14 +9,17 @@ import (
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/ast"
 	"github.com/superdb/super/compiler/semantic/sem"
+	"github.com/superdb/super/runtime/sam/expr/coerce"
+	samfunc "github.com/superdb/super/runtime/sam/expr/function"
 	"github.com/superdb/super/sup"
 )
 
 type checker struct {
-	t       *translator
-	checked map[super.Type]super.Type
-	unknown super.Type
-	estack  []errlist
+	t         *translator
+	checked   map[super.Type]super.Type
+	unknown   super.Type
+	estack    []errlist
+	hasFusion samfunc.FusionChecker
 }
 
 func newChecker(t *translator) *checker {
@@ -234,7 +237,7 @@ func (c *checker) unnestCheck(loc ast.Node, typ super.Type) (super.Type, bool) {
 		// A plain none produces no values.
 		return nil, true
 	}
-	switch typ := under(typ).(type) {
+	switch typ := coerce.Under(typ).(type) {
 	case *super.TypeError:
 		c.error(loc, errors.New("unnested record cannot be an error"))
 		return c.unknown, false
@@ -267,7 +270,7 @@ func (c *checker) unnestCheck(loc ast.Node, typ super.Type) (super.Type, bool) {
 // named field of a record of type typ, which has the type of the field's
 // elements, and copying the record's other fields.
 func (c *checker) unnestField(loc ast.Node, typ super.Type, field string) (super.Type, bool) {
-	rec, ok := under(typ).(*super.TypeRecord)
+	rec, ok := coerce.Under(typ).(*super.TypeRecord)
 	if !ok {
 		return c.unknown, true
 	}
@@ -551,7 +554,7 @@ func (c *checker) orNone(typ super.Type) super.Type {
 		return typ
 	}
 	typ = defuse(typ)
-	if under(typ) == super.TypeNone {
+	if coerce.Under(typ) == super.TypeNone {
 		return typ
 	}
 	types := super.Flatten([]super.Type{typ, super.TypeNone})
@@ -562,7 +565,7 @@ func (c *checker) orNone(typ super.Type) super.Type {
 // from it (from its members if it's a union).  It returns false if nothing
 // is left.
 func (c *checker) withoutTypes(typ super.Type, drop func(super.Type) bool) (super.Type, bool) {
-	u, ok := under(typ).(*super.TypeUnion)
+	u, ok := coerce.Under(typ).(*super.TypeUnion)
 	if !ok {
 		return typ, !drop(typ)
 	}
@@ -584,7 +587,7 @@ func (c *checker) withoutTypes(typ super.Type, drop func(super.Type) bool) (supe
 }
 
 func isMissingType(typ super.Type) bool {
-	return under(typ) == super.TypeMissing
+	return coerce.Under(typ) == super.TypeMissing
 }
 
 // isNoneType reports whether typ is the type of a plain none, which
@@ -596,7 +599,7 @@ func isNoneType(typ super.Type) bool {
 // isNoneishType reports whether typ is a type whose values ?? replaces with
 // its right-hand side.
 func isNoneishType(typ super.Type) bool {
-	switch under(typ) {
+	switch coerce.Under(typ) {
 	case super.TypeNone, super.TypeNull:
 		return true
 	}
@@ -621,7 +624,7 @@ func (c *checker) coalesce(lhs, rhs super.Type) super.Type {
 			types = append(types, typ)
 		}
 	}
-	if u, ok := under(lhs).(*super.TypeUnion); ok {
+	if u, ok := coerce.Under(lhs).(*super.TypeUnion); ok {
 		for _, t := range u.Types {
 			unwrap(t)
 		}
@@ -642,13 +645,6 @@ func (c *checker) optionize(typ super.Type) super.Type {
 	return c.t.sctx.Optionize(typ)
 }
 
-// under returns the underlying type of typ with any named types and a
-// fusion type removed (see defuse), as the checker treats a fusion type as
-// its supertype.
-func under(typ super.Type) super.Type {
-	return super.TypeUnder(defuse(super.TypeUnder(typ)))
-}
-
 // defuse returns the supertype of a fusion type, where the supertype of
 // fusion(all), the data model's type for a value of any type, is any.
 func defuse(typ super.Type) super.Type {
@@ -663,6 +659,7 @@ func defuse(typ super.Type) super.Type {
 
 var errMissing = errors.New("field may be missing (consider ok())")
 var errNone = errors.New("none not handled (consider ?? or ?.)")
+var errOption = errors.New("option value not handled (consider ??)")
 
 func (c *checker) binary(op string, loc, lloc, rloc ast.Node, lhs, rhs super.Type) super.Type {
 	lhs = defuse(lhs)
@@ -692,10 +689,8 @@ func (c *checker) binary(op string, loc, lloc, rloc ast.Node, lhs, rhs super.Typ
 	case "in", "not in":
 		c.in(loc, lloc, rloc, lhs, rhs)
 		return super.TypeBool
-	case "==", "!=", "=", "<>":
-		return c.equality(lhs, rhs)
-	case "<", "<=", ">", ">=":
-		return c.comparison(lhs, rhs)
+	case "==", "!=", "<", "<=", ">", ">=":
+		return c.comparison(op, loc, lhs, rhs)
 	case "+":
 		return c.plus(loc, lhs, rhs)
 	case "-":
@@ -784,7 +779,7 @@ func (c *checker) isContainer(containerType super.Type) (super.Type, bool) {
 	if isUnknown(containerType) {
 		return c.unknown, true
 	}
-	switch typ := under(containerType).(type) {
+	switch typ := coerce.Under(containerType).(type) {
 	case *super.TypeArray:
 		return defuse(typ.Type), true
 	case *super.TypeSet:
@@ -852,7 +847,7 @@ func (c *checker) formRecordElems(elems []sem.RecordElem, types []super.Type) su
 				return c.unknown
 			}
 			// If it's not unknown, it should have passed type checking as a record.
-			recType, ok := under(typ).(*super.TypeRecord)
+			recType, ok := coerce.Under(typ).(*super.TypeRecord)
 			if !ok {
 				//XXX
 				return c.unknown
@@ -1003,9 +998,28 @@ func (c *checker) callBuiltin(call *sem.CallExpr, args []super.Type) super.Type 
 	if call.Tag == "cast" && len(call.Args) == 2 {
 		return c.castType(args[0], call.Args[1])
 	}
+	if call.Tag == "some" && len(args) == 1 {
+		return c.someType(args[0])
+	}
 	// XXX This will be handled in a subsequent PR where we add type signatures
 	// to the package containing the built-in function implementatons.
 	return c.unknown
+}
+
+// someType returns the type of some(x) for x of type typ.  Like the runtime,
+// some passes an option, an error, or missing through unchanged.
+func (c *checker) someType(typ super.Type) super.Type {
+	if hasUnknown(typ) || c.hasFusion.Check(typ) {
+		return c.unknown
+	}
+	switch coerce.Under(typ).(type) {
+	case *super.TypeOption, *super.TypeError, *super.TypeOfMissing:
+		return typ
+	case *super.TypeOfNone:
+		// some(none) is an error.
+		return c.unknown
+	}
+	return c.t.sctx.LookupTypeOption(typ)
 }
 
 // castType returns the type of a cast of a value of type in to the type value
@@ -1035,7 +1049,7 @@ func (c *checker) castType(in super.Type, e sem.Expr) super.Type {
 		typ = rest
 	}
 	if hasNullType(in) && !hasNullType(typ) {
-		if o, ok := under(typ).(*super.TypeOption); ok && !hasNullType(o.Type) {
+		if o, ok := coerce.Under(typ).(*super.TypeOption); ok && !hasNullType(o.Type) {
 			// A cast of null to an option type that doesn't admit null
 			// is the option's none.
 			return typ
@@ -1048,10 +1062,10 @@ func (c *checker) castType(in super.Type, e sem.Expr) super.Type {
 // hasNullType reports whether typ is null or a union with null as one of its
 // types.
 func hasNullType(typ super.Type) bool {
-	if u, ok := under(typ).(*super.TypeUnion); ok {
+	if u, ok := coerce.Under(typ).(*super.TypeUnion); ok {
 		return slices.ContainsFunc(u.Types, hasNullType)
 	}
-	return under(typ) == super.TypeNull
+	return coerce.Under(typ) == super.TypeNull
 }
 
 func (c *checker) callFunc(call *sem.CallExpr, args []super.Type) super.Type {
@@ -1112,7 +1126,7 @@ func (c *checker) dropPath(typ super.Type, drop path) super.Type {
 		// drop passes through non-records
 		return typ
 	}
-	rec := under(types[pick]).(*super.TypeRecord)
+	rec := coerce.Under(types[pick]).(*super.TypeRecord)
 	off, ok := rec.IndexOfField(drop.elems[0])
 	if !ok {
 		if !hasUnknown(typ) {
@@ -1135,13 +1149,13 @@ func (c *checker) dropPath(typ super.Type, drop path) super.Type {
 }
 
 func pickRec(typ super.Type) ([]super.Type, int) {
-	switch typ := deoption(under(typ)).(type) {
+	switch typ := deoption(coerce.Under(typ)).(type) {
 	case *super.TypeRecord:
 		return []super.Type{typ}, 0
 	case *super.TypeUnion:
 		types := slices.Clone(typ.Types)
 		for k := range types {
-			if _, ok := under(types[k]).(*super.TypeRecord); ok {
+			if _, ok := coerce.Under(types[k]).(*super.TypeRecord); ok {
 				return types, k
 			}
 		}
@@ -1150,7 +1164,7 @@ func pickRec(typ super.Type) ([]super.Type, int) {
 }
 
 func deoption(typ super.Type) super.Type {
-	if typ, ok := under(typ).(*super.TypeOption); ok {
+	if typ, ok := coerce.Under(typ).(*super.TypeOption); ok {
 		return typ.Type
 	}
 	return typ
@@ -1159,7 +1173,7 @@ func deoption(typ super.Type) super.Type {
 func (c *checker) putPaths(inType super.Type, puts []pathType) super.Type {
 	// Fuse each path as a single-record path into the input type.
 	//fuser.fuse(typ)
-	recType, ok := under(inType).(*super.TypeRecord)
+	recType, ok := coerce.Under(inType).(*super.TypeRecord)
 	if !ok {
 		return c.unknown
 	}
@@ -1196,7 +1210,7 @@ func (c *checker) putInto(recType *super.TypeRecord, path []string, leaf super.T
 			case len(path) > 1 && hasUnknown(typ):
 				fields[index].Type = c.unknown
 			default:
-				inner, _ := under(defuse(typ)).(*super.TypeRecord)
+				inner, _ := coerce.Under(defuse(typ)).(*super.TypeRecord)
 				fields[index].Type = c.putInto(inner, path[1:], leaf)
 			}
 		} else {
@@ -1252,7 +1266,7 @@ func typeCheck(typ super.Type, check func(super.Type) bool) bool {
 	if isUnknown(typ) {
 		return true
 	}
-	if u, ok := under(typ).(*super.TypeUnion); ok {
+	if u, ok := coerce.Under(typ).(*super.TypeUnion); ok {
 		for _, t := range u.Types {
 			if typeCheck(t, check) {
 				return true
@@ -1260,7 +1274,7 @@ func typeCheck(typ super.Type, check func(super.Type) bool) bool {
 		}
 		return false
 	}
-	if o, ok := under(typ).(*super.TypeOption); ok {
+	if o, ok := coerce.Under(typ).(*super.TypeOption); ok {
 		return typeCheck(o.Type, check)
 	}
 	return check(typ)
@@ -1296,7 +1310,7 @@ func isNumber(typ super.Type) bool {
 	if isUnknown(typ) {
 		return true
 	}
-	switch typ := under(typ).(type) {
+	switch typ := coerce.Under(typ).(type) {
 	case *super.TypeUnion:
 		var ok bool
 		for _, t := range typ.Types {
@@ -1312,7 +1326,7 @@ func isNumber(typ super.Type) bool {
 	case *super.TypeOption:
 		return isNumber(typ.Type)
 	}
-	id := under(typ).ID()
+	id := coerce.Under(typ).ID()
 	return super.IsNumber(id) || id == super.IDNull
 }
 
@@ -1329,7 +1343,7 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 	if isUnknown(inType) {
 		return c.unknown
 	}
-	switch typ := under(inType).(type) {
+	switch typ := coerce.Under(inType).(type) {
 	case *super.TypeMap:
 		t, _ := c.indexMap(loc, typ, super.TypeString)
 		return t
@@ -1436,7 +1450,7 @@ func (c *checker) in(loc, lloc, rloc ast.Node, lhs, rhs super.Type) bool {
 	if isUnknown(rhs) {
 		return true
 	}
-	switch typ := under(rhs).(type) {
+	switch typ := coerce.Under(rhs).(type) {
 	case *super.TypeOfNull:
 	case *super.TypeArray:
 		if !comparable(lhs, typ.Type) {
@@ -1495,27 +1509,95 @@ func (c *checker) in(loc, lloc, rloc ast.Node, lhs, rhs super.Type) bool {
 	return true
 }
 
-func (c *checker) equality(lhs, rhs super.Type) super.Type {
-	comparable(lhs, rhs)
+// comparison checks the operands of a comparison operator, which the runtime
+// compares only when coerce.ComparisonType has a type for them.  Otherwise the
+// comparison is a runtime error so every type of a union operand must be
+// comparable with every type of the other operand.  The compare function
+// compares values of any types.
+func (c *checker) comparison(op string, loc ast.Node, lhs, rhs super.Type) super.Type {
+	lhs, rhs = defuse(lhs), defuse(rhs)
+	if lo, ok := coerce.Under(lhs).(*super.TypeOption); ok {
+		if ro, ok := coerce.Under(rhs).(*super.TypeOption); ok {
+			// Options compare their payloads, and none equals only none.
+			lhs, rhs = lo.Type, ro.Type
+		}
+	}
+	// An option compares only with an option, which a value of unknown type
+	// may be.
+	for _, pair := range [][2]super.Type{{lhs, rhs}, {rhs, lhs}} {
+		if hasOption(pair[0]) && !isUnknown(coerce.Under(pair[1])) {
+			c.error(loc, fmt.Errorf("%s: %w", sup.FormatType(pair[0]), errOption))
+			return super.TypeBool
+		}
+	}
+	if unordered, ok := c.compares(op, lhs, rhs); !ok {
+		if unordered != nil {
+			c.error(loc, errors.New(coerce.Unordered(op, unordered)))
+		} else {
+			c.error(loc, errors.New(coerce.TypeMismatch(op, lhs, rhs)))
+		}
+	}
 	return super.TypeBool
 }
 
-func (c *checker) comparison(lhs, rhs super.Type) super.Type {
-	comparable(lhs, rhs)
-	return super.TypeBool
+// compares reports whether values of types a and b can be compared with op
+// and, if not because a has no order, returns a.
+func (c *checker) compares(op string, a, b super.Type) (unordered super.Type, ok bool) {
+	a, b = coerce.Under(a), coerce.Under(b)
+	if isUnknown(a) || isUnknown(b) {
+		return nil, true
+	}
+	if u, ok := a.(*super.TypeUnion); ok {
+		for _, t := range u.Types {
+			if unordered, ok := c.compares(op, t, b); !ok {
+				return unordered, false
+			}
+		}
+		return nil, true
+	}
+	if u, ok := b.(*super.TypeUnion); ok {
+		for _, t := range u.Types {
+			if unordered, ok := c.compares(op, a, t); !ok {
+				return unordered, false
+			}
+		}
+		return nil, true
+	}
+	// A comparison with one of these is null, an error, or (for none)
+	// false, which the runtime decides before it looks at the other type.
+	passes := func(typ super.Type) bool {
+		switch typ.(type) {
+		case *super.TypeOfNull, *super.TypeOfNone, *super.TypeOfMissing, *super.TypeError:
+			return true
+		}
+		return false
+	}
+	if passes(a) || passes(b) {
+		return nil, true
+	}
+	if _, ok := coerce.ComparisonType(c.t.sctx, c.hasFusion.Check, a, b); !ok {
+		return nil, false
+	}
+	if op != "==" && op != "!=" && !coerce.IsOrdered(a) {
+		return a, false
+	}
+	return nil, true
 }
 
+// comparable reports whether some value of type a may equal some value of
+// type b, as required by the in operator and map indexing, which (unlike the
+// comparison operators) are false or none for values of other types.
 func comparable(a, b super.Type) bool {
 	if isUnknown(a) || isUnknown(b) {
 		return true
 	}
-	if a, ok := under(a).(*super.TypeOption); ok {
+	if a, ok := coerce.Under(a).(*super.TypeOption); ok {
 		return comparable(a.Type, b)
 	}
-	if b, ok := under(b).(*super.TypeOption); ok {
+	if b, ok := coerce.Under(b).(*super.TypeOption); ok {
 		return comparable(a, b.Type)
 	}
-	if u, ok := under(a).(*super.TypeUnion); ok {
+	if u, ok := coerce.Under(a).(*super.TypeUnion); ok {
 		for _, t := range u.Types {
 			if comparable(t, b) {
 				return true
@@ -1523,7 +1605,7 @@ func comparable(a, b super.Type) bool {
 		}
 		return false
 	}
-	if u, ok := under(b).(*super.TypeUnion); ok {
+	if u, ok := coerce.Under(b).(*super.TypeUnion); ok {
 		for _, t := range u.Types {
 			if comparable(a, t) {
 				return true
@@ -1531,32 +1613,32 @@ func comparable(a, b super.Type) bool {
 		}
 		return false
 	}
-	aid := under(a).ID()
-	bid := under(b).ID()
+	aid := coerce.Under(a).ID()
+	bid := coerce.Under(b).ID()
 	if aid == bid || aid == super.IDNull || bid == super.IDNull {
 		return true
 	}
 	if super.IsNumber(aid) {
 		return super.IsNumber(bid)
 	}
-	switch under(a).(type) {
+	switch coerce.Under(a).(type) {
 	case *super.TypeRecord:
-		_, ok := under(b).(*super.TypeRecord)
+		_, ok := coerce.Under(b).(*super.TypeRecord)
 		return ok
 	case *super.TypeArray:
-		if _, ok := under(b).(*super.TypeArray); ok {
+		if _, ok := coerce.Under(b).(*super.TypeArray); ok {
 			return ok
 		}
-		_, ok := under(b).(*super.TypeSet)
+		_, ok := coerce.Under(b).(*super.TypeSet)
 		return ok
 	case *super.TypeSet:
-		if _, ok := under(b).(*super.TypeArray); ok {
+		if _, ok := coerce.Under(b).(*super.TypeArray); ok {
 			return ok
 		}
-		_, ok := under(b).(*super.TypeSet)
+		_, ok := coerce.Under(b).(*super.TypeSet)
 		return ok
 	case *super.TypeMap:
-		_, ok := under(b).(*super.TypeMap)
+		_, ok := coerce.Under(b).(*super.TypeMap)
 		return ok
 	}
 	return false
@@ -1586,16 +1668,16 @@ func (c *checker) minus(lloc, rloc ast.Node, lhs, rhs super.Type) super.Type {
 // isTimestamp reports whether typ is timestamp or a union of timestamp types
 // and null (e.g., a nullable column or a mix of named and unnamed timestamps).
 func isTimestamp(typ super.Type) bool {
-	u, ok := under(typ).(*super.TypeUnion)
+	u, ok := coerce.Under(typ).(*super.TypeUnion)
 	if !ok {
-		return under(typ).ID() == super.IDTimestamp
+		return coerce.Under(typ).ID() == super.IDTimestamp
 	}
 	var found bool
 	for _, t := range u.Types {
 		switch {
 		case isTimestamp(t):
 			found = true
-		case under(t) != super.TypeNull:
+		case coerce.Under(t) != super.TypeNull:
 			return false
 		}
 	}
@@ -1617,7 +1699,7 @@ func hasString(typ super.Type) bool {
 	if isUnknown(typ) {
 		return true
 	}
-	switch typ := under(typ).(type) {
+	switch typ := coerce.Under(typ).(type) {
 	case *super.TypeOfString, *super.TypeOfNull:
 		return true
 	case *super.TypeUnion:
@@ -1630,58 +1712,58 @@ func hasString(typ super.Type) bool {
 // any (or fusion(all), the data model's type for a value of any type, whose
 // supertype is any).
 func isUnknown(typ super.Type) bool {
-	return typ == super.TypeAny || super.IsFusionAll(typ)
+	return coerce.IsUnknown(typ)
 }
 
 func hasUnknown(typ super.Type) bool {
-	if u, ok := under(typ).(*super.TypeUnion); ok {
+	if u, ok := coerce.Under(typ).(*super.TypeUnion); ok {
 		if slices.ContainsFunc(u.Types, hasUnknown) {
 			return true
 		}
 	}
-	if o, ok := under(typ).(*super.TypeOption); ok {
+	if o, ok := coerce.Under(typ).(*super.TypeOption); ok {
 		return hasUnknown(o.Type)
 	}
 	return isUnknown(typ)
 }
 
 func hasMissing(typ super.Type) bool {
-	if u, ok := under(typ).(*super.TypeUnion); ok {
+	if u, ok := coerce.Under(typ).(*super.TypeUnion); ok {
 		if slices.ContainsFunc(u.Types, hasMissing) {
 			return true
 		}
 	}
-	return under(typ) == super.TypeMissing
+	return coerce.Under(typ) == super.TypeMissing
 }
 
 // mayBeMissing reports whether typ is a union with missing as one of its
 // types, as for a field that's absent from some records.
 func mayBeMissing(typ super.Type) bool {
-	u, ok := under(typ).(*super.TypeUnion)
+	u, ok := coerce.Under(typ).(*super.TypeUnion)
 	return ok && slices.ContainsFunc(u.Types, hasMissing)
 }
 
 // hasNone reports whether typ is none or a union with none as one of its
 // types.
 func hasNone(typ super.Type) bool {
-	if u, ok := under(typ).(*super.TypeUnion); ok {
+	if u, ok := coerce.Under(typ).(*super.TypeUnion); ok {
 		return slices.ContainsFunc(u.Types, hasNone)
 	}
-	return under(typ) == super.TypeNone
+	return coerce.Under(typ) == super.TypeNone
 }
 
 func hasOption(typ super.Type) bool {
-	if u, ok := under(typ).(*super.TypeUnion); ok {
+	if u, ok := coerce.Under(typ).(*super.TypeUnion); ok {
 		if slices.ContainsFunc(u.Types, hasOption) {
 			return true
 		}
 	}
-	_, ok := under(typ).(*super.TypeOption)
+	_, ok := coerce.Under(typ).(*super.TypeOption)
 	return ok
 }
 
 func (c *checker) hasArray(typ super.Type) (super.Type, bool) {
-	switch typ := under(typ).(type) {
+	switch typ := coerce.Under(typ).(type) {
 	case *super.TypeUnion:
 		for _, t := range typ.Types {
 			if elemType, ok := c.hasArray(t); ok {
@@ -1704,7 +1786,7 @@ func (c *checker) indexOf(cloc, iloc ast.Node, container, index super.Type) (sup
 	if hasUnknown(container) {
 		return c.unknown, true
 	}
-	switch typ := under(container).(type) {
+	switch typ := coerce.Under(container).(type) {
 	case *super.TypeArray:
 		c.pushErrs()
 		c.integer(iloc, index)
@@ -1723,7 +1805,7 @@ func (c *checker) indexOf(cloc, iloc ast.Node, container, index super.Type) (sup
 		return typ.Type, true
 	case *super.TypeRecord:
 		ok := typeCheck(index, func(typ super.Type) bool {
-			id := under(typ).ID()
+			id := coerce.Under(typ).ID()
 			return id == super.IDString || super.IsInteger(id) || id == super.IDNull
 		})
 		if !ok {
@@ -1763,7 +1845,7 @@ func (c *checker) indexOf(cloc, iloc ast.Node, container, index super.Type) (sup
 		// (or an error if the type has no such field, which we can't know
 		// statically).
 		ok := typeCheck(index, func(typ super.Type) bool {
-			id := under(typ).ID()
+			id := coerce.Under(typ).ID()
 			return id == super.IDString || super.IsInteger(id)
 		})
 		if !ok {
@@ -1792,7 +1874,7 @@ func (c *checker) sliceable(loc ast.Node, typ super.Type) {
 	if hasUnknown(typ) {
 		return
 	}
-	switch under(typ).(type) {
+	switch coerce.Under(typ).(type) {
 	case *super.TypeArray, *super.TypeSet, *super.TypeRecord, *super.TypeOfString, *super.TypeOfBytes:
 	default:
 		c.error(loc, fmt.Errorf("sliced entity is not sliceable"))
@@ -1803,7 +1885,7 @@ func (c *checker) coerceable(from, to super.Type) bool {
 	if isUnknown(from) || isUnknown(to) {
 		return true
 	}
-	if u, ok := under(from).(*super.TypeUnion); ok {
+	if u, ok := coerce.Under(from).(*super.TypeUnion); ok {
 		for _, t := range u.Types {
 			if c.coerceable(t, to) {
 				return true
@@ -1811,7 +1893,7 @@ func (c *checker) coerceable(from, to super.Type) bool {
 		}
 		return false
 	}
-	if u, ok := under(to).(*super.TypeUnion); ok {
+	if u, ok := coerce.Under(to).(*super.TypeUnion); ok {
 		for _, t := range u.Types {
 			if c.coerceable(from, t) {
 				return true
@@ -1819,32 +1901,32 @@ func (c *checker) coerceable(from, to super.Type) bool {
 		}
 		return false
 	}
-	fromID := under(from).ID()
-	toID := under(to).ID()
+	fromID := coerce.Under(from).ID()
+	toID := coerce.Under(to).ID()
 	if fromID == toID || fromID == super.IDNull || toID == super.IDNull {
 		return true
 	}
 	if super.IsNumber(toID) {
 		return super.IsNumber(fromID)
 	}
-	switch under(to).(type) {
+	switch coerce.Under(to).(type) {
 	case *super.TypeRecord:
-		_, ok := under(from).(*super.TypeRecord)
+		_, ok := coerce.Under(from).(*super.TypeRecord)
 		return ok
 	case *super.TypeArray:
-		if _, ok := under(from).(*super.TypeArray); ok {
+		if _, ok := coerce.Under(from).(*super.TypeArray); ok {
 			return ok
 		}
-		_, ok := under(from).(*super.TypeSet)
+		_, ok := coerce.Under(from).(*super.TypeSet)
 		return ok
 	case *super.TypeSet:
-		if _, ok := under(from).(*super.TypeArray); ok {
+		if _, ok := coerce.Under(from).(*super.TypeArray); ok {
 			return ok
 		}
-		_, ok := under(from).(*super.TypeSet)
+		_, ok := coerce.Under(from).(*super.TypeSet)
 		return ok
 	case *super.TypeMap:
-		_, ok := under(from).(*super.TypeMap)
+		_, ok := coerce.Under(from).(*super.TypeMap)
 		return ok
 	}
 	return false
@@ -1986,7 +2068,7 @@ func (c *checker) typeAssert(in super.Type, e sem.Expr) super.Type {
 	}
 	types := []super.Type{target}
 	if _, ok := target.(*super.TypeNamed); ok {
-		if u, ok := under(target).(*super.TypeUnion); ok {
+		if u, ok := coerce.Under(target).(*super.TypeUnion); ok {
 			// A value whose type is a member of a named union type is
 			// the value with its member type (not the named type).
 			types = append(types, u.Types...)
@@ -1994,7 +2076,7 @@ func (c *checker) typeAssert(in super.Type, e sem.Expr) super.Type {
 	}
 	if !hasUnknown(in) {
 		members := []super.Type{defuse(in)}
-		if u, ok := under(members[0]).(*super.TypeUnion); ok {
+		if u, ok := coerce.Under(members[0]).(*super.TypeUnion); ok {
 			members = u.Types
 		}
 		for _, t := range members {
@@ -2066,7 +2148,7 @@ func (c *checker) matchType(in super.Type, targets, types []super.Type, hasElse 
 	out := slices.Clone(types)
 	exhaustive := !hasUnknown(in) && !slices.Contains(targets, nil)
 	members := []super.Type{defuse(in)}
-	if u, ok := under(members[0]).(*super.TypeUnion); ok {
+	if u, ok := coerce.Under(members[0]).(*super.TypeUnion); ok {
 		members = u.Types
 	}
 	for _, m := range members {

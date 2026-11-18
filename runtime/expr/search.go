@@ -26,7 +26,7 @@ func NewSearch(sctx *super.Context, s string, val super.Value, e Evaluator) Eval
 	if val.Type().ID() == super.IDNet {
 		net = super.DecodeNet(val.Bytes())
 	}
-	eq := NewCompare(super.NewContext() /* XXX */, "==", nil, nil)
+	eq := NewLenientCompare(super.NewContext() /* XXX */, "==")
 	vectorPred := func(vec vector.Any) vector.Any {
 		if net.IsValid() && vec.Kind() == vector.KindIP {
 			out := vector.NewFalse(vec.Len())

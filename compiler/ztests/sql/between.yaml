@@ -1,8 +1,8 @@
 
 script: |
-  super -s -c 'select val between lower and upper as x from in.sup'
+  super -dynamic -s -c 'select val between lower and upper as x from in.sup'
   echo ===
-  super -s -c 'select val not between lower and upper as x from in.sup'
+  super -dynamic -s -c 'select val not between lower and upper as x from in.sup'
   echo ===
   super -s -c 'values  "Cat" BETWEEN upper(lower) And upper(upper)' in.sup
   echo ===

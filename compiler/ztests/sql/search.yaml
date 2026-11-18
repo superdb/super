@@ -1,7 +1,7 @@
 script: |
   super -s -c 'select * from "a.sup" | search 13'
   echo ===
-  super -s -c 'select * from "messy.sup" | search bar or s==4'
+  super -s -c 'select * from "messy.sup" | search bar or s::int64==4'
   echo ===
   super -s -c 'select * from "b.sup" | search len(b) >= 3'
 

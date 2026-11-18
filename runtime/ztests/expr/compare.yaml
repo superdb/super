@@ -1,5 +1,7 @@
 spq: values [a==b, a!=b, a<b, a<=b, a>=b, a>b]
 
+flags: -dynamic
+
 input: |
   {a:false,b:false}
   {a:false,b:true}
@@ -16,6 +18,8 @@ output: |
 
 spq: values [a==b, a!=b, a<b, a<=b, a>=b, a>b]
 
+flags: -dynamic
+
 input: |
   {a:{aa:1},b:{aa:1}}
   {a:{aa:1},b:{aa:2}}
@@ -30,17 +34,19 @@ input: |
 output: |
   [true,false,false,true,true,false]
   [false,true,false,false,false,false]
+  [error("type mismatch: {aa:int64} == {aa:string}"),error("type mismatch: {aa:int64} != {aa:string}"),error("type mismatch: {aa:int64} < {aa:string}"),error("type mismatch: {aa:int64} <= {aa:string}"),error("type mismatch: {aa:int64} >= {aa:string}"),error("type mismatch: {aa:int64} > {aa:string}")]
   [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
+  [error("type mismatch: {aa:int64} == {aa:error(int64)}"),error("type mismatch: {aa:int64} != {aa:error(int64)}"),error("type mismatch: {aa:int64} < {aa:error(int64)}"),error("type mismatch: {aa:int64} <= {aa:error(int64)}"),error("type mismatch: {aa:int64} >= {aa:error(int64)}"),error("type mismatch: {aa:int64} > {aa:error(int64)}")]
+  [error("type mismatch: {aa:int64} == {bb:int64}"),error("type mismatch: {aa:int64} != {bb:int64}"),error("type mismatch: {aa:int64} < {bb:int64}"),error("type mismatch: {aa:int64} <= {bb:int64}"),error("type mismatch: {aa:int64} >= {bb:int64}"),error("type mismatch: {aa:int64} > {bb:int64}")]
+  [error("type mismatch: {aa:int64} == int64"),error("type mismatch: {aa:int64} != int64"),error("type mismatch: {aa:int64} < int64"),error("type mismatch: {aa:int64} <= int64"),error("type mismatch: {aa:int64} >= int64"),error("type mismatch: {aa:int64} > int64")]
   [null,null,null,null,null,null]
   [error({message:"==: error value encountered",on:error(0)}),error({message:"!=: error value encountered",on:error(0)}),error({message:"<: error value encountered",on:error(0)}),error({message:"<=: error value encountered",on:error(0)}),error({message:">=: error value encountered",on:error(0)}),error({message:">: error value encountered",on:error(0)})]
 
 ---
 
 spq: values [a==b, a!=b, a<b, a<=b, a>=b, a>b]
+
+flags: -dynamic
 
 input: |
   {a:[1],b:[1]}
@@ -55,16 +61,18 @@ input: |
 output: |
   [true,false,false,true,true,false]
   [false,true,false,false,false,false]
+  [error("type mismatch: [int64] == [string]"),error("type mismatch: [int64] != [string]"),error("type mismatch: [int64] < [string]"),error("type mismatch: [int64] <= [string]"),error("type mismatch: [int64] >= [string]"),error("type mismatch: [int64] > [string]")]
   [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
+  [error("type mismatch: [int64] == [error(int64)]"),error("type mismatch: [int64] != [error(int64)]"),error("type mismatch: [int64] < [error(int64)]"),error("type mismatch: [int64] <= [error(int64)]"),error("type mismatch: [int64] >= [error(int64)]"),error("type mismatch: [int64] > [error(int64)]")]
+  [error("type mismatch: [int64] == int64"),error("type mismatch: [int64] != int64"),error("type mismatch: [int64] < int64"),error("type mismatch: [int64] <= int64"),error("type mismatch: [int64] >= int64"),error("type mismatch: [int64] > int64")]
   [null,null,null,null,null,null]
   [error({message:"==: error value encountered",on:error(0)}),error({message:"!=: error value encountered",on:error(0)}),error({message:"<: error value encountered",on:error(0)}),error({message:"<=: error value encountered",on:error(0)}),error({message:">=: error value encountered",on:error(0)}),error({message:">: error value encountered",on:error(0)})]
 
 ---
 
 spq: values [a==b, a!=b, a<b, a<=b, a>=b, a>b]
+
+flags: -dynamic
 
 input: |
   {a:set[1],b:set[1]}
@@ -79,16 +87,18 @@ input: |
 output: |
   [true,false,false,true,true,false]
   [false,true,false,false,false,false]
+  [error("type mismatch: set[int64] == set[string]"),error("type mismatch: set[int64] != set[string]"),error("type mismatch: set[int64] < set[string]"),error("type mismatch: set[int64] <= set[string]"),error("type mismatch: set[int64] >= set[string]"),error("type mismatch: set[int64] > set[string]")]
   [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
+  [error("type mismatch: set[int64] == set[error(int64)]"),error("type mismatch: set[int64] != set[error(int64)]"),error("type mismatch: set[int64] < set[error(int64)]"),error("type mismatch: set[int64] <= set[error(int64)]"),error("type mismatch: set[int64] >= set[error(int64)]"),error("type mismatch: set[int64] > set[error(int64)]")]
+  [error("type mismatch: [int64] == int64"),error("type mismatch: [int64] != int64"),error("type mismatch: [int64] < int64"),error("type mismatch: [int64] <= int64"),error("type mismatch: [int64] >= int64"),error("type mismatch: [int64] > int64")]
   [null,null,null,null,null,null]
   [error({message:"==: error value encountered",on:error(0)}),error({message:"!=: error value encountered",on:error(0)}),error({message:"<: error value encountered",on:error(0)}),error({message:"<=: error value encountered",on:error(0)}),error({message:">=: error value encountered",on:error(0)}),error({message:">: error value encountered",on:error(0)})]
 
 ---
 
 spq: values [a==b, a!=b, a<b, a<=b, a>=b, a>b]
+
+flags: -dynamic
 
 input: |
   {a:map{"aa":1},b:map{"aa":1}}
@@ -104,17 +114,19 @@ input: |
 output: |
   [true,false,false,true,true,false]
   [false,true,false,false,false,false]
+  [error("type mismatch: map{string:int64} == map{string:string}"),error("type mismatch: map{string:int64} != map{string:string}"),error("type mismatch: map{string:int64} < map{string:string}"),error("type mismatch: map{string:int64} <= map{string:string}"),error("type mismatch: map{string:int64} >= map{string:string}"),error("type mismatch: map{string:int64} > map{string:string}")]
   [false,true,false,false,false,false]
+  [error("type mismatch: map{string:int64} == map{string:error(int64)}"),error("type mismatch: map{string:int64} != map{string:error(int64)}"),error("type mismatch: map{string:int64} < map{string:error(int64)}"),error("type mismatch: map{string:int64} <= map{string:error(int64)}"),error("type mismatch: map{string:int64} >= map{string:error(int64)}"),error("type mismatch: map{string:int64} > map{string:error(int64)}")]
   [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
+  [error("type mismatch: map{string:int64} == int64"),error("type mismatch: map{string:int64} != int64"),error("type mismatch: map{string:int64} < int64"),error("type mismatch: map{string:int64} <= int64"),error("type mismatch: map{string:int64} >= int64"),error("type mismatch: map{string:int64} > int64")]
   [null,null,null,null,null,null]
   [error({message:"==: error value encountered",on:error(0)}),error({message:"!=: error value encountered",on:error(0)}),error({message:"<: error value encountered",on:error(0)}),error({message:"<=: error value encountered",on:error(0)}),error({message:">=: error value encountered",on:error(0)}),error({message:">: error value encountered",on:error(0)})]
 
 ---
 
 spq: values [a==b, a!=b, a<b, a<=b, a>=b, a>b]
+
+flags: -dynamic
 
 input: |
   {a:"aa"::enum(aa,bb),b:"aa"::enum(aa,bb)}
@@ -127,7 +139,7 @@ input: |
 output: |
   [true,false,false,true,true,false]
   [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
-  [false,true,false,false,false,false]
+  [error("type mismatch: enum(aa,bb) == enum(aa,zz)"),error("type mismatch: enum(aa,bb) != enum(aa,zz)"),error("type mismatch: enum(aa,bb) < enum(aa,zz)"),error("type mismatch: enum(aa,bb) <= enum(aa,zz)"),error("type mismatch: enum(aa,bb) >= enum(aa,zz)"),error("type mismatch: enum(aa,bb) > enum(aa,zz)")]
+  [error("type mismatch: enum(aa,bb) == string"),error("type mismatch: enum(aa,bb) != string"),error("type mismatch: enum(aa,bb) < string"),error("type mismatch: enum(aa,bb) <= string"),error("type mismatch: enum(aa,bb) >= string"),error("type mismatch: enum(aa,bb) > string")]
   [null,null,null,null,null,null]
   [error({message:"==: error value encountered",on:error(0)}),error({message:"!=: error value encountered",on:error(0)}),error({message:"<: error value encountered",on:error(0)}),error({message:"<=: error value encountered",on:error(0)}),error({message:">=: error value encountered",on:error(0)}),error({message:">: error value encountered",on:error(0)})]

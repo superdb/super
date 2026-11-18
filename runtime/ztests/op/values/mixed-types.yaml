@@ -9,7 +9,9 @@ output: |
 
 ---
 
-spq: values 1, "x" | values this, true | left join (values "x") on left=right | sort this
+# The key is cast to string since an int64|bool|string isn't comparable with
+# a string.
+spq: values 1, "x" | values this, true | left join (values "x") on left::string=right | sort this
 
 output: |
   {left:1}

@@ -26,16 +26,18 @@ type DotExpr struct {
 	nullish   bool
 	okPush    bool
 	hasFusion samfunc.FusionChecker
+	mapKeyEq  *Compare
 }
 
 func NewDotExpr(sctx *super.Context, record Evaluator, field string, noneish, nullish bool) *DotExpr {
 	return &DotExpr{
-		sctx:    sctx,
-		defuse:  NewSuperDefuse(sctx),
-		entity:  record,
-		key:     field,
-		noneish: noneish,
-		nullish: nullish,
+		sctx:     sctx,
+		defuse:   NewSuperDefuse(sctx),
+		entity:   record,
+		key:      field,
+		noneish:  noneish,
+		nullish:  nullish,
+		mapKeyEq: NewLenientCompare(sctx, "=="),
 	}
 }
 
@@ -118,7 +120,7 @@ func (d *DotExpr) eval(vecs ...vector.Any) vector.Any {
 		return d.derefTypeValue(vec)
 	case *vector.Map:
 		keyVec := vector.NewConstString(d.key, vec.Len())
-		return indexMap(d.sctx, vec, keyVec)
+		return indexMap(d.mapKeyEq, vec, keyVec)
 	case *vector.View:
 		return vector.Pick(d.eval(vec.Any), vec.Index)
 	case *vector.Error:

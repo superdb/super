@@ -260,13 +260,13 @@ func TestFilters(t *testing.T) {
 		{"?10.0.0.0/8", false},
 	})
 
-	// Test time coercion
+	// Test that a time isn't comparable with a number
 	runCases(t, "{ts:1970-01-01T00:00:01.001Z,ts2:2020-01-07T15:38:52Z,ts3:2020-01-07T15:38:53.01Z}", []testcase{
-		{"ts<2000000000", true},
-		{"ts==1001000000", true},
-		{"ts<1002000000.0", true},
-		{"ts<2000000000.0", true},
-		{"ts2==1578411532000000000", true},
+		{"ts<2000000000", false},
+		{"ts==1001000000", false},
+		{"ts<1002000000.0", false},
+		{"ts<2000000000.0", false},
+		{"ts2==1578411532000000000", false},
 		{"ts3==1578411533000000000", false},
 	})
 
@@ -369,7 +369,7 @@ func TestFilters(t *testing.T) {
 		{"a != 50.1.168.192", true},
 		{"cidr_match(192.168.0.0/16, a)", true},
 		{"a == 10.0.0.0/16", false},
-		{"a != 192.168.0.0/16", true},
+		{"a != 192.168.0.0/16", false},
 	})
 
 	// Test comparisons with a named type

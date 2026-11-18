@@ -48,6 +48,8 @@ func (d *SuperDefuse) eval(in vector.Any) vector.Any {
 		return d.Eval(u.Dynamic())
 	case vector.KindError:
 		return d.defuseError(in)
+	case vector.KindOption:
+		return d.defuseOption(in)
 	case vector.KindFusion:
 		if in.Len() == 0 {
 			return vector.NewMissing(0)
@@ -88,6 +90,106 @@ func (d *SuperDefuse) defuseRecord(vec vector.Any) vector.Any {
 		typ := d.sctx.MustLookupTypeRecord(fields)
 		return vector.NewRecord(typ, fieldVecs, n)
 	}, vecs...)
+}
+
+// defuseOption defuses the payload of an option, which becomes a union if it
+// has more than one type.
+func (d *SuperDefuse) defuseOption(in vector.Any) vector.Any {
+	option := vector.UnderOption(in)
+	return option.Apply(func(tags []uint32, some vector.Any, none *vector.None) vector.Any {
+		if some == nil {
+			// With no values to defuse, each fusion type in the payload
+			// type becomes its supertype.
+			if typ, ok := d.defuseType(option.Typ.Type); ok {
+				return vector.NewOptionNone(d.sctx.LookupTypeOption(typ), none.Len())
+			}
+			return in
+		}
+		some = mergeSameTypes(d.eval(some))
+		if dynamic, ok := some.(*vector.Dynamic); ok {
+			some = vector.NewUnionFromDynamic(d.sctx, dynamic)
+		}
+		typ := d.sctx.LookupTypeOption(some.Type())
+		if none == nil {
+			return vector.NewOptionSome(typ, some)
+		}
+		return vector.NewOption(typ, tags, some, none)
+	})
+}
+
+// defuseType returns typ with each fusion type replaced by its supertype or
+// false if typ contains fusion(all), whose supertype isn't a type of values.
+func (d *SuperDefuse) defuseType(typ super.Type) (super.Type, bool) {
+	if !d.hasFusion.Check(typ) {
+		return typ, true
+	}
+	switch typ := typ.(type) {
+	case *super.TypeFusion:
+		if typ.Type == super.TypeAll {
+			return nil, false
+		}
+		return d.defuseType(typ.Type)
+	case *super.TypeRecord:
+		fields := make([]super.Field, len(typ.Fields))
+		for i, f := range typ.Fields {
+			t, ok := d.defuseType(f.Type)
+			if !ok {
+				return nil, false
+			}
+			fields[i] = super.NewField(f.Name, t)
+		}
+		rec, err := d.sctx.LookupTypeRecord(fields)
+		return rec, err == nil
+	case *super.TypeArray:
+		t, ok := d.defuseType(typ.Type)
+		if !ok {
+			return nil, false
+		}
+		return d.sctx.LookupTypeArray(t), true
+	case *super.TypeSet:
+		t, ok := d.defuseType(typ.Type)
+		if !ok {
+			return nil, false
+		}
+		return d.sctx.LookupTypeSet(t), true
+	case *super.TypeMap:
+		key, ok := d.defuseType(typ.KeyType)
+		if !ok {
+			return nil, false
+		}
+		val, ok := d.defuseType(typ.ValType)
+		if !ok {
+			return nil, false
+		}
+		return d.sctx.LookupTypeMap(key, val), true
+	case *super.TypeUnion:
+		types := make([]super.Type, 0, len(typ.Types))
+		for _, t := range typ.Types {
+			t, ok := d.defuseType(t)
+			if !ok {
+				return nil, false
+			}
+			types = append(types, t)
+		}
+		types = super.Flatten(types)
+		if len(types) == 1 {
+			return types[0], true
+		}
+		return d.sctx.LookupTypeUnion(types)
+	case *super.TypeOption:
+		t, ok := d.defuseType(typ.Type)
+		if !ok {
+			return nil, false
+		}
+		return d.sctx.LookupTypeOption(t), true
+	case *super.TypeError:
+		t, ok := d.defuseType(typ.Type)
+		if !ok {
+			return nil, false
+		}
+		return d.sctx.LookupTypeError(t), true
+	}
+	return typ, true
 }
 
 func (d *SuperDefuse) defuseArray(in vector.Any) vector.Any {

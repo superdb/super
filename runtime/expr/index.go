@@ -19,10 +19,11 @@ type Index struct {
 	container Evaluator
 	index     Evaluator
 	base1     bool
+	mapKeyEq  *Compare
 }
 
 func NewIndexExpr(sctx *super.Context, container, index Evaluator, base1 bool) Evaluator {
-	return &Index{sctx, container, index, base1}
+	return &Index{sctx, container, index, base1, NewLenientCompare(sctx, "==")}
 }
 
 func (i *Index) Eval(this vector.Any) vector.Any {
@@ -38,7 +39,7 @@ func (i *Index) eval(args ...vector.Any) vector.Any {
 	case vector.KindRecord:
 		return indexRecord(i.sctx, container, index, i.base1)
 	case vector.KindMap:
-		return indexMap(i.sctx, container, index)
+		return indexMap(i.mapKeyEq, container, index)
 	case vector.KindType:
 		return indexTypeValue(i.sctx, container, index, i.base1)
 	case vector.KindNull:
@@ -160,7 +161,9 @@ func indexRecord(sctx *super.Context, vec, indexVec vector.Any, base1 bool) vect
 	return vector.NewDynamic(tags, out)
 }
 
-func indexMap(sctx *super.Context, vec, indexVec vector.Any) vector.Any {
+// indexMap looks up indexVec in map vec, comparing keys with keyEq, a lenient
+// == comparison.
+func indexMap(keyEq *Compare, vec, indexVec vector.Any) vector.Any {
 	// XXX At some point we'll want to optimize having a const indexVec.
 	if _, ok := indexVec.(*vector.Error); ok {
 		return indexVec
@@ -173,8 +176,7 @@ func indexMap(sctx *super.Context, vec, indexVec vector.Any) vector.Any {
 		}
 	}
 	var valIndexes, nones []uint32
-	cmp := NewCompare(sctx, "==", nil, nil).evalAllowingOption
-	hits := vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, cmp, vector.Pick(indexVec, pick), m.Keys)
+	hits := vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, keyEq.evalAllowingOption, vector.Pick(indexVec, pick), m.Keys)
 	bits := FlattenBool(hits).Bits
 	for i := range vec.Len() {
 		selected := -1

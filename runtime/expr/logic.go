@@ -211,7 +211,7 @@ type In struct {
 }
 
 func NewIn(sctx *super.Context, lhs, rhs Evaluator) *In {
-	return &In{sctx, lhs, rhs, NewSuperDefuse(sctx), NewPredicateWalk(sctx, NewCompare(sctx, "==", nil, nil).eval)}
+	return &In{sctx, lhs, rhs, NewSuperDefuse(sctx), NewPredicateWalk(sctx, NewLenientCompare(sctx, "==").eval)}
 }
 
 func (i *In) Eval(this vector.Any) vector.Any {
