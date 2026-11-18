@@ -22,6 +22,8 @@ script: |
   super compile -C -dag "from a.csv (delim ';') | values price"
   super compile -C -dag "from f'{this}' (delim ';')"
   ! super -s -static -c "from a.csv (delim ';;')"
+  ! super -s -c "from a.csv (delim '\u0000')"
+  ! super -s -c "from a.csv (delim '\"')"
   ! super -s -c "from e.tsv (delim ';')"
   ! super -s -c "from a.csv (format json delim ';')"
   ! super compile -C -dag "from https://host/api (delim ';')"
@@ -82,6 +84,12 @@ outputs:
       delim must be a single ASCII character at line 1, column 13:
       from a.csv (delim ';;')
                   ~~~~~~~~~~
+      delim cannot be a double quote, carriage return, newline, or NUL at line 1, column 13:
+      from a.csv (delim '\u0000')
+                  ~~~~~~~~~~~~~~
+      delim cannot be a double quote, carriage return, newline, or NUL at line 1, column 13:
+      from a.csv (delim '"')
+                  ~~~~~~~~~
       delim requires format csv at line 1, column 13:
       from e.tsv (delim ';')
                   ~~~~~~~~~

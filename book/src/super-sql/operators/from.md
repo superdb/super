@@ -122,7 +122,8 @@ with an argument of the form
 ```
 delim <char>
 ```
-where `<char>` is a single ASCII character parsed as a
+where `<char>` is a single ASCII character other than a double quote,
+carriage return, newline, or NUL, parsed as a
 [text entity](../queries.md#text-entity), e.g., `';'` or `'\t'`.
 It overrides the `-csv.delim` [command-line option](../../command/options.md#input)
 for that source.  It is an error to specify a `delim` argument

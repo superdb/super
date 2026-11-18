@@ -518,6 +518,10 @@ func (t *translator) delimArg(o opArgs, format string) (string, bool) {
 		t.error(loc, errors.New("delim must be a single ASCII character"))
 		return "", false
 	}
+	if strings.ContainsAny(delim, "\"\r\n\x00") {
+		t.error(loc, errors.New("delim cannot be a double quote, carriage return, newline, or NUL"))
+		return "", false
+	}
 	if format != "" && format != "csv" {
 		t.error(loc, errors.New("delim requires format csv"))
 		return "", false
