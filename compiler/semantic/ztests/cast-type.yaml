@@ -82,3 +82,32 @@ error: |
   field may be missing (consider ok()) at line 1, column 8:
   values y::(int64|missing)
          ~~~~~~~~~~~~~~~~~~
+
+---
+
+# A none cast to a type other than none, an option, or a union with none is
+# that type's option's none.
+spq: |
+  values
+    typeof([none::int64]),
+    [none::int64] == [none::int64],
+    [none::int64] != [some(1)],
+    {a:none::int64} == {a:some(1)},
+    none::int64 == some(1)
+
+output: |
+  <[option(int64)]>
+  true
+  true
+  false
+  false
+
+---
+
+# A value that may be none is cast to that type or its option's none.
+spq: values "1", "a" | values ok(this::int64)::string | values this == "1"
+
+error: |
+  string|option(string): option value not handled (consider ??) at line 1, column 59:
+  values "1", "a" | values ok(this::int64)::string | values this == "1"
+                                                            ~~~~~~~~~~~

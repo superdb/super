@@ -2,7 +2,7 @@
 # aggregations merged by a final one, exercising the partials paths of each
 # aggregate function.  The results must match the unparallelized ones.
 script: |
-  q='sum(v.ok()), min(v.ok()), avg(v.ok()), collect(v.ok()), array_agg(v.ok()), union(v.ok()), dcount(v.ok()), fuse(this), count(distinct v.ok()), any(v.ok()), and(v.ok()::int64==4), collect_map(map{k:v.ok()}) by k | sort k'
+  q='sum(v.ok()), min(v.ok()), avg(v.ok()), collect(v.ok()), array_agg(v.ok()), union(v.ok()), dcount(v.ok()), fuse(this), count(distinct v.ok()), any(v.ok()), and(v::int64==4), collect_map(map{k:v.ok()}) by k | sort k'
   super -s -c "$q" in.sup > serial.sup
   super -s -c "from in.sup | $q" > partials.sup
   cmp serial.sup partials.sup && echo same

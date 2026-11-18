@@ -134,14 +134,17 @@ output: |
 
 ---
 
-# Complex values are with an ordering operator but have no
-# order: < and > are false while <= and >= are equality.
-spq: values [1]>[0], [1]<=[1.0], {a:1}>={a:0}
+# Complex values are comparable with an ordering operator.  Arrays are
+# ordered, while other complex values have no order: < and > are false while
+# <= and >= are equality.
+spq: values [1]>[0], [1]<=[1.0], {a:1}>={a:0}, set[1]>set[0], set[1]<=set[1.0]
 
 output: |
-  false
+  true
   true
   false
+  false
+  true
 
 ---
 
