@@ -1530,38 +1530,27 @@ func (c *checker) comparison(op string, loc ast.Node, lhs, rhs super.Type) super
 			return super.TypeBool
 		}
 	}
-	if unordered, ok := c.compares(op, lhs, rhs); !ok {
-		if unordered != nil {
-			c.error(loc, errors.New(coerce.Unordered(op, unordered)))
-		} else {
-			c.error(loc, errors.New(coerce.TypeMismatch(op, lhs, rhs)))
-		}
+	if !c.compares(lhs, rhs) {
+		c.error(loc, errors.New(coerce.TypeMismatch(op, lhs, rhs)))
 	}
 	return super.TypeBool
 }
 
-// compares reports whether values of types a and b can be compared with op
-// and, if not because a has no order, returns a.
-func (c *checker) compares(op string, a, b super.Type) (unordered super.Type, ok bool) {
+// compares reports whether values of types a and b can be compared.
+func (c *checker) compares(a, b super.Type) bool {
 	a, b = coerce.Under(a), coerce.Under(b)
 	if isUnknown(a) || isUnknown(b) {
-		return nil, true
+		return true
 	}
 	if u, ok := a.(*super.TypeUnion); ok {
-		for _, t := range u.Types {
-			if unordered, ok := c.compares(op, t, b); !ok {
-				return unordered, false
-			}
-		}
-		return nil, true
+		return !slices.ContainsFunc(u.Types, func(t super.Type) bool {
+			return !c.compares(t, b)
+		})
 	}
 	if u, ok := b.(*super.TypeUnion); ok {
-		for _, t := range u.Types {
-			if unordered, ok := c.compares(op, a, t); !ok {
-				return unordered, false
-			}
-		}
-		return nil, true
+		return !slices.ContainsFunc(u.Types, func(t super.Type) bool {
+			return !c.compares(a, t)
+		})
 	}
 	// A comparison with one of these is null, an error, or (for none)
 	// false, which the runtime decides before it looks at the other type.
@@ -1573,15 +1562,10 @@ func (c *checker) compares(op string, a, b super.Type) (unordered super.Type, ok
 		return false
 	}
 	if passes(a) || passes(b) {
-		return nil, true
+		return true
 	}
-	if _, ok := coerce.ComparisonType(c.t.sctx, c.hasFusion.Check, a, b); !ok {
-		return nil, false
-	}
-	if op != "==" && op != "!=" && !coerce.IsOrdered(a) {
-		return a, false
-	}
-	return nil, true
+	_, ok := coerce.ComparisonType(c.t.sctx, c.hasFusion.Check, a, b)
+	return ok
 }
 
 // comparable reports whether some value of type a may equal some value of
