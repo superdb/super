@@ -1,0 +1,155 @@
+# Arrays are ordered by their first elements that aren't equal, with null
+# after any other value, and an array whose elements all equal those at the
+# start of a longer array is ordered before it.
+spq: values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
+
+flags: -dynamic
+
+input: |
+  {a:[],b:[]}
+  {a:[],b:[1]}
+  {a:[1],b:[]}
+  {a:[1,2],b:[1,2]}
+  {a:[1,2],b:[1,3]}
+  {a:[1,3],b:[2]}
+  {a:[1,2],b:[1,2,0]}
+  {a:[1],b:[1.5]}
+  {a:["b"],b:["a","z"]}
+  {a:[[1],[2]],b:[[1],[2,0]]}
+  {a:[1,"a"],b:[1,"b"]}
+  {a:[1,null],b:[1,2]}
+  {a:[null],b:[null]}
+  {a:[null,1],b:[null,2]}
+
+output: |
+  [false,true,true,false,true,false]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+  [false,true,true,false,true,false]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+  [false,true,true,false,true,false]
+  [true,true,false,true,false,false]
+
+---
+
+# Elements that are unequal but have no order (e.g., records and values of
+# different types in a union) leave the arrays with no order.
+spq: values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
+
+flags: -dynamic
+
+input: |
+  {a:[{x:1},{x:2}],b:[{x:1},{x:3}]}
+  {a:[{x:1},{x:2}],b:[{x:2},{x:1}]}
+  {a:[1,"b"],b:["a",2]}
+
+output: |
+  [false,false,false,true,false,false]
+  [false,false,false,true,false,false]
+  [false,false,false,true,false,false]
+
+---
+
+spq: values [] < [1], [1] > [], [[]] < [[1]]
+
+output: |
+  true
+  true
+  true
+
+---
+
+# Elements of each orderable type are ordered as they are outside an array.
+spq: |
+  type port=int64
+  values
+    {a:[1::uint8],b:[2::uint8]},
+    {a:[1.5::float32],b:[-2.5::float32]},
+    {a:[false],b:[true]},
+    {a:[0x02],b:[0x0102]},
+    {a:["B"],b:["a"]},
+    {a:[10.0.0.2],b:[10.0.0.10]},
+    {a:[10.0.0.0/16],b:[10.0.0.0/8]},
+    {a:[2026-01-02T00:00:00Z],b:[2026-01-01T00:00:00Z]},
+    {a:[1s],b:[1m]},
+    {a:[00000000-0000-0000-0000-000000000002::uuid],b:[00000000-0000-0000-0000-000000000001::uuid]},
+    {a:[443::port],b:[80::port]}
+  | values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
+
+output: |
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+  [false,false,false,true,true,true]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+  [false,false,false,true,true,true]
+
+---
+
+# Floating point elements are equal when their values are, and NaN is equal
+# only to NaN and has no order.
+spq: |
+  values
+    {a:[0.0*-1.0],b:[0.0]},
+    {a:[0.0/0.0],b:[0.0/0.0]},
+    {a:[0.0/0.0],b:[1.0]}
+  | values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
+
+output: |
+  [false,true,true,false,true,false]
+  [false,true,true,false,true,false]
+  [false,false,false,true,false,false]
+
+---
+
+# Option elements are ordered by their values, while none equals only none and
+# has no order.
+spq: |
+  values
+    {a:[some(1)],b:[some(2)]},
+    {a:[some(1)],b:[some(1)]},
+    {a:[upcast(none::int64, <option(int64)>)],b:[upcast(none::int64, <option(int64)>)]},
+    {a:[upcast(none::int64, <option(int64)>)],b:[some(1)]}
+  | values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
+
+output: |
+  [true,true,false,true,false,false]
+  [false,true,true,false,true,false]
+  [false,true,true,false,true,false]
+  [false,false,false,true,false,false]
+
+---
+
+# Type values have no order.
+spq: |
+  values {a:[<int64>],b:[<int64>]}, {a:[<int64>],b:[<string>]}
+  | values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
+
+output: |
+  [false,true,true,false,true,false]
+  [false,false,false,true,false,false]
+
+---
+
+# An empty array, whose element type is none, is comparable with any array,
+# including when nested.
+spq: values [] == [1], [] != [1], [] == [], [[]] == [[1]], {a:[]} == {a:[1]}
+
+output: |
+  false
+  true
+  true
+  false
+  false

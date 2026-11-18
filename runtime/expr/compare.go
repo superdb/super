@@ -3,7 +3,9 @@ package expr
 //go:generate go run gencomparefuncs.go
 
 import (
+	"bytes"
 	"cmp"
+	"math"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/runtime/expr/cast"
@@ -423,6 +425,9 @@ func (c *Compare) compareComplex(lhs, rhs vector.Any) vector.Any {
 		// uint64 too large for int64), so the values are unequal.
 		return vector.NewConstBool(c.opCode == vector.CompNE, lhs.Len())
 	}
+	if typ, ok := super.TypeUnder(lhs.Type()).(*super.TypeArray); ok {
+		return c.compareArrays(typ, lhs, rhs)
+	}
 	if c.opCode == vector.CompLT || c.opCode == vector.CompGT {
 		return vector.NewConstBool(false, lhs.Len())
 	}
@@ -440,6 +445,95 @@ func (c *Compare) compareComplex(lhs, rhs vector.Any) vector.Any {
 		}
 	}
 	return out
+}
+
+func (c *Compare) compareArrays(typ *super.TypeArray, lhs, rhs vector.Any) vector.Any {
+	var lb, rb scode.Builder
+	out := vector.NewFalse(lhs.Len())
+	for i := range lhs.Len() {
+		l := vector.ValueAt(&lb, lhs, i).Bytes()
+		r := vector.ValueAt(&rb, rhs, i).Bytes()
+		v, ok := orderValues(typ, l, r)
+		// Values with no order are unequal.
+		if ok && isCompareOpSatisfied(c.opCode, v) || !ok && c.opCode == vector.CompNE {
+			out.Set(i)
+		}
+	}
+	return out
+}
+
+// orderValues compares a and b, which have type typ, returning false if they
+// are unequal but have no order (e.g., records or values of different types
+// in a union).  Null is ordered after any other value.  Arrays are ordered by
+// their first elements that aren't equal, with a shorter array before a
+// longer one when it has no such element.
+func orderValues(typ super.Type, a, b scode.Bytes) (int, bool) {
+	if a == nil || b == nil {
+		return cmp.Compare(btoi(a == nil), btoi(b == nil)), true
+	}
+	if bytes.Equal(a, b) {
+		return 0, true
+	}
+	switch typ := super.TypeUnder(typ).(type) {
+	case *super.TypeUnion:
+		atyp, a := typ.Untag(a)
+		btyp, b := typ.Untag(b)
+		anull, bnull := atyp == super.TypeNull, btyp == super.TypeNull
+		if anull || bnull {
+			return cmp.Compare(btoi(anull), btoi(bnull)), true
+		}
+		if atyp != btyp {
+			return 0, false
+		}
+		return orderValues(atyp, a, b)
+	case *super.TypeArray:
+		ait, bit := a.Iter(), b.Iter()
+		for !ait.Done() && !bit.Done() {
+			v, ok := orderValues(typ.Type, ait.Next(), bit.Next())
+			if !ok || v != 0 {
+				return v, ok
+			}
+		}
+		return cmp.Compare(btoi(!ait.Done()), btoi(!bit.Done())), true
+	case *super.TypeOption:
+		atyp, a := typ.Decode(a)
+		btyp, b := typ.Decode(b)
+		if atyp == nil || btyp == nil {
+			// None equals only none, which has the same bytes.
+			return 0, false
+		}
+		return orderValues(atyp, a, b)
+	}
+	switch id := typ.ID(); {
+	case super.IsSigned(id):
+		return cmp.Compare(super.DecodeInt(a), super.DecodeInt(b)), true
+	case super.IsUnsigned(id):
+		return cmp.Compare(super.DecodeUint(a), super.DecodeUint(b)), true
+	case super.IsFloat(id):
+		af, bf := super.DecodeFloat(a), super.DecodeFloat(b)
+		if math.IsNaN(af) || math.IsNaN(bf) {
+			return 0, false
+		}
+		return cmp.Compare(af, bf), true
+	case id == super.IDBool:
+		return cmp.Compare(btoi(super.DecodeBool(a)), btoi(super.DecodeBool(b))), true
+	case id == super.IDString, id == super.IDBytes:
+		return bytes.Compare(a, b), true
+	case id == super.IDIP:
+		return super.DecodeIP(a).Compare(super.DecodeIP(b)), true
+	case id == super.IDNet:
+		return super.DecodeNet(a).Compare(super.DecodeNet(b)), true
+	case id == super.IDUUID:
+		return super.DecodeUUID(a).Compare(super.DecodeUUID(b)), true
+	}
+	return 0, false
+}
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 type isNull struct {

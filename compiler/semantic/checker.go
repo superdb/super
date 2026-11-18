@@ -1048,15 +1048,44 @@ func (c *checker) castType(in super.Type, e sem.Expr) super.Type {
 		}
 		typ = rest
 	}
+	out := typ
+	if hasNone(in) {
+		none := castNoneType(c.t.sctx, typ)
+		if isNoneType(in) {
+			return none
+		}
+		out = c.fuse([]super.Type{typ, none})
+	}
 	if hasNullType(in) && !hasNullType(typ) {
 		if o, ok := coerce.Under(typ).(*super.TypeOption); ok && !hasNullType(o.Type) {
 			// A cast of null to an option type that doesn't admit null
 			// is the option's none.
+			return out
+		}
+		return c.fuse([]super.Type{out, super.TypeNull})
+	}
+	return out
+}
+
+// castNoneType returns the type of a cast of a plain none to typ.  Casting
+// none to a type other than none, an option, or a union with a none member is
+// shorthand for casting it to an option of that type.
+func castNoneType(sctx *super.Context, typ super.Type) super.Type {
+	if _, ok := typ.(*super.TypeNamed); ok {
+		return typ
+	}
+	switch t := typ.(type) {
+	case *super.TypeOption:
+		return typ
+	case *super.TypeUnion:
+		if slices.Contains(t.Types, super.Type(super.TypeNone)) {
 			return typ
 		}
-		return c.fuse([]super.Type{typ, super.TypeNull})
 	}
-	return typ
+	if typ == super.TypeNone {
+		return typ
+	}
+	return sctx.LookupTypeOption(typ)
 }
 
 // hasNullType reports whether typ is null or a union with null as one of its

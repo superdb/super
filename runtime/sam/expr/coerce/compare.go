@@ -50,6 +50,14 @@ func ComparisonType(sctx *super.Context, hasFusion func(super.Type) bool, a, b s
 	if a == b && !hasFusion(a) {
 		return a, true
 	}
+	// Type none has no values (e.g., it's the element type of an empty
+	// array), so it compares with any type.
+	if a == super.TypeNone {
+		return b, true
+	}
+	if b == super.TypeNone {
+		return a, true
+	}
 	a, aNull := withoutNull(sctx, a)
 	b, bNull := withoutNull(sctx, b)
 	if aNull || bNull {
