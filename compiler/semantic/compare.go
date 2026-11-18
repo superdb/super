@@ -39,10 +39,10 @@ func eqOp(aop, bop sem.Op) bool {
 		return ok && a.Meta == b.Meta
 	case *sem.FileScan:
 		b, ok := bop.(*sem.FileScan)
-		return ok && slices.Equal(a.Paths, b.Paths) && slices.Equal(a.Formats, b.Formats)
+		return ok && slices.Equal(a.Paths, b.Paths) && slices.Equal(a.Formats, b.Formats) && a.Delim == b.Delim
 	case *sem.HTTPScan:
 		b, ok := bop.(*sem.HTTPScan)
-		return ok && a.URL == b.URL && a.Format == b.Format && a.Method == b.Method && a.Body == b.Body && eqHeaders(a.Headers, b.Headers)
+		return ok && a.URL == b.URL && a.Format == b.Format && a.Delim == b.Delim && a.Method == b.Method && a.Body == b.Body && eqHeaders(a.Headers, b.Headers)
 	case *sem.MaterializedScan:
 		b, ok := bop.(*sem.MaterializedScan)
 		return ok && a.Tag == b.Tag
@@ -51,7 +51,7 @@ func eqOp(aop, bop sem.Op) bool {
 		return ok
 	case *sem.RobotScan:
 		b, ok := bop.(*sem.RobotScan)
-		return ok && a.Format == b.Format && eqExpr(a.Method, b.Method) && eqExpr(a.Headers, b.Headers) && eqExpr(a.Body, b.Body) && eqExpr(a.Expr, b.Expr)
+		return ok && a.Format == b.Format && a.Delim == b.Delim && eqExpr(a.Method, b.Method) && eqExpr(a.Headers, b.Headers) && eqExpr(a.Body, b.Body) && eqExpr(a.Expr, b.Expr)
 	case *sem.TableMetaScan:
 		b, ok := bop.(*sem.TableMetaScan)
 		return ok && a.ID == b.ID && a.Meta == b.Meta

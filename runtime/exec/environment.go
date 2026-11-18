@@ -51,7 +51,7 @@ func (e *Environment) Engine() storage.Engine {
 
 // FileType returns the fused type of the input at path or nil if the input
 // is dynamically typed.  See anyio.Source.Type.
-func (e *Environment) FileType(ctx context.Context, sctx *super.Context, path, format string) (super.Type, error) {
+func (e *Environment) FileType(ctx context.Context, sctx *super.Context, path, format, delim string) (super.Type, error) {
 	if e.Dynamic || e.sources == nil {
 		return nil, nil
 	}
@@ -61,6 +61,7 @@ func (e *Environment) FileType(ctx context.Context, sctx *super.Context, path, f
 	}
 	opts := e.ReaderOpts
 	opts.Format = format
+	setDelim(&opts, delim)
 	return src.Type(ctx, sctx, opts, e.Static)
 }
 
@@ -104,7 +105,7 @@ func (e *Environment) SortKeys(ctx context.Context, src dag.Op) order.SortKeys {
 	return nil
 }
 
-func (e *Environment) Open(ctx context.Context, sctx *super.Context, path, format string, p vio.Pushdown, progress *vio.Progress, concurrentReaders int) (vio.ConcurrentPuller, error) {
+func (e *Environment) Open(ctx context.Context, sctx *super.Context, path, format, delim string, p vio.Pushdown, progress *vio.Progress, concurrentReaders int) (vio.ConcurrentPuller, error) {
 	if path == "-" {
 		path = "stdio:stdin"
 	}
@@ -112,14 +113,14 @@ func (e *Environment) Open(ctx context.Context, sctx *super.Context, path, forma
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
-	file, err := src.Open(ctx, sctx, e.readerOpts(p, progress, format, concurrentReaders))
+	file, err := src.Open(ctx, sctx, e.readerOpts(p, progress, format, delim, concurrentReaders))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return newConcurrentPuller(path, file.Puller), nil
 }
 
-func (e *Environment) readerOpts(p vio.Pushdown, progress *vio.Progress, format string, concurrentReaders int) anyio.ReaderOpts {
+func (e *Environment) readerOpts(p vio.Pushdown, progress *vio.Progress, format, delim string, concurrentReaders int) anyio.ReaderOpts {
 	o := e.ReaderOpts
 	o.Pushdown = p
 	o.Progress = progress
@@ -127,10 +128,19 @@ func (e *Environment) readerOpts(p vio.Pushdown, progress *vio.Progress, format 
 	if format != "" {
 		o.Format = format
 	}
+	setDelim(&o, delim)
 	return o
 }
 
-func (e *Environment) OpenHTTP(ctx context.Context, sctx *super.Context, url, format, method string, headers http.Header, body io.Reader, p vio.Pushdown) (vio.Puller, error) {
+// setDelim sets the CSV field delimiter in o to delim, a single character,
+// unless delim is empty.
+func setDelim(o *anyio.ReaderOpts, delim string) {
+	if delim != "" {
+		o.CSV.Delim = rune(delim[0])
+	}
+}
+
+func (e *Environment) OpenHTTP(ctx context.Context, sctx *super.Context, url, format, delim, method string, headers http.Header, body io.Reader, p vio.Pushdown) (vio.Puller, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, err
@@ -144,7 +154,7 @@ func (e *Environment) OpenHTTP(ctx context.Context, sctx *super.Context, url, fo
 		resp.Body.Close()
 		return nil, fmt.Errorf("%s: %s", url, resp.Status)
 	}
-	file, err := anyio.NewFile(ctx, sctx, resp.Body, url, e.readerOpts(p, nil, format, 1))
+	file, err := anyio.NewFile(ctx, sctx, resp.Body, url, e.readerOpts(p, nil, format, delim, 1))
 	if err != nil {
 		resp.Body.Close()
 		return nil, fmt.Errorf("%s: %w", url, err)

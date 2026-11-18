@@ -369,6 +369,9 @@ func (c *canonDAG) op(o dag.Op) {
 				c.write(" format %s", f)
 			}
 		}
+		if o.Delim != "" {
+			c.write(" delim %s", sup.QuotedString(o.Delim))
+		}
 		if o.Type != "" {
 			c.write(" type %s", o.Type)
 		}
@@ -390,6 +393,9 @@ func (c *canonDAG) op(o dag.Op) {
 		}
 		if o.Format != "" {
 			c.write(" format %s", o.Format)
+		}
+		if o.Delim != "" {
+			c.write(" delim %s", sup.QuotedString(o.Delim))
 		}
 		if o.Type != "" {
 			c.write(" type %s", o.Type)
@@ -416,6 +422,9 @@ func (c *canonDAG) op(o dag.Op) {
 		c.expr(o.Expr, "")
 		if o.Format != "" {
 			c.write(" format %s", o.Format)
+		}
+		if o.Delim != "" {
+			c.write(" delim %s", sup.QuotedString(o.Delim))
 		}
 		if o.Method != nil {
 			c.write(" method ")

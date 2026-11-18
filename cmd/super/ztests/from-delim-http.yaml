@@ -1,0 +1,23 @@
+# The delim option of from applies to a URL, whether it's constant or
+# computed and whether or not it has HTTP options.
+script: |
+  . http.bash
+  super -s -c "from '$http_base_url/a.csv' (delim ';')"
+  super -s -c "from '$http_base_url/a.csv' (delim ';' headers {Accept:'text/csv'})"
+  super -s -c "values 'a.csv' | from f'$http_base_url/{this}' (delim ';')"
+  super -s -c "values 'a.csv' | from f'$http_base_url/{this}' (delim ';' headers {Accept:'text/csv'})"
+
+inputs:
+  - name: http.bash
+  - name: a.csv
+    data: |
+      id;price
+      1;1,45
+
+outputs:
+  - name: stdout
+    data: |
+      {id:1.,price:"1,45"}
+      {id:1.,price:"1,45"}
+      {id:1.,price:"1,45"}
+      {id:1.,price:"1,45"}

@@ -46,12 +46,14 @@ type (
 		Type    super.Type
 		Paths   []string
 		Formats []string
+		Delim   string
 	}
 	HTTPScan struct {
 		ast.Node
 		Type    super.Type
 		URL     string
 		Format  string
+		Delim   string
 		Method  string
 		Headers map[string][]string
 		Body    string
@@ -63,6 +65,7 @@ type (
 		ast.Node
 		Expr    Expr
 		Format  string
+		Delim   string
 		Method  Expr
 		Headers Expr
 		Body    Expr
@@ -325,6 +328,7 @@ func CopyOp(op Op) Op {
 			Type:    op.Type,
 			Paths:   op.Paths,
 			Formats: op.Formats,
+			Delim:   op.Delim,
 		}
 	case *HTTPScan:
 		return &HTTPScan{
@@ -332,6 +336,7 @@ func CopyOp(op Op) Op {
 			Type:    op.Type,
 			URL:     op.URL,
 			Format:  op.Format,
+			Delim:   op.Delim,
 			Method:  op.Method,
 			Headers: maps.Clone(op.Headers),
 			Body:    op.Body,
@@ -345,6 +350,7 @@ func CopyOp(op Op) Op {
 			Node:    op.Node,
 			Expr:    CopyExpr(op.Expr),
 			Format:  op.Format,
+			Delim:   op.Delim,
 			Method:  CopyExpr(op.Method),
 			Headers: CopyExpr(op.Headers),
 			Body:    CopyExpr(op.Body),

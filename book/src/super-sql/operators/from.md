@@ -115,6 +115,21 @@ where `<fmt>` is the name of a supported
 [serialization format](../../command/formats.md) and is
 parsed as a [text entity](../queries.md#text-entity).
 
+### CSV Delimiter
+
+When the format of a source is `csv`, its field delimiter may be set
+with an argument of the form
+```
+delim <char>
+```
+where `<char>` is a single ASCII character parsed as a
+[text entity](../queries.md#text-entity), e.g., `';'` or `'\t'`.
+It overrides the `-csv.delim` [command-line option](../../command/options.md#input)
+for that source.  It is an error to specify a `delim` argument
+for a source whose format is not `csv`, so a source whose format
+would otherwise be detected (e.g., a URL without a `.csv` extension)
+also needs `format csv`.
+
 ### Files
 
 When the `<entity>` argument is recognized as a file, the file
@@ -125,14 +140,16 @@ detected serialization format,  and emitted to its output.
 File-system paths are interpreted relative to the directory in which
 the [super](../../command/super.md) command is running.
 
-The only allowed option for file entities is the
-[format](#format-detection) option described above.
+The allowed options for file entities are the
+[format](#format-detection) and [delim](#csv-delimiter)
+options described above.
 
 Here are some examples of file syntax:
 ```
 from file.json
 from 'file-with-dash.sup'
 from /path/to/file.csv
+from file.csv (delim ';')
 from file*.parq (format parquet)
 ```
 
@@ -184,10 +201,10 @@ When the URL begins with `s3:` then data is fetched via
 the Amazon S3 object service using the settings defined
 by a [local configuration](../../dev/integrations/s3.md).
 
-Named options for URL entities include `format`, `method`, `headers`,
-and `body` as in
+Named options for URL entities include `format`, `delim`, `method`,
+`headers`, and `body` as in
 ```
-from <url> [ ( format <fmt> method <method> headers <headers> body <body> ) ]
+from <url> [ ( format <fmt> delim <char> method <method> headers <headers> body <body> ) ]
 ```
 where
 * `<method>` is one of `GET`, `PUT`, `POST`, or `DELETE` given as a
@@ -278,6 +295,18 @@ super -s -c 'from vals.sup'
 {x:1}
 {s:1::(int64|string)}
 {s:"hello"::(int64|string)}
+```
+
+---
+
+_Source data from a CSV file whose fields are separated by semicolons_
+```mdtest-command
+printf 'name;city\nDupont, Jean;Lyon\nMartin, Anne;Paris\n' > people.csv
+super -s -c "from people.csv (delim ';')"
+```
+```mdtest-output
+{name:"Dupont, Jean",city:"Lyon"}
+{name:"Martin, Anne",city:"Paris"}
 ```
 
 ---

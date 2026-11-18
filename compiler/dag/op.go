@@ -277,6 +277,7 @@ type (
 		Kind     string   `json:"kind"  unpack:""`
 		Paths    []string `json:"paths"`
 		Formats  []string `json:"formats"`
+		Delim    string   `json:"delim"`
 		Pushdown Pushdown `json:"pushdown"`
 		Type     string   `json:"type"`
 	}
@@ -290,6 +291,7 @@ type (
 		Kind    string              `json:"kind" unpack:""`
 		URL     string              `json:"url"`
 		Format  string              `json:"format"`
+		Delim   string              `json:"delim"`
 		Method  string              `json:"method"`
 		Headers map[string][]string `json:"headers"`
 		Body    string              `json:"body"`
@@ -305,6 +307,7 @@ type (
 		Kind    string `json:"kind" unpack:""`
 		Expr    Expr   `json:"expr"`
 		Format  string `json:"format"`
+		Delim   string `json:"delim"`
 		Filter  Expr   `json:"filter"`
 		Method  Expr   `json:"method"`
 		Headers Expr   `json:"headers"`
