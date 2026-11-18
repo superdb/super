@@ -50,3 +50,24 @@ spq: values {a:none},{a:1} | sort a
 output: |
   {a:1}
   {}
+
+---
+
+# Likewise, casting none to a named type T is shorthand for option(T) unless T
+# is an option type or a union with none.
+spq: |
+  type port=int64
+  type o=option(int64)
+  type u=int64|none
+  values none::port, typeof(none::port), none::o, typeof(none::o), none::u, typeof(none::u)
+
+output: |
+  type port=int64
+  none::port
+  <option(port)>
+  type o=option(int64)
+  none::o
+  <o>
+  type u=int64|none
+  none::u
+  <u>

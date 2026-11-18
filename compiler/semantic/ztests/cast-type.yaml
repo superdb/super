@@ -111,3 +111,23 @@ error: |
   string|option(string): option value not handled (consider ??) at line 1, column 59:
   values "1", "a" | values ok(this::int64)::string | values this == "1"
                                                             ~~~~~~~~~~~
+
+---
+
+# Likewise for a named type, unless it's an option type or a union with none.
+spq: |
+  type port=int64
+  type o=option(int64)
+  values
+    typeof([none::port]),
+    [none::port] == [some(80::port)],
+    typeof([none::o]),
+    [none::o] == [80::o]
+
+output: |
+  type port=int64
+  <[option(port)]>
+  false
+  type o=option(int64)
+  <[o]>
+  false

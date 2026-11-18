@@ -81,11 +81,12 @@ func (c *complexCaster) castOne(vec vector.Any, to super.Type) vector.Any {
 	case from == super.TypeNone:
 		// Casting none to a non-option type T is shorthand for casting
 		// it to option(T) except for a union with a none member, which
-		// is handled by toUnion below.
+		// is handled by toUnion below, and a named option type, which
+		// is handled by toOption below.
 		if super.TypeUnder(to) == super.TypeNone {
 			return vector.NewNone(n)
 		}
-		if !unionHas(to, super.TypeNone) {
+		if _, ok := super.TypeUnder(to).(*super.TypeOption); !ok && !unionHas(to, super.TypeNone) {
 			return vector.NewOptionNone(c.sctx.LookupTypeOption(to), n)
 		}
 	}
