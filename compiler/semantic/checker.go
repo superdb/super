@@ -1071,10 +1071,7 @@ func (c *checker) castType(in super.Type, e sem.Expr) super.Type {
 // none to a type other than none, an option, or a union with a none member is
 // shorthand for casting it to an option of that type.
 func castNoneType(sctx *super.Context, typ super.Type) super.Type {
-	if _, ok := typ.(*super.TypeNamed); ok {
-		return typ
-	}
-	switch t := typ.(type) {
+	switch t := super.TypeUnder(typ).(type) {
 	case *super.TypeOption:
 		return typ
 	case *super.TypeUnion:
@@ -1082,7 +1079,7 @@ func castNoneType(sctx *super.Context, typ super.Type) super.Type {
 			return typ
 		}
 	}
-	if typ == super.TypeNone {
+	if super.TypeUnder(typ) == super.TypeNone {
 		return typ
 	}
 	return sctx.LookupTypeOption(typ)

@@ -110,6 +110,11 @@ func assemble(sctx *super.Context, vec vector.Any, typ super.Type, fn caster) ve
 }
 
 func castNamed(sctx *super.Context, vec vector.Any, named *super.TypeNamed) vector.Any {
+	if vec.Kind() == vector.KindNone && super.TypeUnder(named) != super.TypeNone {
+		// As for a type that isn't named, casting none to named type T
+		// is shorthand for casting it to option(T).
+		return vector.NewOptionNone(sctx.LookupTypeOption(named), vec.Len())
+	}
 	return vector.Apply(vector.ApplyNone, func(vecs ...vector.Any) vector.Any {
 		vec := vecs[0]
 		if vec.Kind() == vector.KindError {
