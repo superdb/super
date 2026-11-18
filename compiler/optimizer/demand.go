@@ -72,14 +72,16 @@ func (a *demandAnalyzer) demandForOpInput(op dag.Op, downstreams []demand.Demand
 	a.table[op] = demand.Union(downstreams...)
 	switch op := op.(type) {
 	case *dag.ForkOp:
-		var out []demand.Demand
+		// A fork has one input, which every path reads, so its demand is
+		// the union of the paths' demands.
+		d := demand.None()
 		var materializing bool
 		for i, p := range op.Paths {
 			i := min(i, len(downstreams)-1)
-			out = append(out, a.demandForPath(p, downstreams[i], &materializing))
+			d = demand.Union(d, a.demandForPath(p, downstreams[i], &materializing))
 		}
 		a.materializing = materializing
-		return out
+		return []demand.Demand{d}
 	case *dag.HashJoinOp:
 		downstream := downstreams[0]
 		left := demand.GetKey(downstream, op.LeftAlias)

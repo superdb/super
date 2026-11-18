@@ -1,0 +1,14 @@
+# Each path of the upstream fork gets the union of the demands of the
+# downstream fork's paths since every downstream path reads all of its output.
+spq: |
+  fork ( values {a:1,b:"x"} ) ( values {a:2,b:"y"} ) ( values {a:3,b:"z"} )
+  | fork ( pass ) ( values a )
+  | sort this
+
+output: |
+  1
+  2
+  3
+  {a:1,b:"x"}
+  {a:2,b:"y"}
+  {a:3,b:"z"}
