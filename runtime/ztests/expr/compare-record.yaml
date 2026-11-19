@@ -1,5 +1,5 @@
-# Records and maps are equal when their fields or entries are equal by value,
-# and they have no order.
+# Records are ordered by their first fields that aren't equal, while maps are
+# equal when their entries are equal by value and have no order.
 spq: values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
 
 flags: -dynamic
@@ -13,7 +13,7 @@ input: |
 
 output: |
   [false,true,true,false,true,false]
-  [false,false,false,true,false,false]
+  [true,true,false,true,false,false]
   [false,true,true,false,true,false]
   [false,false,false,true,false,false]
   [false,true,true,false,true,false]

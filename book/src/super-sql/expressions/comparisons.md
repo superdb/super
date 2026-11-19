@@ -88,9 +88,8 @@ types that are coerced to a common type as in SQL.
   An option compared with a value that isn't an option is an error until the
   option is handled, e.g., with `??` or `unwrap`, or the value is wrapped
   with `some`.
-* Values of type `type`, and records, maps, and enums, have no
-  order, so `<` and `>` are `false` for them while `<=` and `>=` are
-  equality.
+* Values of type `type`, and maps and enums, have no order, so `<` and `>`
+  are `false` for them while `<=` and `>=` are equality.
 
 For values of type [bool](../types/bool.md), `false` is less than `true`.
 
@@ -101,14 +100,18 @@ number, including `+Inf`, as in Postgres.
 equal, with a null element ordered after any other value.  If one array has
 no such element, the shorter array is ordered first, so an empty array is
 ordered before any other array.  If elements that aren't equal have no order
-(e.g., records or values of different types in a union), then neither array
-is ordered before the other.
+(e.g., maps or values of different types in a union), then neither array is
+ordered before the other.
 
 [Sets](../types/set.md) are ordered in the same way, with their elements
 taken in ascending order, which may differ from the order in which they're
 output.
 
-Records and maps are equal when their fields or entries are equal.
+[Records](../types/record.md) are ordered by their first fields that aren't
+equal, from left to right.  If such a field has no order, then neither record
+is ordered before the other.
+
+Maps are equal when their entries are equal.
 
 Values of type [net](../types/network.md) are ordered by address family
 (IPv4 before IPv6), then by network address, and then by prefix length.
@@ -158,12 +161,13 @@ true
 
 ---
 
-_Array and set comparisons_
+_Array, set, and record comparisons_
 
 ```mdtest-spq
 # spq
 values [1,2] < [1,3], [1,2] < [1,2,0], [] < [0], [2] < [1,3], [1] < [null],
-  set[1,2] < set[1,3], set[] < set[0], set[1,-1] < set[-1,5]
+  set[1,2] < set[1,3], set[] < set[0], set[1,-1] < set[-1,5],
+  {a:1,b:2} < {a:1,b:3}, {a:2,b:0} > {a:1,b:9}
 # input
 
 # expected output
@@ -171,6 +175,8 @@ true
 true
 true
 false
+true
+true
 true
 true
 true
