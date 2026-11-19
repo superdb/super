@@ -77,7 +77,7 @@ installdev:
 	@go install -ldflags='$(LDFLAGS)' ./cmd/...
 
 compiler/parser/parser.go: compiler/parser/parser.peg go.mod
-	go tool pigeon -support-left-recursion -o $@ $<
+	go tool pigeon -optimize-parser -support-left-recursion -o $@ $<
 	go tool goimports -w $@
 
 .PHONY: peg
