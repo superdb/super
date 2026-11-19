@@ -224,13 +224,15 @@ func defuseMissing(vec Any, union *Union) Any {
 	if missingTag < 0 {
 		return vec
 	}
-	var index, tags []uint32
-	for k, tag := range union.Tags() {
+	utags := union.Tags()
+	nmiss := union.Values()[missingTag].Len()
+	index := make([]uint32, 0, uint32(len(utags))-nmiss)
+	tags := make([]uint32, len(utags))
+	for k, tag := range utags {
 		if int(tag) != missingTag {
 			index = append(index, uint32(k))
-			tags = append(tags, 0)
 		} else {
-			tags = append(tags, 1)
+			tags[k] = 1
 		}
 	}
 	vals := Pick(vec, index)
