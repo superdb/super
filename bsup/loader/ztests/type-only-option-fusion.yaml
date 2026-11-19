@@ -1,0 +1,18 @@
+# The data of an array, set, or map of options with fusion payloads is read
+# under a type-only projection since defusing the options accesses it.
+script: |
+  super - | super -i bsup -s -c 'values typeof(a)' -
+
+inputs:
+  - name: stdin
+    data: |
+      {a:[some(fusion(1::(int64|string),<int64>))]}
+      {a:set[some(fusion("x"::(int64|string),<string>))]}
+      {a:map{1:some(fusion("x"::(int64|string),<string>))}}
+
+outputs:
+  - name: stdout
+    data: |
+      <[option(int64)]>
+      <set[option(string)]>
+      <map{int64:option(string)}>
