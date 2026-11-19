@@ -76,3 +76,11 @@ output: |
   {x:3}
   {x:4}
   {x:5}
+
+---
+
+# NaNs with different bit patterns are one value, as they are equal.
+spq: values NaN, 0./0., -(0./0.), sqrt(-1.) | distinct this
+
+output: |
+  NaN

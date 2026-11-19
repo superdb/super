@@ -1,10 +1,12 @@
 package expr
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/superdb/super"
+	"github.com/superdb/super/runtime/sam/expr/coerce"
 	"github.com/superdb/super/vector"
 )
 
@@ -71,5 +73,35 @@ func TestCompareOpsAndForms(t *testing.T) {
 		assert.Equal(t, uint32(3), val.Len(), "op: %s", c.op)
 		expected := c.expectedForConstLHS == "111"
 		assert.Equal(t, expected, vector.BoolValue(val, 0), "op: %s", c.op)
+	}
+}
+
+// Test that the generated float comparisons (see floatCond in
+// gencomparefuncs.go) order NaN as coerce.CompareFloats does.
+func TestCompareFloatsMatchesGenerated(t *testing.T) {
+	values := []float64{math.NaN(), math.Inf(-1), -1, math.Copysign(0, -1), 0, 1, math.Inf(1)}
+	forms := func(v float64) map[vector.Form]vector.Any {
+		flat := vector.NewFloat(super.TypeFloat64, []float64{v})
+		return map[vector.Form]vector.Any{
+			vector.FormFlat:  flat,
+			vector.FormDict:  vector.NewDict(flat, []byte{0}, nil),
+			vector.FormView:  vector.Pick(flat, []uint32{0}),
+			vector.FormConst: vector.NewConst(flat, 1),
+		}
+	}
+	ops := []int{vector.CompEQ, vector.CompNE, vector.CompLT, vector.CompLE, vector.CompGT, vector.CompGE}
+	for _, a := range values {
+		for _, b := range values {
+			for _, op := range ops {
+				expected := isCompareOpSatisfied(op, coerce.CompareFloats(a, b))
+				for lform, lhs := range forms(a) {
+					for rform, rhs := range forms(b) {
+						f := compareFuncs[vector.FuncCode(op, vector.KindFloat, lform, rform)]
+						actual := vector.BoolValue(f(lhs, rhs), 0)
+						assert.Equal(t, expected, actual, "%v %s %v (%s, %s)", a, vector.CompareOpToString(op), b, lform, rform)
+					}
+				}
+			}
+		}
 	}
 }

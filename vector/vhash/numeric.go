@@ -1,6 +1,8 @@
 package vhash
 
 import (
+	"math"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/pkg/byteconv"
 	"github.com/superdb/super/vector"
@@ -40,15 +42,31 @@ func newUintKey(typ super.Type) *numericKey[uint64] {
 }
 
 func newFloatKey(typ super.Type) *numericKey[uint64] {
+	var buf []uint64
 	return &numericKey[uint64]{
 		valuesOf: func(vec vector.Any) []uint64 {
-			return byteconv.ReinterpretSlice[uint64](vec.(*vector.Float).Values)
+			vals := byteconv.ReinterpretSlice[uint64](vec.(*vector.Float).Values)
+			// NaNs are equal whatever their bit patterns (see
+			// coerce.CompareFloats), so key them all by one.
+			copied := false
+			for i, v := range vals {
+				if v != nanBits && math.IsNaN(math.Float64frombits(v)) {
+					if !copied {
+						buf = append(buf[:0], vals...)
+						vals, copied = buf, true
+					}
+					vals[i] = nanBits
+				}
+			}
+			return vals
 		},
 		build: func(vals []uint64) vector.Any {
 			return vector.NewFloat(typ, byteconv.ReinterpretSlice[float64](vals))
 		},
 	}
 }
+
+var nanBits = math.Float64bits(math.NaN())
 
 func newBoolKey() *numericKey[uint32] {
 	var buf []uint32

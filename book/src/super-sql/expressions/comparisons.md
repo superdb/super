@@ -94,6 +94,9 @@ types that are coerced to a common type as in SQL.
 
 For values of type [bool](../types/bool.md), `false` is less than `true`.
 
+For floating point numbers, `NaN` equals `NaN` and is greater than any other
+number, including `+Inf`, as in Postgres.
+
 [Arrays](../types/array.md) are ordered by their first elements that aren't
 equal, with a null element ordered after any other value.  If one array has
 no such element, the shorter array is ordered first, so an empty array is
@@ -132,11 +135,14 @@ _Various scalar comparisons_
 
 ```mdtest-spq
 # spq
-values 1 > 2, 1 < 2, "b" > "a", 1 == 1.0, [1,2] == [1.0,2.0], false < true
+values 1 > 2, 1 < 2, "b" > "a", 1 == 1.0, [1,2] == [1.0,2.0], false < true,
+  NaN > +Inf, NaN == NaN
 # input
 
 # expected output
 false
+true
+true
 true
 true
 true

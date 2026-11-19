@@ -30,9 +30,9 @@ func EvalBool(sctx *super.Context, this super.Value, e Evaluator) super.Value {
 func compareNumbers(a, b super.Value, aid, bid int) int {
 	switch {
 	case super.IsFloat(aid):
-		return cmp.Compare(a.Float(), toFloat(b))
+		return coerce.CompareFloats(a.Float(), toFloat(b))
 	case super.IsFloat(bid):
-		return cmp.Compare(toFloat(a), b.Float())
+		return coerce.CompareFloats(toFloat(a), b.Float())
 	case super.IsSigned(aid):
 		av := a.Int()
 		if super.IsUnsigned(bid) {

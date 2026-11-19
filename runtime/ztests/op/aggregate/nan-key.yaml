@@ -1,0 +1,17 @@
+# NaNs with different bit patterns are one key, as they are equal.
+spq: |
+  values {x:NaN}, {x:0./0.}, {x:-(0./0.)}, {x:sqrt(-1.)}, {x:1.}
+  | aggregate n:=count() by x | sort x
+
+output: |
+  {x:1.,n:1}
+  {x:NaN,n:4}
+
+---
+
+spq: |
+  values NaN, 0./0., -(0./0.), sqrt(-1.), 1.
+  | aggregate n:=count(distinct this)
+
+output: |
+  {n:2}

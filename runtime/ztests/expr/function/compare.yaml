@@ -9,6 +9,9 @@ input: |
   {a:null::(int64|null),b:1::(int64|null)}
   {a:0}
   {b:0}
+  {a:NaN,b:+Inf}
+  {a:1,b:NaN}
+  {a:NaN,b:NaN}
 
 output: |
   1
@@ -19,6 +22,9 @@ output: |
   1
   error("no such field b")
   error("no such field a")
+  1
+  -1
+  0
 
 ---
 
