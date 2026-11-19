@@ -115,3 +115,16 @@ output: |
   {b1:false,b2:error({message:"'in' operator: error value encountered",on:error("no such field a")})}
   {b1:error({message:"'in' operator: error value encountered",on:error("no such field x")}),b2:error({message:"'in' operator: error value encountered",on:error("no such field a")})}
   {b1:error({message:"'in' operator: error value encountered",on:error("no such field x")}),b2:true}
+
+---
+
+# The payload of a nested option is searched.
+spq: values [1 in this, 2 in this]
+
+input: |
+  {a?:1}
+  {b:[some(2)]}
+
+output: |
+  [true,false]
+  [false,true]

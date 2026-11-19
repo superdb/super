@@ -617,7 +617,7 @@ func (t *translator) binaryExpr(e *ast.BinaryExpr, inType super.Type) (sem.Expr,
 			Args: []sem.Expr{lhs, rhs},
 		}, super.TypeString
 	case "not in":
-		t.checker.in(e, e.LHS, e.RHS, lhsType, rhsType)
+		t.checker.binary(op, e, e.LHS, e.RHS, lhsType, rhsType)
 		return sem.NewUnaryExpr(e, "!", sem.NewBinaryExpr(e, "in", lhs, rhs)), super.TypeBool
 	case "::":
 		return &sem.CallExpr{

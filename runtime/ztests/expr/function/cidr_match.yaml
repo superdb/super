@@ -30,3 +30,17 @@ output: |
   null
   false
   error({message:"cidr_match: not a net",on:"s"})
+
+---
+
+# The payload of a nested option is searched.
+spq: |
+  values
+    cidr_match(1.1.0.0/16, {a?:1.1.1.1}),
+    cidr_match(1.1.0.0/16, [some(2.2.2.2),some(1.1.1.1)]),
+    cidr_match(1.1.0.0/16, {a?:2.2.2.2})
+
+output: |
+  true
+  true
+  false
