@@ -1,0 +1,39 @@
+# Compaction keeps all of a table's data in key order when the data has
+# values of more than one type (here from a null in one value near the
+# start of the key order), for each kind of sort key and for both orders.
+
+script: |
+  super db init -q test
+  super db attach -q test
+  # compact <order> <value of this whose x is null> <key expression>
+  compact() {
+    super db create -q -orderby k:$1 -objectcap 300 t
+    for i in 0 1 2 3; do
+      seq $i 4 1999 | super -c "values {k:$3,x:this==$2 ? null : this}" - | super db load -q -use t -
+    done
+    super db manage -q
+    if [ $1 = asc ]; then seq 0 1999; else seq 1999 -1 0; fi | super -s -c "values {k:$3,x:this==$2 ? null : this}" - > want.sup
+    super db -s -c 'from t' > got.sup
+    cmp want.sup got.sup && echo "$1 $3: $(super db -f line -c 'from t:objects | count()') objects, data ok"
+    super db drop -f -q t
+  }
+  compact asc 5 'this'
+  compact asc 5 'this::uint64'
+  compact asc 5 'this::float64'
+  compact asc 5 "f'k{this+10000}'"
+  compact asc 5 "f'k{this+10000}'::bytes"
+  compact asc 5 "f'10.0.{this/256}.{this%256}'::ip"
+  compact asc 5 "f'00000000-0000-0000-0000-{this+100000000000}'::uuid"
+  compact desc 1994 'this'
+
+outputs:
+  - name: stdout
+    data: |
+      asc this: 7 objects, data ok
+      asc this::uint64: 7 objects, data ok
+      asc this::float64: 7 objects, data ok
+      asc f'k{this+10000}': 7 objects, data ok
+      asc f'k{this+10000}'::bytes: 7 objects, data ok
+      asc f'10.0.{this/256}.{this%256}'::ip: 7 objects, data ok
+      asc f'00000000-0000-0000-0000-{this+100000000000}'::uuid: 7 objects, data ok
+      desc this: 7 objects, data ok
