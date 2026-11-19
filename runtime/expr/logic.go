@@ -212,6 +212,8 @@ type In struct {
 	defuse    *SuperDefuse
 	pw        *PredicateWalk
 	hasFusion samfunc.FusionChecker
+	// containable caches coerce.Containable for pairs of operand types.
+	containable map[[2]super.Type]bool
 }
 
 func NewIn(sctx *super.Context, lhs, rhs Evaluator) *In {
@@ -228,10 +230,23 @@ func (i *In) eval(vecs ...vector.Any) vector.Any {
 	if vec, ok := CatchFirst(i.sctx, CatchAll, vecs, "'in' operator"); ok {
 		return vec
 	}
-	if rtyp := vecs[1].Type(); !coerce.Containable(i.sctx, i.hasFusion.Check, vecs[0].Type(), rtyp) {
+	if rtyp := vecs[1].Type(); !i.isContainable(vecs[0].Type(), rtyp) {
 		return vector.NewStringError(i.sctx, coerce.InMismatch(rtyp), vecs[0].Len())
 	}
 	return i.pw.Eval(vecs[0], vecs[1])
+}
+
+func (i *In) isContainable(a, b super.Type) bool {
+	key := [2]super.Type{a, b}
+	ok, cached := i.containable[key]
+	if !cached {
+		ok = coerce.Containable(i.sctx, i.hasFusion.Check, a, b)
+		if i.containable == nil {
+			i.containable = make(map[[2]super.Type]bool)
+		}
+		i.containable[key] = ok
+	}
+	return ok
 }
 
 type PredicateWalk struct {
