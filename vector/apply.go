@@ -115,6 +115,17 @@ func findDynamic(vecs []Any) (*Dynamic, bool) {
 
 func rip(vecs []Any, d *Dynamic) iter.Seq2[int, []Any] {
 	return func(yield func(int, []Any) bool) {
+		if len(vecs) == 1 {
+			for i, v := range d.Values {
+				if v == nil || v.Len() == 0 {
+					continue
+				}
+				if !yield(i, []Any{v}) {
+					return
+				}
+			}
+			return
+		}
 		for i, rev := range d.ReverseTagMap() {
 			if len(rev) == 0 {
 				continue
