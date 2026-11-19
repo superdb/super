@@ -5,6 +5,7 @@ package expr
 import (
 	"bytes"
 	"cmp"
+	"slices"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/runtime/expr/cast"
@@ -108,15 +109,13 @@ func (c *Compare) evalCaught(vecs ...vector.Any) vector.Any {
 		}
 		return vector.NewStringError(c.sctx, coerce.TypeMismatch(c.op, ltyp, rtyp), lhs.Len())
 	}
-	if typ, ok := super.TypeUnder(typ).(*super.TypeArray); ok {
-		return c.compareArrays(typ, lhs0, rhs0, lhs, rhs)
+	if typ.Kind() != super.PrimitiveKind {
+		return c.compareComplex(typ, lhs0, rhs0, lhs, rhs)
 	}
 	kind := lhs.Kind()
 	if kind != rhs.Kind() || kind == vector.KindError {
-		// A value couldn't be cast to the comparison type (e.g., a uint64
-		// too large for int64), leaving an error in its place, so it's
-		// unequal, as when a nested value couldn't be cast (see
-		// compareComplex).
+		// A value couldn't be cast to the comparison type, leaving an
+		// error in its place, so it's unequal.
 		if lhs.Kind() == vector.KindError || rhs.Kind() == vector.KindError {
 			return vector.NewConstBool(c.opCode == vector.CompNE, lhs.Len())
 		}
@@ -144,11 +143,6 @@ func (c *Compare) evalCaught(vecs ...vector.Any) vector.Any {
 		return c.compareNets(lhs, rhs)
 	case vector.KindType:
 		return c.compareTypeVals(lhs, rhs)
-	case vector.KindRecord,
-		vector.KindSet,
-		vector.KindMap,
-		vector.KindEnum:
-		return c.compareComplex(lhs, rhs)
 	}
 	return c.compareForms(kind, lhs, rhs)
 }
@@ -417,36 +411,11 @@ func (c *Compare) compareTypeVals(lhs, rhs vector.Any) vector.Any {
 	return out
 }
 
-func (c *Compare) compareComplex(lhs, rhs vector.Any) vector.Any {
-	if lhs.Type() != rhs.Type() {
-		// A nested value couldn't be cast to the comparison type (e.g., a
-		// uint64 too large for int64), so the values are unequal.
-		return vector.NewConstBool(c.opCode == vector.CompNE, lhs.Len())
-	}
-	if c.opCode == vector.CompLT || c.opCode == vector.CompGT {
-		return vector.NewConstBool(false, lhs.Len())
-	}
-	var lb, rb scode.Builder
-	out := vector.NewFalse(lhs.Len())
-	for i := range lhs.Len() {
-		l := vector.ValueAt(&lb, lhs, i).Bytes()
-		r := vector.ValueAt(&rb, rhs, i).Bytes()
-		v := string(l) == string(r)
-		if c.opCode == vector.CompNE {
-			v = !v
-		}
-		if v {
-			out.Set(i)
-		}
-	}
-	return out
-}
-
-// compareArrays compares arrays, which have been cast to their comparison type
-// typ as lhs and rhs.  An array that couldn't be cast (e.g., one with a uint64
-// too large for an int64 element type) is compared as it was in lhs0 and rhs0
-// instead.
-func (c *Compare) compareArrays(typ *super.TypeArray, lhs0, rhs0, lhs, rhs vector.Any) vector.Any {
+// compareComplex compares values of complex types, which have been cast to
+// their comparison type typ as lhs and rhs.  A value that couldn't be cast
+// (e.g., one with a uint64 too large for an int64 in typ) is compared as it
+// was in lhs0 and rhs0 instead.
+func (c *Compare) compareComplex(typ super.Type, lhs0, rhs0, lhs, rhs vector.Any) vector.Any {
 	var lb, rb scode.Builder
 	out := vector.NewFalse(lhs.Len())
 	for i := range lhs.Len() {
@@ -471,8 +440,9 @@ func (c *Compare) compareArrays(typ *super.TypeArray, lhs0, rhs0, lhs, rhs vecto
 // orderValues compares a and b, which have type typ, returning false if they
 // are unequal but have no order (e.g., records or values of different types
 // in a union).  Null is ordered after any other value.  Arrays are ordered by
-// their first elements that aren't equal, with a shorter array before a
-// longer one when it has no such element.
+// their first elements that aren't equal, with the shorter one first when it
+// has no such element, and sets likewise with their elements in ascending
+// order.  Records and maps are equal when their fields or entries are.
 func orderValues(typ super.Type, a, b scode.Bytes) (int, bool) {
 	if a == nil || b == nil {
 		return cmp.Compare(btoi(a == nil), btoi(b == nil)), true
@@ -493,14 +463,13 @@ func orderValues(typ super.Type, a, b scode.Bytes) (int, bool) {
 		}
 		return orderValues(atyp, a, b)
 	case *super.TypeArray:
-		ait, bit := a.Iter(), b.Iter()
-		for !ait.Done() && !bit.Done() {
-			v, ok := orderValues(typ.Type, ait.Next(), bit.Next())
-			if !ok || v != 0 {
-				return v, ok
-			}
-		}
-		return cmp.Compare(btoi(!ait.Done()), btoi(!bit.Done())), true
+		return orderLists(typ.Type, a.Iter(), typ.Type, b.Iter())
+	case *super.TypeSet:
+		return orderSets(typ.Type, a, typ.Type, b)
+	case *super.TypeRecord:
+		return 0, equalRecords(typ, a, typ, b)
+	case *super.TypeMap:
+		return 0, equalMaps(typ, a, typ, b)
 	case *super.TypeOption:
 		atyp, a := typ.Decode(a)
 		btyp, b := typ.Decode(b)
@@ -532,8 +501,9 @@ func orderValues(typ super.Type, a, b scode.Bytes) (int, bool) {
 }
 
 // orderMixed is like orderValues for a of type atyp and b of type btyp, which
-// have a comparison type that one of them couldn't be cast to.  Integers and
-// floats of different types are ordered by value.
+// are the same type or have a comparison type (e.g., when one of them
+// couldn't be cast to it).  Integers and floats of different types are
+// ordered by value.
 func orderMixed(atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) (int, bool) {
 	if a == nil || b == nil {
 		return cmp.Compare(btoi(a == nil), btoi(b == nil)), true
@@ -564,25 +534,19 @@ func orderMixed(atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) 
 	switch at := atyp.(type) {
 	case *super.TypeArray:
 		if bt, ok := btyp.(*super.TypeArray); ok {
-			ait, bit := a.Iter(), b.Iter()
-			for !ait.Done() && !bit.Done() {
-				v, ok := orderMixed(at.Type, ait.Next(), bt.Type, bit.Next())
-				if !ok || v != 0 {
-					return v, ok
-				}
-			}
-			return cmp.Compare(btoi(!ait.Done()), btoi(!bit.Done())), true
+			return orderLists(at.Type, a.Iter(), bt.Type, b.Iter())
+		}
+	case *super.TypeSet:
+		if bt, ok := btyp.(*super.TypeSet); ok {
+			return orderSets(at.Type, a, bt.Type, b)
 		}
 	case *super.TypeRecord:
-		if bt, ok := btyp.(*super.TypeRecord); ok && len(at.Fields) == len(bt.Fields) {
-			// Records have no order.
-			ait, bit := a.Iter(), b.Iter()
-			for i, f := range at.Fields {
-				if v, ok := orderMixed(f.Type, ait.Next(), bt.Fields[i].Type, bit.Next()); !ok || v != 0 {
-					return 0, false
-				}
-			}
-			return 0, true
+		if bt, ok := btyp.(*super.TypeRecord); ok {
+			return 0, equalRecords(at, a, bt, b)
+		}
+	case *super.TypeMap:
+		if bt, ok := btyp.(*super.TypeMap); ok {
+			return 0, equalMaps(at, a, bt, b)
 		}
 	case *super.TypeOption:
 		if bt, ok := btyp.(*super.TypeOption); ok {
@@ -599,6 +563,80 @@ func orderMixed(atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) 
 		return orderNumbers(aid, a, bid, b)
 	}
 	return 0, false
+}
+
+// orderLists orders the elements of arrays or sets, which have types atyp and
+// btyp, by their first elements that aren't equal.
+func orderLists(atyp super.Type, ait scode.Iter, btyp super.Type, bit scode.Iter) (int, bool) {
+	for !ait.Done() && !bit.Done() {
+		v, ok := orderMixed(atyp, ait.Next(), btyp, bit.Next())
+		if !ok || v != 0 {
+			return v, ok
+		}
+	}
+	return cmp.Compare(btoi(!ait.Done()), btoi(!bit.Done())), true
+}
+
+// orderSets orders sets like arrays with their elements in ascending order
+// rather than in the order in which they're stored (i.e., the order of their
+// encodings), which differs for values that are equal but encoded
+// differently (e.g., 0.0 and -0.0) or of different types.
+func orderSets(atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) (int, bool) {
+	as, bs := sortedElems(atyp, a), sortedElems(btyp, b)
+	for i := range min(len(as), len(bs)) {
+		v, ok := orderMixed(atyp, as[i], btyp, bs[i])
+		if !ok || v != 0 {
+			return v, ok
+		}
+	}
+	return cmp.Compare(len(as), len(bs)), true
+}
+
+// sortedElems returns the elements of set body b, whose elements have type
+// typ, in ascending order, with elements that have no order in the order of
+// their encodings.
+func sortedElems(typ super.Type, b scode.Bytes) []scode.Bytes {
+	var elems []scode.Bytes
+	for it := b.Iter(); !it.Done(); {
+		elems = append(elems, it.Next())
+	}
+	slices.SortStableFunc(elems, func(x, y scode.Bytes) int {
+		if v, ok := orderValues(typ, x, y); ok && v != 0 {
+			return v
+		}
+		return bytes.Compare(x, y)
+	})
+	return elems
+}
+
+// equalRecords reports whether records a and b, which have types atyp and
+// btyp, have equal fields.  Records have no order.
+func equalRecords(atyp *super.TypeRecord, a scode.Bytes, btyp *super.TypeRecord, b scode.Bytes) bool {
+	if len(atyp.Fields) != len(btyp.Fields) {
+		return false
+	}
+	ait, bit := a.Iter(), b.Iter()
+	for i, f := range atyp.Fields {
+		if v, ok := orderMixed(f.Type, ait.Next(), btyp.Fields[i].Type, bit.Next()); !ok || v != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// equalMaps reports whether maps a and b, which have types atyp and btyp,
+// have equal entries.  Maps have no order.
+func equalMaps(atyp *super.TypeMap, a scode.Bytes, btyp *super.TypeMap, b scode.Bytes) bool {
+	ait, bit := a.Iter(), b.Iter()
+	for !ait.Done() && !bit.Done() {
+		if v, ok := orderMixed(atyp.KeyType, ait.Next(), btyp.KeyType, bit.Next()); !ok || v != 0 {
+			return false
+		}
+		if v, ok := orderMixed(atyp.ValType, ait.Next(), btyp.ValType, bit.Next()); !ok || v != 0 {
+			return false
+		}
+	}
+	return ait.Done() && bit.Done()
 }
 
 // orderNumbers orders integers and floats of different types by value.

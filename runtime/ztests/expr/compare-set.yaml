@@ -1,0 +1,76 @@
+# Sets are ordered like arrays, by their first elements that aren't equal in
+# ascending order, with null after any other value, and a set whose elements
+# all equal those at the start of a longer set is ordered before it.
+spq: values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
+
+flags: -dynamic
+
+input: |
+  {a:set[],b:set[]}
+  {a:set[],b:set[1]}
+  {a:set[1],b:set[]}
+  {a:set[1,2],b:set[1,2]}
+  {a:set[1,2],b:set[1,3]}
+  {a:set[1,3],b:set[2]}
+  {a:set[1,2],b:set[1,2,3]}
+  {a:set[1],b:set[1.5]}
+  {a:set["b"],b:set["a","z"]}
+  {a:set[set[1],set[2]],b:set[set[1],set[3]]}
+  {a:set[1,null],b:set[1,2]}
+
+output: |
+  [false,true,true,false,true,false]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+  [false,true,true,false,true,false]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+
+---
+
+# Elements that are unequal but have no order leave the sets with no order.
+spq: values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
+
+flags: -dynamic
+
+input: |
+  {a:set[{x:1}],b:set[{x:2}]}
+  {a:set[1,"b"],b:set[1,2]}
+
+output: |
+  [false,false,false,true,false,false]
+  [false,false,false,true,false,false]
+
+---
+
+# An empty set, whose element type is none, is comparable with any set.
+spq: values set[] < set[1], set[] == set[1], [set[1]] < [set[2]]
+
+output: |
+  true
+  false
+  true
+
+---
+
+# Elements are taken in ascending order rather than in the order of their
+# encodings, so sets with equal elements are equal even when the elements are
+# encoded differently.
+spq: |
+  values
+    {a:set[1,-1],b:set[-1,5]},
+    {a:set[0.0,2.0],b:set[0.0*-1.0,2.0]},
+    {a:set[1,-1],b:set[-1.0,1.0]},
+    {a:set[0.0/0.0],b:set[0.0/0.0]}
+  | values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
+
+output: |
+  [true,true,false,true,false,false]
+  [false,true,true,false,true,false]
+  [false,true,true,false,true,false]
+  [false,true,true,false,true,false]

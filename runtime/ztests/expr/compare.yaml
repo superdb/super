@@ -84,9 +84,9 @@ input: |
 
 output: |
   [true,false,false,true,true,false]
-  [false,true,false,false,false,false]
+  [false,true,true,true,false,false]
   [error("type mismatch: set[int64] == set[string]"),error("type mismatch: set[int64] != set[string]"),error("type mismatch: set[int64] < set[string]"),error("type mismatch: set[int64] <= set[string]"),error("type mismatch: set[int64] >= set[string]"),error("type mismatch: set[int64] > set[string]")]
-  [false,true,false,false,false,false]
+  [false,true,true,true,false,false]
   [error("type mismatch: set[int64] == set[error(int64)]"),error("type mismatch: set[int64] != set[error(int64)]"),error("type mismatch: set[int64] < set[error(int64)]"),error("type mismatch: set[int64] <= set[error(int64)]"),error("type mismatch: set[int64] >= set[error(int64)]"),error("type mismatch: set[int64] > set[error(int64)]")]
   [error("type mismatch: [int64] == int64"),error("type mismatch: [int64] != int64"),error("type mismatch: [int64] < int64"),error("type mismatch: [int64] <= int64"),error("type mismatch: [int64] >= int64"),error("type mismatch: [int64] > int64")]
   [null,null,null,null,null,null]

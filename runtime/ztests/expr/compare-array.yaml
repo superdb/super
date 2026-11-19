@@ -105,13 +105,15 @@ spq: |
     {a:[0.0*-1.0],b:[0.0]},
     {a:[0.0/0.0],b:[0.0/0.0]},
     {a:[0.0/0.0],b:[1.0]},
-    {a:[+Inf],b:[0.0/0.0]}
+    {a:[+Inf],b:[0.0/0.0]},
+    {a:[0.0/0.0,1.0],b:[0.0/0.0,2.0]}
   | values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
 
 output: |
   [false,true,true,false,true,false]
   [false,true,true,false,true,false]
   [false,false,false,true,true,true]
+  [true,true,false,true,false,false]
   [true,true,false,true,false,false]
 
 ---
