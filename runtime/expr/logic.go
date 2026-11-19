@@ -9,6 +9,7 @@ import (
 	samfunc "github.com/superdb/super/runtime/sam/expr/function"
 	"github.com/superdb/super/vector"
 	"github.com/superdb/super/vector/bitvec"
+	"github.com/superdb/super/vector/vbuild"
 )
 
 type Not struct {
@@ -249,8 +250,15 @@ func (p *PredicateWalk) Eval(vecs ...vector.Any) vector.Any {
 func (p *PredicateWalk) eval(vecs ...vector.Any) vector.Any {
 	lhs, rhs := vecs[0], vecs[1]
 	out := p.pred(lhs, rhs)
-	rhs, index := vector.UnwrapViewOrConst(vector.Under(rhs))
+	rhs = vector.Under(rhs)
+	var index []uint32
+	if view, ok := rhs.(*vector.View); ok {
+		rhs = view.Any
+		index = view.Index
+	}
 	switch rhs := rhs.(type) {
+	case *vector.Const:
+		return p.evalRHSConst(out, lhs, rhs.Any)
 	case *vector.Record:
 		for _, vec := range rhs.Fields {
 			if index != nil {
@@ -279,6 +287,51 @@ func (p *PredicateWalk) eval(vecs ...vector.Any) vector.Any {
 	default:
 		return out
 	}
+}
+
+// evalRHSConst assumes rhs is the fresh, single-row vector held by a
+// vector.Const (as built by vector.NewConstFromValue), so its elements are
+// exactly the values of that row.
+func (p *PredicateWalk) evalRHSConst(out, lhs, rhs vector.Any) vector.Any {
+	n := lhs.Len()
+	var elems []vector.Any
+	switch rhs := rhs.(type) {
+	case *vector.Array:
+		elems = elemConsts(rhs.Values, n)
+	case *vector.Set:
+		elems = elemConsts(rhs.Values, n)
+	case *vector.Map:
+		elems = append(elemConsts(rhs.Keys, n), elemConsts(rhs.Values, n)...)
+	case *vector.Record:
+		for _, field := range rhs.Fields {
+			elems = append(elems, elemConsts(field, n)...)
+		}
+	default:
+		return out
+	}
+	for _, vec := range elems {
+		out = EvalOr(p.sctx, out, p.Eval(lhs, vec))
+	}
+	return out
+}
+
+func elemConsts(vec vector.Any, n uint32) []vector.Any {
+	out := make([]vector.Any, vec.Len())
+	if dynamic, ok := vector.Deunion(vec).(*vector.Dynamic); ok {
+		forward := dynamic.ForwardTagMap()
+		for k := range dynamic.Len() {
+			b := vbuild.New(dynamic.TypeOf(k))
+			b.Write(vector.Pick(dynamic.Values[dynamic.Tags[k]], []uint32{forward[k]}))
+			out[k] = vector.NewConst(b.Build(), n)
+		}
+	} else {
+		for k := range vec.Len() {
+			b := vbuild.New(vec.Type())
+			b.Write(vector.Pick(vec, []uint32{k}))
+			out[k] = vector.NewConst(b.Build(), n)
+		}
+	}
+	return out
 }
 
 func (p *PredicateWalk) evalForList(lhs, rhs vector.Any, offsets, index []uint32) vector.Any {
