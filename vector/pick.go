@@ -68,12 +68,23 @@ func Pick(val Any, index []uint32) Any {
 }
 
 func viewForUnionOrDynamic(index, tags, forward []uint32, values []Any) ([]uint32, []Any) {
-	indexes := make([][]uint32, len(values))
+	counts := make([]uint32, len(values))
 	resultTags := make([]uint32, len(index))
 	for k, index := range index {
 		tag := tags[index]
-		indexes[tag] = append(indexes[tag], forward[index])
+		counts[tag]++
 		resultTags[k] = tag
+	}
+	space := make([]uint32, len(index))
+	indexes := make([][]uint32, len(values))
+	var off uint32
+	for k, n := range counts {
+		indexes[k] = space[off : off : off+n]
+		off += n
+	}
+	for k, index := range index {
+		tag := resultTags[k]
+		indexes[tag] = append(indexes[tag], forward[index])
 	}
 	results := make([]Any, len(values))
 	for k := range results {
