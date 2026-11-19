@@ -221,3 +221,47 @@ error: |
   option(int64): option value not handled (consider ??) at line 1, column 20:
   type n=none values some(1) == none::n
                      ~~~~~~~~~~~~~~~~~~
+
+---
+
+# Options are ordered by their payloads.
+spq: values some(1) < some(2), some(2) <= some(1)
+
+output: |
+  true
+  false
+
+---
+
+# An option ordered against a value that isn't an option is an error, as for
+# equality.
+spq: values some(1) < 2
+
+error: |
+  option(int64): option value not handled (consider ??) at line 1, column 8:
+  values some(1) < 2
+         ~~~~~~~~~~~
+
+---
+
+spq: values x < some(2)
+
+flags: -dynamic
+
+input: |
+  {x:some(1)}
+  {x:1}
+
+output: |
+  true
+  error("<: option value not handled (consider ??)")
+
+---
+
+# The operands of not in are checked like those of in.
+spq: values some(1) not in [1]
+
+error: |
+  option(int64): none not handled (consider ?? or ?.) at line 1, column 8:
+  values some(1) not in [1]
+         ~~~~~~~

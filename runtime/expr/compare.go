@@ -86,12 +86,6 @@ func (c *Compare) evalCaught(vecs ...vector.Any) vector.Any {
 	lhs, rhs := vector.Super(vecs[0]), vector.Super(vecs[1])
 	ltyp, rtyp := lhs.Type(), rhs.Type()
 	lhs, rhs = vector.Under(lhs), vector.Under(rhs)
-	if which, ok := compareNones(lhs, rhs); ok {
-		if c.opCode == vector.CompNE {
-			which = !which
-		}
-		return vector.NewConstBool(which, lhs.Len())
-	}
 	if vec, ok := c.compareNone(lhs, rhs); ok {
 		return vec
 	}
@@ -282,19 +276,6 @@ func (c *Compare) coerce(lhs, rhs vector.Any) (super.Type, vector.Any, vector.An
 // types (or is a Dynamic, whose parts are checked when compared).
 func (c *Compare) defused(vec vector.Any) bool {
 	return vector.IsDynamic(vec) || !c.hasFusion.Check(vec.Type())
-}
-
-func compareNones(a, b vector.Any) (bool, bool) {
-	if a.Kind() == vector.KindMissing {
-		if b.Kind() == vector.KindMissing {
-			return true, true
-		}
-		return false, true
-	}
-	if b.Kind() == vector.KindMissing {
-		return false, true
-	}
-	return false, false
 }
 
 // compareBool orders false before true.

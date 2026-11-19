@@ -92,28 +92,51 @@ func (d *SuperDefuse) defuseRecord(vec vector.Any) vector.Any {
 	}, vecs...)
 }
 
-// defuseOption defuses the payload of an option, which becomes a union if it
-// has more than one type.
+// defuseOption defuses the payload of an option.  As for a fusion value, each
+// value gets its own type: a some's payload type is that of its defused value,
+// while a none's has each fusion type replaced by its supertype.
 func (d *SuperDefuse) defuseOption(in vector.Any) vector.Any {
 	option := vector.UnderOption(in)
 	return option.Apply(func(tags []uint32, some vector.Any, none *vector.None) vector.Any {
-		if some == nil {
-			// With no values to defuse, each fusion type in the payload
-			// type becomes its supertype.
-			if typ, ok := d.defuseType(option.Typ.Type); ok {
-				return vector.NewOptionNone(d.sctx.LookupTypeOption(typ), none.Len())
+		var vecs []vector.Any
+		var someTags []uint32
+		if some != nil {
+			some = mergeSameTypes(d.eval(some))
+			somes := []vector.Any{some}
+			if dynamic, ok := some.(*vector.Dynamic); ok {
+				somes, someTags = dynamic.Values, dynamic.Tags
 			}
-			return in
+			for _, vec := range somes {
+				vecs = append(vecs, vector.NewOptionSome(d.sctx.LookupTypeOption(vec.Type()), vec))
+			}
 		}
-		some = mergeSameTypes(d.eval(some))
-		if dynamic, ok := some.(*vector.Dynamic); ok {
-			some = vector.NewUnionFromDynamic(d.sctx, dynamic)
+		if none != nil {
+			typ := option.Typ
+			if t, ok := d.defuseType(typ.Type); ok {
+				typ = d.sctx.LookupTypeOption(t)
+			}
+			vecs = append(vecs, vector.NewOptionNone(typ, none.Len()))
 		}
-		typ := d.sctx.LookupTypeOption(some.Type())
-		if none == nil {
-			return vector.NewOptionSome(typ, some)
+		if len(vecs) == 1 {
+			return vecs[0]
 		}
-		return vector.NewOption(typ, tags, some, none)
+		if tags == nil {
+			return vector.NewDynamic(someTags, vecs)
+		}
+		// Map each some to the vector for its type and each none to the last
+		// vector.
+		outTags := make([]uint32, len(tags))
+		var k int
+		for i, tag := range tags {
+			switch {
+			case tag == super.OptionNoneTag:
+				outTags[i] = uint32(len(vecs) - 1)
+			case someTags != nil:
+				outTags[i] = someTags[k]
+				k++
+			}
+		}
+		return mergeSameTypes(vector.NewDynamic(outTags, vecs))
 	})
 }
 
