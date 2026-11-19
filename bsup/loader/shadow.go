@@ -59,6 +59,8 @@ func hasFusion(typ super.Type) bool {
 		return hasFusion(typ.KeyType) || hasFusion(typ.ValType)
 	case *super.TypeError:
 		return hasFusion(typ.Type)
+	case *super.TypeOption:
+		return hasFusion(typ.Type)
 	case *super.TypeFusion:
 		return true
 	}
