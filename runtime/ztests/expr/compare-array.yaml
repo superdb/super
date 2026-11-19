@@ -98,19 +98,21 @@ output: |
 
 ---
 
-# Floating point elements are equal when their values are, and NaN is equal
-# only to NaN and has no order.
+# Floating point elements are equal when their values are, and NaN, as at the
+# top level, equals NaN and is ordered after any other number.
 spq: |
   values
     {a:[0.0*-1.0],b:[0.0]},
     {a:[0.0/0.0],b:[0.0/0.0]},
-    {a:[0.0/0.0],b:[1.0]}
+    {a:[0.0/0.0],b:[1.0]},
+    {a:[+Inf],b:[0.0/0.0]}
   | values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
 
 output: |
   [false,true,true,false,true,false]
   [false,true,true,false,true,false]
-  [false,false,false,true,false,false]
+  [false,false,false,true,true,true]
+  [true,true,false,true,false,false]
 
 ---
 

@@ -1,7 +1,9 @@
 package coerce
 
 import (
+	"cmp"
 	"fmt"
+	"math"
 	"slices"
 
 	"github.com/superdb/super"
@@ -325,4 +327,21 @@ func withoutNull(sctx *super.Context, typ super.Type) (super.Type, bool) {
 		return types[0], true
 	}
 	return sctx.MustLookupTypeUnion(types), true
+}
+
+// CompareFloats is like cmp.Compare but orders NaN after all other values
+// (as Postgres does) rather than before them.
+func CompareFloats(a, b float64) int {
+	aNaN, bNaN := math.IsNaN(a), math.IsNaN(b)
+	if aNaN || bNaN {
+		return cmp.Compare(btoi(aNaN), btoi(bNaN))
+	}
+	return cmp.Compare(a, b)
+}
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }

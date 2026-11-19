@@ -71,16 +71,47 @@ func genFunc(name, op, typ string, lhs, rhs vector.Form) string {
 		lexpr = "string(" + lexpr + ")"
 		rexpr = "string(" + rexpr + ")"
 	}
+	cond := fmt.Sprintf("%s %s %s", lexpr, op, rexpr)
+	if typ == "Float" {
+		cond = floatCond(op)
+	}
 	if lhs == vector.FormConst && rhs == vector.FormConst {
-		s += fmt.Sprintf("return vector.NewConstBool(%s %s %s, lhs.Len())\n", lexpr, op, rexpr)
+		if typ == "Float" {
+			s += fmt.Sprintf("a, b := %s, %s\n", lexpr, rexpr)
+		}
+		s += fmt.Sprintf("return vector.NewConstBool(%s, lhs.Len())\n", cond)
 	} else {
 		s += "n := lhs.Len()\n"
 		s += "out := vector.NewFalse(n)\n"
-		s += fmt.Sprintf("for k := range n { if %s %s %s { out.Set(k) }}\n", lexpr, op, rexpr)
+		s += "for k := range n {\n"
+		if typ == "Float" {
+			s += fmt.Sprintf("a, b := %s, %s\n", lexpr, rexpr)
+		}
+		s += fmt.Sprintf("if %s { out.Set(k) }}\n", cond)
 		s += "return out\n"
 	}
 	s += "}\n"
 	return s
+}
+
+// floatCond returns the condition for op on floats a and b, which orders NaN
+// after all other values and equal to NaN (as Postgres does).
+func floatCond(op string) string {
+	switch op {
+	case "==":
+		return "a == b || a != a && b != b"
+	case "!=":
+		return "!(a == b || a != a && b != b)"
+	case "<":
+		return "a < b || a == a && b != b"
+	case "<=":
+		return "a <= b || b != b"
+	case ">":
+		return "a > b || a != a && b == b"
+	case ">=":
+		return "a >= b || a != a"
+	}
+	panic(op)
 }
 
 func genVarInit(which, typ string, form vector.Form) string {

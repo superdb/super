@@ -1,0 +1,31 @@
+# NaN equals NaN and is ordered after any other number, including +Inf (as in
+# Postgres).
+spq: values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
+
+input: |
+  {a:NaN,b:NaN}
+  {a:NaN,b:+Inf}
+  {a:+Inf,b:NaN}
+  {a:NaN,b:1.}
+  {a:-Inf,b:NaN}
+
+output: |
+  [false,true,true,false,true,false]
+  [false,false,false,true,true,true]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+  [true,true,false,true,false,false]
+
+---
+
+# Likewise for a NaN compared with an integer and for constants.
+spq: values NaN > 1, 1 < NaN, NaN > +Inf, NaN == NaN, NaN != NaN, NaN < NaN, NaN >= NaN
+
+output: |
+  true
+  true
+  true
+  true
+  false
+  false
+  true

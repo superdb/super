@@ -5,7 +5,6 @@ package expr
 import (
 	"bytes"
 	"cmp"
-	"math"
 
 	"github.com/superdb/super"
 	"github.com/superdb/super/runtime/expr/cast"
@@ -228,11 +227,7 @@ func (c *Compare) compareMixedInts(lhs, rhs vector.Any) (vector.Any, bool) {
 	}
 	out := vector.NewFalse(n)
 	for i := range n {
-		u, s := vector.UintValue(lhs, i), vector.IntValue(rhs, i)
-		v := 1
-		if s >= 0 {
-			v = cmp.Compare(u, uint64(s))
-		}
+		v := orderUintInt(vector.UintValue(lhs, i), vector.IntValue(rhs, i))
 		if flip {
 			v = -v
 		}
@@ -244,9 +239,9 @@ func (c *Compare) compareMixedInts(lhs, rhs vector.Any) (vector.Any, bool) {
 }
 
 // coerce returns the comparison type of lhs and rhs and them cast as needed
-// to it or false if their types can't be compared.  If their types contain fusion types that
-// leave the comparison type unknown, it instead returns them defused, with
-// defused true, to be compared again.
+// to it or false if their types can't be compared.  If their types contain
+// fusion types that leave the comparison type unknown, it instead returns them
+// defused, with defused true, to be compared again.
 func (c *Compare) coerce(lhs, rhs vector.Any) (super.Type, vector.Any, vector.Any, bool, bool) {
 	ltyp, rtyp := lhs.Type(), rhs.Type()
 	if ltyp == rtyp {
@@ -521,11 +516,7 @@ func orderValues(typ super.Type, a, b scode.Bytes) (int, bool) {
 	case super.IsUnsigned(id):
 		return cmp.Compare(super.DecodeUint(a), super.DecodeUint(b)), true
 	case super.IsFloat(id):
-		af, bf := super.DecodeFloat(a), super.DecodeFloat(b)
-		if math.IsNaN(af) || math.IsNaN(bf) {
-			return 0, false
-		}
-		return cmp.Compare(af, bf), true
+		return coerce.CompareFloats(super.DecodeFloat(a), super.DecodeFloat(b)), true
 	case id == super.IDBool:
 		return cmp.Compare(btoi(super.DecodeBool(a)), btoi(super.DecodeBool(b))), true
 	case id == super.IDString, id == super.IDBytes:
@@ -614,11 +605,7 @@ func orderMixed(atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) 
 func orderNumbers(aid int, a scode.Bytes, bid int, b scode.Bytes) (int, bool) {
 	switch {
 	case super.IsFloat(aid) || super.IsFloat(bid):
-		af, bf := toFloat(aid, a), toFloat(bid, b)
-		if math.IsNaN(af) || math.IsNaN(bf) {
-			return 0, false
-		}
-		return cmp.Compare(af, bf), true
+		return coerce.CompareFloats(toFloat(aid, a), toFloat(bid, b)), true
 	case super.IsUnsigned(aid) && super.IsUnsigned(bid):
 		return cmp.Compare(super.DecodeUint(a), super.DecodeUint(b)), true
 	case super.IsSigned(aid) && super.IsSigned(bid):

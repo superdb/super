@@ -476,7 +476,8 @@ func compareEQFloatFlatFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) == r.Value(k) {
+		a, b := l.Value(k), r.Value(k)
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -491,7 +492,8 @@ func compareEQFloatFlatDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) == r.Value(uint32(rx[k])) {
+		a, b := l.Value(k), r.Value(uint32(rx[k]))
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -506,7 +508,8 @@ func compareEQFloatFlatView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) == r.Value(uint32(rx[k])) {
+		a, b := l.Value(k), r.Value(uint32(rx[k]))
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -519,7 +522,8 @@ func compareEQFloatFlatConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) == rconst {
+		a, b := l.Value(k), rconst
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -534,7 +538,8 @@ func compareEQFloatDictFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) == r.Value(k) {
+		a, b := l.Value(uint32(lx[k])), r.Value(k)
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -551,7 +556,8 @@ func compareEQFloatDictDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) == r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -568,7 +574,8 @@ func compareEQFloatDictView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) == r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -583,7 +590,8 @@ func compareEQFloatDictConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) == rconst {
+		a, b := l.Value(uint32(lx[k])), rconst
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -598,7 +606,8 @@ func compareEQFloatViewFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) == r.Value(k) {
+		a, b := l.Value(uint32(lx[k])), r.Value(k)
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -615,7 +624,8 @@ func compareEQFloatViewDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) == r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -632,7 +642,8 @@ func compareEQFloatViewView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) == r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -647,7 +658,8 @@ func compareEQFloatViewConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) == rconst {
+		a, b := l.Value(uint32(lx[k])), rconst
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -660,7 +672,8 @@ func compareEQFloatConstFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst == r.Value(k) {
+		a, b := lconst, r.Value(k)
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -675,7 +688,8 @@ func compareEQFloatConstDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst == r.Value(uint32(rx[k])) {
+		a, b := lconst, r.Value(uint32(rx[k]))
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -690,7 +704,8 @@ func compareEQFloatConstView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst == r.Value(uint32(rx[k])) {
+		a, b := lconst, r.Value(uint32(rx[k]))
+		if a == b || a != a && b != b {
 			out.Set(k)
 		}
 	}
@@ -700,7 +715,8 @@ func compareEQFloatConstView(lhs, rhs vector.Any) vector.Any {
 func compareEQFloatConstConst(lhs, rhs vector.Any) vector.Any {
 	lconst := lhs.(*vector.Const).Any.(*vector.Float).Value(0)
 	rconst := rhs.(*vector.Const).Any.(*vector.Float).Value(0)
-	return vector.NewConstBool(lconst == rconst, lhs.Len())
+	a, b := lconst, rconst
+	return vector.NewConstBool(a == b || a != a && b != b, lhs.Len())
 }
 
 func compareEQStringFlatFlat(lhs, rhs vector.Any) vector.Any {
@@ -1641,7 +1657,8 @@ func compareNEFloatFlatFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) != r.Value(k) {
+		a, b := l.Value(k), r.Value(k)
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1656,7 +1673,8 @@ func compareNEFloatFlatDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) != r.Value(uint32(rx[k])) {
+		a, b := l.Value(k), r.Value(uint32(rx[k]))
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1671,7 +1689,8 @@ func compareNEFloatFlatView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) != r.Value(uint32(rx[k])) {
+		a, b := l.Value(k), r.Value(uint32(rx[k]))
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1684,7 +1703,8 @@ func compareNEFloatFlatConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) != rconst {
+		a, b := l.Value(k), rconst
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1699,7 +1719,8 @@ func compareNEFloatDictFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) != r.Value(k) {
+		a, b := l.Value(uint32(lx[k])), r.Value(k)
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1716,7 +1737,8 @@ func compareNEFloatDictDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) != r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1733,7 +1755,8 @@ func compareNEFloatDictView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) != r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1748,7 +1771,8 @@ func compareNEFloatDictConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) != rconst {
+		a, b := l.Value(uint32(lx[k])), rconst
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1763,7 +1787,8 @@ func compareNEFloatViewFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) != r.Value(k) {
+		a, b := l.Value(uint32(lx[k])), r.Value(k)
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1780,7 +1805,8 @@ func compareNEFloatViewDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) != r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1797,7 +1823,8 @@ func compareNEFloatViewView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) != r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1812,7 +1839,8 @@ func compareNEFloatViewConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) != rconst {
+		a, b := l.Value(uint32(lx[k])), rconst
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1825,7 +1853,8 @@ func compareNEFloatConstFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst != r.Value(k) {
+		a, b := lconst, r.Value(k)
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1840,7 +1869,8 @@ func compareNEFloatConstDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst != r.Value(uint32(rx[k])) {
+		a, b := lconst, r.Value(uint32(rx[k]))
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1855,7 +1885,8 @@ func compareNEFloatConstView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst != r.Value(uint32(rx[k])) {
+		a, b := lconst, r.Value(uint32(rx[k]))
+		if !(a == b || a != a && b != b) {
 			out.Set(k)
 		}
 	}
@@ -1865,7 +1896,8 @@ func compareNEFloatConstView(lhs, rhs vector.Any) vector.Any {
 func compareNEFloatConstConst(lhs, rhs vector.Any) vector.Any {
 	lconst := lhs.(*vector.Const).Any.(*vector.Float).Value(0)
 	rconst := rhs.(*vector.Const).Any.(*vector.Float).Value(0)
-	return vector.NewConstBool(lconst != rconst, lhs.Len())
+	a, b := lconst, rconst
+	return vector.NewConstBool(!(a == b || a != a && b != b), lhs.Len())
 }
 
 func compareNEStringFlatFlat(lhs, rhs vector.Any) vector.Any {
@@ -2806,7 +2838,8 @@ func compareLTFloatFlatFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) < r.Value(k) {
+		a, b := l.Value(k), r.Value(k)
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -2821,7 +2854,8 @@ func compareLTFloatFlatDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) < r.Value(uint32(rx[k])) {
+		a, b := l.Value(k), r.Value(uint32(rx[k]))
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -2836,7 +2870,8 @@ func compareLTFloatFlatView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) < r.Value(uint32(rx[k])) {
+		a, b := l.Value(k), r.Value(uint32(rx[k]))
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -2849,7 +2884,8 @@ func compareLTFloatFlatConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) < rconst {
+		a, b := l.Value(k), rconst
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -2864,7 +2900,8 @@ func compareLTFloatDictFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) < r.Value(k) {
+		a, b := l.Value(uint32(lx[k])), r.Value(k)
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -2881,7 +2918,8 @@ func compareLTFloatDictDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) < r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -2898,7 +2936,8 @@ func compareLTFloatDictView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) < r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -2913,7 +2952,8 @@ func compareLTFloatDictConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) < rconst {
+		a, b := l.Value(uint32(lx[k])), rconst
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -2928,7 +2968,8 @@ func compareLTFloatViewFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) < r.Value(k) {
+		a, b := l.Value(uint32(lx[k])), r.Value(k)
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -2945,7 +2986,8 @@ func compareLTFloatViewDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) < r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -2962,7 +3004,8 @@ func compareLTFloatViewView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) < r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -2977,7 +3020,8 @@ func compareLTFloatViewConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) < rconst {
+		a, b := l.Value(uint32(lx[k])), rconst
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -2990,7 +3034,8 @@ func compareLTFloatConstFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst < r.Value(k) {
+		a, b := lconst, r.Value(k)
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -3005,7 +3050,8 @@ func compareLTFloatConstDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst < r.Value(uint32(rx[k])) {
+		a, b := lconst, r.Value(uint32(rx[k]))
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -3020,7 +3066,8 @@ func compareLTFloatConstView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst < r.Value(uint32(rx[k])) {
+		a, b := lconst, r.Value(uint32(rx[k]))
+		if a < b || a == a && b != b {
 			out.Set(k)
 		}
 	}
@@ -3030,7 +3077,8 @@ func compareLTFloatConstView(lhs, rhs vector.Any) vector.Any {
 func compareLTFloatConstConst(lhs, rhs vector.Any) vector.Any {
 	lconst := lhs.(*vector.Const).Any.(*vector.Float).Value(0)
 	rconst := rhs.(*vector.Const).Any.(*vector.Float).Value(0)
-	return vector.NewConstBool(lconst < rconst, lhs.Len())
+	a, b := lconst, rconst
+	return vector.NewConstBool(a < b || a == a && b != b, lhs.Len())
 }
 
 func compareLTStringFlatFlat(lhs, rhs vector.Any) vector.Any {
@@ -3971,7 +4019,8 @@ func compareLEFloatFlatFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) <= r.Value(k) {
+		a, b := l.Value(k), r.Value(k)
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -3986,7 +4035,8 @@ func compareLEFloatFlatDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) <= r.Value(uint32(rx[k])) {
+		a, b := l.Value(k), r.Value(uint32(rx[k]))
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4001,7 +4051,8 @@ func compareLEFloatFlatView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) <= r.Value(uint32(rx[k])) {
+		a, b := l.Value(k), r.Value(uint32(rx[k]))
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4014,7 +4065,8 @@ func compareLEFloatFlatConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) <= rconst {
+		a, b := l.Value(k), rconst
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4029,7 +4081,8 @@ func compareLEFloatDictFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) <= r.Value(k) {
+		a, b := l.Value(uint32(lx[k])), r.Value(k)
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4046,7 +4099,8 @@ func compareLEFloatDictDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) <= r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4063,7 +4117,8 @@ func compareLEFloatDictView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) <= r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4078,7 +4133,8 @@ func compareLEFloatDictConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) <= rconst {
+		a, b := l.Value(uint32(lx[k])), rconst
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4093,7 +4149,8 @@ func compareLEFloatViewFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) <= r.Value(k) {
+		a, b := l.Value(uint32(lx[k])), r.Value(k)
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4110,7 +4167,8 @@ func compareLEFloatViewDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) <= r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4127,7 +4185,8 @@ func compareLEFloatViewView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) <= r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4142,7 +4201,8 @@ func compareLEFloatViewConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) <= rconst {
+		a, b := l.Value(uint32(lx[k])), rconst
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4155,7 +4215,8 @@ func compareLEFloatConstFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst <= r.Value(k) {
+		a, b := lconst, r.Value(k)
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4170,7 +4231,8 @@ func compareLEFloatConstDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst <= r.Value(uint32(rx[k])) {
+		a, b := lconst, r.Value(uint32(rx[k]))
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4185,7 +4247,8 @@ func compareLEFloatConstView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst <= r.Value(uint32(rx[k])) {
+		a, b := lconst, r.Value(uint32(rx[k]))
+		if a <= b || b != b {
 			out.Set(k)
 		}
 	}
@@ -4195,7 +4258,8 @@ func compareLEFloatConstView(lhs, rhs vector.Any) vector.Any {
 func compareLEFloatConstConst(lhs, rhs vector.Any) vector.Any {
 	lconst := lhs.(*vector.Const).Any.(*vector.Float).Value(0)
 	rconst := rhs.(*vector.Const).Any.(*vector.Float).Value(0)
-	return vector.NewConstBool(lconst <= rconst, lhs.Len())
+	a, b := lconst, rconst
+	return vector.NewConstBool(a <= b || b != b, lhs.Len())
 }
 
 func compareLEStringFlatFlat(lhs, rhs vector.Any) vector.Any {
@@ -5136,7 +5200,8 @@ func compareGTFloatFlatFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) > r.Value(k) {
+		a, b := l.Value(k), r.Value(k)
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5151,7 +5216,8 @@ func compareGTFloatFlatDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) > r.Value(uint32(rx[k])) {
+		a, b := l.Value(k), r.Value(uint32(rx[k]))
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5166,7 +5232,8 @@ func compareGTFloatFlatView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) > r.Value(uint32(rx[k])) {
+		a, b := l.Value(k), r.Value(uint32(rx[k]))
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5179,7 +5246,8 @@ func compareGTFloatFlatConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) > rconst {
+		a, b := l.Value(k), rconst
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5194,7 +5262,8 @@ func compareGTFloatDictFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) > r.Value(k) {
+		a, b := l.Value(uint32(lx[k])), r.Value(k)
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5211,7 +5280,8 @@ func compareGTFloatDictDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) > r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5228,7 +5298,8 @@ func compareGTFloatDictView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) > r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5243,7 +5314,8 @@ func compareGTFloatDictConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) > rconst {
+		a, b := l.Value(uint32(lx[k])), rconst
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5258,7 +5330,8 @@ func compareGTFloatViewFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) > r.Value(k) {
+		a, b := l.Value(uint32(lx[k])), r.Value(k)
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5275,7 +5348,8 @@ func compareGTFloatViewDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) > r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5292,7 +5366,8 @@ func compareGTFloatViewView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) > r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5307,7 +5382,8 @@ func compareGTFloatViewConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) > rconst {
+		a, b := l.Value(uint32(lx[k])), rconst
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5320,7 +5396,8 @@ func compareGTFloatConstFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst > r.Value(k) {
+		a, b := lconst, r.Value(k)
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5335,7 +5412,8 @@ func compareGTFloatConstDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst > r.Value(uint32(rx[k])) {
+		a, b := lconst, r.Value(uint32(rx[k]))
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5350,7 +5428,8 @@ func compareGTFloatConstView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst > r.Value(uint32(rx[k])) {
+		a, b := lconst, r.Value(uint32(rx[k]))
+		if a > b || a != a && b == b {
 			out.Set(k)
 		}
 	}
@@ -5360,7 +5439,8 @@ func compareGTFloatConstView(lhs, rhs vector.Any) vector.Any {
 func compareGTFloatConstConst(lhs, rhs vector.Any) vector.Any {
 	lconst := lhs.(*vector.Const).Any.(*vector.Float).Value(0)
 	rconst := rhs.(*vector.Const).Any.(*vector.Float).Value(0)
-	return vector.NewConstBool(lconst > rconst, lhs.Len())
+	a, b := lconst, rconst
+	return vector.NewConstBool(a > b || a != a && b == b, lhs.Len())
 }
 
 func compareGTStringFlatFlat(lhs, rhs vector.Any) vector.Any {
@@ -6301,7 +6381,8 @@ func compareGEFloatFlatFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) >= r.Value(k) {
+		a, b := l.Value(k), r.Value(k)
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6316,7 +6397,8 @@ func compareGEFloatFlatDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) >= r.Value(uint32(rx[k])) {
+		a, b := l.Value(k), r.Value(uint32(rx[k]))
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6331,7 +6413,8 @@ func compareGEFloatFlatView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) >= r.Value(uint32(rx[k])) {
+		a, b := l.Value(k), r.Value(uint32(rx[k]))
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6344,7 +6427,8 @@ func compareGEFloatFlatConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(k) >= rconst {
+		a, b := l.Value(k), rconst
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6359,7 +6443,8 @@ func compareGEFloatDictFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) >= r.Value(k) {
+		a, b := l.Value(uint32(lx[k])), r.Value(k)
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6376,7 +6461,8 @@ func compareGEFloatDictDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) >= r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6393,7 +6479,8 @@ func compareGEFloatDictView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) >= r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6408,7 +6495,8 @@ func compareGEFloatDictConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) >= rconst {
+		a, b := l.Value(uint32(lx[k])), rconst
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6423,7 +6511,8 @@ func compareGEFloatViewFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) >= r.Value(k) {
+		a, b := l.Value(uint32(lx[k])), r.Value(k)
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6440,7 +6529,8 @@ func compareGEFloatViewDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) >= r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6457,7 +6547,8 @@ func compareGEFloatViewView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) >= r.Value(uint32(rx[k])) {
+		a, b := l.Value(uint32(lx[k])), r.Value(uint32(rx[k]))
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6472,7 +6563,8 @@ func compareGEFloatViewConst(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if l.Value(uint32(lx[k])) >= rconst {
+		a, b := l.Value(uint32(lx[k])), rconst
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6485,7 +6577,8 @@ func compareGEFloatConstFlat(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst >= r.Value(k) {
+		a, b := lconst, r.Value(k)
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6500,7 +6593,8 @@ func compareGEFloatConstDict(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst >= r.Value(uint32(rx[k])) {
+		a, b := lconst, r.Value(uint32(rx[k]))
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6515,7 +6609,8 @@ func compareGEFloatConstView(lhs, rhs vector.Any) vector.Any {
 	n := lhs.Len()
 	out := vector.NewFalse(n)
 	for k := range n {
-		if lconst >= r.Value(uint32(rx[k])) {
+		a, b := lconst, r.Value(uint32(rx[k]))
+		if a >= b || a != a {
 			out.Set(k)
 		}
 	}
@@ -6525,7 +6620,8 @@ func compareGEFloatConstView(lhs, rhs vector.Any) vector.Any {
 func compareGEFloatConstConst(lhs, rhs vector.Any) vector.Any {
 	lconst := lhs.(*vector.Const).Any.(*vector.Float).Value(0)
 	rconst := rhs.(*vector.Const).Any.(*vector.Float).Value(0)
-	return vector.NewConstBool(lconst >= rconst, lhs.Len())
+	a, b := lconst, rconst
+	return vector.NewConstBool(a >= b || a != a, lhs.Len())
 }
 
 func compareGEStringFlatFlat(lhs, rhs vector.Any) vector.Any {

@@ -16,7 +16,6 @@ input: |
   NaN
 
 output: |
-  NaN
   -Inf
   -64.64
   -64
@@ -29,3 +28,21 @@ output: |
   64::uint64
   64.64
   +Inf
+  NaN
+
+---
+
+# NaN is ordered after all other numbers, so it's first in descending order.
+spq: sort -r
+
+input: |
+  1.
+  NaN
+  +Inf
+  -Inf
+
+output: |
+  NaN
+  +Inf
+  1.
+  -Inf
