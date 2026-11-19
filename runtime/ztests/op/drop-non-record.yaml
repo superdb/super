@@ -1,7 +1,5 @@
 spq: drop x
 
-flags: -dynamic
-
 input: |
   1
 

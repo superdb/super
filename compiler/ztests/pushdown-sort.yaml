@@ -1,11 +1,11 @@
 script: |
-  super compile -C -O -dynamic 'from /dev/null | sort'
+  super compile -C -O 'from /dev/null | sort'
   echo ===
-  super compile -C -O -dynamic 'from /dev/null | sort | values a'
+  super compile -C -O 'from /dev/null | sort | values a'
   echo ===
-  super compile -C -O -dynamic 'from /dev/null | sort a'
+  super compile -C -O 'from /dev/null | sort a'
   echo ===
-  super compile -C -O -dynamic 'from /dev/null | sort a | values b'
+  super compile -C -O 'from /dev/null | sort a | values b'
 
 outputs:
   - name: stdout

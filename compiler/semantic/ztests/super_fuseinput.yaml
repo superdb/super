@@ -1,6 +1,6 @@
 script: |
   echo === dag.FileScan
-  SUPER_FUSEINPUT=1 super compile -C -dag -dynamic 'from /dev/null'
+  SUPER_FUSEINPUT=1 super compile -C -dag 'from /dev/null'
   echo === dag.HttpScan
   SUPER_FUSEINPUT=1 super compile -C -dag 'from http://host'
   echo === dag.RobotScan

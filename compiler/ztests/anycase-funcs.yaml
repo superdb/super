@@ -1,7 +1,7 @@
 script: |
   super -s -c 'c:=COUNT(),d:=Count(),Collect(LoweR(s)) by key | sort key' in.sup
   echo ===
-  super -dynamic -s -c 'Grep("G.*", this)' in.sup
+  super -s -c 'Grep("G.*", this)' in.sup
   echo ===
   super -s -c 'values {s,match:RegEXP("(f|B).*", s)}' in.sup
   echo ===

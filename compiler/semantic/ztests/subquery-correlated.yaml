@@ -1,6 +1,6 @@
 script: |
   echo === dag.FileScan
-  super compile -C -dag -dynamic 'values (from "/dev/null")'
+  super compile -C -dag 'values (from "/dev/null")'
   echo === dag.HTTPScan
   super compile -C -dag 'values (from http://host)'
   echo === dag.RobotScan
@@ -19,12 +19,12 @@ script: |
   super db compile -C -dag 'values (from test)' | sed -Ee 's/[0-9a-f-]{36}/xxx/'
 
   echo === dag.ForkOp
-  super compile -C -dag -dynamic 'values (fork (from "/dev/null") (from "/dev/null"))'
-  super compile -C -dag -dynamic 'values (fork (from "/dev/null") (head))'
+  super compile -C -dag 'values (fork (from "/dev/null") (from "/dev/null"))'
+  super compile -C -dag 'values (fork (from "/dev/null") (head))'
   super compile -C -dag 'values (fork (head) (head))'
-  super compile -C -dag -dynamic 'values (fork (head) (from "/dev/null"))'
+  super compile -C -dag 'values (fork (head) (from "/dev/null"))'
   echo === dag.SwitchOp
-  super compile -C -dag -dynamic 'values (switch case true (from "/dev/null"))'
+  super compile -C -dag 'values (switch case true (from "/dev/null"))'
 
 
 outputs:

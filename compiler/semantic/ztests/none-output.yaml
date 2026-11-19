@@ -66,8 +66,6 @@ outputs:
 # At runtime, a plain none output is dropped.
 spq: values org?.id
 
-flags: -dynamic
-
 input: |
   {org?:none::{id:int64}}
   {org?:{id:1}}
@@ -120,8 +118,6 @@ output: |
 # A union whose type has a none member keeps its type for values that
 # aren't plain nones.
 spq: values this
-
-flags: -dynamic
 
 input: |
   1::(int64|none)

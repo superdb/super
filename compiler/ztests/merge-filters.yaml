@@ -1,11 +1,11 @@
 script: |
-  super compile -C -O -dynamic 'from /dev/null | where a | where b'
+  super compile -C -O 'from /dev/null | where a | where b'
   echo ===
-  super compile -C -O -dynamic 'fork ( from /dev/null | where b | where c ) ( from /dev/zero | where e | where f ) | where g'
+  super compile -C -O 'fork ( from /dev/null | where b | where c ) ( from /dev/zero | where e | where f ) | where g'
   echo ===
-  super compile -C -O -dynamic 'from /dev/null | unnest [a] into ( where b | where c )'
+  super compile -C -O 'from /dev/null | unnest [a] into ( where b | where c )'
   echo ===
-  super compile -C -O -dynamic 'from /dev/null | fork ( where a | where b ) ( where c | where d  )'
+  super compile -C -O 'from /dev/null | fork ( where a | where b ) ( where c | where d  )'
 
 outputs:
   - name: stdout

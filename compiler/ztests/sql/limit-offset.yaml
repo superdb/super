@@ -1,15 +1,15 @@
 script: |
-  super compile -C -O -dynamic 'select this from /dev/null limit 1'
+  super compile -C -O 'select this from /dev/null limit 1'
   echo // ===
-  super compile -C -O -dynamic 'select this from /dev/null limit all'
+  super compile -C -O 'select this from /dev/null limit all'
   echo // ===
-  super compile -C -O -dynamic 'select this from /dev/null offset 1'
+  super compile -C -O 'select this from /dev/null offset 1'
   echo // ===
-  super compile -C -O -dynamic 'select this from /dev/null limit 1 offset 1'
+  super compile -C -O 'select this from /dev/null limit 1 offset 1'
   echo // ===
-  super compile -C -O -dynamic 'select this from /dev/null offset 1 limit 1'
+  super compile -C -O 'select this from /dev/null offset 1 limit 1'
   echo // ===
-  ! super compile -C -O -dynamic 'select this from /dev/null offset -1 limit "foo"'
+  ! super compile -C -O 'select this from /dev/null offset -1 limit "foo"'
 
 outputs:
   - name: stdout

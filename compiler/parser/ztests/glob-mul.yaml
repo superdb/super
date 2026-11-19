@@ -1,5 +1,5 @@
 script: |
-  super -dynamic -s -c "? a*b" in.sup
+  super -s -c "? a*b" in.sup
   echo ===
   super -dynamic -s -c "? a*b=s" in.sup
 

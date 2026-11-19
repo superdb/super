@@ -80,8 +80,6 @@ output: |
 # Test slice with indexes of a named type
 spq: values s[i:j]
 
-flags: -dynamic
-
 input: |
   type idx=int64
   {s:"food",i:1::idx,j:3::idx}

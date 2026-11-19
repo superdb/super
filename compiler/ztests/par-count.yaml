@@ -1,7 +1,7 @@
 # Test ensures that flowgraphs utilizing the count operator
 # are not parallelized.
 script: |
-  super compile -C -P 2 -dynamic 'from /dev/null | count {...this,row_number} | aggregate sum(x)'
+  super compile -C -P 2 'from /dev/null | count {...this,row_number} | aggregate sum(x)'
 
 outputs:
   - name: stdout

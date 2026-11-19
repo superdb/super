@@ -51,8 +51,6 @@ output: |
 # Unnest on fusion values
 spq: unnest y with x
 
-flags: -dynamic
-
 input: |
   fusion({x:"foo",y:[1,2],z?:none::int64},<{x:string,y:[int64]}>)
   fusion({x:"foo",y:[1,2],z?:3},<{x:string,y:[int64],z:int64}>)
@@ -94,8 +92,6 @@ output: |
 
 # A plain none to unnest produces no values as for an unnamed unnest.
 spq: unnest x:=o?.a with s
-
-flags: -dynamic
 
 input: |
   {o:none::{a:[int64]},s:1}

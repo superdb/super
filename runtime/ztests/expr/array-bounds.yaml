@@ -1,7 +1,5 @@
 spq: put b:=is_error(a[2])
 
-flags: -dynamic
-
 input: |
   {a:[1,2,3]}
   {a:[1,2]}

@@ -1,6 +1,6 @@
 # A switch operator containing an aggregate operator cannot be parallelized.
 script: |
-  super compile -C -P 2 -dynamic 'from /dev/null | switch default ( aggregate count() ) | sort count'
+  super compile -C -P 2 'from /dev/null | switch default ( aggregate count() ) | sort count'
 
 outputs:
   - name: stdout
