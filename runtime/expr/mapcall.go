@@ -23,12 +23,7 @@ func (m *mapCall) eval(vecs ...vector.Any) vector.Any {
 	if vec, ok := CatchFirst(m.sctx, CatchAll, vecs, "map"); ok {
 		return vec
 	}
-	vec := vector.Under(vecs[0])
-	var index []uint32
-	if view, ok := vec.(*vector.View); ok {
-		index = view.Index
-		vec = view.Any
-	}
+	vec, index := vector.UnwrapViewOrConst(vector.Under(vecs[0]))
 	inner, offsets, ok := elements(vec)
 	if !ok {
 		return vector.NewWrappedError(m.sctx, "map: expected array or set value", vecs[0])

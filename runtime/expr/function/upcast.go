@@ -90,6 +90,13 @@ func (u *Upcast) upcast(vec vector.Any, to super.Type) vector.Any {
 	switch vec := vec.(type) {
 	case *vector.Fusion:
 		return u.upcast(vec.Values, to)
+	case *vector.Const:
+		switch vec.Kind() {
+		case vector.KindArray, vector.KindSet, vector.KindMap, vector.KindRecord:
+			// Expand a container Const so the cases below see the
+			// container itself.
+			return u.upcast(vector.PushViewOrConst(vec), to)
+		}
 	case *vector.View:
 		vec2 := u.upcast(vec.Any, to)
 		if vec2 == nil {
@@ -324,7 +331,7 @@ func (u *Upcast) toOption(vec vector.Any, to *super.TypeOption) vector.Any {
 	case *vector.Missing:
 		return vector.NewOptionNone(to, vec.Len())
 	case *vector.View:
-		return u.toOption(vector.PushView(vec), to)
+		return u.toOption(vector.PushViewOrConst(vec), to)
 	}
 	vec = u.upcast(vec, to.Type)
 	if vec == nil {

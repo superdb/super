@@ -71,11 +71,8 @@ func (s *sliceExpr) evalArrayOrSlice(vec, fromVec, toVec vector.Any, base1 bool)
 	from, constFrom := sliceIsConstIndex(fromVec)
 	to, constTo := sliceIsConstIndex(toVec)
 	slowPath := !constFrom || !constTo
-	var index []uint32
 	n := vec.Len()
-	if view, ok := vec.(*vector.View); ok {
-		vec, index = view.Any, view.Index
-	}
+	vec, index := vector.UnwrapViewOrConst(vec)
 	offsets, inner := arrayOrSetContents(vec)
 	newOffsets := []uint32{0}
 	var innerIndex []uint32

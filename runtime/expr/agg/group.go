@@ -40,7 +40,7 @@ func combineNulls(out vector.Any, nullTags []uint32, size uint32) vector.Any {
 func expandContainer(groups []uint32, vec vector.Any) ([]uint32, vector.Any) {
 	var offsets []uint32
 	var values vector.Any
-	switch v := vector.PushView(vec).(type) {
+	switch v := vector.PushViewOrConst(vec).(type) {
 	case *vector.Array:
 		offsets, values = v.Offsets, v.Values
 	case *vector.Set:

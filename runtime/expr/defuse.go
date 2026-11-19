@@ -12,7 +12,7 @@ func Defuse(sctx *super.Context, vec vector.Any) vector.Any {
 	case vector.KindRecord:
 		return defuseRecord(sctx, vec)
 	case vector.KindArray:
-		array := vector.PushView(vec).(*vector.Array)
+		array := vector.PushViewOrConst(vec).(*vector.Array)
 		tags, inners, offsets := SplitListByTypes(sctx, array.Offsets, Defuse(sctx, array.Values))
 		var vals []vector.Any
 		for i, inner := range inners {
@@ -24,7 +24,7 @@ func Defuse(sctx *super.Context, vec vector.Any) vector.Any {
 		}
 		return vals[0]
 	case vector.KindSet:
-		set := vector.PushView(vec).(*vector.Set)
+		set := vector.PushViewOrConst(vec).(*vector.Set)
 		tags, inners, offsets := SplitListByTypes(sctx, set.Offsets, Defuse(sctx, set.Values))
 		var vals []vector.Any
 		for i, inner := range inners {
@@ -36,7 +36,7 @@ func Defuse(sctx *super.Context, vec vector.Any) vector.Any {
 		}
 		return vals[0]
 	case vector.KindMap:
-		return defuseMap(sctx, vector.PushView(vec).(*vector.Map))
+		return defuseMap(sctx, vector.PushViewOrConst(vec).(*vector.Map))
 	case vector.KindUnion:
 		out := vector.Apply(vector.ApplyRipUnions, func(vecs ...vector.Any) vector.Any {
 			return Defuse(sctx, vecs[0])

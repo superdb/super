@@ -300,3 +300,41 @@ func addChainToRecordExpr(rec *RecordExpr, chain field.Chain, expr Expr) {
 	}
 	addChainToRecordExpr(rec.Elems[i].(*Field).Value.(*RecordExpr), chain[1:], expr)
 }
+
+// IsConst returns true if e is a literal or a record, array, set, or map
+// expression built entirely from literals.
+func IsConst(e Expr) bool {
+	switch e := e.(type) {
+	case *PrimitiveExpr:
+		return true
+	case *RecordExpr:
+		for _, elem := range e.Elems {
+			if field, ok := elem.(*Field); !ok || !IsConst(field.Value) {
+				return false
+			}
+		}
+		return true
+	case *ArrayExpr:
+		return isConstVectorElems(e.Elems)
+	case *SetExpr:
+		return isConstVectorElems(e.Elems)
+	case *MapExpr:
+		for _, entry := range e.Entries {
+			if !IsConst(entry.Key) || !IsConst(entry.Value) {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
+}
+
+func isConstVectorElems(elems []VectorElem) bool {
+	for _, elem := range elems {
+		if val, ok := elem.(*VectorValue); !ok || !IsConst(val.Expr) {
+			return false
+		}
+	}
+	return true
+}

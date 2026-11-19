@@ -23,7 +23,7 @@ func (f *fusionBuilder) Write(vec vector.Any) {
 		return
 	}
 	// A view of a fusion is pushed down to its values and subtypes.
-	fusion := vector.PushView(vec).(*vector.Fusion)
+	fusion := vector.PushViewOrConst(vec).(*vector.Fusion)
 	f.vals.Write(fusion.Values)
 	f.subtypes.Write(fusion.Subtypes)
 }

@@ -105,7 +105,7 @@ func (k *keys) Call(args ...vector.Any) vector.Any {
 	case *super.TypeRecord:
 		return k.recordKeys([]*super.TypeRecord{typ}, make([]uint32, vec.Len()))
 	case *super.TypeMap:
-		m := vector.PushView(vec).(*vector.Map)
+		m := vector.PushViewOrConst(vec).(*vector.Map)
 		return vector.NewArray(k.sctx.LookupTypeArray(typ.KeyType), m.Offsets, m.Keys)
 	case *super.TypeOfType:
 		var recs []*super.TypeRecord
@@ -187,7 +187,7 @@ func (v *values) Call(args ...vector.Any) vector.Any {
 		}
 		return out.Build(v.sctx)
 	case *super.TypeMap:
-		m := vector.PushView(vec).(*vector.Map)
+		m := vector.PushViewOrConst(vec).(*vector.Map)
 		return vector.NewArray(v.sctx.LookupTypeArray(typ.ValType), m.Offsets, m.Values)
 	}
 	return vector.NewWrappedError(v.sctx, "values: not a record or map", vec)

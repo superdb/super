@@ -138,7 +138,7 @@ func unwrapSpread(vec vector.Any) (vector.Any, []uint32) {
 	if k := vec.Kind(); k != vector.KindArray && k != vector.KindSet {
 		return nil, nil
 	}
-	switch vec := vector.PushView(vec).(type) {
+	switch vec := vector.PushViewOrConst(vec).(type) {
 	case *vector.Array:
 		return vec.Values, vec.Offsets
 	case *vector.Set:

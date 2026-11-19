@@ -571,7 +571,7 @@ func retype(vec vector.Any, typ super.Type) vector.Any {
 // under returns the underlying vector of vec with any named types and views
 // removed.
 func under(vec vector.Any) vector.Any {
-	return vector.Under(vector.PushView(vector.Under(vec)))
+	return vector.Under(vector.PushViewOrConst(vector.Under(vec)))
 }
 
 func unionHas(typ, member super.Type) bool {
@@ -832,7 +832,7 @@ func (c *complexCaster) recordToMap(rec *vector.Record, to *super.TypeMap) vecto
 			continue
 		}
 		vals[k] = f
-		o, ok := vector.Under(vector.PushView(f)).(*vector.Option)
+		o, ok := vector.Under(vector.PushViewOrConst(f)).(*vector.Option)
 		if !ok {
 			continue
 		}

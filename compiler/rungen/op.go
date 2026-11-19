@@ -165,6 +165,10 @@ func (b *Builder) evalAtCompileTime(in dag.Expr) (val super.Value, err error) {
 	if err != nil {
 		return super.Null, err
 	}
+	return b.evalEvaluatorAtCompileTime(e), nil
+}
+
+func (b *Builder) evalEvaluatorAtCompileTime(e expr.Evaluator) (val super.Value) {
 	// Catch panic as the runtime will panic if there is a
 	// reference to a var not in scope, a field access null this, etc.
 	defer func() {
@@ -176,7 +180,7 @@ func (b *Builder) evalAtCompileTime(in dag.Expr) (val super.Value, err error) {
 	if vec.Len() != 1 {
 		panic(vector.Format(vec))
 	}
-	return vector.ValueAt(nil, vec, 0), nil
+	return vector.ValueAt(nil, vec, 0)
 }
 
 func compileExpr(in dag.Expr) (samexpr.Evaluator, error) {
