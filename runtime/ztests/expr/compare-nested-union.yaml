@@ -59,8 +59,6 @@ error: |
 # no common type holds is unequal rather than an error or a panic.
 spq: values {i:m[k] ?? "none", n:nullif(u, k), s:k in a, t:u in a}
 
-flags: -dynamic
-
 input: |
   {m:map{18446744073709551615::uint64:"x"},k:-1,u:18446744073709551615::uint64,a:[18446744073709551615::uint64]}
 
@@ -70,8 +68,6 @@ output: |
 ---
 
 spq: search -1 | values k
-
-flags: -dynamic
 
 input: |
   {m:map{18446744073709551615::uint64:"x"},k:-1}

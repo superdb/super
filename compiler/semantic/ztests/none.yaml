@@ -148,8 +148,6 @@ output: |
 # it's output.
 spq: values r.ok()?.f
 
-flags: -dynamic
-
 input: |
   {r:{f:1}}
   {s:1}

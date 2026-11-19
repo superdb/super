@@ -8,19 +8,19 @@
 # asserted type only after the change), and an operator that materializes its
 # input needs all of the data.
 script: |
-  super compile -C -O -dynamic 'from /dev/null | values this.(int64) | output main' | head -1
-  super compile -C -O -dynamic 'from /dev/null | values a.({x:int64,y:string})?.x | output main' | head -1
-  super compile -C -O -dynamic 'from /dev/null | values a.({x:int64})?.x, b.(string) | output main' | head -1
-  super compile -C -O -dynamic 'from /dev/null | values a.({x:int64})?.x, a.({y:string})?.y | output main' | head -1
-  super compile -C -O -dynamic 'from /dev/null | values typeof(this), a.({x:int64})?.x | output main' | head -1
-  super compile -C -O -dynamic 'from /dev/null | values a.({x:int64})?.x, a | output main' | head -1
-  super compile -C -O -dynamic 'from /dev/null | values a.({x:int64})?.x, a.y | output main' | head -1
-  super compile -C -O -dynamic 'from /dev/null | values a.({r:{x:int64}|string})?.r.({x:int64})?.x | output main' | head -1
-  super compile -C -O -dynamic 'from /dev/null | put b:=1 | values a.({x:int64})?.x | output main' | head -1
-  super compile -C -O -dynamic 'from /dev/null | sort c | values a.({x:int64})?.x | output main' | head -1
-  super compile -C -O -dynamic 'from /dev/null | put a.y:=1 | values a.({x:int64})?.x | output main' | head -1
-  super compile -C -O -dynamic 'from /dev/null | drop a.y | values a.({x:int64})?.x | output main' | head -1
-  super compile -C -O -dynamic 'from /dev/null | put b:=1 | values this.({a:int64})?.a | output main' | head -1
+  super compile -C -O 'from /dev/null | values this.(int64) | output main' | head -1
+  super compile -C -O 'from /dev/null | values a.({x:int64,y:string})?.x | output main' | head -1
+  super compile -C -O 'from /dev/null | values a.({x:int64})?.x, b.(string) | output main' | head -1
+  super compile -C -O 'from /dev/null | values a.({x:int64})?.x, a.({y:string})?.y | output main' | head -1
+  super compile -C -O 'from /dev/null | values typeof(this), a.({x:int64})?.x | output main' | head -1
+  super compile -C -O 'from /dev/null | values a.({x:int64})?.x, a | output main' | head -1
+  super compile -C -O 'from /dev/null | values a.({x:int64})?.x, a.y | output main' | head -1
+  super compile -C -O 'from /dev/null | values a.({r:{x:int64}|string})?.r.({x:int64})?.x | output main' | head -1
+  super compile -C -O 'from /dev/null | put b:=1 | values a.({x:int64})?.x | output main' | head -1
+  super compile -C -O 'from /dev/null | sort c | values a.({x:int64})?.x | output main' | head -1
+  super compile -C -O 'from /dev/null | put a.y:=1 | values a.({x:int64})?.x | output main' | head -1
+  super compile -C -O 'from /dev/null | drop a.y | values a.({x:int64})?.x | output main' | head -1
+  super compile -C -O 'from /dev/null | put b:=1 | values this.({a:int64})?.a | output main' | head -1
 
 outputs:
   - name: stdout

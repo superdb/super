@@ -1,5 +1,5 @@
 script: |
-  ! super -dynamic -s -c "select * from (select 1 as a, 2 as b) t1 join (select 2 as b) on a=b"
+  ! super -s -c "select * from (select 1 as a, 2 as b) t1 join (select 2 as b) on a=b"
   echo === 1>&2
   ! super -dynamic -s -c "select * from a.json join b.json on a=b"
   echo === 1>&2

@@ -1,10 +1,10 @@
 script: |
   echo === array_agg
-  super compile -C -P 2 -dynamic 'from /dev/null | array_agg(a)'
+  super compile -C -P 2 'from /dev/null | array_agg(a)'
   echo === collect
-  super compile -C -P 2 -dynamic 'from /dev/null | collect(a)'
+  super compile -C -P 2 'from /dev/null | collect(a)'
   echo === array_agg and collect with an unordered aggregate
-  super compile -C -P 2 -dynamic 'from /dev/null | array_agg(a),collect(a),count()'
+  super compile -C -P 2 'from /dev/null | array_agg(a),collect(a),count()'
 
 
 outputs:

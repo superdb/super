@@ -1,11 +1,11 @@
 script: |
-  super compile -C -O -dynamic 'from /dev/null | top'
+  super compile -C -O 'from /dev/null | top'
   echo ===
-  super compile -C -O -dynamic 'from /dev/null | top | values a'
+  super compile -C -O 'from /dev/null | top | values a'
   echo ===
-  super compile -C -O -dynamic 'from /dev/null | top 2 a'
+  super compile -C -O 'from /dev/null | top 2 a'
   echo ===
-  super compile -C -O -dynamic 'from /dev/null | top 2 a | values b'
+  super compile -C -O 'from /dev/null | top 2 a | values b'
 
 outputs:
   - name: stdout

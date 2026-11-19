@@ -9,13 +9,13 @@ script: |
   super -o nested.bsup nested.sup
   for f in in.bsup fused.bsup; do
     echo "=== $f"
-    super -dynamic -s -c "from $f | values typeof(this)"
-    super -dynamic -s -c "from $f | count() by kind(this) | sort this"
+    super -s -c "from $f | values typeof(this)"
+    super -s -c "from $f | count() by kind(this) | sort this"
     super -dynamic -s -c "from $f | values {t:typeof(b),c:b.c,k:kind(m),kt:kind(t)}"
     super -dynamic -s -c "from $f | sort -r a | values typeof(u)"
-    super -dynamic -s -c "from $f | uniq | values kind(this)"
-    super -dynamic -s -c "from $f | fuse(this)"
-    super -dynamic -s -c "from $f | superfuse(this)"
+    super -s -c "from $f | uniq | values kind(this)"
+    super -s -c "from $f | fuse(this)"
+    super -s -c "from $f | superfuse(this)"
   done
   echo === nested.bsup
   super -s -c "from nested.bsup | values typeof(this), typeof(arr)"

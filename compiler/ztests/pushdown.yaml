@@ -1,22 +1,22 @@
 script: |
   echo === debug
-  super compile -C -O -dynamic 'from /dev/null | debug a | values b'
+  super compile -C -O 'from /dev/null | debug a | values b'
   echo === distinct
-  super compile -C -O -dynamic 'from /dev/null | distinct a | values b'
+  super compile -C -O 'from /dev/null | distinct a | values b'
   echo === fork into hash join
-  super compile -C -O -dynamic 'fork ( from /dev/null ) ( from /dev/zero ) | join on right.a=left.b | values left.c,right.d'
+  super compile -C -O 'fork ( from /dev/null ) ( from /dev/zero ) | join on right.a=left.b | values left.c,right.d'
   echo === fork into nested loop join
-  super compile -C -O -dynamic 'fork ( from /dev/null ) ( from /dev/zero ) | join on right.a>left.b | values left.c,right.d'
+  super compile -C -O 'fork ( from /dev/null ) ( from /dev/zero ) | join on right.a>left.b | values left.c,right.d'
   echo === hash join
-  super compile -C -O -dynamic "from /dev/null | join (from /dev/zero) on left.a=right.b | values left.c,right.d"
+  super compile -C -O "from /dev/null | join (from /dev/zero) on left.a=right.b | values left.c,right.d"
   echo === nested loop join
-  super compile -C -O -dynamic "from /dev/null | join (from /dev/zero) on left.a>right.b | values left.c,right.d"
+  super compile -C -O "from /dev/null | join (from /dev/zero) on left.a>right.b | values left.c,right.d"
   echo === switch into hash join
-  super compile -C -O -dynamic 'from /dev/null | switch a case b ( put x:=c ) case d ( put x:=e ) | join on left.f=right.g | values left.h,right.i'
+  super compile -C -O 'from /dev/null | switch a case b ( put x:=c ) case d ( put x:=e ) | join on left.f=right.g | values left.h,right.i'
   echo === switch into nested loop join
-  super compile -C -O -dynamic 'from /dev/null | switch a case b ( put x:=c ) case d ( put x:=e ) | join on left.f>right.g | values left.h,right.i'
+  super compile -C -O 'from /dev/null | switch a case b ( put x:=c ) case d ( put x:=e ) | join on left.f>right.g | values left.h,right.i'
   echo === where
-  super compile -C -O -dynamic "from /dev/null | a==1 or e==2 | values c, b, d"
+  super compile -C -O "from /dev/null | a==1 or e==2 | values c, b, d"
   echo ===
   super db init -q test
   super db attach -q test

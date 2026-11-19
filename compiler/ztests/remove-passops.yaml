@@ -1,4 +1,4 @@
-script: super compile -C -O -dynamic 'from /dev/null | x>1 | pass | pass | x>2 | pass'
+script: super compile -C -O 'from /dev/null | x>1 | pass | pass | x>2 | pass'
 
 outputs:
   - name: stdout
