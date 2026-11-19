@@ -98,7 +98,8 @@ func (c *Compare) evalCaught(vecs ...vector.Any) vector.Any {
 	if vec, ok := c.compareMixedInts(lhs, rhs); ok {
 		return vec
 	}
-	lhs, rhs, ok, defused := c.coerce(lhs, rhs)
+	lhs0, rhs0 := lhs, rhs
+	typ, lhs, rhs, ok, defused := c.coerce(lhs, rhs)
 	if defused {
 		return vector.Apply(vector.ApplyRipUnions, c.evalAllowingOption, lhs, rhs)
 	}
@@ -107,6 +108,9 @@ func (c *Compare) evalCaught(vecs ...vector.Any) vector.Any {
 			return vector.NewConstBool(c.opCode == vector.CompNE, lhs.Len())
 		}
 		return vector.NewStringError(c.sctx, coerce.TypeMismatch(c.op, ltyp, rtyp), lhs.Len())
+	}
+	if typ, ok := super.TypeUnder(typ).(*super.TypeArray); ok {
+		return c.compareArrays(typ, lhs0, rhs0, lhs, rhs)
 	}
 	kind := lhs.Kind()
 	if kind != rhs.Kind() || kind == vector.KindError {
@@ -142,7 +146,6 @@ func (c *Compare) evalCaught(vecs ...vector.Any) vector.Any {
 	case vector.KindType:
 		return c.compareTypeVals(lhs, rhs)
 	case vector.KindRecord,
-		vector.KindArray,
 		vector.KindSet,
 		vector.KindMap,
 		vector.KindEnum:
@@ -240,14 +243,14 @@ func (c *Compare) compareMixedInts(lhs, rhs vector.Any) (vector.Any, bool) {
 	return out, true
 }
 
-// coerce returns lhs and rhs cast as needed to their comparison type or false
-// if their types can't be compared.  If their types contain fusion types that
+// coerce returns the comparison type of lhs and rhs and them cast as needed
+// to it or false if their types can't be compared.  If their types contain fusion types that
 // leave the comparison type unknown, it instead returns them defused, with
 // defused true, to be compared again.
-func (c *Compare) coerce(lhs, rhs vector.Any) (vector.Any, vector.Any, bool, bool) {
+func (c *Compare) coerce(lhs, rhs vector.Any) (super.Type, vector.Any, vector.Any, bool, bool) {
 	ltyp, rtyp := lhs.Type(), rhs.Type()
 	if ltyp == rtyp {
-		return lhs, rhs, true, false
+		return ltyp, lhs, rhs, true, false
 	}
 	key := [2]super.Type{ltyp, rtyp}
 	ct, cached := c.comparisonTypes[key]
@@ -260,7 +263,7 @@ func (c *Compare) coerce(lhs, rhs vector.Any) (vector.Any, vector.Any, bool, boo
 	}
 	typ, ok := ct.typ, ct.ok
 	if !ok {
-		return lhs, rhs, false, false
+		return nil, lhs, rhs, false, false
 	}
 	if coerce.IsUnknown(typ) {
 		if c.hasFusion.Check(ltyp) || c.hasFusion.Check(rtyp) {
@@ -268,10 +271,10 @@ func (c *Compare) coerce(lhs, rhs vector.Any) (vector.Any, vector.Any, bool, boo
 			// Compare again only if defusing removed the fusion types so
 			// this can't recur forever.
 			if c.defused(lhs) && c.defused(rhs) {
-				return lhs, rhs, true, true
+				return nil, lhs, rhs, true, true
 			}
 		}
-		return lhs, rhs, false, false
+		return nil, lhs, rhs, false, false
 	}
 	to := cast.To
 	if typ.Kind() != super.PrimitiveKind {
@@ -283,7 +286,7 @@ func (c *Compare) coerce(lhs, rhs vector.Any) (vector.Any, vector.Any, bool, boo
 	if rtyp != typ {
 		rhs = to(c.sctx, rhs, typ)
 	}
-	return vector.Under(lhs), vector.Under(rhs), true, false
+	return typ, vector.Under(lhs), vector.Under(rhs), true, false
 }
 
 // defused reports whether vec, the result of defusing a vector, has no fusion
@@ -425,9 +428,6 @@ func (c *Compare) compareComplex(lhs, rhs vector.Any) vector.Any {
 		// uint64 too large for int64), so the values are unequal.
 		return vector.NewConstBool(c.opCode == vector.CompNE, lhs.Len())
 	}
-	if typ, ok := super.TypeUnder(lhs.Type()).(*super.TypeArray); ok {
-		return c.compareArrays(typ, lhs, rhs)
-	}
 	if c.opCode == vector.CompLT || c.opCode == vector.CompGT {
 		return vector.NewConstBool(false, lhs.Len())
 	}
@@ -447,13 +447,24 @@ func (c *Compare) compareComplex(lhs, rhs vector.Any) vector.Any {
 	return out
 }
 
-func (c *Compare) compareArrays(typ *super.TypeArray, lhs, rhs vector.Any) vector.Any {
+// compareArrays compares arrays, which have been cast to their comparison type
+// typ as lhs and rhs.  An array that couldn't be cast (e.g., one with a uint64
+// too large for an int64 element type) is compared as it was in lhs0 and rhs0
+// instead.
+func (c *Compare) compareArrays(typ *super.TypeArray, lhs0, rhs0, lhs, rhs vector.Any) vector.Any {
 	var lb, rb scode.Builder
 	out := vector.NewFalse(lhs.Len())
 	for i := range lhs.Len() {
-		l := vector.ValueAt(&lb, lhs, i).Bytes()
-		r := vector.ValueAt(&rb, rhs, i).Bytes()
-		v, ok := orderValues(typ, l, r)
+		l := vector.ValueAt(&lb, lhs, i)
+		r := vector.ValueAt(&rb, rhs, i)
+		var v int
+		var ok bool
+		if l.Type() == typ && r.Type() == typ {
+			v, ok = orderValues(typ, l.Bytes(), r.Bytes())
+		} else {
+			l, r = vector.ValueAt(&lb, lhs0, i), vector.ValueAt(&rb, rhs0, i)
+			v, ok = orderMixed(l.Type(), l.Bytes(), r.Type(), r.Bytes())
+		}
 		// Values with no order are unequal.
 		if ok && isCompareOpSatisfied(c.opCode, v) || !ok && c.opCode == vector.CompNE {
 			out.Set(i)
@@ -527,6 +538,117 @@ func orderValues(typ super.Type, a, b scode.Bytes) (int, bool) {
 		return super.DecodeUUID(a).Compare(super.DecodeUUID(b)), true
 	}
 	return 0, false
+}
+
+// orderMixed is like orderValues for a of type atyp and b of type btyp, which
+// have a comparison type that one of them couldn't be cast to.  Integers and
+// floats of different types are ordered by value.
+func orderMixed(atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) (int, bool) {
+	if a == nil || b == nil {
+		return cmp.Compare(btoi(a == nil), btoi(b == nil)), true
+	}
+	atyp, btyp = super.TypeUnder(atyp), super.TypeUnder(btyp)
+	if atyp == btyp {
+		return orderValues(atyp, a, b)
+	}
+	au, aUnion := atyp.(*super.TypeUnion)
+	bu, bUnion := btyp.(*super.TypeUnion)
+	if aUnion || bUnion {
+		if aUnion {
+			atyp, a = au.Untag(a)
+		}
+		if bUnion {
+			btyp, b = bu.Untag(b)
+		}
+		anull, bnull := atyp == super.TypeNull, btyp == super.TypeNull
+		if anull || bnull {
+			return cmp.Compare(btoi(anull), btoi(bnull)), true
+		}
+		// A value keeps its type in a union.
+		if atyp != btyp {
+			return 0, false
+		}
+		return orderValues(atyp, a, b)
+	}
+	switch at := atyp.(type) {
+	case *super.TypeArray:
+		if bt, ok := btyp.(*super.TypeArray); ok {
+			ait, bit := a.Iter(), b.Iter()
+			for !ait.Done() && !bit.Done() {
+				v, ok := orderMixed(at.Type, ait.Next(), bt.Type, bit.Next())
+				if !ok || v != 0 {
+					return v, ok
+				}
+			}
+			return cmp.Compare(btoi(!ait.Done()), btoi(!bit.Done())), true
+		}
+	case *super.TypeRecord:
+		if bt, ok := btyp.(*super.TypeRecord); ok && len(at.Fields) == len(bt.Fields) {
+			// Records have no order.
+			ait, bit := a.Iter(), b.Iter()
+			for i, f := range at.Fields {
+				if v, ok := orderMixed(f.Type, ait.Next(), bt.Fields[i].Type, bit.Next()); !ok || v != 0 {
+					return 0, false
+				}
+			}
+			return 0, true
+		}
+	case *super.TypeOption:
+		if bt, ok := btyp.(*super.TypeOption); ok {
+			atyp, a := at.Decode(a)
+			btyp, b := bt.Decode(b)
+			if atyp == nil || btyp == nil {
+				// None equals only none.
+				return 0, atyp == nil && btyp == nil
+			}
+			return orderMixed(atyp, a, btyp, b)
+		}
+	}
+	if aid, bid := atyp.ID(), btyp.ID(); isNumeric(aid) && isNumeric(bid) {
+		return orderNumbers(aid, a, bid, b)
+	}
+	return 0, false
+}
+
+// orderNumbers orders integers and floats of different types by value.
+func orderNumbers(aid int, a scode.Bytes, bid int, b scode.Bytes) (int, bool) {
+	switch {
+	case super.IsFloat(aid) || super.IsFloat(bid):
+		af, bf := toFloat(aid, a), toFloat(bid, b)
+		if math.IsNaN(af) || math.IsNaN(bf) {
+			return 0, false
+		}
+		return cmp.Compare(af, bf), true
+	case super.IsUnsigned(aid) && super.IsUnsigned(bid):
+		return cmp.Compare(super.DecodeUint(a), super.DecodeUint(b)), true
+	case super.IsSigned(aid) && super.IsSigned(bid):
+		return cmp.Compare(super.DecodeInt(a), super.DecodeInt(b)), true
+	case super.IsUnsigned(aid):
+		return orderUintInt(super.DecodeUint(a), super.DecodeInt(b)), true
+	default:
+		return -orderUintInt(super.DecodeUint(b), super.DecodeInt(a)), true
+	}
+}
+
+func orderUintInt(u uint64, s int64) int {
+	if s < 0 {
+		return 1
+	}
+	return cmp.Compare(u, uint64(s))
+}
+
+func toFloat(id int, b scode.Bytes) float64 {
+	switch {
+	case super.IsFloat(id):
+		return super.DecodeFloat(b)
+	case super.IsUnsigned(id):
+		return float64(super.DecodeUint(b))
+	}
+	return float64(super.DecodeInt(b))
+}
+
+func isNumeric(id int) bool {
+	return super.IsInteger(id) || super.IsFloat(id)
 }
 
 func btoi(b bool) int {
