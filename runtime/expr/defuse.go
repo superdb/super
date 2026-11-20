@@ -60,12 +60,7 @@ func Defuse(sctx *super.Context, vec vector.Any) vector.Any {
 }
 
 func defuseRecord(sctx *super.Context, in vector.Any) vector.Any {
-	vec := in
-	var index []uint32
-	if view, ok := vec.(*vector.View); ok {
-		index = view.Index
-		vec = view.Any
-	}
+	vec, index := vector.UnwrapViewOrConst(in)
 	rec := vec.(*vector.Record)
 	if len(rec.Fields) == 0 {
 		return in

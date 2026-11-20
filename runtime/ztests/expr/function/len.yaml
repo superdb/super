@@ -68,3 +68,20 @@ output: |
   error({message:"len()",on:error(null)})
   error({message:"len()",on:error("")})
   error({message:"len()",on:error("error")})
+
+---
+
+# Arrays, sets, and maps written as literals in the query, for two input values
+spq: values len([1,2,3]), len(set[1,2]), len(map{"a":1})
+
+input: |
+  1
+  2
+
+output: |
+  3
+  2
+  1
+  3
+  2
+  1

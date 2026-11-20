@@ -131,3 +131,16 @@ input: |
 
 output: |
   map{"k1":0}
+
+---
+
+# A record written as a literal in the query, for two input values
+spq: values defuse({a:1,b:{c:2}})
+
+input: |
+  1
+  2
+
+output: |
+  {a:1,b:{c:2}}
+  {a:1,b:{c:2}}

@@ -84,11 +84,7 @@ func (s *search) eval(vecs ...vector.Any) vector.Any {
 		return s.match(vec)
 	}
 	n := vec.Len()
-	var index []uint32
-	if view, ok := vec.(*vector.View); ok {
-		vec = view.Any
-		index = view.Index
-	}
+	vec, index := vector.UnwrapViewOrConst(vec)
 	switch vec := vec.(type) {
 	case *vector.Record:
 		out := vector.NewFalse(n)

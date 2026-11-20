@@ -44,3 +44,16 @@ input: |
 output: |
   null
   error({message:"join: separator must be string",on:1})
+
+---
+
+# An array written as a literal in the query, for two input values
+spq: values join(["foo","bar"], "-")
+
+input: |
+  1
+  2
+
+output: |
+  "foo-bar"
+  "foo-bar"

@@ -1,0 +1,17 @@
+# Records, arrays, sets, and maps written as literals in the query are searched,
+# for two input values.
+spq: values {a:1}, [1,2], set[1], map{"a":1}, {b:2} | search 1
+
+input: |
+  1
+  2
+
+output: |
+  {a:1}
+  [1,2]
+  set[1]
+  map{"a":1}
+  {a:1}
+  [1,2]
+  set[1]
+  map{"a":1}

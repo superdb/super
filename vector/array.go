@@ -49,6 +49,8 @@ func ContainerOffset(val Any, slot uint32) (uint32, uint32) {
 	case *View:
 		slot = val.Index[slot]
 		return ContainerOffset(val.Any, slot)
+	case *Const:
+		return ContainerOffset(val.Any, 0)
 	}
 	panic(val)
 }
@@ -62,6 +64,8 @@ func Inner(val Any) Any {
 	case *Dict:
 		return Inner(val.Any)
 	case *View:
+		return Inner(val.Any)
+	case *Const:
 		return Inner(val.Any)
 	}
 	panic(val)
