@@ -518,9 +518,10 @@ func (w *Writer) buildArrowListValue(b array.ListLikeBuilder, typ super.Type, by
 }
 
 // nullableUnion returns whether typ is a union representing a nullable Arrow
-// type.  More specifically, it returns whether typ is a union of two or three types, one
-// or two of which is null or none and the other of which is not a null or none.
-// not nullable.)
+// type.  If so, it returns the union and the index of the type to build the
+// Arrow type from: the union's only type that isn't null, missing, none, or
+// an option, or 0 if every type is null, missing, or none.  Otherwise, the
+// index is -1.
 func nullableUnion(typ super.Type) (*super.TypeUnion, int) {
 	u, ok := typ.(*super.TypeUnion)
 	if !ok {
@@ -535,6 +536,9 @@ func nullableUnion(typ super.Type) (*super.TypeUnion, int) {
 			return nil, -1
 		}
 		which = k
+	}
+	if which < 0 && !slices.ContainsFunc(u.Types, super.IsOptionType) {
+		which = 0
 	}
 	return u, which
 }
