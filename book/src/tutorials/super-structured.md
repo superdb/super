@@ -5,7 +5,7 @@
  difference is the key to a unified model.**
 
 >[!NOTE]
-> **TL;DR** The super-structured data model defines a new and easy way to manage, store,
+> **TL;DR** The super data model defines a new and easy way to manage, store,
 > and process data utilizing an collections of strongly yet heterogeneously
 typed values.
 > The [data model specification](../formats/model.md) defines the type system
@@ -277,7 +277,7 @@ providing a unified approach to row, columnar, and human-readable formats:
 * [Super (SUP)](../formats/sup.md) is a human-readable format for super-structured data.  All JSON
 documents are SUP values as the SUP format is a strict superset of the JSON syntax.
 * [Super Binary (BSUP)](../formats/bsup.md) is an efficient binary representation
-of a sequence of arbitrarily-typed values in either rows, somewhat like Avro, or
+of a sequence of arbitrarily-typed values in either rows, a bit like Parquet's Variant encoding, or
 columns, somewhat like Parquet or ORC, that embodies the super data model for
 heterogeneous and self-describing schemas.
 

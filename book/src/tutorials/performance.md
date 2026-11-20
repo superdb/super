@@ -335,7 +335,7 @@ decent performance, we used it as the baseline for all of the speed-up factors.
 To summarize,
 `super` with BSUP is substantially faster than multiple relational systems for
 the search use cases, and with Parquet performs on par with the others for traditional OLAP queries,
-except for the _union_ query, where the super-structured data model trounces the relational
+except for the _union_ query, where the super data model trounces the relational
 model (by over 60x!) for stitching together disparate data types for analysis in an aggregation.
 
 ## Appendix 1: Preparing the Test Data

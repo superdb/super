@@ -22,7 +22,7 @@ and passed as a value, or
 * a [function reference](#function-references).
 
 Functions are not first-class values and cannot be assigned to super-structured values
-as there are no function values in the super-structured [data model](../../formats/model.md).
+as there are no function values in the [super data model](../../formats/model.md).
 Instead, functions may only be called or passed as a reference to another function.
 
 ## Lambda Expressions

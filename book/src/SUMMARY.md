@@ -2,6 +2,7 @@
 # Summary
 
 - [Introduction](intro.md)
+- [The Algebraic Data Model](adm.md)
 - [Getting Started](getting-started/intro.md)
     - [TL;DR](getting-started/tldr.md)
     - [Installation](getting-started/install.md)
@@ -216,7 +217,7 @@
 !!    - [Performance](tutorials/performance.md)
 !!    - [For jq Users](tutorials/jq.md)
 - [Formats](formats/intro.md)
-    - [Data Model](formats/model.md)
+    - [Super Data Model](formats/model.md)
     - [Super (SUP)](formats/sup.md)
     - [Super Binary (BSUP)](formats/bsup.md)
 - [Database](database/intro.md)
@@ -235,3 +236,8 @@
             - [Type System](dev/integrations/zeek/types.md)
             - [TSV Logs](dev/integrations/zeek/logs.md)
             - [JSON Logs](dev/integrations/zeek/shaping.md)
+- [Blog](blog/intro.md)
+    - [Welcome to SuperDB](blog/welcome.md)
+    - [The Sum Type Hiding in Your JSON](blog/gharchive.md)
+    - [JSON Can't Tell a Map from a Record](blog/json-map-or-record.md)
+    - [Algebraic Types, End to End](blog/end-to-end.md)

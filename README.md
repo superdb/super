@@ -1,119 +1,91 @@
 # SuperDB [![Tests][tests-img]][tests] [![GoPkg][gopkg-img]][gopkg]
 
-[SuperDB](https://superdb.org/)
-is a new analytics database that supports relational tables and JSON
-on an equal footing.  It shines when it comes to data wrangling where
-you need to explore or process large eclectic data sets.  It's also pretty
-decent at analytics and
-[search use cases](https://superdb.org/super-sql/operators/search.html).
+[SuperDB](https://superdb.org/) is an analytics database built on the
+[algebraic data model](https://superdb.org/adm.html), which unifies
+relational tables and JSON in a single type system.
 
-Unlike other relational systems that do performance-fragile "schema inference" of JSON,
-SuperDB won't fall over if you throw a bunch of eclectic JSON at it.
-You can easily do
-[schema inference if you want](https://superdb.org/super-sql/operators/fuse.html),
-but data is ingested by default in its natural form no matter how much heterogeneity
-it might have.  And unlike systems based on the document data model,
-every value in SuperDB is strongly and dynamically typed thus providing the
-best of both worlds: the flexibility of the document model and
-the performance and type soundness of the relational model.
+A relational schema is a product type.  JSON is one particular sum type.
+SuperDB has both, in the form of the records, unions, arrays, and maps
+found in languages like Rust and TypeScript, so tables and JSON are each
+just a special case.  This means:
 
-In SuperDB's SQL dialect, there are no "JSON columns" so there isn't a "relational
-way to do things" and a different "JSON way to do things".  Instead of having
-a relational type system for structured data and completely separate JSON type
-system for semi-structured data,
-all data handled by SuperDB (e.g., JSON, CSV, Parquet files, Arrow streams, relational tables, etc) is automatically massaged into
-[super-structured data](https://superdb.org/intro.html#super-structured-data)
-form.  This super-structured data is then processed by a runtime that simultaneously
-supports the statically-typed relational model and the dynamically-typed
-JSON data model in a unified compute engine.
+* there are no "JSON columns" and no separate "JSON way to do things",
+* messy data is ingested as is, with no schema inference to fall over,
+* every value has a precise type whether or not anyone declared a schema, and
+* queries are type checked against those types.
 
-## SuperSQL
+The query language, [SuperSQL](https://superdb.org/super-sql/intro.html),
+is (aspirationally) backward compatible with SQL and adds
+[pipe syntax](https://superdb.org/super-sql/intro.html#pipe-queries) and
+[lots of fun shortcuts](https://superdb.org/super-sql/operators/intro.html#shortcuts).
 
-SuperDB uses SQL as its query language, but it's a SQL that has been extended
-with [pipe syntax](https://research.google/pubs/sql-has-problems-we-can-fix-them-pipe-syntax-in-sql/)
-and [lots of fun shortcuts](https://superdb.org/super-sql/operators/intro.html#shortcuts).
-This extended SQL is called [SuperSQL](https://superdb.org/super-sql/intro.html).
+## Example
 
-Here's a SuperSQL query that fetches some data from GitHub Archive,
-computes the set of repos touched by each user, ranks them by number of repos,
-picks the top five, and joins each user with their original `created_at` time
-from the current GitHub API:
-
-```sql
-FROM 'https://data.gharchive.org/2015-01-01-15.json.gz'
-| SELECT union(repo.name) AS repos, actor.login AS user
-  GROUP BY user
-  ORDER BY len(repos) DESC
-  LIMIT 5
-| FORK
-  ( FROM f'https://api.github.com/users/{user}'
-    SELECT login AS user, created_at::timestamp AS created_at )
-  ( PASS )
-| JOIN USING (user)
-| VALUES {...left,repos:right.repos}
+Here is some messy JSON in a file `shapes.json`:
 ```
+{"id":1,"type":"Rectangle","dimensions":{"width":2,"height":1}}
+{"id":2,"type":"Circle","dimensions":{"radius":3}}
+{"id":3,"type":"Square","dimensions":{"side":5}}
+{"id":4,"type":"Circle","dimensions":{"radius":7}}
+{"id":5,"type":"Vector","dimensions":[1,2,3,2,1]}
+```
+Nobody wrote a schema, but the data has a type:
+```
+$ super -s -c 'from shapes.json | aggregate fuse(this)'
+<{id:int64,type:string,dimensions:{width:int64|missing,height:int64|missing,radius:int64|missing,side:int64|missing}|[int64]}>
+```
+The types are stored with the data, so a query is checked before it runs:
+```
+$ super -o shapes.bsup shapes.json
+$ super -s -c 'from shapes.bsup | values dimensions.radius'
+no such field "radius": . applied to [int64] in {width:int64|missing,height:int64|missing,radius:int64|missing,side:int64|missing}|[int64] at line 1, column 38:
+from shapes.bsup | values dimensions.radius
+                                     ~~~~~~
+field may be missing (consider ok() or ?.) at line 1, column 27:
+from shapes.bsup | values dimensions.radius
+                          ~~~~~~~~~~~~~~~~~
+```
+The checker knows that `dimensions` might be an array and that `radius`
+might be missing.  Say that's expected and you get the answer:
+```
+$ super -s -c 'from shapes.bsup | values dimensions.radius.ok()'
+3
+7
+```
+With a JSON column in SQL, the first query would have quietly returned
+`NULL` for most of the shapes, and so would a misspelled `radious`.
 
-## Super (SUP) Format
+## What's Here
 
-Super-structured data is strongly typed even though any value can take on any type
-and sequences of data need not all conform to a predefined schema.  To achieve this,
-SuperDB extends the JSON format with explicit typing in a format called
-[Super (SUP)](https://superdb.org/formats/sup.html) where all JSON values
-are also SUP.  The text-based SUP format is meant to be human-readable at
-small scale rather than fast, but the
-binary version of SUP called [Super Binary (BSUP)](https://superdb.org/formats/bsup.html)
-is highly efficient, supporting both a row and a column orientation.
-The BSUP row form is a bit like [Avro](https://avro.apache.org/) while the column form
-is a bit like [Parquet](https://parquet.apache.org/)
-or [Arrow](https://arrow.apache.org/).
-
-Even though SuperDB is based on these super-structured data formats, it can read and write
-most common data formats.
+* The [`super`](https://superdb.org/command/super.html) command, a
+  dependency-free binary that queries files, HTTP endpoints, and S3 paths
+  in JSON, CSV, Parquet, Arrow, and other common formats.
+* The self-describing super formats: [SUP](https://superdb.org/formats/sup.html),
+  a human-readable superset of JSON, and
+  [BSUP](https://superdb.org/formats/bsup.html), its efficient binary form
+  with both row and columnar layouts.
+* A [database](https://superdb.org/database/intro.html) that lives at a
+  path in cloud storage or a local file system, where a table can have a
+  relational schema, any algebraic type, or no type at all, and
+  every table has branches, atomic commits, and time travel.
+* An [MCP server](https://superdb.org/command/db.html#super-db-mcp) so
+  AI agents can explore a database's types and run type-checked queries.
 
 ## Project Status
 
-Our long-term goal for SuperDB is to provide a flexible foundation for
-databases that subsumes both the relational and document data models.
-While SuperSQL is intended to be (mostly)
-[Postgres-compatible](https://superdb.org/super-sql/sql/intro.html#sql-compatibility)
-and interoperate with existing SQL tooling, we believe its type safety and
-algebraic expressiveness will cover a broader range of use cases compared to
-legacy SQL or document-based query languages.
+Our long-term goal is for data to keep its types end to end, from the
+application through the wire format, storage, and queries and back again,
+with the relational model as a special case rather than the whole story.
 
 In the meantime, SuperDB is stabilizing but still a bit of a moving
-target.  We would love [your engagement](#join-the-community) to evolve and fine tune its
-syntax and semantics.
+target.  We would love [your engagement](#join-the-community) to evolve
+and fine tune its syntax and semantics.
 
 ## Try It
 
-SuperDB is embodied in a dependency-free binary that is
-[easy to install](https://superdb.org/getting-started/install.html).
-
-Detailed documentation
-for the SuperDB system and its piped SQL syntax is available on the
-[SuperDB docs site](https://superdb.org).
-
-If you're so inclined,
-we'd love to hear your feedback via our
-[community Slack](https://www.brimdata.io/join-slack/).
-
->**NOTE:** The SuperDB query engine can run locally without a storage engine by accessing
->files, HTTP endpoints, or S3 paths using the `super` command. While
->earlier in its development, SuperDB can also run on a
->[super-structured database](https://superdb.org/command/db)
->using the `super db` sub-commands.  The database format is a bit like
->[Iceberg](https://iceberg.apache.org/) but instead of rigid schemas, it supports
->flexible table shapes based on super-structured types.
-
-### SuperDB Desktop - Coming Soon
-
-[SuperDB Desktop](https://github.com/superdb/zui) is a
-desktop app to explore, query, and shape data in a SuperDB database.
-It combines a search experience with SQL that is well suited
-for dealing with complex and large JSON data.
-
-Unlike most JSON browsing tools, it won't slow to a crawl --- or worse crash ---
-if you load it up with ginormous JSON values.
+[Install](https://superdb.org/getting-started/install.html) the `super`
+command, drop some data into [SuperLens](https://lens.superdb.org/)
+in your browser, or read the [docs](https://superdb.org).
 
 ## Contributing
 

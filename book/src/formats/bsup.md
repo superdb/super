@@ -7,7 +7,7 @@ Super Binary (BSUP) is an efficient binary serialization format for
 orientations, and a single BSUP file may mix them:
 
 * _row frames_ encode a sequence of values one after another, a bit like
-  [Apache Avro](https://avro.apache.org), and
+  [Parquet's Variant encoding](https://parquet.apache.org/docs/file-format/types/variantencoding/), and
 * _column frames_ encode a sequence of values as vectors, a bit like
   [Apache Parquet](https://parquet.apache.org/) or
   [Apache Arrow](https://arrow.apache.org/docs/format/Columnar.html).

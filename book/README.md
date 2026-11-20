@@ -43,6 +43,16 @@ make codespell
 ```
 This also runs as part of `make test-ci` and in CI.
 
+## Blog posts
+
+Blog posts live in `src/blog`, one Markdown file per post.  To add one,
+create the file and add a link to it under `Blog` at the bottom of
+`src/SUMMARY.md`.  The order of the links there is the order in the
+sidebar.  The blog intro (`src/blog/intro.md`) doesn't need to change.
+
+Posts can use `mdtest-spq`, `mdtest-command`, and other examples like
+the rest of the book, and they are tested the same way.
+
 ## Conventions
 
 The following is an evolving set of style conventions we've adopted when

@@ -17,8 +17,16 @@ SuperDB's super-structured type system, the same format can represent
 all of these different approaches to data, whether a table has columns,
 a type of any kind, or [no type at all](intro.md#tables).
 
-All data and metadata in a database conforms to the super-structured data model, which materially
+All data and metadata in a database conforms to the super data model, which materially
 simplifies development, test, introspection, and so forth.
+
+The format has two parts:
+* [SuperTable](#supertable), the format of a single table, comprising its
+  data objects, its commit history, and a journal of its branches, and
+* [SuperCatalog](#supercatalog), the format of a database's catalog, which is
+  a journal of the database's tables and their configuration.
+
+Both are built from the same two kinds of objects described next.
 
 ## Cloud Object Model
 
@@ -185,8 +193,9 @@ a mutex lock for each table's journal.
 #### Configuration State
 
 Configuration state describing a database or table is also stored in mutable objects.
-The database uses a commit journal to store configuration like the
-list of tables and table attributes.
+The database's [SuperCatalog](#supercatalog) is a commit journal that stores
+configuration like the list of tables and table attributes, and each
+[SuperTable](#supertable) uses a commit journal to store its branches.
 Here, a generic interface to a commit journal manages any configuration
 state simply as a key-value store of snapshots providing time travel over
 the configuration history.
@@ -219,11 +228,33 @@ can be produced by executing a sorted scan and rewriting the results back to the
 in a new commit.  In addition, the objects comprising the total order
 do not overlap.  This is just the basic LSM algorithm at work.
 
-### Object Naming
+## SuperTable
+
+A SuperTable is stored in a directory named by the table's ID and comprises:
+* `branches/`, the journal of the table's branches, each of which points
+  to a commit,
+* `commits/`, the table's [commit objects](#commit-history) and cached
+  snapshots, and
+* `data/`, the table's immutable [data objects](#data-objects).
+
+A SuperTable has a [type](intro.md#tables), which may be absent, and a
+[sort key](intro.md#sort-key), which may be absent, both recorded in its
+configuration in the SuperCatalog.
+
+## SuperCatalog
+
+A SuperCatalog is stored in the `tables/` directory of the storage path as a
+[transaction journal](#transaction-journal) of snapshots of the database's
+tables, i.e., each table's name, ID, type, sort key, and object and frame
+capacities.  Because it is a journal, the catalog itself has a history,
+so the configuration of the database at any point in the past can be recovered.
+
+## Object Naming
 
 The objects of a database are laid out under its storage path as follows,
 where `superdb.bsup` identifies the directory as a database and records
-the version of the format:
+the version of the format, `tables/` is the SuperCatalog, and each
+`<table-id>/` directory is a SuperTable:
 ```
 <database-path>/
   superdb.bsup

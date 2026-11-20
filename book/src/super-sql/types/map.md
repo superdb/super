@@ -2,7 +2,7 @@
 
 Maps conform to the
 [map type](../../formats/model.md#24-map)
-in the super-structured data model and follow the
+in the super data model and follow the
 [syntax](../../formats/sup.md#254-map-type)
 of maps in the [SUP format](../../formats/sup.md), i.e.,
 a map type has the form

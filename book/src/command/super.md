@@ -7,6 +7,14 @@ or [`kubectl`](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-co
 
 The dependency-free command is [easy to install](../getting-started/install.md).
 
+To invoke the SuperDB runtime without a database, just run `super` without
+the [db](db.md) subcommand and specify an optional query with `-c`:
+```sh
+super -c "SELECT 'hello, world'"
+```
+To interact with a SuperDB database, invoke the [db](db.md) subcommands
+of `super` and/or program against the database API.
+
 SuperDB does not have a [REPL like SQLite](https://sqlite.org/cli.html).
 Instead, your shell is your REPL and the `super` command lets you:
 * run SuperSQL queries [detached from](#running-a-query) a database,
