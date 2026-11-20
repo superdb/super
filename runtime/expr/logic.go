@@ -264,6 +264,10 @@ func (p *PredicateWalk) Eval(vecs ...vector.Any) vector.Any {
 
 func (p *PredicateWalk) eval(vecs ...vector.Any) vector.Any {
 	lhs, rhs := vecs[0], vecs[1]
+	if rhs.Kind() == vector.KindOption {
+		// The payload of a nested option is searched.
+		return p.Eval(lhs, vector.UnderOption(rhs).Any)
+	}
 	out := p.pred(lhs, rhs)
 	rhs = vector.Under(rhs)
 	var index []uint32

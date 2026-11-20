@@ -665,11 +665,13 @@ func (c *checker) binary(op string, loc, lloc, rloc ast.Node, lhs, rhs super.Typ
 	lhs = defuse(lhs)
 	rhs = defuse(rhs)
 	if op != "==" && op != "!=" && op != "??" {
+		// The options of an ordering operator are checked by comparison.
+		ordering := op == "<" || op == "<=" || op == ">" || op == ">="
 		if hasMissing(lhs) {
 			c.error(lloc, errMissing)
 			return c.unknown
 		}
-		if hasOption(lhs) || hasNone(lhs) {
+		if hasOption(lhs) && !ordering || hasNone(lhs) {
 			c.error(lloc, fmt.Errorf("%s: %w", c.formatType(lhs), errNone))
 			return c.unknown
 		}
@@ -677,7 +679,7 @@ func (c *checker) binary(op string, loc, lloc, rloc ast.Node, lhs, rhs super.Typ
 			c.error(rloc, errMissing)
 			return c.unknown
 		}
-		if hasOption(rhs) || hasNone(rhs) {
+		if hasOption(rhs) && !ordering || hasNone(rhs) {
 			c.error(rloc, fmt.Errorf("%s: %w", c.formatType(rhs), errNone))
 			return c.unknown
 		}
@@ -1497,12 +1499,6 @@ func (c *checker) uncontaining(a, b super.Type) super.Type {
 	a, b = coerce.Under(a), coerce.Under(b)
 	if isUnknown(a) || isUnknown(b) {
 		return nil
-	}
-	if o, ok := a.(*super.TypeOption); ok {
-		return c.uncontaining(o.Type, b)
-	}
-	if o, ok := b.(*super.TypeOption); ok {
-		return c.uncontaining(a, o.Type)
 	}
 	if u, ok := a.(*super.TypeUnion); ok {
 		for _, t := range u.Types {
