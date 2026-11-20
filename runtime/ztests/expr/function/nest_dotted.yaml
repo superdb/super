@@ -19,3 +19,16 @@ output: |
   {a:{b:1::(int64|null)}}
   {a:{b:null::(int64|null)}}
   error({message:"nest_dotted: non-record value",on:"foo"})
+
+---
+
+# A record written as a literal in the query, for two input values
+spq: values nest_dotted({"a.b":1,c:2})
+
+input: |
+  1
+  2
+
+output: |
+  {a:{b:1},c:2}
+  {a:{b:1},c:2}

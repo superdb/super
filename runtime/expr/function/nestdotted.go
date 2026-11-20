@@ -15,10 +15,7 @@ func (n *NestDotted) Call(args ...vector.Any) vector.Any {
 	if vec.Type().ID() == super.IDNull {
 		return vec
 	}
-	view, ok := vec.(*vector.View)
-	if ok {
-		vec = view.Any
-	}
+	vec, index := vector.UnwrapViewOrConst(vec)
 	record, ok := vec.(*vector.Record)
 	if !ok {
 		return vector.NewWrappedError(n.sctx, "nest_dotted: non-record value", args[len(args)-1])
@@ -31,8 +28,8 @@ func (n *NestDotted) Call(args ...vector.Any) vector.Any {
 		return args[len(args)-1]
 	}
 	out := vector.Any(b.New(record.Fields))
-	if view != nil {
-		out = vector.Pick(out, view.Index)
+	if index != nil {
+		out = vector.Pick(out, index)
 	}
 	return out
 }

@@ -1,0 +1,18 @@
+# Fields are dropped from records written as literals in the query, for two
+# input values, including a record whose fields are all dropped and one inside
+# a record built from input.
+spq: |
+  values {a:1,b:2,c:{d:3,e:4}}, {a:1,c:{d:3}}, {x, c:{d:3,e:4}}
+  | drop a, c.d
+
+input: |
+  {x:1}
+  {x:2}
+
+output: |
+  {b:2,c:{e:4}}
+  {}
+  {x:1,c:{e:4}}
+  {b:2,c:{e:4}}
+  {}
+  {x:2,c:{e:4}}

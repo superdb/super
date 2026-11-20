@@ -92,6 +92,13 @@ func (d *Dropper) drop(val vector.Any, fm fieldsMap) (vector.Any, bool) {
 		if newVec, ok := d.drop(val.Any, fm); ok {
 			return vector.Pick(newVec, val.Index), true
 		}
+	case *vector.Const:
+		if newVec, ok := d.drop(val.Any, fm); ok {
+			if newVec == nil {
+				return nil, true
+			}
+			return vector.NewConst(newVec, val.Len()), true
+		}
 	}
 	return val, false
 }
