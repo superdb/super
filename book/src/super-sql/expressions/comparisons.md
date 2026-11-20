@@ -88,7 +88,7 @@ types that are coerced to a common type as in SQL.
   An option compared with a value that isn't an option is an error until the
   option is handled, e.g., with `??` or `unwrap`, or the value is wrapped
   with `some`.
-* Values of type `type`, and records, sets, maps, and enums, have no
+* Values of type `type`, and records, maps, and enums, have no
   order, so `<` and `>` are `false` for them while `<=` and `>=` are
   equality.
 
@@ -103,6 +103,12 @@ no such element, the shorter array is ordered first, so an empty array is
 ordered before any other array.  If elements that aren't equal have no order
 (e.g., records or values of different types in a union), then neither array
 is ordered before the other.
+
+[Sets](../types/set.md) are ordered in the same way, with their elements
+taken in ascending order, which may differ from the order in which they're
+output.
+
+Records and maps are equal when their fields or entries are equal.
 
 Values of type [net](../types/network.md) are ordered by address family
 (IPv4 before IPv6), then by network address, and then by prefix length.
@@ -152,11 +158,12 @@ true
 
 ---
 
-_Array comparisons_
+_Array and set comparisons_
 
 ```mdtest-spq
 # spq
-values [1,2] < [1,3], [1,2] < [1,2,0], [] < [0], [2] < [1,3], [1] < [null]
+values [1,2] < [1,3], [1,2] < [1,2,0], [] < [0], [2] < [1,3], [1] < [null],
+  set[1,2] < set[1,3], set[] < set[0], set[1,-1] < set[-1,5]
 # input
 
 # expected output
@@ -164,6 +171,9 @@ true
 true
 true
 false
+true
+true
+true
 true
 ```
 

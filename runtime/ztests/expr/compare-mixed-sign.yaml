@@ -67,3 +67,14 @@ output: |
   [false,false,false,true,true,true]
   [true,true,false,true,false,false]
   [true,true,false,true,false,false]
+
+---
+
+# Likewise in a set.
+spq: values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
+
+input: |
+  {a:set[18446744073709551615::uint64],b:set[-1,1]}
+
+output: |
+  [false,false,false,true,true,true]
