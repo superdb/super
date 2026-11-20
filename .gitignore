@@ -1,6 +1,7 @@
 /bin/
 /dist/
 node_modules/
+/man/src/prompt
 
 .idea
 .DS_Store
