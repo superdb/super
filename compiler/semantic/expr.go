@@ -583,6 +583,7 @@ func (t *translator) binaryExpr(e *ast.BinaryExpr, inType super.Type) (sem.Expr,
 			t.error(e.RHS, errors.New("non-constant pattern for LIKE not supported"))
 			return badExpr, t.checker.unknown
 		}
+		t.stringy(e.LHS, lhsType)
 		pattern := likeexpr.ToRegexp(s, '\\', false)
 		expr := &sem.RegexpSearchExpr{
 			Node:    e,
