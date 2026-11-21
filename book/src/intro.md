@@ -33,7 +33,22 @@ Type safety means bugs are caught in development, test, and QA instead of
 landing in production.  It also means that upstream schema changes in data pipelines
 or APIs can be managed and handled gracefully and reliably.
 
-## Best of Both Worlds
+## The Best of Both Worlds
+
+Putting JSON into a relational table &mdash; whether adding a JSON or variant
+column to a relational table or performing schema inference that does not
+always work &mdash; is like putting a square peg in a round hole.
+SuperDB turns this status quo _upside down_ where both JSON _and_
+relational tables are simply special cases of
+the more general and holistic super-structured data model.
+
+This leads to ergonomics for SuperDB that are far better for the query language
+and for managing data end to end because there is not one way for handling
+relational data and a different way for managing dynamic data &mdash;
+relational tables and eclectic JSON data are treated in a uniform way
+from the ground up.  For example, there's no need for a set of Parquet input files
+to all be schema-compatible and it's easy to mix and match Parquet with
+JSON across queries.
 
 In a nutshell, the ADM combines the type safety and relability of the relational model
 with the flexibility and ease-of-use of the document model.
@@ -125,20 +140,7 @@ This contrasts with the Frankenstein approach taken by other analytics systems t
 [shred variants](https://github.com/apache/parquet-format/blob/master/VariantShredding.md#value-shredding)
 into relational columns.
 
-Putting JSON into a relational table &mdash; whether adding a JSON or variant
-column to a relational table or performing schema inference that does not
-always work &mdash; is like putting a square peg in a round hole.
-SuperDB turns this status quo _upside down_ where both JSON _and_
-relational tables are simply special cases of
-the more general and holistic super-structured data model.
 
-This leads to ergonomics for SuperDB that are far better for the query language
-and for managing data end to end because there is not one way for handling
-relational data and a different way for managing dynamic data &mdash;
-relational tables and eclectic JSON data are treated in a uniform way
-from the ground up.  For example, there's no need for a set of Parquet input files
-to all be schema-compatible and it's easy to mix and match Parquet with
-JSON across queries.
 
 _It's time for the relational model to become a special case of
 an easier and broader approach for modern data._
