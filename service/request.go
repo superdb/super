@@ -266,8 +266,27 @@ func (w *ResponseWriter) Write(b []byte) (int, error) {
 }
 
 func (w *ResponseWriter) Respond(status int, body any) bool {
+	val, err := w.marshaler.Marshal(body)
+	if err != nil {
+		w.Error(err)
+		return false
+	}
+	return w.RespondValue(status, val)
+}
+
+// RespondValue writes the status and then val in the response format.
+func (w *ResponseWriter) RespondValue(status int, val super.Value) bool {
+	zw := w.ZioWriter()
+	if zw == nil {
+		return false
+	}
 	w.WriteHeader(status)
-	return w.Marshal(body)
+	if err := zw.Push(sbuf.Dematerialize(w.sctx, val)); err != nil {
+		w.Error(err)
+		return false
+	}
+	zw.Close()
+	return true
 }
 
 func (w *ResponseWriter) Error(err error) {
@@ -288,25 +307,6 @@ func (w *ResponseWriter) Error(err error) {
 			w.Logger.Warn("Error writing response", zap.Error(err))
 		}
 	}
-}
-
-func (w *ResponseWriter) Marshal(body any) bool {
-	val, err := w.marshaler.Marshal(body)
-	if err != nil {
-		// XXX If status header has not been sent this should send error.
-		w.Error(err)
-		return false
-	}
-	zw := w.ZioWriter()
-	if zw == nil {
-		return false
-	}
-	if err := zw.Push(sbuf.Dematerialize(w.sctx, val)); err != nil {
-		w.Error(err)
-		return false
-	}
-	zw.Close()
-	return true
 }
 
 func errorResponse(e error) (status int, ae *api.Error) {

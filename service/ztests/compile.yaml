@@ -1,6 +1,11 @@
 script: |
   source service.sh
   curl -d '{"query":"count("}' $DB_URL/compile | super -s -c 'cut compilation_errors' -
+  echo ===
+  curl -s -o /dev/null -w '%{http_code}\n' -d '{"query":"from t | count() by x"}' $DB_URL/compile
+  curl -s -d '{"query":"from t | count() by x"}' $DB_URL/compile > server.sup
+  super compile -s -c 'from t | count() by x' > local.sup
+  cmp server.sup local.sup && echo same
 
 inputs:
   - name: service.sh
@@ -9,3 +14,6 @@ outputs:
   - name: stdout
     data: |
       {compilation_errors:[{Msg:"parse error",Pos:6,End:-1}]}
+      ===
+      200
+      same
