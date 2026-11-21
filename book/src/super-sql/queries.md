@@ -12,6 +12,9 @@ called a [SQL operator](sql/intro.md#sql-operator).
 
 Operator sequences may be parenthesized and nested to form lexical [scopes](#scope).
 
+Queries may be combined with commands like `CREATE TABLE` and `INSERT`
+into a script of [statements](statements/intro.md) separated by semicolons.
+
 Operators utilize expressions in composable variations to
 perform their computations and all expressions
 share a common [expression syntax](expressions/intro.md).

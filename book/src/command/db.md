@@ -1,12 +1,7 @@
 # super db
 
-`super db` is a sub-command of [super](super.md) to manage and query SuperDB databases.
-
->[!NOTE]
-> The database portion of SuperDB is early in development.  While previous versions
-> have been deployed in production at non-trivial scale, the current version
-> is somewhat out of date with recent changes to the runtime.  This will be remedied
-> in forthcoming releases.
+`super db` is a sub-command of [super](super.md) to manage and query SuperDB
+[databases](../database/intro.md).
 
 The `super db` command is invoked either by itself to run a query:
 ```
@@ -138,6 +133,11 @@ If a table is provided to `from` without a branch name, then branch
 "main" is assumed.
 
 Output is sent to a [file or stdout](output.md).
+
+The query text may also be a [script](../super-sql/statements/intro.md)
+of statements separated by semicolons, including commands like
+[CREATE TABLE](../super-sql/statements/create-table.md) and
+[INSERT](../super-sql/statements/insert.md) that modify the database.
 
 If the single argument `-` follows the query, then the lines of standard input
 are assembled into a string array called `args` as a
@@ -330,11 +330,12 @@ creates a commit on HEAD replacing the old objects with the new ones.
 ### super db create
 
 ```
-super db create [-orderby key[,key...][:asc|:desc]] <name>
+super db create [-orderby key[,key...][:asc|:desc]] [-type type] <name>
 ```
 * `-framecap n` target number of values in each BSUP frame of a data object (default 20000)
 * `-objectcap n` target number of values in each data object (default 1048576)
 * `-orderby key` sort key with optional :asc or :desc suffix to organize data in the table (cannot be changed)
+* `-type type` [SUP](../formats/sup.md) type to which all values loaded into the table are cast (cannot be changed)
 * `-use` select created table as the current working table (default "false")
 * [Global](options.md#global)
 * [Database](options.md#database)
@@ -347,6 +348,17 @@ The `-orderby` option indicates the [sort key](#sort-key) that is used to sort
 the data in the table, which may be in ascending or descending order.
 
 If a sort key is not specified, the table is unsorted.
+
+The `-type` option gives the table a type, e.g., `-type '{a:int64,b:string}'`,
+to which every value loaded into the table is cast, as with
+[CREATE SUPER TABLE](../super-sql/statements/create-super-table.md).
+A value that can't be cast fails the load.  Without `-type`, a table
+holds values of any type.
+
+Tables may also be created with the
+[CREATE TABLE](../super-sql/statements/create-table.md) and
+[CREATE SUPER TABLE](../super-sql/statements/create-super-table.md)
+statements.
 
 The `-objectcap` option sets the target number of values in each of the
 table's data objects, which [manage](#super-db-manage) uses when compacting
@@ -409,7 +421,8 @@ super db drop [options] <name>|<id>
 * [Database](options.md#database)
 * [Output](options.md#output)
 
-The `drop` command deletes a table and all of its constituent data.
+The `drop` command deletes a table and all of its constituent data,
+as does the [DROP TABLE](../super-sql/statements/drop-table.md) statement.
 
 **DANGER ZONE.**  You must confirm that you want to delete
 the table to proceed.  The `-f` option can be used to force the deletion
@@ -448,10 +461,13 @@ The `load` command commits new data to a branch of a table.
 
 Run `super db load -h` for a list of command-line options.
 
-Note that there is no need to define a schema or insert data into
-a "table" as all super-structured data is _self describing_ and can be queried in a
-schema-agnostic fashion.  Data of any _shape_ can be stored in any table
-and arbitrary data _shapes_ can coexist side by side.
+Note that there is no need to define a schema before loading data
+as all super-structured data is _self describing_ and can be queried in a
+schema-agnostic fashion.  Data of any _shape_ can be stored in a table
+without a type and arbitrary data _shapes_ can coexist side by side.
+If the table has a [type](../database/intro.md#tables), each value is
+cast to it, and if any value can't be cast, the load fails and nothing
+is committed.
 
 As with [super](super.md),
 the [input arguments](super.md#options) can be in
