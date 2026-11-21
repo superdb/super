@@ -1,19 +1,9 @@
 # Introduction
 
-* intro statement
-  * new data model (algebraic link)
-  * best of both worlds
-    * schema-not require (Gilles quote)
-    * complete type safety and type rich whether relational or JSON
-    * not two ways of doing things
-* use cases (in addition to plain-old RM/SQL)
-  * AI workflows (MCP)
-  * EDA (fusion types)
-  * scalable JSON analytics
+
 * compat  
   * RM-> product types -> parquet
   * Arrow
-* query language
 
 SuperDB<span class="tm">®</span> is a an analytics database that provides
 a univeral model for managing data that is easier, more precise, and more
@@ -93,6 +83,7 @@ in addition to bread and butter relational use cases
 * observability
 * type-safe ETL
 * type-preserving serialization for algebraic data types
+* scalable JSON analytics
 
 ## The Storage Model
 
