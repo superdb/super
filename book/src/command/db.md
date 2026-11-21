@@ -1,11 +1,7 @@
 # super db
 
-`super db` is a sub-command of [super](super.md) to manage and query SuperDB databases.
-
->[!NOTE]
-> The database portion of SuperDB is earlier in development than `super`
-> and its formats.  See the [Database](../database/intro.md) section for
-> an overview of how a database works.
+`super db` is a sub-command of [super](super.md) to manage and query SuperDB
+[databases](../database/intro.md).
 
 The `super db` command is invoked either by itself to run a query:
 ```

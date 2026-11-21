@@ -1,11 +1,5 @@
 # Database Format
 
->[!NOTE]
->This document describes the current implementation, which may change
->between releases as the database matures.
-
-## Introduction
-
 To support the client-facing SuperDB access
 implemented by the [`super db` command](../command/db.md), we are developing
 an open specification for the database format described in this document.
