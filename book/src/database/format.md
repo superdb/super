@@ -1,9 +1,8 @@
 # Database Format
 
 >[!NOTE]
->This document is a rough draft and work in progress.  We plan to
->soon bring it up to date with the current implementation and maintain it
->as we add new capabilities to the system.
+>This document describes the current implementation, which may change
+>between releases as the database matures.
 
 ## Introduction
 
@@ -11,24 +10,18 @@ To support the client-facing SuperDB access
 implemented by the [`super db` command](../command/db.md), we are developing
 an open specification for the database format described in this document.
 
-This format is somewhat analogous to the emerging
-cloud table formats like [Iceberg](https://iceberg.apache.org/spec/),
-but differs but differs in a fundamental way: there are no tables in SuperDB.
+This format is somewhat analogous to cloud table formats like
+[Iceberg](https://iceberg.apache.org/spec/),
+but differs in a fundamental way: it is organized around a type system
+rather than relational schemas.
 
-On the contrary, we believe a better approach for organizing modern, eclectic
-data is based on a type system rather than a collection of tables
-and relational schemas.  Since relations, tables, schemas, data frames,
-Parquet files, Avro files, JSON, CSV, XML, and so forth are all subsets of the
-SuperDB's super-structured type system, SuperDB holds the promise
-to provide a universal data representation for all of these different approaches to data.
-
-> **TODO: update this to emphasize tables are just a special case... not that they
-> aren't present in the database**
-
-Also, while we are not currently focused on building a SQL engine for the SuperDB database,
-it is most certainly possible to do so, as a Super record type is analogous to
-a SQL table definition.  SQL tables can essentially be dynamically projected
-via a table virtualization layer built on top of the SuperDB model.
+A SuperDB table holds super-structured data, and a relational table is
+just a special case, i.e., a table whose values all have the same record
+type.  Since relations, schemas, data frames,
+Parquet files, Avro files, JSON, CSV, and so forth are all subsets of
+SuperDB's super-structured type system, the same format can represent
+all of these different approaches to data, whether a table has columns,
+a type of any kind, or [no type at all](intro.md#tables).
 
 All data and metadata in a database conforms to the super-structured data model, which materially
 simplifies development, test, introspection, and so forth.
@@ -44,16 +37,13 @@ Every data element in a database is either of two fundamental object types:
 All imported table data is composed of immutable objects, which are organized
 around a primary data object.  Each data object is composed of one or more immutable objects
 all of which share a common, globally unique identifier,
-which is referred to below generically as `<id>` below.
+which is referred to below generically as `<id>`.
 
-TODO: change text to foreshadow KSUID swap out
-
-These identifiers are [KSUIDs](https://github.com/segmentio/ksuid).
-The KSUID allocation scheme
-provides a decentralized solution for creating globally unique IDs.
-KSUIDs have embedded timestamps so the creation time of
+These identifiers are version 7 [UUIDs](https://www.rfc-editor.org/rfc/rfc9562),
+which provide a decentralized means of creating globally unique IDs.
+A version 7 UUID begins with a timestamp so the creation time of
 any object named in this way can be derived.  Also, a simple lexicographic
-sort of the KSUIDs results in a creation-time ordering (though this ordering
+sort of the IDs results in a creation-time ordering (though this ordering
 is not relied on for causal relationships since clock skew can violate
 such an assumption).
 
@@ -66,7 +56,7 @@ such an assumption).
 #### Data Objects
 
 A data object is created by a single writer using a globally unique name
-with an embedded KSUID.
+with an embedded ID.
 
 New objects are written in their entirety.  No updates, appends, or modifications
 may be made once an object exists.  Given these semantics, any such object may be
@@ -87,7 +77,7 @@ Immutable objects are named as follows:
 |-----------|----|
 |data|`<table-id>/data/<id>.bsup`|
 
-`<id>` is the KSUID of the data object.
+`<id>` is the ID of the data object.
 
 #### Commit History
 
@@ -114,6 +104,11 @@ Each commit object contains a sequence of _actions_:
 
 The actions are not grouped directly by their commit ID but instead each
 action serialization includes its commit ID.
+
+Commit objects are stored as `<table-id>/commits/<id>.bsup`.  Alongside a
+commit object, a _snapshot_ of the complete set of data objects as of that
+commit may be cached as `<table-id>/commits/<id>.snap.bsup` so that the
+data of a branch can be found without reading its entire commit log.
 
 The chain of commit objects starting at any commit and following
 the parent pointers to the original commit is called the "commit log".
@@ -184,7 +179,7 @@ the HEAD of the journal is accessed.
 > a successful open.
 
 Second, strong read/write ordering semantics (as exists in
-[Amazon S3](../dev/integrations/s3.md)
+[Amazon S3](../dev/integrations/s3.md))
 can be used to implement transactional journal updates as follows:
 * _TBD: this is worked out but needs to be written up_
 
@@ -197,7 +192,7 @@ a mutex lock for each table's journal.
 
 Configuration state describing a database or table is also stored in mutable objects.
 The database uses a commit journal to store configuration like the
-list of tables and tablea attributes.
+list of tables and table attributes.
 Here, a generic interface to a commit journal manages any configuration
 state simply as a key-value store of snapshots providing time travel over
 the configuration history.
@@ -206,11 +201,11 @@ the configuration history.
 
 To support _sorted scans_,
 data objects are stored in an (optionally) sorted order defined by the table's sort key.
-The sort key may be a composite key compised of primary, secondary, etc
+The sort key may be a composite key comprised of primary, secondary, etc
 component keys.
 
 When the key range of objects overlap, they may be read in parallel
-in merged in sorted order.
+and merged in sorted order.
 This is called the _merge scan_.
 
 If many overlapping data objects arise, performing a merge scan
@@ -232,6 +227,9 @@ do not overlap.  This is just the basic LSM algorithm at work.
 
 ### Object Naming
 
+The objects of a database are laid out under its storage path as follows,
+where `superdb.bsup` identifies the directory as a database and records
+the version of the format:
 ```
 <database-path>/
   superdb.bsup
@@ -250,6 +248,7 @@ do not overlap.  This is just the basic LSM algorithm at work.
       ...
     commits/
       <id1>.bsup
+      <id1>.snap.bsup
       <id2>.bsup
       ...
     data/
