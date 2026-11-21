@@ -10,10 +10,21 @@ Is it a _record_, with a fixed set of named fields, like a struct in Go or
 Rust or a row in a SQL table?  Or is it a _map_, with arbitrary string keys
 that can be anything at all?
 
-JSON can't say.  The syntax is the same either way.  That one missing bit
-of information is why querying JSON is so error-prone, whether you do it
-in SQL, Rust, or Go, and why SuperDB's data model treats records and maps
-as different types.
+JSON can't say.  The syntax is the same either way.
+
+SuperDB doesn't need JSON to say.  It reads JSON objects as records,
+gives every value a precise type, and uses
+[type fusion](../super-sql/type-fusion.md) under the hood to combine
+the varying types of messy data into one type the compiler can check
+queries against.
+
+But SuperDB's data model is general enough that we can also define the
+JSON type itself, precisely, as a recursive sum type.  That gives us a way
+to see exactly what a JSON column costs you.  In this post we use SuperSQL
+path expressions with that type to show the runtime type checks a query
+over JSON really needs, then show that plain SQL, Go, and Rust have to do
+the very same checks.  All because JSON throws away the one piece of type
+information that tells a record from a map.
 
 ## A messy data set
 
@@ -26,20 +37,32 @@ Here are some shapes:
 {"id":5,"type":"Vector","dimensions":[1,2,3,2,1]}
 ```
 Most `dimensions` are objects with different fields, and one is an array.
+SuperDB reads each object as a record, and fusing their types gives a
+single type that describes all of them:
+```mdtest-command
+super -s -c 'from shapes.json | aggregate fuse(this)'
+```
+```mdtest-output
+<{id:int64,type:string,dimensions:{width:int64|missing,height:int64|missing,radius:int64|missing,side:int64|missing}|[int64]}>
+```
+`dimensions` is either a record whose fields may be missing or an array of
+integers.  We'll come back to this type at the end.
 
-## JSON as a type
+## Defining JSON in SuperSQL
 
-When a database stores JSON in a column, the column's type is
-effectively this recursive union, which we can write in SuperSQL as:
+Now let's throw that information away on purpose.  When a database stores
+JSON in a column, the column's type is effectively this recursive union,
+which we can write in SuperSQL as:
 ```mdtest-input json.spq
 type JSON =
   float64 | int64 | bool | string | null
   | [JSON]
   | map{string:JSON}
 ```
-Every JSON object becomes a map, because a map is the only thing an
-arbitrary object is guaranteed to be.  Casting our shapes to this type
-gives us exactly what a JSON column holds:
+A `JSON` value is a number, a boolean, a string, null, an array of `JSON`,
+or a map from strings to `JSON`.  Every JSON object becomes a map, because
+a map is the only thing an arbitrary object is guaranteed to be.  Casting
+our shapes to this type gives us exactly what a JSON column holds:
 ```mdtest-command
 super -I json.spq -s -c 'from shapes.json | values this::JSON | head 1'
 ```
@@ -47,6 +70,8 @@ super -I json.spq -s -c 'from shapes.json | values this::JSON | head 1'
 type JSON=int64|float64|bool|string|null|[JSON]|map{string:JSON}
 map{"id":1,"type":"Rectangle","dimensions":map{"width":2,"height":1}::map{string:JSON}}::map{string:JSON}::JSON
 ```
+
+## The JSON type gets in the way
 
 Now try the obvious query:
 ```mdtest-command fails
@@ -71,6 +96,13 @@ map{"side":5}::map{string:JSON}
 map{"radius":7}::map{string:JSON}
 1
 ```
+Each `.(map{string:JSON})` is a [type assertion](../super-sql/expressions/type-assertions.md),
+a runtime type check: it passes the value through if it's a map and is
+[`none`](../super-sql/types/none.md) otherwise.  `?.` stops at the first
+`none`, and `?? 1` supplies a default.  This is the work any query
+over a JSON column has to do, whether or not the language makes you write
+it out.
+
 That works, but look what happens with a typo, `dimension` for
 `dimensions`:
 ```mdtest-command
@@ -86,7 +118,7 @@ super -I json.spq -s -c 'from shapes.json | values this::JSON | values this.(map
 No error, just the wrong answer.  A map's keys live in the data, not in
 its type, so there is nothing for a compiler to check them against.
 
-## SQL has the same problem
+## SQL does the same checks
 
 Suppose the shapes are stored in a DuckDB table with a JSON column `j`.
 Here is the same logic in SQL:
@@ -116,7 +148,7 @@ condition doesn't break the query.  It just turns into `NULL`, the join
 matches nothing (or everything, in an outer join), and the query returns
 a plausible-looking wrong answer.
 
-## So do Rust and Go
+## So do Go and Rust
 
 This isn't a SQL problem.  Statically typed languages hit the same wall
 when JSON is decoded into a generic map.  In Go:
@@ -153,7 +185,7 @@ schema in the program before you ever see the data.  That's exactly what
 you can't do with data like this, which is why people reached for JSON in
 the first place.
 
-## The algebraic data model
+## Getting the types back
 
 SuperDB's [data model](../formats/model.md) keeps the information JSON
 throws away.  Records and maps are different types.  Unions are
@@ -162,9 +194,9 @@ precise type rather than "JSON".  And the super-structured
 [formats](../formats/intro.md) serialize values with their types intact,
 so a type the data had when it was written is still there when it is read.
 
-When SuperDB reads our shapes from JSON, it infers record types from the
-data.  If we save them as [BSUP](../formats/bsup.md), those types travel
-with the file:
+Go back to the shapes as SuperDB read them in the first place, as records.
+If we save them as [BSUP](../formats/bsup.md), their types travel with
+the file:
 ```mdtest-command
 super -o shapes.bsup shapes.json
 super -s -c 'from shapes.bsup | values typeof(this)'
@@ -187,7 +219,7 @@ from shapes.bsup | values dimension
                           ~~~~~~~~~
 ```
 And a field that exists only sometimes gets a precise explanation of what
-can go wrong:
+can go wrong, using the fused type we saw at the start:
 ```mdtest-command fails
 super -s -c 'from shapes.bsup | values dimensions.radius'
 ```
@@ -212,8 +244,27 @@ That's the static checking you'd get from a struct in Go or Rust, without
 declaring a struct.  The type comes from the data, and the compiler
 reads it.
 
-JSON can't give you this, no matter how much syntax is layered on top,
-because the information isn't there.  Once an object is stored as JSON,
-the difference between a record and a map is gone.  Keeping data in a
-format that preserves its types is what lets a compiler check the queries
-written against it.
+## Time to move on
+
+Step back and look at how SQL handles JSON today.  It's a special column
+type, bolted onto the side of the relational model, with its own
+operators, its own path language, and its own rules for what happens when
+things go wrong.  None of it fits with the rest of SQL.  Inside a JSON
+column, a record is a map, a typo is a `NULL`, and the type checker has
+nothing to say.
+
+No amount of syntax can fix this, because the information isn't there.
+Once an object is stored as JSON, the difference between a record and a
+map is gone, and every query has to check at run time what it's looking at.
+
+Programming languages solved this problem years ago.  Records, maps,
+arrays, and sum types, composed freely and checked by a compiler, are
+standard in Rust, Haskell, OCaml, Swift, and TypeScript.  Data that varies
+in shape is just a union, and the compiler knows what to do with it.
+
+It's time for data systems to catch up.  Rather than wedging JSON into the
+relational type system as a foreign object, SuperDB starts from an
+algebraic type system and treats relational tables as a special case of it:
+a table is just a collection of records that all have the same type.  Your
+SQL still works, your messy data gets real types, and the compiler can
+check the queries you write against both.
