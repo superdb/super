@@ -294,7 +294,7 @@ func (w *Writer) fastSortWithKey(vec, key vector.Any, o order.Which) (vector.Any
 		if o == order.Desc {
 			minVal, maxVal = maxVal, minVal
 		}
-		return vector.NewView(vec, idx), super.NewInt(key.Type(), minVal), super.NewInt(key.Type(), maxVal)
+		return vector.Pick(vec, idx), super.NewInt(key.Type(), minVal), super.NewInt(key.Type(), maxVal)
 	case *vector.Uint:
 		idx := make([]uint32, len(key.Values))
 		for k := range idx {
@@ -318,7 +318,7 @@ func (w *Writer) fastSortWithKey(vec, key vector.Any, o order.Which) (vector.Any
 		if o == order.Desc {
 			minVal, maxVal = maxVal, minVal
 		}
-		return vector.NewView(vec, idx), super.NewUint(key.Type(), minVal), super.NewUint(key.Type(), maxVal)
+		return vector.Pick(vec, idx), super.NewUint(key.Type(), minVal), super.NewUint(key.Type(), maxVal)
 	case *vector.Float:
 		idx := make([]uint32, len(key.Values))
 		for k := range idx {
@@ -342,7 +342,7 @@ func (w *Writer) fastSortWithKey(vec, key vector.Any, o order.Which) (vector.Any
 		if o == order.Desc {
 			minVal, maxVal = maxVal, minVal
 		}
-		return vector.NewView(vec, idx), super.NewFloat(key.Type(), minVal), super.NewFloat(key.Type(), maxVal)
+		return vector.Pick(vec, idx), super.NewFloat(key.Type(), minVal), super.NewFloat(key.Type(), maxVal)
 	case *vector.String:
 		idx := make([]uint32, key.Len())
 		for k := range idx {
@@ -367,7 +367,7 @@ func (w *Writer) fastSortWithKey(vec, key vector.Any, o order.Which) (vector.Any
 		if o == order.Desc {
 			minVal, maxVal = maxVal, minVal
 		}
-		return vector.NewView(vec, idx), super.NewString(minVal), super.NewString(maxVal)
+		return vector.Pick(vec, idx), super.NewString(minVal), super.NewString(maxVal)
 	case *vector.Bytes:
 		idx := make([]uint32, key.Len())
 		for k := range idx {
@@ -392,7 +392,7 @@ func (w *Writer) fastSortWithKey(vec, key vector.Any, o order.Which) (vector.Any
 		if o == order.Desc {
 			minVal, maxVal = maxVal, minVal
 		}
-		return vector.NewView(vec, idx), super.NewBytes(minVal), super.NewBytes(maxVal)
+		return vector.Pick(vec, idx), super.NewBytes(minVal), super.NewBytes(maxVal)
 	case *vector.UUID:
 		idx := make([]uint32, len(key.Values))
 		for k := range idx {
@@ -416,7 +416,7 @@ func (w *Writer) fastSortWithKey(vec, key vector.Any, o order.Which) (vector.Any
 		if o == order.Desc {
 			minVal, maxVal = maxVal, minVal
 		}
-		return vector.NewView(vec, idx), super.NewUUID(minVal), super.NewUUID(maxVal)
+		return vector.Pick(vec, idx), super.NewUUID(minVal), super.NewUUID(maxVal)
 	case *vector.IP:
 		idx := make([]uint32, len(key.Values))
 		for k := range idx {
@@ -440,7 +440,7 @@ func (w *Writer) fastSortWithKey(vec, key vector.Any, o order.Which) (vector.Any
 		if o == order.Desc {
 			minVal, maxVal = maxVal, minVal
 		}
-		return vector.NewView(vec, idx), super.NewIP(minVal), super.NewIP(maxVal)
+		return vector.Pick(vec, idx), super.NewIP(minVal), super.NewIP(maxVal)
 	}
 	return nil, super.Value{}, super.Value{}
 }

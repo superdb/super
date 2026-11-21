@@ -1,0 +1,27 @@
+# Values of a named record type load into a sorted table and compact.
+
+script: |
+  super db init -q test
+  super db attach -q test
+  # super db load over several objects, then db manage
+  super db create -q -orderby a -objectcap 300 t
+  for i in 0 1 2 3; do
+    seq $i 4 1999 | super -c 'type pt={a:int64,b:string}; values {a:this,b:f"x{this}"}::pt' - | super db load -q -use t -
+  done
+  super db manage -q
+  seq 0 1999 | super -s -c 'type pt={a:int64,b:string}; values {a:this,b:f"x{this}"}::pt' - > want.sup
+  super db -s -c 'from t' > got.sup
+  cmp want.sup got.sup && echo "$(super db -f line -c 'from t:objects | count()') objects, data ok"
+  echo ===
+  # INSERT INTO a super table of the named type with ORDER BY
+  super db -c "type pt={a:int64,b:string}; create super table s pt order by a; insert into s values {a:2,b:'y'}, {a:1,b:'x'}" > /dev/null
+  super db -s -c "from s"
+
+outputs:
+  - name: stdout
+    data: |
+      7 objects, data ok
+      ===
+      type pt={a:int64,b:string}
+      {a:1,b:"x"}::pt
+      {a:2,b:"y"}::pt
