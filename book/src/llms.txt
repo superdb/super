@@ -1,0 +1,74 @@
+# SuperDB
+
+> SuperDB is an open-source analytics database and command-line query engine
+> built on super-structured data, a data model that unifies relational tables
+> and eclectic JSON. Its query language, SuperSQL, is a pipe SQL that is
+> aspirationally backward-compatible with PostgreSQL.
+
+Key facts for writing SuperDB queries and commands:
+
+- The `super` command queries files, URLs, and standard input directly, e.g.,
+  `super -c "from logs.json | where status==200 | count() by host | sort count desc"`.
+  `super db` manages and queries a persistent database of tables.
+- SuperSQL queries can be written in SQL (`SELECT ... FROM ... WHERE ... GROUP BY`),
+  as a pipeline of operators separated by `|`, or a mix of both.
+  A query may begin with `from` or with any operator.
+- Super-structured data is dynamic and strongly typed: values carry their own
+  types (records, arrays, sets, maps, unions, enums, errors, and named types)
+  so data of different shapes can coexist without a schema, and queries are
+  type checked against the types of the data.
+- SUP is the human-readable text format and is a superset of JSON.
+  BSUP is the binary format, in row or columnar form.
+  `super` also reads and writes JSON, NDJSON, CSV, TSV, Parquet, Arrow IPC,
+  line, and Zeek formats.
+- Use `-s` for SUP output and `-j` for JSON output; the default output is
+  SUP on a terminal and BSUP otherwise.
+
+## Getting Started
+
+- [Introduction](https://superdb.org/intro.html): What SuperDB is and the ideas behind it
+- [Installation](https://superdb.org/getting-started/install.html): Installing `super` with Homebrew, prebuilt binaries, or from source
+- [TL;DR](https://superdb.org/getting-started/tldr.html): A quick tour of SuperDB
+- [Hello World](https://superdb.org/getting-started/hello-world.html): A first query
+- [Playground](https://superdb.org/getting-started/playground.html): Running examples in the browser
+
+## CLI
+
+- [super](https://superdb.org/command/super.html): The `super` command and its options
+- [Input](https://superdb.org/command/input.html): Reading files, URLs, and standard input
+- [Output](https://superdb.org/command/output.html): Output formats and options
+- [Formats](https://superdb.org/command/formats.html): Supported input and output formats
+- [super db](https://superdb.org/command/db.html): Creating, loading, branching, and querying a database, and serving it over HTTP
+- [MCP server](https://superdb.org/command/db.html#super-db-mcp): Running a Model Context Protocol server for AI agents with `super db mcp`
+
+## SuperSQL
+
+- [Overview](https://superdb.org/super-sql/intro.html): The SuperSQL language
+- [Queries](https://superdb.org/super-sql/queries.html): Query structure, pipes, and scopes
+- [Statements](https://superdb.org/super-sql/statements/intro.html): Scripts and the CREATE TABLE, CREATE SUPER TABLE, DROP TABLE, and INSERT statements
+- [Declarations](https://superdb.org/super-sql/declarations/intro.html): Constants, types, functions, operators, queries, and pragmas
+- [Expressions](https://superdb.org/super-sql/expressions/intro.html): Expression syntax, including casts and type assertions
+- [Types](https://superdb.org/super-sql/types/intro.html): The super-structured type system and SQL type names
+- [Operators](https://superdb.org/super-sql/operators/intro.html): Pipe operators like `where`, `values`, `aggregate`, `sort`, `join`, `fork`, and `unnest`
+- [SQL](https://superdb.org/super-sql/sql/intro.html): SQL clauses and PostgreSQL compatibility
+- [Functions](https://superdb.org/super-sql/functions/intro.html): Built-in functions
+- [Aggregate Functions](https://superdb.org/super-sql/aggregates/intro.html): Aggregate functions
+- [Type Fusion](https://superdb.org/super-sql/type-fusion.html): Combining the varying types of messy data into one type
+
+## Formats
+
+- [Data Model](https://superdb.org/formats/model.html): The super-structured data model
+- [Super (SUP)](https://superdb.org/formats/sup.html): The human-readable text format
+- [Super Binary (BSUP)](https://superdb.org/formats/bsup.html): The binary row and columnar format
+
+## Database
+
+- [Database](https://superdb.org/database/intro.html): Tables, branches, commits, and time travel
+- [API](https://superdb.org/database/api.html): The HTTP API of `super db serve`
+
+## Optional
+
+- [Database Format](https://superdb.org/database/format.html): The storage layout of a database
+- [Libraries](https://superdb.org/dev/libraries/intro.html): Go, Python, and JavaScript libraries
+- [Integrations](https://superdb.org/dev/integrations/intro.html): Amazon S3 and Zeek
+- [GitHub Repository](https://github.com/superdb/super): Source code, issues, and releases
