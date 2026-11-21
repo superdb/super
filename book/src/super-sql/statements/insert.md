@@ -21,10 +21,13 @@ The results are added to the table in one of two ways:
   in order if there is no list.  Each value is cast to its column's
   type and columns without a value are null.
   It is an error if there are more result columns than target columns,
-  if a listed column is not in the table, or if a `NOT NULL` column
-  gets no value or a null value.
-  This requires a table whose type is a record of columns as created by
-  [CREATE TABLE](create-table.md).
+  if a listed column is not in the table, or if a column that isn't
+  nullable (e.g., a `NOT NULL` column) gets no value or a null value.
+  For a table without a type, a column list names the fields of the
+  inserted records, and without one, the results of a SQL query are
+  added as is (e.g., with fields `column1`, `column2`, etc. for `VALUES`).
+  A column list is an error for a table whose type isn't a record type,
+  and without one, the results are added as values as described next.
 * Otherwise, the results are added as values, just as
   [`super db load`](../../command/db.md#super-db-load) adds them:
   each value is cast to the table's type _by field name_ as described

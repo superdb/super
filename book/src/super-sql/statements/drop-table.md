@@ -12,7 +12,8 @@ It is an error if the table does not exist unless `IF EXISTS` is given,
 in which case the statement does nothing.
 
 `DROP TABLE` is equivalent to
-[`super db drop`](../../command/db.md#super-db-drop).
+[`super db drop`](../../command/db.md#super-db-drop) except that it
+does not ask for confirmation.
 
 ## Examples
 
