@@ -178,7 +178,16 @@ func handleCompile(c *Core, w *ResponseWriter, r *Request) {
 		w.Error(srverr.ErrInvalid(err))
 		return
 	}
-	w.Respond(http.StatusOK, ast.Parsed())
+	// The AST is marshaled without type names, as by "super compile",
+	// since a named struct type like ast.Assignment would be bound to
+	// different record types as the concrete types of its interface
+	// fields vary.
+	val, err := super.NewMarshaler(w.sctx).Marshal(ast.Parsed())
+	if err != nil {
+		w.Error(err)
+		return
+	}
+	w.RespondValue(http.StatusOK, val)
 }
 
 func handleQueryDescribe(c *Core, w *ResponseWriter, r *Request) {
@@ -616,7 +625,7 @@ func handleDelete(c *Core, w *ResponseWriter, r *Request) {
 		w.Error(err)
 		return
 	}
-	w.Marshal(api.CommitResponse{Commit: commit})
+	w.Respond(http.StatusOK, api.CommitResponse{Commit: commit})
 	c.publishEvent(w, "branch-commit", api.EventBranchCommit{
 		CommitID: commit,
 		TableID:  table.ID,
