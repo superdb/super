@@ -175,3 +175,11 @@ back-to-back examples such as found at the bottom of pages for Operators,
 Functions, etc.
 
 ![Large Block Examples](large-block-examples.png)
+
+## llms.txt
+
+`src/llms.txt` is a guide to these docs for LLMs and AI agents, following the
+[llms.txt](https://llmstxt.org/) convention.  It is published as is at
+`https://superdb.org/llms.txt`.  Update it when a page is added, moved, or
+renamed, and when query syntax changes, since its "outdated syntax" list is
+what keeps models from writing queries for older versions.

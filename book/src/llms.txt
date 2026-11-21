@@ -1,0 +1,115 @@
+# SuperDB
+
+> SuperDB is an open-source analytics database and command-line query engine
+> built on the algebraic data model, which unifies relational tables and JSON
+> in one type system of records, unions, arrays, sets, and maps. Its query
+> language, SuperSQL, is a pipe SQL that is aspirationally backward-compatible
+> with PostgreSQL.
+
+Key facts for writing SuperDB queries and commands:
+
+- The `super` command queries files, URLs, and standard input directly, e.g.,
+  `super -c "from logs.json | where status==200 | count() by host | sort count desc"`.
+  `super db` manages and queries a persistent database of tables.
+- SuperSQL queries can be written in SQL (`SELECT ... FROM ... WHERE ... GROUP BY`),
+  as a pipeline of operators separated by `|`, or a mix of both.
+  A query may begin with `from` or with any operator.
+- Data in SuperDB, called super-structured data, is strongly typed without a
+  schema: every value carries its own type (records, arrays, sets, maps,
+  unions, options, enums, errors, fusion types, and named types), so data of
+  different shapes can coexist, and queries are statically type checked
+  against the types of the data.
+- SUP is the human-readable text format and is a superset of JSON.
+  BSUP is the binary format, in row or columnar form.
+  `super` also reads and writes JSON, NDJSON, CSV, TSV, Parquet, Arrow IPC,
+  line, and Zeek formats.
+- Use `-s` for SUP output and `-j` for JSON output; the default output is
+  SUP on a terminal and BSUP otherwise.
+
+Common idioms:
+
+- `values <expr>` emits the value of an expression for each input value and is
+  the pipe counterpart of `SELECT`. Its results need not be records, e.g.,
+  `values {id, kind:type}` or `values dimensions`. The `values` keyword is
+  optional.
+- A field that some values lack must be handled explicitly: `x.ok()` turns a
+  missing field or an error into `none`, `a?.b` stops at `none`, and `a ?? b`
+  supplies a default, e.g., `values dimensions.radius.ok() ?? 0`.
+  `is_ok(x)` tests whether a value is present.
+- A type assertion `x.(T)` is `x` when `x` has type `T` and `none` otherwise,
+  e.g., `values this.(Circle)`. A cast is written `x::T`.
+- `aggregate fuse(this)` shows the one type that describes all of the input,
+  and `values typeof(this)` shows the type of each value.
+- `unnest <array>` emits the elements of an array as separate values.
+- A "no such field" or "field may be missing" error is a compile-time type
+  error, not a transient failure. Fix the query (correct the field name, or
+  handle the missing case with `ok()`, `?.`, or `??`) rather than retrying it.
+
+Avoid outdated syntax from earlier versions (when the project was called Zed):
+
+- The command is `super`, not `zq` or `zed`, and the formats are SUP and BSUP,
+  not ZSON, ZNG, VNG, CSUP, or JSUP.
+- Use `values`, not `yield`, and `unnest`, not `over`.
+- Use `fuse`, not `blend`. `superfuse` produces fusion types, and `defuse()`
+  and `superdefuse()` undo them.
+- Use `ok()` and `is_ok()`, not `has()`, `missing()`, or `quiet()`.
+- A database has tables, not pools, and a database is selected with
+  `super db attach`, not `super db auth` or `super db login`.
+- The instant-in-time type is `timestamp`, not `time`, and the non-aggregate
+  maximum and minimum functions are `greatest()` and `least()`.
+- In SUP, sets are written `set[...]`, maps are written `map{...}`, the none
+  value is `none`, and a named type is declared with a `type` statement,
+  e.g., `type port=uint16`.
+
+## Getting Started
+
+- [Introduction](https://superdb.org/intro.html): What SuperDB is and the ideas behind it
+- [The Algebraic Data Model](https://superdb.org/adm.html): Why relational tables and JSON are both special cases of one algebraic type system
+- [Installation](https://superdb.org/getting-started/install.html): Installing `super` with Homebrew, prebuilt binaries, or from source
+- [TL;DR](https://superdb.org/getting-started/tldr.html): A quick tour of SuperDB
+- [Hello World](https://superdb.org/getting-started/hello-world.html): A first query
+- [Playground](https://superdb.org/getting-started/playground.html): Running examples in the browser
+
+## CLI
+
+- [super](https://superdb.org/command/super.html): The `super` command and its options
+- [Input](https://superdb.org/command/input.html): Reading files, URLs, and standard input
+- [Output](https://superdb.org/command/output.html): Output formats and options
+- [Formats](https://superdb.org/command/formats.html): Supported input and output formats
+- [super db](https://superdb.org/command/db.html): Creating, loading, branching, and querying a database, and serving it over HTTP
+- [MCP server](https://superdb.org/command/db.html#super-db-mcp): Running a Model Context Protocol server for AI agents with `super db mcp`
+
+## SuperSQL
+
+- [Overview](https://superdb.org/super-sql/intro.html): The SuperSQL language
+- [Queries](https://superdb.org/super-sql/queries.html): Query structure, pipes, and scopes
+- [Statements](https://superdb.org/super-sql/statements/intro.html): Scripts and the CREATE TABLE, CREATE SUPER TABLE, DROP TABLE, and INSERT statements
+- [Declarations](https://superdb.org/super-sql/declarations/intro.html): Constants, types, functions, operators, queries, and pragmas
+- [Expressions](https://superdb.org/super-sql/expressions/intro.html): Expression syntax, including casts and type assertions
+- [Types](https://superdb.org/super-sql/types/intro.html): The super data model's types and SQL type names
+- [Operators](https://superdb.org/super-sql/operators/intro.html): Pipe operators like `where`, `values`, `aggregate`, `sort`, `join`, `fork`, and `unnest`
+- [SQL](https://superdb.org/super-sql/sql/intro.html): SQL clauses and PostgreSQL compatibility
+- [Functions](https://superdb.org/super-sql/functions/intro.html): Built-in functions
+- [Aggregate Functions](https://superdb.org/super-sql/aggregates/intro.html): Aggregate functions
+- [Type Fusion](https://superdb.org/super-sql/type-fusion.html): Combining the varying types of messy data into one type
+
+## Formats
+
+- [Super Data Model](https://superdb.org/formats/model.html): The super data model, SuperDB's implementation of the algebraic data model
+- [Super (SUP)](https://superdb.org/formats/sup.html): The human-readable text format
+- [Super Binary (BSUP)](https://superdb.org/formats/bsup.html): The binary row and columnar format
+
+## Database
+
+- [Database](https://superdb.org/database/intro.html): Tables, branches, commits, and time travel
+- [API](https://superdb.org/database/api.html): The HTTP API of `super db serve`
+
+## Optional
+
+- [Database Format](https://superdb.org/database/format.html): The storage layout of a database
+- [Libraries](https://superdb.org/dev/libraries/intro.html): Go, Python, and JavaScript libraries
+- [Integrations](https://superdb.org/dev/integrations/intro.html): Amazon S3 and Zeek
+- [Blog: The Sum Type Hiding in Your JSON](https://superdb.org/blog/gharchive.html): Querying a day of GitHub Archive events and shaping them into a sum type
+- [Blog: JSON Can't Tell a Map from a Record](https://superdb.org/blog/json-map-or-record.html): What JSON columns cost and how typed data avoids it
+- [Blog: Algebraic Types, End to End](https://superdb.org/blog/end-to-end.html): Rust and TypeScript types that survive a round trip through SuperDB
+- [GitHub Repository](https://github.com/superdb/super): Source code, issues, and releases
