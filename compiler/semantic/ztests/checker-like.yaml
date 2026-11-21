@@ -1,0 +1,63 @@
+# LIKE and NOT LIKE require a string on the left-hand side.
+spq: values 0x676f6f676c65 LIKE '%oo%', 1 NOT LIKE '1', {a:'google'} LIKE '%oo%', ['google'] LIKE '%oo%'
+
+error: |
+  expected type string at line 1, column 8:
+  values 0x676f6f676c65 LIKE '%oo%', 1 NOT LIKE '1', {a:'google'} LIKE '%oo%', ['google'] LIKE '%oo%'
+         ~~~~~~~~~~~~~~
+  expected type string at line 1, column 36:
+  values 0x676f6f676c65 LIKE '%oo%', 1 NOT LIKE '1', {a:'google'} LIKE '%oo%', ['google'] LIKE '%oo%'
+                                     ~
+  expected type string at line 1, column 52:
+  values 0x676f6f676c65 LIKE '%oo%', 1 NOT LIKE '1', {a:'google'} LIKE '%oo%', ['google'] LIKE '%oo%'
+                                                     ~~~~~~~~~~~~
+  expected type string at line 1, column 78:
+  values 0x676f6f676c65 LIKE '%oo%', 1 NOT LIKE '1', {a:'google'} LIKE '%oo%', ['google'] LIKE '%oo%'
+                                                                               ~~~~~~~~~~
+
+---
+
+# A bytes column read from a file, as from a Parquet BYTE_ARRAY column
+# without a string annotation, in a SQL WHERE clause.
+script: |
+  ! super -c "SELECT count() AS c FROM b.sup WHERE u LIKE '%oo%'"
+
+inputs:
+  - name: b.sup
+    data: |
+      {u:0x676f6f676c65}
+
+outputs:
+  - name: stderr
+    data: |
+      expected type string at line 1, column 38:
+      SELECT count() AS c FROM b.sup WHERE u LIKE '%oo%'
+                                           ~
+
+---
+
+# A named string type, null, and a union with a string member are accepted.
+spq: |
+  type url=string
+  values 'abc' LIKE 'a%', null LIKE 'a%', 'abc'::url NOT LIKE 'a%', 'abc'::(string|bytes) LIKE 'a%'
+
+output: |
+  true
+  null
+  false
+  true
+
+---
+
+# So is a value whose type isn't known until runtime.
+spq: values x LIKE 'a%'
+
+flags: -dynamic
+
+input: |
+  {x:"abc"}
+  {x:"xyz"}
+
+output: |
+  true
+  false
