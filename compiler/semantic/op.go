@@ -289,11 +289,12 @@ func (t *translator) robotScan(node ast.Node, expr sem.Expr, args []ast.OpArg, s
 	// expressions are checked now and others are checked for each input
 	// value at run time.  (As for the URL, an expression that refers to the
 	// input value evaluates to an error here so it isn't checked.)
-	opArgs := t.opArgsIn(args, t.checker.unknown, "format", "method", "body", "headers")
+	opArgs := t.opArgsIn(args, t.checker.unknown, "delim", "format", "method", "body", "headers")
 	format, _ := t.textArg(opArgs, "format")
 	if format == "" {
 		format = t.env.ReaderOpts.Format
 	}
+	delim, _ := t.delimArg(opArgs, format)
 	method, loc := t.methodArg(opArgs)
 	if method != nil {
 		if val, ok := t.maybeEval(method); ok && !t.hasError(val) {
@@ -322,6 +323,7 @@ func (t *translator) robotScan(node ast.Node, expr sem.Expr, args []ast.OpArg, s
 		Node:    node,
 		Expr:    expr,
 		Format:  format,
+		Delim:   delim,
 		Method:  method,
 		Headers: headers,
 		Body:    body,
@@ -388,18 +390,17 @@ func (t *translator) fromName(node ast.Node, name string, args []ast.OpArg) (sem
 	return t.file(node, name, args), prefix
 }
 
-func (t *translator) asFormatArg(args []ast.OpArg) string {
-	opArgs := t.opArgs(args, "format")
-	s, _ := t.textArg(opArgs, "format")
-	return s
-}
-
 func (t *translator) file(n ast.Node, name string, args []ast.OpArg) sem.Op {
-	format := t.asFormatArg(args)
+	opArgs := t.opArgs(args, "delim", "format")
+	format, _ := t.textArg(opArgs, "format")
 	if format == "" {
 		format = t.fileFormat(name)
 	}
-	typ, err := t.fileType(name, format)
+	delim, ok := t.delimArg(opArgs, format)
+	if !ok {
+		return badOp
+	}
+	typ, err := t.fileType(name, format, delim)
 	if err != nil {
 		t.error(n, err)
 		typ = badType
@@ -409,6 +410,7 @@ func (t *translator) file(n ast.Node, name string, args []ast.OpArg) sem.Op {
 		Type:    typ,
 		Paths:   []string{name},
 		Formats: []string{format},
+		Delim:   delim,
 	}
 }
 
@@ -422,8 +424,8 @@ func (t *translator) fileFormat(name string) string {
 	return ""
 }
 
-func (t *translator) fileType(path, format string) (super.Type, error) {
-	typ, err := t.env.FileType(t.ctx, t.sctx, path, format)
+func (t *translator) fileType(path, format, delim string) (super.Type, error) {
+	typ, err := t.env.FileType(t.ctx, t.sctx, path, format, delim)
 	if typ == nil {
 		typ = t.checker.unknown
 	}
@@ -452,11 +454,10 @@ func (t *translator) fromFileGlob(globLoc ast.Node, pattern string, args []ast.O
 	}
 }
 
-// httpArgs resolves the HTTP options (format, method, body, headers) of a
-// constant URL, whose method, headers, and body expressions must be
-// compile-time constants.
-func (t *translator) httpArgs(args []ast.OpArg) (format, method, body string, headers map[string][]string) {
-	opArgs := t.opArgs(args, "format", "method", "body", "headers")
+// httpArgs resolves the HTTP options (format, method, body, headers) in
+// opArgs for a constant URL, whose method, headers, and body expressions must
+// be compile-time constants.
+func (t *translator) httpArgs(opArgs opArgs) (format, method, body string, headers map[string][]string) {
 	format, _ = t.textArg(opArgs, "format")
 	if e, loc := t.methodArg(opArgs); e != nil {
 		if val, ok := t.mustEval(e); ok {
@@ -503,19 +504,50 @@ func (t *translator) methodArg(o opArgs) (sem.Expr, ast.Loc) {
 	return nil, ast.Loc{}
 }
 
+// delimArg returns the CSV field delimiter given by the delim argument in o
+// or the empty string if there isn't one.  The delimiter must be a single
+// ASCII character, and format must be csv or empty, in which case the format
+// is checked when the source is opened.  It returns false if it reports an
+// error.
+func (t *translator) delimArg(o opArgs, format string) (string, bool) {
+	if _, ok := o["delim"]; !ok {
+		return "", true
+	}
+	delim, loc := t.textArg(o, "delim")
+	if len(delim) != 1 {
+		t.error(loc, errors.New("delim must be a single ASCII character"))
+		return "", false
+	}
+	if strings.ContainsAny(delim, "\"\r\n\x00") {
+		t.error(loc, errors.New("delim cannot be a double quote, carriage return, newline, or NUL"))
+		return "", false
+	}
+	if format != "" && format != "csv" {
+		t.error(loc, errors.New("delim requires format csv"))
+		return "", false
+	}
+	return delim, true
+}
+
 func (t *translator) fromURL(urlLoc ast.Node, u string, args []ast.OpArg) sem.Op {
 	if _, err := url.ParseRequestURI(u); err != nil {
 		t.error(urlLoc, err)
 		return badOp
 	}
-	format, method, body, headers := t.httpArgs(args)
+	opArgs := t.opArgs(args, "delim", "format", "method", "body", "headers")
+	format, method, body, headers := t.httpArgs(opArgs)
 	if format == "" {
 		format = anyio.ReadFormatFromPath(u)
+	}
+	delim, ok := t.delimArg(opArgs, format)
+	if !ok {
+		return badOp
 	}
 	scan := &sem.HTTPScan{
 		Node:    urlLoc,
 		URL:     u,
 		Format:  format,
+		Delim:   delim,
 		Method:  method,
 		Headers: headers,
 		Body:    body,
@@ -523,7 +555,7 @@ func (t *translator) fromURL(urlLoc ast.Node, u string, args []ast.OpArg) sem.Op
 	if scan.IsPlainGet() {
 		// A plain GET is read like any other input, so it can be
 		// statically typed (see anyio.Source).
-		typ, err := t.fileType(u, format)
+		typ, err := t.fileType(u, format, delim)
 		if err != nil {
 			t.error(urlLoc, err)
 			typ = badType
@@ -760,7 +792,7 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 			}
 			format := t.fileFormat(p)
 			formats = append(formats, format)
-			typ, err := t.fileType(p, format)
+			typ, err := t.fileType(p, format, "")
 			if typ == nil || err != nil {
 				if err != nil {
 					t.reporter.AddError(p+": "+err.Error(), -1, -1)

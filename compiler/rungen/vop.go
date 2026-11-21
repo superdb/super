@@ -270,7 +270,7 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		}
 		projection := field.NewProjectionMaybe(o.Pushdown.HasProjection, o.Pushdown.Projection, o.Pushdown.TypeProjection, asserts)
 		pushdown := b.newPushdown(projection, metaFilter, searchFilter, dataFilter, o.Pushdown.Unordered)
-		return op.NewFileScan(b.rctx, b.env, parent, o.Paths, o.Formats, pushdown, b.progress), nil
+		return op.NewFileScan(b.rctx, b.env, parent, o.Paths, o.Formats, o.Delim, pushdown, b.progress), nil
 	case *dag.FilterOp:
 		e, err := b.compileVamExpr(o.Expr)
 		if err != nil {
@@ -283,10 +283,10 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 		if o.IsPlainGet() {
 			// Read a plain GET like any other input so the runtime reuses
 			// whatever the compiler read to determine its type.
-			return b.env.Open(b.rctx.Context, b.sctx(), o.URL, o.Format, nil, b.progress, 1)
+			return b.env.Open(b.rctx.Context, b.sctx(), o.URL, o.Format, o.Delim, nil, b.progress, 1)
 		}
 		body := strings.NewReader(o.Body)
-		return b.env.OpenHTTP(b.rctx.Context, b.sctx(), o.URL, o.Format, o.Method, o.Headers, body, nil)
+		return b.env.OpenHTTP(b.rctx.Context, b.sctx(), o.URL, o.Format, o.Delim, o.Method, o.Headers, body, nil)
 	case *dag.HeadOp:
 		return op.NewHead(parent, o.Count), nil
 	case *dag.InferOp:
@@ -361,7 +361,7 @@ func (b *Builder) compileVamLeaf(o dag.Op, parent vio.Puller) (vio.Puller, error
 				}
 			}
 		}
-		return op.NewRobot(b.rctx, b.env, parent, e, o.Format, opts[0], opts[1], opts[2], b.newPushdown(nil, nil, nil, dataFilter, false), b.progress), nil
+		return op.NewRobot(b.rctx, b.env, parent, e, o.Format, o.Delim, opts[0], opts[1], opts[2], b.newPushdown(nil, nil, nil, dataFilter, false), b.progress), nil
 	case *dag.SeqScan:
 		table, err := b.lookupTable(o.Table)
 		if err != nil {

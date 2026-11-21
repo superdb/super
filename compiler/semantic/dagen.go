@@ -102,6 +102,7 @@ func (d *dagen) op(op sem.Op) dag.Op {
 			Kind:    "FileScan",
 			Paths:   op.Paths,
 			Formats: op.Formats,
+			Delim:   op.Delim,
 			Type:    typ,
 		}
 	case *sem.HTTPScan:
@@ -113,6 +114,7 @@ func (d *dagen) op(op sem.Op) dag.Op {
 			Kind:    "HTTPScan",
 			URL:     op.URL,
 			Format:  op.Format,
+			Delim:   op.Delim,
 			Method:  op.Method,
 			Headers: op.Headers,
 			Body:    op.Body,
@@ -132,6 +134,7 @@ func (d *dagen) op(op sem.Op) dag.Op {
 			Kind:    "RobotScan",
 			Expr:    d.expr(op.Expr),
 			Format:  op.Format,
+			Delim:   op.Delim,
 			Method:  d.expr(op.Method),
 			Headers: d.expr(op.Headers),
 			Body:    d.expr(op.Body),

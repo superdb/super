@@ -23,6 +23,7 @@ type Robot struct {
 	pushdown vio.Pushdown
 	progress *vio.Progress
 	format   string
+	delim    string
 	// The HTTP options are each nil if absent.  If they're all absent, the
 	// robot reads its inputs like any other input.
 	method  expr.Evaluator
@@ -41,7 +42,7 @@ type httpOptVecs struct {
 	body    vector.Any
 }
 
-func NewRobot(rctx *runtime.Context, env *exec.Environment, parent vio.Puller, e expr.Evaluator, format string, method, headers, body expr.Evaluator, p vio.Pushdown, progress *vio.Progress) *Robot {
+func NewRobot(rctx *runtime.Context, env *exec.Environment, parent vio.Puller, e expr.Evaluator, format, delim string, method, headers, body expr.Evaluator, p vio.Pushdown, progress *vio.Progress) *Robot {
 	return &Robot{
 		parent:   parent,
 		rctx:     rctx,
@@ -50,6 +51,7 @@ func NewRobot(rctx *runtime.Context, env *exec.Environment, parent vio.Puller, e
 		pushdown: p,
 		progress: progress,
 		format:   format,
+		delim:    delim,
 		method:   method,
 		headers:  headers,
 		body:     body,
@@ -171,21 +173,24 @@ func (o *Robot) nextVec() (vector.Any, error) {
 // open opens path, the URL computed for the value in slot of the current
 // input vector.
 func (o *Robot) open(path string, slot uint32) (vio.Puller, error) {
-	format := o.format
-	if format == "" {
-		format = anyio.ReadFormatFromPath(path)
-	}
-	if o.isHTTP() {
-		return o.openHTTP(path, format, slot)
-	}
-	if o.env.IsAttached() {
+	if o.env.IsAttached() && !o.isHTTP() {
 		// XXX we should support committish values
 		id, err := o.env.TableID(o.rctx, path)
 		if err == nil {
 			return o.openTable(id)
 		}
 	}
-	return o.env.Open(o.rctx.Context, o.rctx.Sctx, path, format, o.pushdown, o.progress, 1)
+	format := o.format
+	if format == "" {
+		format = anyio.ReadFormatFromPath(path)
+	}
+	if o.delim != "" && format != "" && format != "csv" {
+		return o.errOnVal("from: delim requires format csv", vector.Pick(o.vec, []uint32{slot})), nil
+	}
+	if o.isHTTP() {
+		return o.openHTTP(path, format, slot)
+	}
+	return o.env.Open(o.rctx.Context, o.rctx.Sctx, path, format, o.delim, o.pushdown, o.progress, 1)
 }
 
 func (r *Robot) openTable(id uuid.UUID) (vio.Puller, error) {
@@ -240,7 +245,7 @@ func (o *Robot) openHTTP(path, format string, slot uint32) (vio.Puller, error) {
 			body = bytes.NewReader(bodyBytes)
 		}
 	}
-	return o.env.OpenHTTP(o.rctx.Context, o.rctx.Sctx, path, format, method, headers, body, o.pushdown)
+	return o.env.OpenHTTP(o.rctx.Context, o.rctx.Sctx, path, format, o.delim, method, headers, body, o.pushdown)
 }
 
 func evalOpt(e expr.Evaluator, vec vector.Any) vector.Any {

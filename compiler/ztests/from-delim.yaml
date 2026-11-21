@@ -1,0 +1,101 @@
+# The delim option of from sets the CSV field delimiter of a file, overriding
+# -csv.delim, and requires format csv.
+script: |
+  super -s -c "from a.csv (delim ';')"
+  echo ===
+  super -s -c "from c (format csv delim ';')"
+  echo ===
+  super -s -c "from tab.txt (format csv delim '\t')"
+  echo ===
+  super -s -c "from *.csv (delim ';') | sort id"
+  echo ===
+  super -s -c "SELECT price FROM a.csv (FORMAT csv DELIM ';')"
+  echo ===
+  super -s -static -c "SELECT * FROM a.csv (DELIM ';')"
+  echo ===
+  super -s -csv.delim '|' -c "from a.csv (delim ';')"
+  echo ===
+  super -s -c "from f'{this}' (delim ';')" list.sup
+  echo ===
+  super -s -c "values {semi:(from b.csv (delim ';') | head 1),comma:(from b.csv | head 1)}"
+  echo ===
+  super compile -C -dag "from a.csv (delim ';') | values price"
+  super compile -C -dag "from f'{this}' (delim ';')"
+  ! super -s -static -c "from a.csv (delim ';;')"
+  ! super -s -c "from a.csv (delim '\u0000')"
+  ! super -s -c "from a.csv (delim '\"')"
+  ! super -s -c "from e.tsv (delim ';')"
+  ! super -s -c "from a.csv (format json delim ';')"
+  ! super compile -C -dag "from https://host/api (delim ';')"
+
+inputs:
+  - name: a.csv
+    data: |
+      id;price
+      1;1,45
+  - name: b.csv
+    data: |
+      id;price
+      2;3
+  - name: c
+    data: |
+      id;price
+      3;0,5
+  - name: tab.txt
+    data: "id\tprice\n4\t2\n"
+  - name: e.tsv
+    data: "id\tprice\n5\t1\n"
+  - name: list.sup
+    data: |
+      "a.csv"
+      "e.tsv"
+
+outputs:
+  - name: stdout
+    data: |
+      {id:1.,price:"1,45"}
+      ===
+      {id:3.,price:"0,5"}
+      ===
+      {id:4.,price:2.}
+      ===
+      {id:1.,price:"1,45"}
+      {id:2.,price:3.}
+      ===
+      {price:"1,45"}
+      ===
+      {id:1.,price:"1,45"}
+      ===
+      {id:1.,price:"1,45"}
+      ===
+      {id:1.,price:"1,45"}
+      error({message:"from: delim requires format csv",on:"e.tsv"})
+      ===
+      {semi:{id:2.,price:3.},comma:{"id;price":"2;3"}}
+      ===
+      file a.csv format csv delim ";"
+      | values price
+      | output main
+      null
+      | robot cast(this, <string>) delim ";"
+      | output main
+  - name: stderr
+    data: |
+      delim must be a single ASCII character at line 1, column 13:
+      from a.csv (delim ';;')
+                  ~~~~~~~~~~
+      delim cannot be a double quote, carriage return, newline, or NUL at line 1, column 13:
+      from a.csv (delim '\u0000')
+                  ~~~~~~~~~~~~~~
+      delim cannot be a double quote, carriage return, newline, or NUL at line 1, column 13:
+      from a.csv (delim '"')
+                  ~~~~~~~~~
+      delim requires format csv at line 1, column 13:
+      from e.tsv (delim ';')
+                  ~~~~~~~~~
+      delim requires format csv at line 1, column 25:
+      from a.csv (format json delim ';')
+                              ~~~~~~~~~
+      delim requires format csv at line 1, column 24:
+      from https://host/api (delim ';')
+                             ~~~~~~~~~
