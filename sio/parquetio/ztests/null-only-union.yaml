@@ -1,0 +1,28 @@
+# A union of only null, missing, and none types (e.g., from fusing a field
+# that's null whenever it's present) is written as a nullable column of nulls.
+
+script: |
+  super -o t.parquet -c 'values {a:null},{b:1} | fuse'
+  super -s t.parquet
+  echo ===
+  super -o t.parquet -c 'values {a:[{b:null}]},{a:[{c:1}]} | fuse'
+  super -s t.parquet
+  echo ===
+  super -o t.parquet -c 'values {a:null::(null|none)}'
+  super -s t.parquet
+  echo ===
+  super -f arrows -c 'values {a:null},{b:1} | fuse' | super -i arrows -s -
+
+outputs:
+  - name: stdout
+    data: |
+      {a:null,b:null::(int64|null)}
+      {a:null,b:1::(int64|null)}
+      ===
+      {a:[{b:null,c:null::(int64|null)}]}
+      {a:[{b:null,c:1::(int64|null)}]}
+      ===
+      {a:null}
+      ===
+      {a:null,b:null::(int64|null)}
+      {a:null,b:1::(int64|null)}
