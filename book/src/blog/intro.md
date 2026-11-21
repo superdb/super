@@ -1,0 +1,8 @@
+# Blog
+
+Notes from the SuperDB team on the ideas behind SuperDB: why we built it,
+the problems with how data is modeled and queried today, and how
+super-structured data addresses them.
+
+Posts are listed in the sidebar under this section.  Many of them include
+live examples that you can run and modify right in your browser.

@@ -228,3 +228,5 @@
             - [Type System](dev/integrations/zeek/types.md)
             - [TSV Logs](dev/integrations/zeek/logs.md)
             - [JSON Logs](dev/integrations/zeek/shaping.md)
+- [Blog](blog/intro.md)
+    - [JSON Can't Tell a Map from a Record](blog/json-map-or-record.md)
