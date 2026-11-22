@@ -53,12 +53,12 @@ UTF-8 string, and a unique ID assigned when it is created.
 A table can be referred to by either and can be
 [renamed](../command/db.md#super-db-rename) while its ID stays the same.
 
-Unlike a relational table, a table need not have a schema.  There are
-three kinds of tables, which differ in what values they accept:
+Unlike a relational table in traditional SQL, a table in SuperDB need not have a schema.
+There are three kinds of tables, which differ in what values they accept:
 
 * A table created by [`CREATE TABLE`](../super-sql/statements/create-table.md)
   with columns has a record type and behaves like a SQL table:
-  values are cast to the columns' types and missing nullable columns are null.
+  values are cast to the columns' types and missing values in nullable columns are null.
 * A table created by [`CREATE SUPER TABLE`](../super-sql/statements/create-super-table.md)
   or [`super db create -type`](../command/db.md#super-db-create) has a
   type of any kind, e.g., a union of record types, and values are cast to it.

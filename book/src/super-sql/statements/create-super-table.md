@@ -9,7 +9,8 @@ CREATE SUPER TABLE [ IF NOT EXISTS ] <name> <type>
 
 `CREATE SUPER TABLE` creates a table called `<name>` whose values all have
 the super-structured type `<type>`, which may be any
-[SuperSQL type](../types/intro.md), not just a record of columns.
+[SuperSQL type](../types/intro.md), not just a relational schema (i.e.,
+a record of comprising columns).
 A union type, for example, lets a single table hold values of different
 shapes while still giving every value a precise type.
 `<type>` may refer to [named types](../types/named.md) declared at the

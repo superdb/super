@@ -52,7 +52,30 @@ curl -X POST \
 **Example Response**
 
 ```
-{"table":{"ts":"2026-11-21T14:28:00.818576616Z","name":"inventory","id":"01a1fe81-c8b2-793a-aab3-383076bc5d23","sortkeys":[{"order":"asc","path":["product"]}],"objectcap":1048576,"framecap":20000,"type":"0x","sql":false},"branch":{"ts":"2026-11-21T14:28:00.818741489Z","name":"main","commit":"00000000-0000-0000-0000-000000000000"}}
+{
+  table: {
+    ts: "2026-11-21T14:28:00.818576616Z",
+    name: "inventory",
+    id: "01a1fe81-c8b2-793a-aab3-383076bc5d23",
+    sortkeys: [
+      {
+        order: "asc",
+        path: [
+          "product"
+        ]
+      }
+    ],
+    objectcap: 1048576,
+    framecap: 20000,
+    type: "0x",
+    sql: false
+  },
+  branch: {
+    ts: "2026-11-21T14:28:00.818741489Z",
+    name: "main",
+    commit: "00000000-0000-0000-0000-000000000000"
+  }
+}
 ```
 
 In the response, `type` is the binary encoding of the table's type, which is
