@@ -13,16 +13,15 @@ import (
 const maxSize = 512 * 1024 * 1024
 
 type valReader struct {
-	r        io.Reader
-	buf      []byte
-	cursor   []byte
-	EOF      bool
-	line     int
-	inputCap int
+	r      io.Reader
+	buf    []byte
+	cursor []byte
+	EOF    bool
+	line   int
 }
 
-func NewValReader(r io.Reader, inputCap int) *valReader {
-	return &valReader{r: r, buf: make([]byte, 512*1024), inputCap: inputCap}
+func NewValReader(r io.Reader) *valReader {
+	return &valReader{r: r, buf: make([]byte, 512*1024)}
 }
 
 func (r *valReader) Next() ([]byte, error) {
