@@ -79,7 +79,7 @@ input: |
   {x:2,y:3}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 8:
+  field may be missing (consider ok() or ?.) at line 1, column 8:
   values y::(int64|missing)
          ~~~~~~~~~~~~~~~~~~
 

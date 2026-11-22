@@ -1,0 +1,58 @@
+# e?.f is a plain none when field f is missing from e, so ?? can supply
+# a default, but a field no type of e has is still an error and other
+# errors pass through.
+script: |
+  super -s -c 'values this?.b ?? 0' r.sup
+  ! super -s -c 'values b' r.sup
+  ! super -s -c 'values this?.c' r.sup
+  echo '{a:1} {b:2} {a:error("boom")}' | super -s -c 'values this?.a ?? 0' -
+  echo === left join
+  super -s -c 'left join (from p.sup) on left.id=right.id | values this?.right?.color ?? "unpainted"' s.sup
+  ! super -s -c 'left join (from p.sup) on left.id=right.id | values right.color' s.sup
+  echo === right join
+  super -s -c 'right join (from s.sup) on left.id=right.id | values this?.left?.color ?? "unpainted"' p.sup
+  echo === anti join
+  ! super -s -c 'anti join (from p.sup) on left.id=right.id | values right' s.sup
+
+inputs:
+  - name: r.sup
+    data: |
+      {a:1,b:2}
+      {a:3}
+  - name: p.sup
+    data: |
+      {id:1,color:"red"}
+  - name: s.sup
+    data: |
+      {id:1}
+      {id:2}
+
+outputs:
+  - name: stdout
+    data: |
+      2
+      0
+      1
+      0
+      error("boom")
+      === left join
+      "red"
+      "unpainted"
+      === right join
+      "red"
+      "unpainted"
+      === anti join
+  - name: stderr
+    data: |
+      field may be missing (consider ok() or ?.) at line 1, column 8:
+      values b
+             ~
+      no such field "c" at line 1, column 14:
+      values this?.c
+                   ~
+      field may be missing (consider ok() or ?.) at line 1, column 53:
+      left join (from p.sup) on left.id=right.id | values right.color
+                                                          ~~~~~~~~~~~
+      no such field "right" at line 1, column 53:
+      anti join (from p.sup) on left.id=right.id | values right
+                                                          ~~~~~

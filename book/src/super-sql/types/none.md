@@ -15,7 +15,8 @@ what you want, usually by converting it to `none` with
 
 A plain `none` is the result of an expression that produces nothing, e.g.,
 * [ok](../functions/generics/ok.md) of an error,
-* `?.` applied to `none`,
+* `?.` applied to `none` or to a field that's absent, e.g., `this?.a` where
+  `a` is missing,
 * a [type assertion](../expressions/type-assertions.md) that fails,
 * a [match](../expressions/match.md) with no matching case and no `else`,
   or
@@ -87,23 +88,27 @@ values {a:1},{b:2} | values a ?? 0
 # input
 
 # expected output
-field may be missing (consider ok()) at line 1, column 29:
+field may be missing (consider ok() or ?.) at line 1, column 29:
 values {a:1},{b:2} | values a ?? 0
                             ~
 ```
-Note that `??` and `?.` handle `none`, not `missing`.  To handle a field
-that may be absent, convert it to `none` with
+Note that `??` handles `none`, not `missing`.  To handle a field
+that may be absent, read it with `?.`, which produces `none` where the field
+is absent, or convert it to `none` with
 [ok](../functions/generics/ok.md), then drop the `none` or replace it with
 `??`:
 ```mdtest-spq
 # spq
-values {a:1},{b:2} | values {input:this, ok:a.ok(), with_default:a.ok() ?? 0}
+values {a:1},{b:2} | values {input:this, ok:a.ok(), dot:this?.a, with_default:this?.a ?? 0}
 # input
 
 # expected output
-{input:{a:1},ok:1,with_default:1}
+{input:{a:1},ok:1,dot:1,with_default:1}
 {input:{b:2},with_default:0}
 ```
+`?.` handles only an absent field.  A field that none of the values can have
+is still reported, e.g., `this?.c` above is an error since neither record has
+a field `c`, and an error value read with `?.` is passed through as is.
 
 ## Why Two Types?
 
@@ -116,8 +121,8 @@ some of the input has the field.  If an absent field quietly became `none`,
 such mistakes would silently drop values from the output.
 
 Keeping the two apart lets SuperSQL drop `none` quietly while still catching
-every read of a field that may not be there.  Writing `ok()` makes the choice
-explicit: where the field is absent, treat it as nothing.
+every read of a field that may not be there.  Writing `?.` or `ok()` makes the
+choice explicit: where the field is absent, treat it as nothing.
 
 This resembles the distinction between `null` and `missing` in
 [SQL++](https://asterixdb.apache.org/docs/0.9.7.1/sqlpp/manual.html), but in SuperSQL a field that isn't
