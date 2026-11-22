@@ -528,7 +528,7 @@ func joinFilterPullup(seq dag.Seq) dag.Seq {
 	seq = mergeFilters(seq)
 	for i := 0; i <= len(seq)-3; i++ {
 		fork, isfork := seq[i].(*dag.ForkOp)
-		leftAlias, rightAlias, isjoin := isJoin(seq[i+1])
+		style, leftAlias, rightAlias, isjoin := isJoin(seq[i+1])
 		filter, isfilter := seq[i+2].(*dag.FilterOp)
 		if !isfork || !isjoin || !isfilter {
 			continue
@@ -536,13 +536,14 @@ func joinFilterPullup(seq dag.Seq) dag.Seq {
 		if len(fork.Paths) != 2 {
 			panic(seq[i])
 		}
+		pushLeft, pushRight := pushableSides(style)
 		var remaining []dag.Expr
 		for _, e := range splitPredicate(filter.Expr) {
-			if pullup, ok := pullupExpr(leftAlias, e); ok {
+			if pullup, ok := pullupExpr(leftAlias, e); ok && pushLeft {
 				fork.Paths[0] = append(fork.Paths[0], dag.NewFilterOp(pullup))
 				continue
 			}
-			if pullup, ok := pullupExpr(rightAlias, e); ok {
+			if pullup, ok := pullupExpr(rightAlias, e); ok && pushRight {
 				fork.Paths[1] = append(fork.Paths[1], dag.NewFilterOp(pullup))
 				continue
 			}
@@ -560,15 +561,33 @@ func joinFilterPullup(seq dag.Seq) dag.Seq {
 	return seq
 }
 
-func isJoin(op dag.Op) (string, string, bool) {
+func isJoin(op dag.Op) (string, string, string, bool) {
 	switch op := op.(type) {
 	case *dag.HashJoinOp:
-		return op.LeftAlias, op.RightAlias, true
+		return op.Style, op.LeftAlias, op.RightAlias, true
 	case *dag.JoinOp:
-		return op.LeftAlias, op.RightAlias, true
+		return op.Style, op.LeftAlias, op.RightAlias, true
 	default:
-		return "", "", false
+		return "", "", "", false
 	}
+}
+
+// pushableSides reports whether a filter on the left or right side of a join
+// of the given style may be applied to that side's input before the join.
+// It may not for the side that an outer join preserves when unmatched, i.e.,
+// the right side of a left join, the left side of a right join, and the right
+// side of an anti join, since filtering that input would turn values that
+// the filter removes into unmatched values instead.
+func pushableSides(style string) (left, right bool) {
+	switch style {
+	case "inner", "cross", "":
+		return true, true
+	case "left", "anti":
+		return true, false
+	case "right":
+		return false, true
+	}
+	return false, false
 }
 
 func buildConjunction(exprs []dag.Expr) dag.Expr {
