@@ -10,6 +10,8 @@ where `<item>` and `<target>` are [expressions](intro.md).
 The result is [Boolean](../types/bool.md)-valued and is true
 if the `<item>` expression results in a value that
 appears somewhere in the `<target>` expression as an exact match of the item.
+The value of an option nested in the `<target>` (e.g., an optional field) is
+searched like any other nested value.
 
 In contrast to SQL's `IN` operator, the right-hand side can be _any_ value and when the
 `<item>` and `<target>` are equal, the result of `in` is true, e.g.,

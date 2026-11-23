@@ -296,3 +296,36 @@ output: |
   [1,2,"foo"]
   set[1,2]
   set[1,2,"foo"]
+
+---
+
+# A defused option has the type of its own value, whatever other values are
+# in its vector.
+spq: values typeof(superdefuse(this))
+
+input: |
+  {x?:fusion(1::(int64|string),<int64>)}
+  {x?:fusion("a"::(int64|string),<string>)}
+  {x?:none::option(fusion(int64|string))}
+  {x?:fusion(2::(int64|string),<int64>)}
+
+output: |
+  <{x?:int64}>
+  <{x?:string}>
+  <{x?:int64|string}>
+  <{x?:int64}>
+
+---
+
+# Likewise when every some has the same type.
+spq: values typeof(superdefuse(this))
+
+input: |
+  {x?:fusion(1::(int64|string),<int64>)}
+  {x?:none::option(fusion(int64|string))}
+  {x?:fusion(2::(int64|string),<int64>)}
+
+output: |
+  <{x?:int64}>
+  <{x?:int64|string}>
+  <{x?:int64}>
