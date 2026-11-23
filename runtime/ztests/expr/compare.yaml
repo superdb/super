@@ -111,11 +111,11 @@ input: |
 
 output: |
   [true,false,false,true,true,false]
-  [false,true,false,false,false,false]
+  [false,true,true,true,false,false]
   [error("type mismatch: map{string:int64} == map{string:string}"),error("type mismatch: map{string:int64} != map{string:string}"),error("type mismatch: map{string:int64} < map{string:string}"),error("type mismatch: map{string:int64} <= map{string:string}"),error("type mismatch: map{string:int64} >= map{string:string}"),error("type mismatch: map{string:int64} > map{string:string}")]
-  [false,true,false,false,false,false]
+  [false,true,true,true,false,false]
   [error("type mismatch: map{string:int64} == map{string:error(int64)}"),error("type mismatch: map{string:int64} != map{string:error(int64)}"),error("type mismatch: map{string:int64} < map{string:error(int64)}"),error("type mismatch: map{string:int64} <= map{string:error(int64)}"),error("type mismatch: map{string:int64} >= map{string:error(int64)}"),error("type mismatch: map{string:int64} > map{string:error(int64)}")]
-  [false,true,false,false,false,false]
+  [false,true,true,true,false,false]
   [error("type mismatch: map{string:int64} == int64"),error("type mismatch: map{string:int64} != int64"),error("type mismatch: map{string:int64} < int64"),error("type mismatch: map{string:int64} <= int64"),error("type mismatch: map{string:int64} >= int64"),error("type mismatch: map{string:int64} > int64")]
   [null,null,null,null,null,null]
   [error({message:"==: error value encountered",on:error(0)}),error({message:"!=: error value encountered",on:error(0)}),error({message:"<: error value encountered",on:error(0)}),error({message:"<=: error value encountered",on:error(0)}),error({message:">=: error value encountered",on:error(0)}),error({message:">: error value encountered",on:error(0)})]

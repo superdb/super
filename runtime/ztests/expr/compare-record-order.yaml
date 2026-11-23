@@ -41,8 +41,8 @@ spq: values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
 flags: -dynamic
 
 input: |
-  {a:{x:map{1:1},y:1},b:{x:map{1:2},y:2}}
-  {a:{x:map{1:1},y:1},b:{x:map{1:1},y:2}}
+  {a:{x:[1,"a"],y:1},b:{x:["a",1],y:2}}
+  {a:{x:[1,"a"],y:1},b:{x:[1,"a"],y:2}}
 
 output: |
   [false,false,false,true,false,false]
