@@ -134,17 +134,18 @@ output: |
 
 ---
 
-# Complex values are comparable with an ordering operator.  Arrays are
-# ordered, while other complex values have no order: < and > are false while
-# <= and >= are equality.
-spq: values [1]>[0], [1]<=[1.0], {a:1}>={a:0}, set[1]>set[0], set[1]<=set[1.0]
+# Complex values are comparable with an ordering operator.  Arrays and sets
+# are ordered, while other complex values have no order: < and > are false
+# while <= and >= are equality.
+spq: values [1]>[0], [1]<=[1.0], {a:1}>={a:0}, set[1]>set[0], set[1]<=set[1.0], map{1:1}>map{0:0}
 
 output: |
   true
   true
   false
-  false
   true
+  true
+  false
 
 ---
 
@@ -194,3 +195,29 @@ output: |
   null
   error({message:"==: error value encountered",on:error("no such field x")})
   null
+
+---
+
+# A null operand or a null type of an operand doesn't stop an option from
+# comparing with an option.
+spq: |
+  values {a:some(1),b:some(2)}, {a:some(1),b:null}, {a:some(1),b:some(1)}
+  | values a == b, null == a
+
+output: |
+  false
+  null
+  null
+  null
+  true
+  null
+
+---
+
+# A named none isn't null, so an option compared with it is still an error.
+spq: type n=none values some(1) == none::n
+
+error: |
+  option(int64): option value not handled (consider ??) at line 1, column 20:
+  type n=none values some(1) == none::n
+                     ~~~~~~~~~~~~~~~~~~

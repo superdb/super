@@ -1544,18 +1544,30 @@ func passesComparison(typ super.Type) bool {
 // compares values of any types.
 func (c *checker) comparison(op string, loc ast.Node, lhs, rhs super.Type) super.Type {
 	lhs, rhs = defuse(lhs), defuse(rhs)
-	if lo, ok := coerce.Under(lhs).(*super.TypeOption); ok {
-		if ro, ok := coerce.Under(rhs).(*super.TypeOption); ok {
-			// Options compare their payloads, and none equals only none.
-			lhs, rhs = lo.Type, ro.Type
-		}
+	// A null, an error, or missing is the result of a comparison with an
+	// option, so only the other types of the operands matter here.
+	passes := func(t super.Type) bool {
+		t = coerce.Under(t)
+		return t != super.TypeNone && passesComparison(t)
 	}
-	// An option compares only with an option, which a value of unknown type
-	// may be.
-	for _, pair := range [][2]super.Type{{lhs, rhs}, {rhs, lhs}} {
-		if hasOption(pair[0]) && !isUnknown(coerce.Under(pair[1])) {
-			c.error(loc, fmt.Errorf("%s: %w", sup.FormatType(pair[0]), errOption))
-			return super.TypeBool
+	l, lok := c.withoutTypes(lhs, passes)
+	r, rok := c.withoutTypes(rhs, passes)
+	if lok && rok {
+		if lo, ok := coerce.Under(l).(*super.TypeOption); ok {
+			if ro, ok := coerce.Under(r).(*super.TypeOption); ok {
+				// Options compare their payloads, and none equals
+				// only none.
+				lhs, rhs = lo.Type, ro.Type
+				l, r = lhs, rhs
+			}
+		}
+		// An option compares only with an option, which a value of
+		// unknown type may be.
+		for _, pair := range [][2]super.Type{{l, r}, {r, l}} {
+			if hasOption(pair[0]) && !isUnknown(coerce.Under(pair[1])) {
+				c.error(loc, fmt.Errorf("%s: %w", sup.FormatType(pair[0]), errOption))
+				return super.TypeBool
+			}
 		}
 	}
 	if !c.compares(lhs, rhs) {
