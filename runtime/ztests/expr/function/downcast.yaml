@@ -1,5 +1,12 @@
+# downcast returns an error for a fusion value (a fusion value is turned back
+# into its subtype's value by defuse), so superfusing the input (as TestSPQ
+# does with SUPER_FUSEINPUT) is disabled here.  Embedded fusion values that
+# downcast handles when called by defuse are tested in superdefuse.yaml.
+
 # Test downcast on records.
 spq: downcast(this[0], this[1])
+
+skip-fuseinput: true
 
 input: |
   [{x:1},<{}>]
@@ -29,6 +36,8 @@ output: |
 # Test downcast on unions.
 spq: downcast(this[0], this[1])
 
+skip-fuseinput: true
+
 input: |
   [1::(int64|bool|string),<(int64|string)>]
   [1,<(int64|string)>]
@@ -48,6 +57,8 @@ output: |
 
 spq: downcast(this[0], this[1])
 
+skip-fuseinput: true
+
 input: |
   ["x"::enum(x,y,z),<enum(x,y)>]
   ["x"::enum(w,x),<enum(y,z)>]
@@ -61,6 +72,8 @@ output: |
 # Test downcast on arrays.
 spq: downcast(this[0], this[1])
 
+skip-fuseinput: true
+
 input: |
   [[1::(int64|bool|string),"foo"::(int64|bool|string)],<[int64|bool|string]>]
   [[{x:1::(int64|string)},{y:"foo"::(int64|string)}],<[{x:int64}|{y:string}]>]
@@ -72,6 +85,8 @@ output: |
 
 # Test downcast on maps.
 spq: downcast(this, <map{string:string}>)
+
+skip-fuseinput: true
 
 input: |
   map{"a"::(int64|string):"b"::(int64|string)}
@@ -98,6 +113,8 @@ output: |
 # 1 with 2::(int64|(foo=(int64|string))).
 spq: downcast(this[0], this[1])
 
+skip-fuseinput: true
+
 input: |
   type foo=(int64|string)
   [1::(int64|string),<(int64|bool|string)>]
@@ -110,28 +127,28 @@ output: |
 
 ---
 
-# Test downcast on fusion values.
+# Test that downcast returns an error for a value containing a fusion.
 spq: downcast(this[0], this[1])
+
+skip-fuseinput: true
 
 input: |
   [fusion({x?:1,y?:none::string},<{x:int64}>),<{x:int64}>]
-  [{a:fusion(2::(int64|null),<int64>)},<null|{a:int64}>]
-  [{a:fusion(3::option(int64|string),<option(int64)>)},<{a?:int64}>]
   [fusion({x?:none::int64,y?:"foo"},<{y:string}>),<{y:int64|string}>]
-  // error cases
-  [fusion({x?:1,y?:none::string},<{x:int64}>),<{y?:string}>]
+  [{a:fusion(2::(int64|null),<int64>)},<null|{a:int64}>]
+  [[fusion(1::(int64|string),<int64>)],<[int64]>]
 
 output: |
-  {x:1}
-  {a:2}::(null|{a:int64})
-  {a?:3}
-  {y:"foo"::(int64|string)}
-  error({message:"downcast: invalid subtype {y?:string}",on:{x:1}})
-
+  error({message:"downcast: cannot downcast a fusion value",on:{x:1}})
+  error({message:"downcast: cannot downcast a fusion value",on:{y:"foo"}})
+  error({message:"downcast: cannot downcast a fusion value",on:{a:2}})
+  error({message:"downcast: cannot downcast a fusion value",on:[1]})
 ---
 
 # Test downcast on error values.
 spq: downcast(this, <error(string)>)
+
+skip-fuseinput: true
 
 input: |
   error("foo"::(int64|string))
@@ -146,7 +163,9 @@ output: |
 ---
 
 # Test downcast on named values.
-spq: downcast(this[0], this[1]) 
+spq: downcast(this[0], this[1])
+
+skip-fuseinput: true
 
 input: |
   type foo=int64
