@@ -88,10 +88,13 @@ types that are coerced to a common type as in SQL.
   An option compared with a value that isn't an option is an error until the
   option is handled, e.g., with `??` or `unwrap`, or the value is wrapped
   with `some`.
-* Values of type `type`, and maps and enums, have no order, so `<` and `>`
-  are `false` for them while `<=` and `>=` are equality.
+* Maps and enums have no order, so `<` and `>` are `false` for them while
+  `<=` and `>=` are equality.
 
 For values of type [bool](../types/bool.md), `false` is less than `true`.
+
+Values of type [type](../types/type.md) are ordered by the
+[type order](../../formats/model.md#2-complex-types).
 
 For floating point numbers, `NaN` equals `NaN` and is greater than any other
 number, including `+Inf`, as in Postgres.

@@ -373,19 +373,13 @@ func isCompareOpSatisfied(opCode, i int) bool {
 	panic(opCode)
 }
 
+// compareTypeVals orders type values by super.CompareTypes.
 func (c *Compare) compareTypeVals(lhs, rhs vector.Any) vector.Any {
-	if c.opCode == vector.CompLT || c.opCode == vector.CompGT {
-		return vector.NewConstBool(false, lhs.Len())
-	}
 	out := vector.NewFalse(lhs.Len())
 	for i := range lhs.Len() {
 		l := vector.TypeValueValue(lhs, i)
 		r := vector.TypeValueValue(rhs, i)
-		v := l == r
-		if c.opCode == vector.CompNE {
-			v = !v
-		}
-		if v {
+		if isCompareOpSatisfied(c.opCode, super.CompareTypes(l, r)) {
 			out.Set(i)
 		}
 	}
@@ -405,10 +399,10 @@ func (c *Compare) compareComplex(typ super.Type, lhs0, rhs0, lhs, rhs vector.Any
 		var v int
 		var ok bool
 		if l.Type() == typ && r.Type() == typ {
-			v, ok = orderValues(typ, l.Bytes(), r.Bytes())
+			v, ok = orderValues(c.sctx, typ, l.Bytes(), r.Bytes())
 		} else {
 			l, r = vector.ValueAt(&lb, lhs0, i), vector.ValueAt(&rb, rhs0, i)
-			v, ok = orderMixed(l.Type(), l.Bytes(), r.Type(), r.Bytes())
+			v, ok = orderMixed(c.sctx, l.Type(), l.Bytes(), r.Type(), r.Bytes())
 		}
 		// Values with no order are unequal.
 		if ok && isCompareOpSatisfied(c.opCode, v) || !ok && c.opCode == vector.CompNE {
@@ -420,12 +414,13 @@ func (c *Compare) compareComplex(typ super.Type, lhs0, rhs0, lhs, rhs vector.Any
 
 // orderValues compares a and b, which have type typ, returning false if they
 // are unequal but have no order (e.g., maps or values of different types in a
-// union).  Null is ordered after any other value.  Arrays are ordered by their
+// union).  Null is ordered after any other value, and type values are ordered
+// by super.CompareTypes.  Arrays are ordered by their
 // first elements that aren't equal, with the shorter one first when it has no
 // such element, sets likewise with their elements in ascending order, and
 // records by their first fields that aren't equal.  Maps are equal when their
 // entries are.
-func orderValues(typ super.Type, a, b scode.Bytes) (int, bool) {
+func orderValues(sctx *super.Context, typ super.Type, a, b scode.Bytes) (int, bool) {
 	if a == nil || b == nil {
 		return cmp.Compare(btoi(a == nil), btoi(b == nil)), true
 	}
@@ -443,15 +438,15 @@ func orderValues(typ super.Type, a, b scode.Bytes) (int, bool) {
 		if atyp != btyp {
 			return 0, false
 		}
-		return orderValues(atyp, a, b)
+		return orderValues(sctx, atyp, a, b)
 	case *super.TypeArray:
-		return orderLists(typ.Type, a.Iter(), typ.Type, b.Iter())
+		return orderLists(sctx, typ.Type, a.Iter(), typ.Type, b.Iter())
 	case *super.TypeSet:
-		return orderSets(typ.Type, a, typ.Type, b)
+		return orderSets(sctx, typ.Type, a, typ.Type, b)
 	case *super.TypeRecord:
-		return orderRecords(typ, a, typ, b)
+		return orderRecords(sctx, typ, a, typ, b)
 	case *super.TypeMap:
-		return 0, equalMaps(typ, a, typ, b)
+		return 0, equalMaps(sctx, typ, a, typ, b)
 	case *super.TypeOption:
 		atyp, a := typ.Decode(a)
 		btyp, b := typ.Decode(b)
@@ -459,7 +454,7 @@ func orderValues(typ super.Type, a, b scode.Bytes) (int, bool) {
 			// None equals only none, which has the same bytes.
 			return 0, false
 		}
-		return orderValues(atyp, a, b)
+		return orderValues(sctx, atyp, a, b)
 	}
 	switch id := typ.ID(); {
 	case super.IsSigned(id):
@@ -478,6 +473,13 @@ func orderValues(typ super.Type, a, b scode.Bytes) (int, bool) {
 		return super.DecodeNet(a).Compare(super.DecodeNet(b)), true
 	case id == super.IDUUID:
 		return super.DecodeUUID(a).Compare(super.DecodeUUID(b)), true
+	case id == super.IDType:
+		atyp, aerr := sctx.LookupByValue(a)
+		btyp, berr := sctx.LookupByValue(b)
+		if aerr != nil || berr != nil {
+			return 0, false
+		}
+		return super.CompareTypes(atyp, btyp), true
 	}
 	return 0, false
 }
@@ -486,13 +488,13 @@ func orderValues(typ super.Type, a, b scode.Bytes) (int, bool) {
 // are the same type or have a comparison type (e.g., when one of them
 // couldn't be cast to it).  Integers and floats of different types are
 // ordered by value.
-func orderMixed(atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) (int, bool) {
+func orderMixed(sctx *super.Context, atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) (int, bool) {
 	if a == nil || b == nil {
 		return cmp.Compare(btoi(a == nil), btoi(b == nil)), true
 	}
 	atyp, btyp = super.TypeUnder(atyp), super.TypeUnder(btyp)
 	if atyp == btyp {
-		return orderValues(atyp, a, b)
+		return orderValues(sctx, atyp, a, b)
 	}
 	au, aUnion := atyp.(*super.TypeUnion)
 	bu, bUnion := btyp.(*super.TypeUnion)
@@ -511,24 +513,24 @@ func orderMixed(atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) 
 		if atyp != btyp {
 			return 0, false
 		}
-		return orderValues(atyp, a, b)
+		return orderValues(sctx, atyp, a, b)
 	}
 	switch at := atyp.(type) {
 	case *super.TypeArray:
 		if bt, ok := btyp.(*super.TypeArray); ok {
-			return orderLists(at.Type, a.Iter(), bt.Type, b.Iter())
+			return orderLists(sctx, at.Type, a.Iter(), bt.Type, b.Iter())
 		}
 	case *super.TypeSet:
 		if bt, ok := btyp.(*super.TypeSet); ok {
-			return orderSets(at.Type, a, bt.Type, b)
+			return orderSets(sctx, at.Type, a, bt.Type, b)
 		}
 	case *super.TypeRecord:
 		if bt, ok := btyp.(*super.TypeRecord); ok {
-			return orderRecords(at, a, bt, b)
+			return orderRecords(sctx, at, a, bt, b)
 		}
 	case *super.TypeMap:
 		if bt, ok := btyp.(*super.TypeMap); ok {
-			return 0, equalMaps(at, a, bt, b)
+			return 0, equalMaps(sctx, at, a, bt, b)
 		}
 	case *super.TypeOption:
 		if bt, ok := btyp.(*super.TypeOption); ok {
@@ -538,7 +540,7 @@ func orderMixed(atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) 
 				// None equals only none.
 				return 0, atyp == nil && btyp == nil
 			}
-			return orderMixed(atyp, a, btyp, b)
+			return orderMixed(sctx, atyp, a, btyp, b)
 		}
 	}
 	if aid, bid := atyp.ID(), btyp.ID(); isNumeric(aid) && isNumeric(bid) {
@@ -549,9 +551,9 @@ func orderMixed(atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) 
 
 // orderLists orders the elements of arrays or sets, which have types atyp and
 // btyp, by their first elements that aren't equal.
-func orderLists(atyp super.Type, ait scode.Iter, btyp super.Type, bit scode.Iter) (int, bool) {
+func orderLists(sctx *super.Context, atyp super.Type, ait scode.Iter, btyp super.Type, bit scode.Iter) (int, bool) {
 	for !ait.Done() && !bit.Done() {
-		v, ok := orderMixed(atyp, ait.Next(), btyp, bit.Next())
+		v, ok := orderMixed(sctx, atyp, ait.Next(), btyp, bit.Next())
 		if !ok || v != 0 {
 			return v, ok
 		}
@@ -563,10 +565,10 @@ func orderLists(atyp super.Type, ait scode.Iter, btyp super.Type, bit scode.Iter
 // rather than in the order in which they're stored (i.e., the order of their
 // encodings), which differs for values that are equal but encoded
 // differently (e.g., 0.0 and -0.0) or of different types.
-func orderSets(atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) (int, bool) {
-	as, bs := sortedElems(atyp, a), sortedElems(btyp, b)
+func orderSets(sctx *super.Context, atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) (int, bool) {
+	as, bs := sortedElems(sctx, atyp, a), sortedElems(sctx, btyp, b)
 	for i := range min(len(as), len(bs)) {
-		v, ok := orderMixed(atyp, as[i], btyp, bs[i])
+		v, ok := orderMixed(sctx, atyp, as[i], btyp, bs[i])
 		if !ok || v != 0 {
 			return v, ok
 		}
@@ -577,13 +579,13 @@ func orderSets(atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) (
 // sortedElems returns the elements of set body b, whose elements have type
 // typ, in ascending order, with elements that have no order in the order of
 // their encodings.
-func sortedElems(typ super.Type, b scode.Bytes) []scode.Bytes {
+func sortedElems(sctx *super.Context, typ super.Type, b scode.Bytes) []scode.Bytes {
 	var elems []scode.Bytes
 	for it := b.Iter(); !it.Done(); {
 		elems = append(elems, it.Next())
 	}
 	slices.SortStableFunc(elems, func(x, y scode.Bytes) int {
-		if v, ok := orderValues(typ, x, y); ok && v != 0 {
+		if v, ok := orderValues(sctx, typ, x, y); ok && v != 0 {
 			return v
 		}
 		return bytes.Compare(x, y)
@@ -594,13 +596,13 @@ func sortedElems(typ super.Type, b scode.Bytes) []scode.Bytes {
 // orderRecords orders records a and b, which have types atyp and btyp with
 // the same field names in the same order, by their first fields from left to
 // right that aren't equal.
-func orderRecords(atyp *super.TypeRecord, a scode.Bytes, btyp *super.TypeRecord, b scode.Bytes) (int, bool) {
+func orderRecords(sctx *super.Context, atyp *super.TypeRecord, a scode.Bytes, btyp *super.TypeRecord, b scode.Bytes) (int, bool) {
 	if len(atyp.Fields) != len(btyp.Fields) {
 		return 0, false
 	}
 	ait, bit := a.Iter(), b.Iter()
 	for i, f := range atyp.Fields {
-		if v, ok := orderMixed(f.Type, ait.Next(), btyp.Fields[i].Type, bit.Next()); !ok || v != 0 {
+		if v, ok := orderMixed(sctx, f.Type, ait.Next(), btyp.Fields[i].Type, bit.Next()); !ok || v != 0 {
 			return v, ok
 		}
 	}
@@ -609,13 +611,13 @@ func orderRecords(atyp *super.TypeRecord, a scode.Bytes, btyp *super.TypeRecord,
 
 // equalMaps reports whether maps a and b, which have types atyp and btyp,
 // have equal entries.  Maps have no order.
-func equalMaps(atyp *super.TypeMap, a scode.Bytes, btyp *super.TypeMap, b scode.Bytes) bool {
+func equalMaps(sctx *super.Context, atyp *super.TypeMap, a scode.Bytes, btyp *super.TypeMap, b scode.Bytes) bool {
 	ait, bit := a.Iter(), b.Iter()
 	for !ait.Done() && !bit.Done() {
-		if v, ok := orderMixed(atyp.KeyType, ait.Next(), btyp.KeyType, bit.Next()); !ok || v != 0 {
+		if v, ok := orderMixed(sctx, atyp.KeyType, ait.Next(), btyp.KeyType, bit.Next()); !ok || v != 0 {
 			return false
 		}
-		if v, ok := orderMixed(atyp.ValType, ait.Next(), btyp.ValType, bit.Next()); !ok || v != 0 {
+		if v, ok := orderMixed(sctx, atyp.ValType, ait.Next(), btyp.ValType, bit.Next()); !ok || v != 0 {
 			return false
 		}
 	}
