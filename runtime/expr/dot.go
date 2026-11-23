@@ -87,20 +87,13 @@ func (d *DotExpr) eval(vecs ...vector.Any) vector.Any {
 	case *vector.Record:
 		i, ok := vec.Typ.IndexOfField(d.key)
 		if !ok {
-			if d.nullish {
-				return vector.NewNull(vec.Len())
-			}
-			return d.noFieldErr(vec)
+			return d.missing(vec)
 		}
 		out := vec.Fields[i]
 		if _, ok := out.(*vector.Missing); ok {
 			// A missing field (e.g., from a projection of a record type
-			// without the field) is the same as no field.  For nullish
-			// expressions, turn missing into null.
-			if d.nullish {
-				return vector.NewNull(vec.Len())
-			}
-			return d.noFieldErr(vec)
+			// without the field) is the same as no field.
+			return d.missing(vec)
 		}
 		if !hasUnionMissing(out) {
 			return out
@@ -109,10 +102,7 @@ func (d *DotExpr) eval(vecs ...vector.Any) vector.Any {
 			unripped := vecs[0]
 			ripped := vecs[1]
 			if _, ok := ripped.(*vector.Missing); ok {
-				if d.nullish {
-					return vector.NewNull(ripped.Len())
-				}
-				return d.noFieldErr(ripped)
+				return d.missing(ripped)
 			}
 			return unripped
 		}, vector.AddNoRip(out), out)
@@ -127,6 +117,19 @@ func (d *DotExpr) eval(vecs ...vector.Any) vector.Any {
 		return vec
 	}
 	return vector.NewStringError(d.sctx, fmt.Sprintf("cannot access field '%s' of %s", d.key, kindName(vec.Type())), vec.Len())
+}
+
+// missing returns the result of accessing field d.key where it is missing
+// from the values of vec: null for nullish expressions, a plain none for
+// e?.f, which ?. has handled, and otherwise an error.
+func (d *DotExpr) missing(vec vector.Any) vector.Any {
+	if d.nullish {
+		return vector.NewNull(vec.Len())
+	}
+	if d.noneish {
+		return vector.NewNone(vec.Len())
+	}
+	return d.noFieldErr(vec)
 }
 
 // noneOfField returns a plain none vector for e?.f where vec is an option

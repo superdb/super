@@ -7,7 +7,7 @@ input: |
   {x:3,y:"a"}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 17:
+  field may be missing (consider ok() or ?.) at line 1, column 17:
   aggregate count(y)
                   ~
 
@@ -35,7 +35,7 @@ input: |
   {x:3,y:"a"}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 7:
+  field may be missing (consider ok() or ?.) at line 1, column 7:
   count(y)
         ~
 
@@ -50,7 +50,7 @@ input: |
   {x:3,b:false}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 27:
+  field may be missing (consider ok() or ?.) at line 1, column 27:
   aggregate count() filter (b)
                             ~
 
@@ -65,7 +65,7 @@ input: |
   {x:3,y:"a"}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 21:
+  field may be missing (consider ok() or ?.) at line 1, column 21:
   aggregate sum(x) by y
                       ~
 
@@ -80,7 +80,7 @@ input: |
   {x:3,y:"a"}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 14:
+  field may be missing (consider ok() or ?.) at line 1, column 14:
   aggregate by y
                ~
 

@@ -8,7 +8,7 @@ input: |
   {x:2,y:3}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 8:
+  field may be missing (consider ok() or ?.) at line 1, column 8:
   values y
          ~
 
@@ -21,16 +21,16 @@ input: |
   {x:2,y:3}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 11:
+  field may be missing (consider ok() or ?.) at line 1, column 11:
   values {x,y}, [y], map{'foo':y}, set[y]
             ~
-  field may be missing (consider ok()) at line 1, column 16:
+  field may be missing (consider ok() or ?.) at line 1, column 16:
   values {x,y}, [y], map{'foo':y}, set[y]
                  ~
-  field may be missing (consider ok()) at line 1, column 30:
+  field may be missing (consider ok() or ?.) at line 1, column 30:
   values {x,y}, [y], map{'foo':y}, set[y]
                                ~
-  field may be missing (consider ok()) at line 1, column 38:
+  field may be missing (consider ok() or ?.) at line 1, column 38:
   values {x,y}, [y], map{'foo':y}, set[y]
                                        ~
 
@@ -44,7 +44,7 @@ input: |
   {x:2,y:3}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 12:
+  field may be missing (consider ok() or ?.) at line 1, column 12:
   values map{y:1}
              ~
 ---
@@ -58,7 +58,7 @@ input: |
   {r:{x:1}}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 1:
+  field may be missing (consider ok() or ?.) at line 1, column 1:
   r.y
   ~~~
 
@@ -94,10 +94,10 @@ input: |
   {x:2,y:3}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 8:
+  field may be missing (consider ok() or ?.) at line 1, column 8:
   put z:=y | cut y
          ~
-  field may be missing (consider ok()) at line 1, column 16:
+  field may be missing (consider ok() or ?.) at line 1, column 16:
   put z:=y | cut y
                  ~
 

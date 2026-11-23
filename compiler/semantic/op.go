@@ -1361,8 +1361,9 @@ func (t *translator) joinOp(op *ast.JoinOp, parent sem.Seq, inTypes []super.Type
 		RightAlias: rightAlias,
 		Cond:       cond,
 	}
+	outType := t.checker.joinType(style, leftAlias, rightAlias, leftType, rightType)
 	if subquery == nil {
-		return append(parent, join), typ
+		return append(parent, join), outType
 	}
 	if len(parent) == 0 {
 		parent = append(parent, &sem.PassOp{Node: join})
@@ -1370,7 +1371,7 @@ func (t *translator) joinOp(op *ast.JoinOp, parent sem.Seq, inTypes []super.Type
 	fork := &sem.ForkOp{
 		Paths: []sem.Seq{parent, subquery},
 	}
-	return sem.Seq{fork, join}, typ
+	return sem.Seq{fork, join}, outType
 }
 
 func (t *translator) pipeJoinCond(cond ast.JoinCond, leftAlias, rightAlias string, inType super.Type) sem.Expr {

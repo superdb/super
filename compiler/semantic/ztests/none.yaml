@@ -19,7 +19,7 @@ input: |
   {y:1}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 8:
+  field may be missing (consider ok() or ?.) at line 1, column 8:
   values x+1
          ~
 
@@ -95,7 +95,7 @@ input: |
   {a:3}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 8:
+  field may be missing (consider ok() or ?.) at line 1, column 8:
   values b ?? 1000
          ~
 
@@ -165,6 +165,6 @@ input: |
   {s:1}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 8:
+  field may be missing (consider ok() or ?.) at line 1, column 8:
   values r.f + 1
          ~~~

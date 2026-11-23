@@ -194,7 +194,41 @@ func (c *checker) join(types []super.Type, op *sem.JoinOp) super.Type {
 		super.NewField(op.RightAlias, types[1]),
 	})
 	c.expr(typ, op.Cond)
-	return typ
+	return c.joinType(op.Style, op.LeftAlias, op.RightAlias, types[0], types[1])
+}
+
+// joinType returns the type of the values produced by a join of the given
+// style.  An unmatched value of an outer join has no field for the other
+// side, so that side may be missing, and an anti join produces only the
+// left values.
+func (c *checker) joinType(style, leftAlias, rightAlias string, left, right super.Type) super.Type {
+	switch style {
+	case "left":
+		right = c.orMissing(right)
+	case "right":
+		left = c.orMissing(left)
+	case "anti":
+		return c.t.sctx.MustLookupTypeRecord([]super.Field{
+			super.NewField(leftAlias, left),
+		})
+	}
+	return c.t.sctx.MustLookupTypeRecord([]super.Field{
+		super.NewField(leftAlias, left),
+		super.NewField(rightAlias, right),
+	})
+}
+
+// orMissing returns the type of a field of type typ that may be missing.
+func (c *checker) orMissing(typ super.Type) super.Type {
+	if hasUnknown(typ) {
+		return typ
+	}
+	typ = defuse(typ)
+	if hasMissing(typ) {
+		return typ
+	}
+	types := super.Flatten([]super.Type{typ, super.TypeMissing})
+	return c.t.sctx.MustLookupTypeFusion(c.t.sctx.MustLookupTypeUnion(types))
 }
 
 // unnest returns the type of the values produced by unnesting a value of type
@@ -657,7 +691,7 @@ func defuse(typ super.Type) super.Type {
 	return typ
 }
 
-var errMissing = errors.New("field may be missing (consider ok())")
+var errMissing = errors.New("field may be missing (consider ok() or ?.)")
 var errNone = errors.New("none not handled (consider ?? or ?.)")
 var errOption = errors.New("option value not handled (consider ??)")
 
@@ -760,6 +794,31 @@ func (c *checker) derefNullish(loc ast.Node, typ super.Type, field string, nonei
 		out = c.fuse([]super.Type{out, super.TypeNull})
 	}
 	return out
+}
+
+// missingAsNone returns typ with any missing type replaced by a plain none.
+func (c *checker) missingAsNone(typ super.Type) super.Type {
+	under := defuse(typ)
+	if hasUnknown(under) || !hasMissing(under) {
+		return typ
+	}
+	rest, ok := c.withoutTypes(under, isMissingType)
+	if !ok {
+		return super.TypeNone
+	}
+	return c.orNone(rest)
+}
+
+// hasField reports whether typ is a record type with a field named field or
+// is a type other than a record type, i.e., whether a field access on a value
+// of type typ is something other than a record without the field.
+func hasField(typ super.Type, field string) bool {
+	rec, ok := coerce.Under(typ).(*super.TypeRecord)
+	if !ok || hasUnknown(rec) {
+		return true
+	}
+	_, ok = rec.IndexOfField(field)
+	return ok
 }
 
 // missingAsNull returns typ with any missing type replaced by null.
@@ -1381,7 +1440,12 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 			}
 			return c.unknown
 		}
-		return typ.Fields[which].Type
+		fieldType := typ.Fields[which].Type
+		if noneish {
+			// e?.f is a plain none when field f may be missing from e.
+			return c.missingAsNone(fieldType)
+		}
+		return fieldType
 	case *super.TypeUnion:
 		if hasNone(typ) {
 			// The value may be a bare none (e.g., it's from ok()), which
@@ -1408,9 +1472,16 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 		// found is true if a type has the field, i.e., other than null and
 		// missing, whose fields are null and missing.
 		var found bool
+		// none is true if e?.f is a plain none for a record type in the
+		// union without field f.
+		var none bool
 		for _, t := range typ.Types {
 			if t == super.TypeNull {
 				types = append(types, t)
+				continue
+			}
+			if noneish && !hasField(t, field) {
+				none = true
 				continue
 			}
 			c.pushErrs()
@@ -1424,7 +1495,8 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 				failed = append(failed, t)
 			}
 		}
-		if len(types) == 0 {
+		if len(types) == 0 || none && !found {
+			// No type has the field, so ?. doesn't apply.
 			c.error(loc, fmt.Errorf("%w %q: . applied to %s", errNoSuchField, field, c.formatType(inType)))
 			return c.unknown
 		}
@@ -1436,7 +1508,11 @@ func (c *checker) deref(loc ast.Node, inType super.Type, field string, noneish b
 			}
 			c.error(loc, err)
 		}
-		return c.fuse(types)
+		out := c.fuse(types)
+		if none {
+			out = c.orNone(out)
+		}
+		return out
 	case *super.TypeOption:
 		// e?.f is a plain none when e is none and otherwise e.f, so its
 		// type is typeof(e.f)|none, whereas e.f on an option doesn't handle

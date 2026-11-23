@@ -50,7 +50,7 @@ outputs:
       select z from t
              ~
       === field may be missing
-      field may be missing (consider ok()) at line 1, column 20:
+      field may be missing (consider ok() or ?.) at line 1, column 20:
       from t | values {x,y}
                          ~
       === glob

@@ -28,16 +28,16 @@ input: |
   {a:2::(int64|null),b:1::(int64|null)}
 
 error: |
-  field may be missing (consider ok()) at line 1, column 13:
+  field may be missing (consider ok() or ?.) at line 1, column 13:
   cut r:={x:a+b,y:a-b},a1:=[a],a2:=[a+b,a-b]
               ~
-  field may be missing (consider ok()) at line 1, column 19:
+  field may be missing (consider ok() or ?.) at line 1, column 19:
   cut r:={x:a+b,y:a-b},a1:=[a],a2:=[a+b,a-b]
                     ~
-  field may be missing (consider ok()) at line 1, column 37:
+  field may be missing (consider ok() or ?.) at line 1, column 37:
   cut r:={x:a+b,y:a-b},a1:=[a],a2:=[a+b,a-b]
                                       ~
-  field may be missing (consider ok()) at line 1, column 41:
+  field may be missing (consider ok() or ?.) at line 1, column 41:
   cut r:={x:a+b,y:a-b},a1:=[a],a2:=[a+b,a-b]
                                           ~
 
