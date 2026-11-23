@@ -62,6 +62,7 @@
         - [Sets](super-sql/types/set.md)
         - [Maps](super-sql/types/map.md)
         - [Unions](super-sql/types/union.md)
+        - [Fusions](super-sql/types/fusion.md)
         - [Enums](super-sql/types/enum.md)
         - [Errors](super-sql/types/error.md)
         - [Named Types](super-sql/types/named.md)
