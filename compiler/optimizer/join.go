@@ -52,16 +52,22 @@ func liftFilterIntoJoin(seq dag.Seq, lhs, rhs dag.Expr) bool {
 	if !lok || !rok {
 		return false
 	}
+	pushLeft, pushRight := pushableSides(join.Style)
 	if lhsFirst == rhsFirst {
 		lhs, rhs = dag.CopyExpr(lhs), dag.CopyExpr(rhs)
 		stripFirstThisPathComponent(lhs)
 		stripFirstThisPathComponent(rhs)
-		if lhsFirst == join.LeftAlias {
+		if lhsFirst == join.LeftAlias && pushLeft {
 			return liftFilterIntoJoin(fork.Paths[0], lhs, rhs)
 		}
-		if lhsFirst == join.RightAlias {
+		if lhsFirst == join.RightAlias && pushRight {
 			return liftFilterIntoJoin(fork.Paths[1], lhs, rhs)
 		}
+		return false
+	}
+	if !pushLeft || !pushRight {
+		// Moving the predicate into the condition of an outer or anti join
+		// would turn the values it removes into unmatched values.
 		return false
 	}
 	if lhsFirst != join.LeftAlias {
