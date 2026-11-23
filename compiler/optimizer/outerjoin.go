@@ -47,7 +47,8 @@ func convertOuterJoins(seq dag.Seq) dag.Seq {
 // operand of a comparison is null (as for a missing column in SQL) or an error
 // (as for a missing field), the comparison is null or an error, which a filter
 // treats as false.  A path read with ?. is none instead, and none is unequal
-// to every other value, so only equality with a literal rejects it.
+// to every other value, so only equality with a literal other than none
+// rejects it.
 func rejectsMissing(e dag.Expr, alias string) bool {
 	for _, conjunct := range splitPredicate(e) {
 		b, ok := conjunct.(*dag.BinaryExpr)
@@ -73,8 +74,8 @@ func comparesMissing(op string, path, other dag.Expr, alias string) bool {
 	}
 	for _, elem := range this.Chain {
 		if elem.Noneish {
-			_, isLiteral := other.(*dag.PrimitiveExpr)
-			return op == "==" && isLiteral
+			lit, ok := other.(*dag.PrimitiveExpr)
+			return op == "==" && ok && lit.Value != "none"
 		}
 	}
 	return true
