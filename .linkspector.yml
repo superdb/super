@@ -20,6 +20,7 @@ ignorePatterns:
 
 # Not crawling the following due to persistent HTTP 503 errors
   - pattern: '^https://sqlite.org'
+  - pattern: '^https://github.com/apache/spark/blob/master/common/variant/README.md'
 
 # Not crawling the following due to a Cloudflare challenge that causes HTTP
 # 429/403 errors during link checking
