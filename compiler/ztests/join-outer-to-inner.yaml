@@ -1,0 +1,59 @@
+# An outer join followed by a filter that is never true for an unmatched
+# value, e.g., a comparison on the side that would be missing, becomes an
+# inner join so the filter can be pushed down.  Filters that can be true for
+# an unmatched value, like IS NULL, leave the outer join alone.
+script: |
+  for where in "p.color='red'" "p.color!='red'" "s.k=p.k" "p.color IS NULL" "p.color='red' OR s.k=3"; do
+    echo "// $where"
+    super -s -c "SELECT s.id FROM 's.sup' s LEFT JOIN 'p.sup' p ON s.id=p.id WHERE $where ORDER BY s.id"
+  done
+  echo "// right join"
+  super -s -c "SELECT p.id FROM 's.sup' s RIGHT JOIN 'p.sup' p ON s.id=p.id WHERE s.k=1"
+  echo ===
+  super compile -C -O -c "SELECT s.id FROM 's.sup' s LEFT JOIN 'p.sup' p ON s.id=p.id WHERE p.color='red'"
+
+inputs:
+  - name: s.sup
+    data: |
+      {id:1,k:1}
+      {id:2,k:2}
+      {id:3,k:3}
+  - name: p.sup
+    data: |
+      {id:1,k:1,color:"red"}
+      {id:2,k:9,color:"blue"}
+
+outputs:
+  - name: stdout
+    data: |
+      // p.color='red'
+      {id:1}
+      // p.color!='red'
+      {id:2}
+      // s.k=p.k
+      {id:1}
+      // p.color IS NULL
+      {id:3}
+      // p.color='red' OR s.k=3
+      {id:1}
+      {id:3}
+      // right join
+      {id:1}
+      ===
+      fork
+        (
+          file s.sup format sup type {id:int64,k:int64} unordered project [id]
+        )
+        (
+          file p.sup format sup type {id:int64,k:int64,color:string} unordered project [color,id]
+            meta-filter project [color.max,color.min] (
+              compare("red", this!.color!.min, true)>=0 and compare("red", this!.color!.max, true)<=0
+            )
+            data-filter project [color] (
+              this!.color=="red"
+            )
+          | where this!.color=="red"
+        )
+      | inner hashjoin as {left,right} on this!.id==this!.id
+      | values {id:this!.left!.id}
+      | output main

@@ -9,7 +9,7 @@ script: |
   echo ===
   super -s -c "SELECT p.id FROM 's.sup' s RIGHT JOIN 'p.sup' p ON s.id=p.id WHERE s.k=1"
   echo ===
-  super compile -C -O -c "SELECT s.id FROM 's.sup' s LEFT JOIN 'p.sup' p ON s.id=p.id WHERE p.color='red' AND s.k=1"
+  super compile -C -O -c "SELECT s.id FROM 's.sup' s LEFT JOIN 'p.sup' p ON s.id=p.id WHERE (p.color IS NULL OR p.k=9) AND s.k=1"
 
 inputs:
   - name: s.sup
@@ -43,9 +43,9 @@ outputs:
           | where this!.k==1
         )
         (
-          file p.sup format sup type {id:int64,k:int64,color:string} unordered project [color,id]
+          file p.sup format sup type {id:int64,k:int64,color:string} unordered project [color,id,k]
         )
       | left hashjoin as {left,right} on this!.id==this!.id
-      | where this!.right!.color=="red"
+      | where this!.right!.color IS NULL or this!.right!.k==9
       | values {id:this!.left!.id}
       | output main

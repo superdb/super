@@ -141,6 +141,7 @@ func (o *Optimizer) optimizeSeq(seq dag.Seq) (dag.Seq, error) {
 	seq = mergeFilters(seq)
 	seq = mergeValuesOps(seq)
 	inlineRecordExprSpreads(seq)
+	seq = convertOuterJoins(seq)
 	seq = liftFiltersIntoJoins(seq)
 	replaceJoinWithHashJoin(seq)
 	seq = joinFilterPullup(seq)
