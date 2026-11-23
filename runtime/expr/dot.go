@@ -27,9 +27,17 @@ type DotExpr struct {
 	okPush    bool
 	hasFusion samfunc.FusionChecker
 	mapKeyEq  *Compare
+	// deref is true when this DotExpr's result is consumed only by
+	// another DotExpr, which rips fusions and unions from its input
+	// before accessing a field.  This lets eval skip preserving the
+	// fusion or union wrapper of a field's value.
+	deref bool
 }
 
 func NewDotExpr(sctx *super.Context, record Evaluator, field string, noneish, nullish bool) *DotExpr {
+	if inner, ok := record.(*DotExpr); ok {
+		inner.deref = true
+	}
 	return &DotExpr{
 		sctx:     sctx,
 		defuse:   NewSuperDefuse(sctx),
@@ -98,6 +106,11 @@ func (d *DotExpr) eval(vecs ...vector.Any) vector.Any {
 		if !hasUnionMissing(out) {
 			return out
 		}
+		if d.deref {
+			if out, ok := d.replaceMissingInUnion(out); ok {
+				return out
+			}
+		}
 		return vector.Apply(vector.ApplyDefuseMissings, func(vecs ...vector.Any) vector.Any {
 			unripped := vecs[0]
 			ripped := vecs[1]
@@ -130,6 +143,35 @@ func (d *DotExpr) missing(vec vector.Any) vector.Any {
 		return vector.NewNone(vec.Len())
 	}
 	return d.noFieldErr(vec)
+}
+
+// replaceMissingInUnion handles a field value that is a union, or a fusion of a
+// union, with a missing member when the result will only be dereferenced by
+// another DotExpr.  It returns a Dynamic over the union's tags and values with
+// the missing values replaced by nulls (for nullish access) or errors.  This
+// reuses the union's tags and values as is, so unlike the general path, it does
+// no per-slot work.
+func (d *DotExpr) replaceMissingInUnion(vec vector.Any) (vector.Any, bool) {
+	var union *vector.Union
+	switch vec := vec.(type) {
+	case *vector.Union:
+		union = vec
+	case *vector.Fusion:
+		union, _ = vec.Values.(*vector.Union)
+	}
+	if union == nil {
+		return nil, false
+	}
+	dynamic := union.Dynamic()
+	k := slices.IndexFunc(dynamic.Values, func(vec vector.Any) bool {
+		return vec.Type() == super.TypeMissing
+	})
+	if k < 0 {
+		return nil, false
+	}
+	values := slices.Clone(dynamic.Values)
+	values[k] = d.missing(values[k])
+	return vector.NewDynamic(dynamic.Tags, values), true
 }
 
 // noneOfField returns a plain none vector for e?.f where vec is an option
