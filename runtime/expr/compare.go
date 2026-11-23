@@ -419,11 +419,12 @@ func (c *Compare) compareComplex(typ super.Type, lhs0, rhs0, lhs, rhs vector.Any
 }
 
 // orderValues compares a and b, which have type typ, returning false if they
-// are unequal but have no order (e.g., records or values of different types
-// in a union).  Null is ordered after any other value.  Arrays are ordered by
-// their first elements that aren't equal, with the shorter one first when it
-// has no such element, and sets likewise with their elements in ascending
-// order.  Records and maps are equal when their fields or entries are.
+// are unequal but have no order (e.g., maps or values of different types in a
+// union).  Null is ordered after any other value.  Arrays are ordered by their
+// first elements that aren't equal, with the shorter one first when it has no
+// such element, sets likewise with their elements in ascending order, and
+// records by their first fields that aren't equal.  Maps are equal when their
+// entries are.
 func orderValues(typ super.Type, a, b scode.Bytes) (int, bool) {
 	if a == nil || b == nil {
 		return cmp.Compare(btoi(a == nil), btoi(b == nil)), true
@@ -448,7 +449,7 @@ func orderValues(typ super.Type, a, b scode.Bytes) (int, bool) {
 	case *super.TypeSet:
 		return orderSets(typ.Type, a, typ.Type, b)
 	case *super.TypeRecord:
-		return 0, equalRecords(typ, a, typ, b)
+		return orderRecords(typ, a, typ, b)
 	case *super.TypeMap:
 		return 0, equalMaps(typ, a, typ, b)
 	case *super.TypeOption:
@@ -523,7 +524,7 @@ func orderMixed(atyp super.Type, a scode.Bytes, btyp super.Type, b scode.Bytes) 
 		}
 	case *super.TypeRecord:
 		if bt, ok := btyp.(*super.TypeRecord); ok {
-			return 0, equalRecords(at, a, bt, b)
+			return orderRecords(at, a, bt, b)
 		}
 	case *super.TypeMap:
 		if bt, ok := btyp.(*super.TypeMap); ok {
@@ -590,19 +591,20 @@ func sortedElems(typ super.Type, b scode.Bytes) []scode.Bytes {
 	return elems
 }
 
-// equalRecords reports whether records a and b, which have types atyp and
-// btyp, have equal fields.  Records have no order.
-func equalRecords(atyp *super.TypeRecord, a scode.Bytes, btyp *super.TypeRecord, b scode.Bytes) bool {
+// orderRecords orders records a and b, which have types atyp and btyp with
+// the same field names in the same order, by their first fields from left to
+// right that aren't equal.
+func orderRecords(atyp *super.TypeRecord, a scode.Bytes, btyp *super.TypeRecord, b scode.Bytes) (int, bool) {
 	if len(atyp.Fields) != len(btyp.Fields) {
-		return false
+		return 0, false
 	}
 	ait, bit := a.Iter(), b.Iter()
 	for i, f := range atyp.Fields {
 		if v, ok := orderMixed(f.Type, ait.Next(), btyp.Fields[i].Type, bit.Next()); !ok || v != 0 {
-			return false
+			return v, ok
 		}
 	}
-	return true
+	return 0, true
 }
 
 // equalMaps reports whether maps a and b, which have types atyp and btyp,

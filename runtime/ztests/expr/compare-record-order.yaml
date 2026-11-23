@@ -1,0 +1,49 @@
+# Records are ordered by comparing their fields from left to right and stopping
+# at the first field that isn't equal, with null after any other value.
+spq: values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
+
+flags: -dynamic
+
+input: |
+  {a:{x:1,y:2},b:{x:1,y:3}}
+  {a:{x:2,y:0},b:{x:1,y:9}}
+  {a:{x:1,y:"b"},b:{x:1,y:"a"}}
+  {a:{x:1,y:2},b:{x:1.,y:2.}}
+  {a:{x:1,y:2},b:{x:1.5,y:0}}
+  {a:{x:1},b:{x:null}}
+  {a:{x:{y:1}},b:{x:{y:2}}}
+  {a:{x:[1,2]},b:{x:[1]}}
+  {a:{x:NaN},b:{x:+Inf}}
+  {a:[{x:1}],b:[{x:2}]}
+  {a:set[{x:2},{x:1}],b:set[{x:1},{x:3}]}
+  {a:{x:18446744073709551615::uint64},b:{x:1}}
+
+output: |
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+  [false,false,false,true,true,true]
+  [false,true,true,false,true,false]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+  [false,false,false,true,true,true]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
+
+---
+
+# The first field that isn't equal decides even when it has no order, which
+# leaves the records with no order.
+spq: values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
+
+flags: -dynamic
+
+input: |
+  {a:{x:map{1:1},y:1},b:{x:map{1:2},y:2}}
+  {a:{x:map{1:1},y:1},b:{x:map{1:1},y:2}}
+
+output: |
+  [false,false,false,true,false,false]
+  [true,true,false,true,false,false]

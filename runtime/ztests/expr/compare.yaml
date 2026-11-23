@@ -31,9 +31,9 @@ input: |
 
 output: |
   [true,false,false,true,true,false]
-  [false,true,false,false,false,false]
+  [false,true,true,true,false,false]
   [error("type mismatch: {aa:int64} == {aa:string}"),error("type mismatch: {aa:int64} != {aa:string}"),error("type mismatch: {aa:int64} < {aa:string}"),error("type mismatch: {aa:int64} <= {aa:string}"),error("type mismatch: {aa:int64} >= {aa:string}"),error("type mismatch: {aa:int64} > {aa:string}")]
-  [false,true,false,false,false,false]
+  [false,true,true,true,false,false]
   [error("type mismatch: {aa:int64} == {aa:error(int64)}"),error("type mismatch: {aa:int64} != {aa:error(int64)}"),error("type mismatch: {aa:int64} < {aa:error(int64)}"),error("type mismatch: {aa:int64} <= {aa:error(int64)}"),error("type mismatch: {aa:int64} >= {aa:error(int64)}"),error("type mismatch: {aa:int64} > {aa:error(int64)}")]
   [error("type mismatch: {aa:int64} == {bb:int64}"),error("type mismatch: {aa:int64} != {bb:int64}"),error("type mismatch: {aa:int64} < {bb:int64}"),error("type mismatch: {aa:int64} <= {bb:int64}"),error("type mismatch: {aa:int64} >= {bb:int64}"),error("type mismatch: {aa:int64} > {bb:int64}")]
   [error("type mismatch: {aa:int64} == int64"),error("type mismatch: {aa:int64} != int64"),error("type mismatch: {aa:int64} < int64"),error("type mismatch: {aa:int64} <= int64"),error("type mismatch: {aa:int64} >= int64"),error("type mismatch: {aa:int64} > int64")]

@@ -17,7 +17,7 @@ for which values of different types are a
 [type mismatch](../../expressions/comparisons.md#type-checking),
 in that it is polymorphic and works for values of any types (e.g., `compare(1, "1")`).
 Its order can also differ from that of comparison expressions for values they
-can compare, e.g., it orders records, which comparison expressions don't, and
+can compare, e.g., it orders maps, which comparison expressions don't, and
 it orders arrays of different element types (e.g., `[1.5]` and `[2]`) by
 their types rather than by their elements.
 

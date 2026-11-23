@@ -39,15 +39,15 @@ output: |
 
 ---
 
-# Elements that are unequal but have no order (e.g., records and values of
+# Elements that are unequal but have no order (e.g., maps and values of
 # different types in a union) leave the arrays with no order.
 spq: values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
 
 flags: -dynamic
 
 input: |
-  {a:[{x:1},{x:2}],b:[{x:1},{x:3}]}
-  {a:[{x:1},{x:2}],b:[{x:2},{x:1}]}
+  {a:[map{"x":1},map{"x":2}],b:[map{"x":1},map{"x":3}]}
+  {a:[map{"x":1},map{"x":2}],b:[map{"x":2},map{"x":1}]}
   {a:[1,"b"],b:["a",2]}
 
 output: |
