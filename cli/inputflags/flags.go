@@ -27,6 +27,7 @@ func (f *Flags) SetFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&f.Dynamic, "dynamic", false, "disable static type checking of inputs")
 	fs.StringVar(&opts.Format, "i", opts.Format, "format of input data [auto,arrows,bsup,csv,json,line,parquet,sup,tsv,zeek]")
 	fs.IntVar(&opts.InputCap, "inputcap", 0, "limit size of batched units of input")
+	fs.IntVar(&opts.JSON.InputCapBytes, "json.inputcapbytes", 0, "limit size in bytes of batched units of JSON input")
 	fs.BoolVar(&f.Static, "static", false, "statically type check all inputs (reading into memory inputs that can be read only once)")
 }
 

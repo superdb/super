@@ -19,18 +19,38 @@ import (
 
 const defaultInputCap = 10 * 1024
 
+// defaultByteCap bounds the raw input bytes in a batch so that inputs with
+// large values don't produce huge batches.  Inputs with small values hit
+// defaultInputCap first.  Memory-constrained environments (e.g., wasm) may
+// want a smaller cap via ReaderOpts.InputCapBytes.
+const defaultByteCap = 16 * 1024 * 1024
+
+type ReaderOpts struct {
+	// InputCapBytes limits the raw input bytes in a batch.  Zero means
+	// defaultByteCap.
+	InputCapBytes int
+}
+
 type Reader struct {
 	sctx       *super.Context
 	ctx        context.Context
 	stream     *stream
+	byteCap    int
 	projection field.Projection
 
 	hasClosed atomic.Bool
 }
 
-func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p vio.Pushdown, concurrentReaders, inputCap int) *Reader {
+// NewReader returns a Reader that parses input in batches of at most
+// inputCap values or about opts.InputCapBytes bytes, whichever is reached
+// first.  Zero means the default for either limit.
+func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p vio.Pushdown, concurrentReaders, inputCap int, opts ReaderOpts) *Reader {
 	if inputCap == 0 {
 		inputCap = defaultInputCap
+	}
+	byteCap := opts.InputCapBytes
+	if byteCap == 0 {
+		byteCap = defaultByteCap
 	}
 	var proj field.Projection
 	if p != nil {
@@ -41,7 +61,8 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, p vio.Push
 	return &Reader{
 		sctx:       sctx,
 		ctx:        ctx,
-		stream:     newStream(ctx, r, concurrentReaders, inputCap),
+		byteCap:    byteCap,
+		stream:     newStream(ctx, r, concurrentReaders, inputCap, byteCap),
 		projection: proj,
 	}
 }
@@ -63,12 +84,12 @@ func (r *Reader) ConcurrentPull(done bool, _ int) (vector.Any, error) {
 	for i := range table.Len() {
 		if err := ast.Preorder(byteconv.UnsafeString(table.Bytes(i)), builder, nil); err != nil {
 			err = preorderErr(i, start, table, err)
-			bytesTablePool.Put(table)
+			putBytesTable(table, r.byteCap)
 			r.close()
 			return nil, err
 		}
 	}
-	bytesTablePool.Put(table)
+	putBytesTable(table, r.byteCap)
 	return jsonvec.Materialize(r.sctx, builder), nil
 }
 

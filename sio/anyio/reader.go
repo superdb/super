@@ -31,6 +31,7 @@ type ReaderOpts struct {
 	ConcurrentReaders int
 	CSV               csvio.ReaderOpts
 	InputCap          int
+	JSON              jsonio.ReaderOpts
 }
 
 func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, opts ReaderOpts) (vio.Puller, error) {
@@ -93,7 +94,7 @@ func NewReader(ctx context.Context, sctx *super.Context, r io.Reader, opts Reade
 	// sake of tests.
 	jsonErr := isJSONStream(track, 10)
 	if jsonErr == nil {
-		return jsonio.NewReader(ctx, sctx, track.Reader(), opts.Pushdown, opts.ConcurrentReaders, opts.InputCap), nil
+		return jsonio.NewReader(ctx, sctx, track.Reader(), opts.Pushdown, opts.ConcurrentReaders, opts.InputCap, opts.JSON), nil
 	}
 	jsonErr = fmt.Errorf("json: %w", jsonErr)
 	track.Reset()
@@ -171,7 +172,7 @@ func isCSVStream(track *Track, delim rune, name string) error {
 }
 
 func isJSONStream(track *Track, want int) error {
-	r := jsonio.NewValReader(track, 0)
+	r := jsonio.NewValReader(track)
 	for range want {
 		if _, err := r.Next(); err != nil {
 			if errors.Is(err, io.EOF) {

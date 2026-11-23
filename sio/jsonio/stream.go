@@ -16,15 +16,17 @@ type stream struct {
 	once     sync.Once
 	ctx      context.Context
 	inputCap int
+	byteCap  int
 }
 
-func newStream(ctx context.Context, r io.Reader, n int, inputCap int) *stream {
+func newStream(ctx context.Context, r io.Reader, n, inputCap, byteCap int) *stream {
 	return &stream{
 		r:        r,
 		ch:       make(chan result, n),
 		ctx:      ctx,
 		done:     make(chan struct{}),
 		inputCap: inputCap,
+		byteCap:  byteCap,
 	}
 }
 
@@ -46,9 +48,9 @@ func (s *stream) next() (*vector.BytesTable, int, error) {
 
 func (s *stream) run() {
 	defer close(s.ch)
-	r := NewValReader(s.r, s.inputCap)
+	r := NewValReader(s.r)
 	for {
-		batch, startLineNum, err := readBatch(r)
+		batch, startLineNum, err := readBatch(r, s.inputCap, s.byteCap)
 		select {
 		case s.ch <- result{batch, startLineNum, err}:
 			if batch == nil || err != nil {
@@ -77,19 +79,34 @@ func newBytesTable(inputCap int) *vector.BytesTable {
 	return b
 }
 
-func readBatch(r *valReader) (*vector.BytesTable, int, error) {
-	t := newBytesTable(r.inputCap)
+// putBytesTable returns t to the pool unless its buffer grew well beyond
+// byteCap (e.g., to hold a single oversized value), in which case it is
+// dropped so the pool doesn't pin that memory.
+func putBytesTable(t *vector.BytesTable, byteCap int) {
+	if cap(t.RawBytes()) <= 2*byteCap {
+		bytesTablePool.Put(t)
+	}
+}
+
+// readBatch reads values from r until the batch holds inputCap values or
+// at least byteCap bytes, whichever comes first.  A batch always holds at
+// least one value so a value larger than byteCap is still read.
+func readBatch(r *valReader, inputCap, byteCap int) (*vector.BytesTable, int, error) {
+	t := newBytesTable(inputCap)
 	start := r.lineNumber()
 	var err error
-	for range r.inputCap {
+	for range inputCap {
 		var b []byte
 		if b, err = r.Next(); err != nil {
 			break
 		}
 		t.Append(b)
+		if len(t.RawBytes()) >= byteCap {
+			break
+		}
 	}
 	if t.Len() == 0 {
-		bytesTablePool.Put(t)
+		putBytesTable(t, byteCap)
 		t = nil
 	}
 	if errors.Is(err, io.EOF) {
