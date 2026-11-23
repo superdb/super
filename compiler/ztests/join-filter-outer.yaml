@@ -1,0 +1,51 @@
+# A filter after an outer join can't be pushed into the input that the join
+# preserves when unmatched, nor lifted into the join condition, since either
+# would turn the values the filter removes into unmatched values.  A filter on
+# the other side is still pushed down.
+script: |
+  super -s -c "SELECT s.id FROM 's.sup' s LEFT JOIN 'p.sup' p ON s.id=p.id WHERE p.color='red'"
+  echo ===
+  super -s -c "SELECT s.id FROM 's.sup' s LEFT JOIN 'p.sup' p ON s.id=p.id WHERE s.k=p.k"
+  echo ===
+  super -s -c "SELECT p.id FROM 's.sup' s RIGHT JOIN 'p.sup' p ON s.id=p.id WHERE s.k=1"
+  echo ===
+  super compile -C -O -c "SELECT s.id FROM 's.sup' s LEFT JOIN 'p.sup' p ON s.id=p.id WHERE p.color='red' AND s.k=1"
+
+inputs:
+  - name: s.sup
+    data: |
+      {id:1,k:1}
+      {id:2,k:2}
+      {id:3,k:3}
+  - name: p.sup
+    data: |
+      {id:1,k:1,color:"red"}
+      {id:2,k:9,color:"blue"}
+
+outputs:
+  - name: stdout
+    data: |
+      {id:1}
+      ===
+      {id:1}
+      ===
+      {id:1}
+      ===
+      fork
+        (
+          file s.sup format sup type {id:int64,k:int64} unordered project [id,k]
+            meta-filter project [k.max,k.min] (
+              compare(1, this!.k!.min, true)>=0 and compare(1, this!.k!.max, true)<=0
+            )
+            data-filter project [k] (
+              this!.k==1
+            )
+          | where this!.k==1
+        )
+        (
+          file p.sup format sup type {id:int64,k:int64,color:string} unordered project [color,id]
+        )
+      | left hashjoin as {left,right} on this!.id==this!.id
+      | where this!.right!.color=="red"
+      | values {id:this!.left!.id}
+      | output main
