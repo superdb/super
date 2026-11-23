@@ -136,14 +136,20 @@ output: |
 
 ---
 
-# Type values have no order.
+# Type values are ordered by type.
 spq: |
-  values {a:[<int64>],b:[<int64>]}, {a:[<int64>],b:[<string>]}
+  values
+    {a:[<int64>],b:[<int64>]},
+    {a:[<int64>],b:[<string>]},
+    {a:[<{x:int64}>],b:[<[int64]>]},
+    {a:[<{y:int64}>],b:[<{x:int64}>]}
   | values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
 
 output: |
   [false,true,true,false,true,false]
-  [false,false,false,true,false,false]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
 
 ---
 

@@ -124,12 +124,13 @@ error: |
 
 ---
 
-# Type values likewise.
-spq: values <int64><=<int64>, <int64><=<string>, <int64><<string>
+# Type values are ordered by type.
+spq: values <int64><=<int64>, <int64><=<string>, <int64><<string>, <string><<int64>
 
 output: |
   true
-  false
+  true
+  true
   false
 
 ---
