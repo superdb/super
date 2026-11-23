@@ -1,0 +1,70 @@
+# Nested field access through a union or fusion with a missing member.
+
+spq: values c.a, c?.a
+
+flags: -dynamic
+
+input: |
+  {c:{a:1}::({a:int64}|missing)}
+  {c:missing::({a:int64}|missing)}
+  {c:{a:2}::({a:int64}|missing)}
+
+output: |
+  1
+  1
+  error("no such field c")
+  error("no such field c")
+  2
+  2
+
+---
+
+spq: SELECT c.a AS a
+
+input: |
+  {c:{a:1}::({a:int64}|missing)}
+  {c:missing::({a:int64}|missing)}
+  {c:{a:2}::({a:int64}|missing)}
+
+output: |
+  {a:1}
+  {a:null}
+  {a:2}
+
+---
+
+spq: superfuse | values c.a, c.b
+
+flags: -dynamic
+
+input: |
+  {c:{a:1,b:"x"}}
+  {}
+  {c:{a:2}}
+  {c:"str"}
+
+output: |
+  1
+  "x"
+  error("no such field c")
+  error("no such field c")
+  2
+  error("no such field b")
+  error("cannot access field 'a' of string")
+  error("cannot access field 'b' of string")
+
+---
+
+# ?. on the dereferenced field yields none for the missing member.
+spq: values x?.c.a, x?.c?.a
+
+flags: -dynamic
+
+input: |
+  {x:{c:{a:1}::({a:int64}|missing)}}
+  {x:{c:missing::({a:int64}|missing)}}
+
+output: |
+  1
+  1
+  error("cannot access field 'a' of none (use ?. or ok())")
