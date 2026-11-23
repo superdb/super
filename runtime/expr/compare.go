@@ -413,13 +413,13 @@ func (c *Compare) compareComplex(typ super.Type, lhs0, rhs0, lhs, rhs vector.Any
 }
 
 // orderValues compares a and b, which have type typ, returning false if they
-// are unequal but have no order (e.g., maps or values of different types in a
-// union).  Null is ordered after any other value, and type values are ordered
-// by super.CompareTypes.  Arrays are ordered by their
-// first elements that aren't equal, with the shorter one first when it has no
-// such element, sets likewise with their elements in ascending order, and
-// records by their first fields that aren't equal.  Maps are equal when their
-// entries are.
+// are unequal but have no order (e.g., values of different types in a union).
+// Null is ordered after any other value, and type values are ordered by
+// super.CompareTypes.  Arrays are ordered by their first elements that aren't
+// equal, with the shorter one first when it has no such element, sets likewise
+// with their elements in ascending order, maps likewise with their entries in
+// ascending order of their keys, and records by their first fields that aren't
+// equal.
 func orderValues(sctx *super.Context, typ super.Type, a, b scode.Bytes) (int, bool) {
 	if a == nil || b == nil {
 		return cmp.Compare(btoi(a == nil), btoi(b == nil)), true
@@ -446,7 +446,7 @@ func orderValues(sctx *super.Context, typ super.Type, a, b scode.Bytes) (int, bo
 	case *super.TypeRecord:
 		return orderRecords(sctx, typ, a, typ, b)
 	case *super.TypeMap:
-		return 0, equalMaps(sctx, typ, a, typ, b)
+		return orderMaps(sctx, typ, a, typ, b)
 	case *super.TypeOption:
 		atyp, a := typ.Decode(a)
 		btyp, b := typ.Decode(b)
@@ -530,7 +530,7 @@ func orderMixed(sctx *super.Context, atyp super.Type, a scode.Bytes, btyp super.
 		}
 	case *super.TypeMap:
 		if bt, ok := btyp.(*super.TypeMap); ok {
-			return 0, equalMaps(sctx, at, a, bt, b)
+			return orderMaps(sctx, at, a, bt, b)
 		}
 	case *super.TypeOption:
 		if bt, ok := btyp.(*super.TypeOption); ok {
@@ -584,13 +584,20 @@ func sortedElems(sctx *super.Context, typ super.Type, b scode.Bytes) []scode.Byt
 	for it := b.Iter(); !it.Done(); {
 		elems = append(elems, it.Next())
 	}
-	slices.SortStableFunc(elems, func(x, y scode.Bytes) int {
-		if v, ok := orderValues(sctx, typ, x, y); ok && v != 0 {
+	sortByValue(sctx, typ, elems, func(elem scode.Bytes) scode.Bytes { return elem })
+	return elems
+}
+
+// sortByValue sorts s in ascending order of key(s[i]), which has type typ, with
+// keys that have no order in the order of their encodings.
+func sortByValue[T any](sctx *super.Context, typ super.Type, s []T, key func(T) scode.Bytes) {
+	slices.SortStableFunc(s, func(x, y T) int {
+		kx, ky := key(x), key(y)
+		if v, ok := orderValues(sctx, typ, kx, ky); ok && v != 0 {
 			return v
 		}
-		return bytes.Compare(x, y)
+		return bytes.Compare(kx, ky)
 	})
-	return elems
 }
 
 // orderRecords orders records a and b, which have types atyp and btyp with
@@ -609,19 +616,35 @@ func orderRecords(sctx *super.Context, atyp *super.TypeRecord, a scode.Bytes, bt
 	return 0, true
 }
 
-// equalMaps reports whether maps a and b, which have types atyp and btyp,
-// have equal entries.  Maps have no order.
-func equalMaps(sctx *super.Context, atyp *super.TypeMap, a scode.Bytes, btyp *super.TypeMap, b scode.Bytes) bool {
-	ait, bit := a.Iter(), b.Iter()
-	for !ait.Done() && !bit.Done() {
-		if v, ok := orderMixed(sctx, atyp.KeyType, ait.Next(), btyp.KeyType, bit.Next()); !ok || v != 0 {
-			return false
+// orderMaps orders maps a and b, which have types atyp and btyp, like sets of
+// entries with their entries in ascending order of their keys, by their first
+// entries whose keys or values aren't equal.
+func orderMaps(sctx *super.Context, atyp *super.TypeMap, a scode.Bytes, btyp *super.TypeMap, b scode.Bytes) (int, bool) {
+	as, bs := sortedEntries(sctx, atyp.KeyType, a), sortedEntries(sctx, btyp.KeyType, b)
+	for i := range min(len(as), len(bs)) {
+		if v, ok := orderMixed(sctx, atyp.KeyType, as[i].key, btyp.KeyType, bs[i].key); !ok || v != 0 {
+			return v, ok
 		}
-		if v, ok := orderMixed(sctx, atyp.ValType, ait.Next(), btyp.ValType, bit.Next()); !ok || v != 0 {
-			return false
+		if v, ok := orderMixed(sctx, atyp.ValType, as[i].val, btyp.ValType, bs[i].val); !ok || v != 0 {
+			return v, ok
 		}
 	}
-	return ait.Done() && bit.Done()
+	return cmp.Compare(len(as), len(bs)), true
+}
+
+type mapEntry struct {
+	key, val scode.Bytes
+}
+
+// sortedEntries returns the entries of map body b, whose keys have type
+// keyType, in ascending order of their keys.
+func sortedEntries(sctx *super.Context, keyType super.Type, b scode.Bytes) []mapEntry {
+	var entries []mapEntry
+	for it := b.Iter(); !it.Done(); {
+		entries = append(entries, mapEntry{it.Next(), it.Next()})
+	}
+	sortByValue(sctx, keyType, entries, func(e mapEntry) scode.Bytes { return e.key })
+	return entries
 }
 
 // orderNumbers orders integers and floats of different types by value.

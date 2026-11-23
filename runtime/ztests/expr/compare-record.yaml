@@ -1,5 +1,6 @@
-# Records are ordered by their first fields that aren't equal, while maps are
-# equal when their entries are equal by value and have no order.
+# Records are ordered by their first fields that aren't equal, and maps by their
+# first entries, in ascending order of their keys, whose keys or values aren't
+# equal, with the shorter map first when it has no such entry.
 spq: values [a<b, a<=b, a==b, a!=b, a>=b, a>b]
 
 flags: -dynamic
@@ -10,13 +11,23 @@ input: |
   {a:{x:1},b:{x:1.}}
   {a:map{1:2},b:map{1:3}}
   {a:map{1:2},b:map{1.:2.}}
+  {a:map{"a":9},b:map{"b":0}}
+  {a:map{"a":1},b:map{"a":1,"b":0}}
+  {a:map{},b:map{0:0}}
+  {a:map{-2:0,1:0},b:map{1:0}}
+  {a:map{1:null},b:map{1:0}}
 
 output: |
   [false,true,true,false,true,false]
   [true,true,false,true,false,false]
   [false,true,true,false,true,false]
-  [false,false,false,true,false,false]
+  [true,true,false,true,false,false]
   [false,true,true,false,true,false]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [true,true,false,true,false,false]
+  [false,false,false,true,true,true]
 
 ---
 
