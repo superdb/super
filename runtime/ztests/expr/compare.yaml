@@ -136,8 +136,24 @@ input: |
 
 output: |
   [true,false,false,true,true,false]
-  [false,true,false,false,false,false]
+  [false,true,true,true,false,false]
   [error("type mismatch: enum(aa,bb) == enum(aa,zz)"),error("type mismatch: enum(aa,bb) != enum(aa,zz)"),error("type mismatch: enum(aa,bb) < enum(aa,zz)"),error("type mismatch: enum(aa,bb) <= enum(aa,zz)"),error("type mismatch: enum(aa,bb) >= enum(aa,zz)"),error("type mismatch: enum(aa,bb) > enum(aa,zz)")]
   [error("type mismatch: enum(aa,bb) == string"),error("type mismatch: enum(aa,bb) != string"),error("type mismatch: enum(aa,bb) < string"),error("type mismatch: enum(aa,bb) <= string"),error("type mismatch: enum(aa,bb) >= string"),error("type mismatch: enum(aa,bb) > string")]
   [null,null,null,null,null,null]
   [error({message:"==: error value encountered",on:error(0)}),error({message:"!=: error value encountered",on:error(0)}),error({message:"<: error value encountered",on:error(0)}),error({message:"<=: error value encountered",on:error(0)}),error({message:">=: error value encountered",on:error(0)}),error({message:">: error value encountered",on:error(0)})]
+
+---
+
+# Enums are ordered by the order in which their symbols are declared rather
+# than by their names, including when nested.
+spq: |
+  type e = enum(z,a)
+  values "z"::e < "a"::e, ["a"::e] > ["z"::e], {x:"z"::e,y:"a"::e} < {x:"z"::e,y:"z"::e},
+    set["a"::e] > set["z"::e], map{"a"::e:1} > map{"z"::e:1}
+
+output: |
+  true
+  true
+  false
+  true
+  true

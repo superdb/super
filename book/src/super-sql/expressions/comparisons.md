@@ -88,10 +88,12 @@ types that are coerced to a common type as in SQL.
   An option compared with a value that isn't an option is an error until the
   option is handled, e.g., with `??` or `unwrap`, or the value is wrapped
   with `some`.
-* Enums have no order, so `<` and `>` are `false` for them while `<=` and
-  `>=` are equality.
 
 For values of type [bool](../types/bool.md), `false` is less than `true`.
+
+Values of an [enum](../types/enum.md) type are ordered by the order in which
+its symbols are declared, e.g., `low` is less than `high` in
+`enum(low,medium,high)`.
 
 Values of type [type](../types/type.md) are ordered by the
 [type order](../../formats/model.md#2-complex-types).

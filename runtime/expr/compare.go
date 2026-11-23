@@ -414,7 +414,8 @@ func (c *Compare) compareComplex(typ super.Type, lhs0, rhs0, lhs, rhs vector.Any
 
 // orderValues compares a and b, which have type typ, returning false if they
 // are unequal but have no order (e.g., values of different types in a union).
-// Null is ordered after any other value, and type values are ordered by
+// Null is ordered after any other value, enums are ordered by the order in
+// which their symbols are declared, and type values are ordered by
 // super.CompareTypes.  Arrays are ordered by their first elements that aren't
 // equal, with the shorter one first when it has no such element, sets likewise
 // with their elements in ascending order, maps likewise with their entries in
@@ -447,6 +448,9 @@ func orderValues(sctx *super.Context, typ super.Type, a, b scode.Bytes) (int, bo
 		return orderRecords(sctx, typ, a, typ, b)
 	case *super.TypeMap:
 		return orderMaps(sctx, typ, a, typ, b)
+	case *super.TypeEnum:
+		// A value is the index of its symbol.
+		return cmp.Compare(super.DecodeUint(a), super.DecodeUint(b)), true
 	case *super.TypeOption:
 		atyp, a := typ.Decode(a)
 		btyp, b := typ.Decode(b)
