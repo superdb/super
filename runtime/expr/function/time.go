@@ -58,9 +58,7 @@ func (b *Bucket) constBin(tsVec vector.Any, bin nano.Duration) vector.Any {
 	}
 	switch tsVec := tsVec.(type) {
 	case *vector.Const:
-		typ := b.resultType(tsVec)
-		ts := vector.IntValue(tsVec, 0)
-		return vector.NewConstInt(typ, ts, tsVec.Len())
+		return vector.NewConst(b.constBinFlat(tsVec.Any, bin), tsVec.Len())
 	case *vector.View:
 		return vector.NewView(b.constBinFlat(tsVec.Any, bin), tsVec.Index)
 	case *vector.Dict:

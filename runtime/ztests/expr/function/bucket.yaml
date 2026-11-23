@@ -23,3 +23,21 @@ output: |
   null
   error({message:"bucket: first argument is not a timestamp or duration",on:"foo"})
   error({message:"bucket: second argument is not a duration",on:"bar"})
+
+---
+
+# Constant arguments take the constant-vector path.
+spq: values bucket(2020-05-26T15:27:47Z, 1h), bucket(3s, 2s), bucket(2020-05-26T15:27:47Z, 0s)
+
+output: |
+  2020-05-26T15:00:00Z
+  2s
+  2020-05-26T15:27:47Z
+
+---
+
+# A SQL cast of a constant to DATE truncates with bucket.
+spq: SELECT CAST(TIMESTAMP '2020-05-26 15:27:47' AS DATE) AS d
+
+output: |
+  {d:2020-05-26T00:00:00Z}
