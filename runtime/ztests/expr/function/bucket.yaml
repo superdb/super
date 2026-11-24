@@ -41,3 +41,64 @@ spq: SELECT CAST(TIMESTAMP '2020-05-26 15:27:47' AS DATE) AS d
 
 output: |
   {d:2020-05-26T00:00:00Z}
+
+---
+
+# Timestamps before 1970 and negative durations round down, not toward zero,
+# whatever the sign of the span.
+spq: values bucket(t, bin)
+
+input: |
+  {t:1969-12-31T23:30:00Z,bin:1h}
+  {t:1969-07-20T20:17:40Z,bin:1d}
+  {t:-3s,bin:2s}
+  {t:-4s,bin:2s}
+  {t:-3s,bin:-2s}
+  {t:3s,bin:-2s}
+
+output: |
+  1969-12-31T23:00:00Z
+  1969-07-20T00:00:00Z
+  -4s
+  -4s
+  -4s
+  2s
+
+---
+
+# A constant span rounds column values and constants down before 1970 too.
+spq: values bucket(this, 1h), bucket(1969-12-31T23:30:00Z, 1h)
+
+input: |
+  1969-12-31T23:59:59Z
+  -1s
+
+output: |
+  1969-12-31T23:00:00Z
+  1969-12-31T23:00:00Z
+  -1h
+  1969-12-31T23:00:00Z
+
+---
+
+# A SQL cast to DATE gives the right day before 1970.
+spq: SELECT CAST(TIMESTAMP '1969-07-20 20:17:40' AS DATE) AS d
+
+output: |
+  {d:1969-07-20T00:00:00Z}
+
+---
+
+# A bucket that would start before the earliest timestamp or shortest
+# duration starts there instead of wrapping around.
+spq: values bucket(this, 100y)
+
+input: |
+  1700-01-01T00:00:00Z
+  1770-02-18T00:00:00Z
+  -292y171d23h47m16.854775807s
+
+output: |
+  1677-09-21T00:12:43.145224192Z
+  1770-02-18T00:00:00Z
+  -292y171d23h47m16.854775808s
