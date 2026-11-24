@@ -43,7 +43,7 @@ efficiently in columnar form, while every value keeps its own type.
 
 The [superfuse](../aggregates/superfuse.md) aggregate function computes
 the fusion type of its input:
-```mdtest-spq
+```mdtest-spq {data-layout="stacked"}
 # spq
 aggregate superfuse(this)
 # input
@@ -79,13 +79,10 @@ superfuse
 ```
 The `-fusion` option of [super](../../command/super.md) displays the fusion
 values themselves:
-```mdtest-spq fusion
-# spq
-superfuse
-# input
-{a:1}
-{b:"x"}
-# expected output
+```mdtest-command
+super -fusion -s -c "values {a:1},{b:'x'} | superfuse"
+```
+```mdtest-output
 {a:fusion(1::(int64|missing),<int64>),b:fusion(missing::(string|missing),<missing>)}
 {a:fusion(missing::(int64|missing),<missing>),b:fusion("x"::(string|missing),<string>)}
 ```
