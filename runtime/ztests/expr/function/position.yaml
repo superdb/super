@@ -2,6 +2,8 @@ spq: '{sql:position(sub IN s),call:position(s, sub)}'
 
 input: |
   {sub:"bar",s:"foobar"}
+  {sub:"bar",s:"éébar"}
+  {sub:"ébar",s:"ééébar"}
   {sub:"food"::(null|string),s:"seafood"::(null|string)}
   {sub:"baz",s:"foobar"}
   {sub:null,s:"friend"}
@@ -11,6 +13,8 @@ input: |
 
 output: |
   {sql:4,call:4}
+  {sql:3,call:3}
+  {sql:3,call:3}
   {sql:4,call:4}
   {sql:0,call:0}
   {sql:null,call:null}

@@ -2,6 +2,7 @@ package function
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	"github.com/agnivade/levenshtein"
 	"github.com/superdb/super"
@@ -128,7 +129,9 @@ func (p *Position) Call(args ...vector.Any) vector.Any {
 	for i := range vec.Len() {
 		s := vector.StringValue(vec, i)
 		sub := vector.StringValue(subVec, i)
-		vals[i] = int64(strings.Index(s, sub) + 1)
+		if before, _, ok := strings.Cut(s, sub); ok {
+			vals[i] = int64(utf8.RuneCountInString(before) + 1)
+		}
 	}
 	return vector.NewInt(super.TypeInt64, vals)
 }
