@@ -96,7 +96,70 @@ func Apply(opt ApplyOpt, eval func(...Any) Any, vecs ...Any) Any {
 		results[i] = Apply(opt, eval, ripped...)
 	}
 	// stitch removes nils and replaces Dynamics with their values.
-	return stitch(d.Tags, results)
+	out := stitch(d.Tags, results)
+	if od, ok := out.(*Dynamic); ok && sameTags(od.Tags, d.Tags) {
+		// The tag maps depend only on the tags, so share any that d
+		// has already computed.
+		od.forwardTagMap.Store(d.forwardTagMap.Load())
+		od.reverseTagMap.Store(d.reverseTagMap.Load())
+	}
+	return out
+}
+
+// sameTags returns true if a and b are the same slice.
+func sameTags(a, b []uint32) bool {
+	return len(a) == len(b) && (len(a) == 0 || &a[0] == &b[0])
+}
+
+// zippable returns true if vec can be ripped along d's tags without d's
+// reverse tag map, either because vec is a Dynamic whose slots line up with
+// d's or because picking from vec depends only on the number of slots picked.
+func zippable(vec Any, d *Dynamic) bool {
+	switch vec := vec.(type) {
+	case *Dynamic:
+		return vec == d || sameTags(vec.Tags, d.Tags) && len(vec.Values) == len(d.Values)
+	case *Error:
+		return zippable(vec.Vals, d)
+	case *Named:
+		return zippable(vec.Any, d)
+	case *Option:
+		if _, ok := vec.Any.(*Dynamic); ok {
+			return false
+		}
+		return zippable(vec.Any, d)
+	case *Const, *Missing, *Null, *None, *TypeOnly:
+		return true
+	default:
+		return false
+	}
+}
+
+// zip returns the part of vec that lines up with d.Values[i].  vec must be
+// zippable with d.
+func zip(vec Any, d *Dynamic, i int) Any {
+	n := d.Values[i].Len()
+	switch vec := vec.(type) {
+	case *Dynamic:
+		return vec.Values[i]
+	case *Const:
+		return NewConst(vec.Any, n)
+	case *Missing:
+		return NewMissing(n)
+	case *Null:
+		return NewNull(n)
+	case *None:
+		return NewNone(n)
+	case *TypeOnly:
+		return NewTypeOnly(vec.typ, n)
+	case *Error:
+		return &Error{vec.Typ, zip(vec.Vals, d, i)}
+	case *Named:
+		return &Named{vec.Typ, zip(vec.Any, d, i)}
+	case *Option:
+		return &Option{Typ: vec.Typ, Any: zip(vec.Any, d, i)}
+	default:
+		panic(vec)
+	}
 }
 
 func homogenous(s []uint32) bool {
@@ -115,12 +178,16 @@ func findDynamic(vecs []Any) (*Dynamic, bool) {
 
 func rip(vecs []Any, d *Dynamic) iter.Seq2[int, []Any] {
 	return func(yield func(int, []Any) bool) {
-		if len(vecs) == 1 {
+		if !slices.ContainsFunc(vecs, func(vec Any) bool { return !zippable(vec, d) }) {
 			for i, v := range d.Values {
 				if v == nil || v.Len() == 0 {
 					continue
 				}
-				if !yield(i, []Any{v}) {
+				ripped := make([]Any, len(vecs))
+				for j, vec := range vecs {
+					ripped[j] = zip(vec, d, i)
+				}
+				if !yield(i, ripped) {
 					return
 				}
 			}
@@ -132,8 +199,8 @@ func rip(vecs []Any, d *Dynamic) iter.Seq2[int, []Any] {
 			}
 			ripped := make([]Any, len(vecs))
 			for j, vec := range vecs {
-				if vec == d {
-					ripped[j] = d.Values[i]
+				if IsDynamic(vec) && zippable(vec, d) {
+					ripped[j] = zip(vec, d, i)
 				} else {
 					ripped[j] = Pick(vec, rev)
 				}
