@@ -265,7 +265,7 @@ which utilizes a [SUP type decorator](../formats/sup.md#22-type-decorators),
 in this case,
 to clarify its specific type of integer as unsigned 8 bits.
 
-`v4` has type `time` and `v5` type `duration`.
+`v4` has type `timestamp` and `v5` type `duration`.
 
 `v6` is type `ip` and `v7` type `net`.
 
@@ -806,7 +806,7 @@ which produces this string:
 ```mdtest-output
 "2019-11-11T19:50:46Z"
 ```
-Since the super data model has a native `time` type and we might want to do native date comparisons
+Since the super data model has a native `timestamp` type and we might want to do native date comparisons
 on these time fields, we can easily translate the string to a time with a cast, e.g.,
 ```mdtest-command dir=book/src/tutorials
 super -s -c 'unnest this | head 1 | values created_at::timestamp' prs.json
@@ -920,7 +920,7 @@ which now gives:
 {type:<string>,fields:|["url","body","state","title","node_id","diff_url","html_url","issue_url","patch_url","commits_url","comments_url","statuses_url","merge_commit_sha","author_association","review_comment_url","review_comments_url"]|}
 {type:<null>,fields:|["assignee","milestone","auto_merge","active_lock_reason"]|}
 ```
-and we can see that the date fields are correctly typed as type `time`!
+and we can see that the date fields are correctly typed as type `timestamp`!
 
 >[!NOTE]
 > We sorted the output values here using the

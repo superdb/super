@@ -122,7 +122,7 @@ match for the given value as well as a string search for the term exactly
 as it appears as typed.  Such values include:
 * integers,
 * floating point numbers,
-* time values,
+* timestamps,
 * durations,
 * IP addresses,
 * networks,

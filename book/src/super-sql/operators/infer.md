@@ -27,7 +27,7 @@ are uniformly coercible to the candidate type, which may be one of:
 * [float64](../types/numbers.md#floating-point),
 * [ip](../types/network.md),
 * [net](../types/network.md),
-* [time](../types/time.md), or
+* [timestamp](../types/time.md), or
 * [bool](../types/bool.md).
 
 `int64` inference takes precedence over `float64`.  All of the other candidate types

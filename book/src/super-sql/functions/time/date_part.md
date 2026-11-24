@@ -1,16 +1,17 @@
 # date_part
 
-return a specified part of a time value
+return a specified part of a timestamp
 
 ## Synopsis
 
 ```
-date_part(part: string, ts: time) -> int64
+date_part(part: string, ts: timestamp) -> int64
+EXTRACT(part FROM ts: timestamp) -> int64
 ```
 
 ## Description
 
-The `date_part` function accepts a [`string`](../../types/string.md) argument `part` and a [`time`](../../types/time.md) value `ts` and
+The `date_part` function accepts a [`string`](../../types/string.md) argument `part` and a [`timestamp`](../../types/time.md) value `ts` and
 returns an [`int64`](../../types/numbers.md) representing the part of the date requested.
 
 Valid values for `part` are:
@@ -27,11 +28,15 @@ Valid values for `part` are:
 |`"second"`              |The seconds field (0-59)                                                                                   |
 |`"year"`                |The year field                                                                                             |
 
+The SQL syntax `EXTRACT(part FROM ts)` is also supported, where `part` may be
+an identifier (e.g., `YEAR`) or a single-quoted string (e.g., `'year'`) and
+isn't case-sensitive.
+
 ## Examples
 
 ---
 
-_Extract all individual parts from a `time` value_
+_Extract all individual parts from a `timestamp` value_
 
 ```mdtest-spq
 # spq
@@ -56,4 +61,17 @@ values date_part("day", this),
 10
 40
 2001
+```
+
+---
+
+_Extract parts with the SQL `EXTRACT` syntax_
+
+```mdtest-spq
+# spq
+SELECT EXTRACT(YEAR FROM ts) AS year, EXTRACT(MONTH FROM ts) AS month
+# input
+{ts:2001-10-09T01:46:40.123456Z}
+# expected output
+{year:2001,month:10}
 ```

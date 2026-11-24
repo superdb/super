@@ -31,7 +31,7 @@ to the values present.
 The heuristic examines the first input record and finds the first field in
 left-to-right order that is an integer, or if no integer field is found,
 the first field that is floating point. If no such numeric field is found, `sort` finds
-the first field in left-to-right order that is _not_ of the `time` data type.
+the first field in left-to-right order that is _not_ of the `timestamp` data type.
 Note that there are some cases (such as the output of a grouped aggregation performed on heterogeneous data) where the first input record to `sort`
 may vary even when the same query is executed repeatedly against the same data.
 If you require a query to show deterministic output on repeated execution,

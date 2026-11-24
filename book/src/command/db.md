@@ -523,7 +523,7 @@ This data has the type signature:
 ```
 {
     author: string,
-    date: time,
+    date: timestamp,
     message: string,
     meta: <any>
 }
