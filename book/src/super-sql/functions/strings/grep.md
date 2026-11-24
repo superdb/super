@@ -5,7 +5,7 @@ search strings inside of values
 ## Synopsis
 
 ```
-grep(re: string e: any) -> bool
+grep(re: string, e: any) -> bool
 ```
 
 ## Description
@@ -16,9 +16,12 @@ The `grep` function searches all of the strings in its input value `e`
 If the pattern matches for any string, then the result is `true`.  Otherwise, it is `false`.
 
 >[!NOTE]
-> String matches are case insensitive while regular expression
-> and glob matches are case sensitive.  In a forthcoming release, case sensitivity
-> will be expressible for all three pattern types.
+> If `re` can match only one fixed string, as when it has no regular
+> expression metacharacters (e.g., `"baz"`), `grep` looks for that string as
+> a substring and ignores case, as a
+> [keyword search](../../operators/search.md#keyword) does.
+> Otherwise, the match is case-sensitive, so
+> to ignore case in a regular expression, start it with `(?i)`.
 
 The entire input value is traversed:
 * for records, each field value is traversed or descended if a complex type,
@@ -84,4 +87,22 @@ grep('b.*', s.ok())
 # expected output
 {s:"bar"}
 {s:"baz"}
+```
+
+---
+
+_A pattern without metacharacters ignores case, but a regular expression doesn't_
+
+```mdtest-spq
+# spq
+values {
+  input: this,
+  plain: grep("BAZ", this),
+  regexp: grep("B.Z", this),
+  ignore_case: grep("(?i)B.Z", this)
+}
+# input
+"baz"
+# expected output
+{input:"baz",plain:true,regexp:false,ignore_case:true}
 ```

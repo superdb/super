@@ -152,6 +152,7 @@
             - [unflatten](super-sql/functions/records/unflatten.md)
             - [values](super-sql/functions/records/values.md)
         - [Strings](super-sql/functions/strings/intro.md)
+            - [concat](super-sql/functions/strings/concat.md)
             - [grep](super-sql/functions/strings/grep.md)
             - [join](super-sql/functions/strings/join.md)
             - [json_stringify](super-sql/functions/strings/json_stringify.md)

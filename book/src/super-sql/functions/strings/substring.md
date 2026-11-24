@@ -13,7 +13,10 @@ substring(s: string [ FROM start: number ] [ FOR len: number ]) -> string
 The `substring` function returns a slice of a string using
 the anachronistic SQL syntax which includes the `FROM` and `FOR` keywords
 inside of the call arguments.  The function returns a string of length `len`
-comprising the unicode code points starting at offset `start`.
+comprising the Unicode code points starting at offset `start`.
+At least one of `FROM` and `FOR` is required. Without `FROM`, the slice
+starts at the beginning of `s`, and without `FOR`, it runs to the end of `s`.
+A negative `start` counts back from the end of `s`.
 
 Indexing is 0-based by default but can be 1-based by the use of
 a [pragma](../../declarations/pragmas.md) as with
@@ -27,7 +30,7 @@ a [pragma](../../declarations/pragmas.md) as with
 ## Examples
 
 ---
-_Simple substring call from in a SQL operator_
+_Simple substring call in a SQL operator_
 
 ```mdtest-spq
 # spq
@@ -63,4 +66,17 @@ SELECT SUBSTRING(this FROM 3) AS s
 " = SuperDB = "
 # expected output
 {s:"SuperDB = "}
+```
+
+---
+
+_A negative start counts back from the end_
+
+```mdtest-spq
+# spq
+values substring(this FROM -2)
+# input
+"SuperDB"
+# expected output
+"DB"
 ```
