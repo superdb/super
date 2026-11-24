@@ -58,34 +58,56 @@ the result might be `null`.
 In other languages, the _discriminant_ is the type name, e.g.,
 `u.(int64)`.
 
-However, SuperSQL is polymorphic so there is no requirement to explicitly
-discriminate the member type of a union value.  When an expression
-operator or function references a union value in computation,
-then the underlying value in its member type is _automatically_ expressed
-from the union value.
+SuperSQL uses the type name as the discriminant: a
+[type assertion](../expressions/type-assertions.md) like `u.(int64)` yields
+the underlying value when `u` holds an `int64` and `none` otherwise.
 
-For example, this predicate is true
+Many functions and operators accept union values directly and operate on
+the underlying value, e.g., [upper](../functions/strings/upper.md) applied
+to `"foo"::(int64|string)` is `"FOO"`.
+[Arithmetic](../expressions/arithmetic.md#type-checking) and
+[comparisons](../expressions/comparisons.md#type-checking) are type checked
+against every type in the union, though.  When every type works with the
+other operand, the union value is used as is, e.g., this predicate is true
+```mdtest-spq {data-layout='no-labels'} {style='margin:auto;width:85%'}
+# spq
+values 1::(int64|float64)==1
+# input
+
+# expected output
+true
 ```
+but when some type in the union doesn't work, it's a type error, because the
+query hasn't said what to do with a value of that type:
+```mdtest-spq fails {data-layout='no-labels'} {style='margin:auto;width:85%'}
+# spq
 values 1::(int64|string)==1
-```
-because the union value is automatically expressed as `1::int64`
-by the comparison operator.
+# input
 
-Likewise
+# expected output
+type mismatch: int64|string == int64 at line 1, column 8:
+values 1::(int64|string)==1
+       ~~~~~~~~~~~~~~~~~~~~
 ```
-values 1::(int64|string)+2::(int64|string)
+A type assertion narrows the union to the type that works, and the query
+must then say what to do when the value has another type, e.g., with `??`:
+```mdtest-spq {data-layout='no-labels'} {style='margin:auto;width:85%'}
+# spq
+values (this.(int64) ?? 0) + 1
+# input
+1::(int64|string)
+"foo"::(int64|string)
+# expected output
+2
+1
 ```
-results in `3::int64`.  Note that because of automatic expression,
-the union type is not retained here.
 
-Passing a union value to a function, however, does not involve
-evaluation and thus automatic expression does not occur here, e.g.,
+The [typeof](../functions/types/typeof.md) function, however, returns the
+union type itself rather than the type of the underlying value, e.g.,
 ```
 values typeof(1::(int64|string))
 ```
-is `<int64|string>` because the union value is _not_ automatically
-expressed as `1::int64` when it is passed to the
-[typeof](../functions/types/typeof.md) function.
+is `<int64|string>`.
 
 When desired, the [`under`](../functions/generics/under.md) function may be
 used to express the underlying value explicitly.  For example,
@@ -97,55 +119,38 @@ results in `<int64>`.
 ## Union Dispatch
 
 Languages with sum types often include a construct to dispatch the
-union to a case for each of its possible types.
-
-Because SuperSQL is polymorphic, union dispatch is not generally needed.
-Instead, union values are simply operated upon and the "right thing happens".
-The exceptions are [arithmetic](../expressions/arithmetic.md#type-checking),
-which requires a union whose types aren't all numbers to be narrowed first,
-and [comparisons](../expressions/comparisons.md#type-checking), which require
-each type of a union to be comparable with the other operand.
-
-That said, union dispatch may be accomplished with the
-[`switch`](../operators/switch.md) operator or a
-[`case`](../expressions/conditional.md) expression.
-
-For example, `switch` can be used to route union values to different
-branches of a query:
-```
+union to a case for each of its possible types.  In SuperSQL, this is the
+[match](../expressions/match.md) expression, which selects a result
+according to the type of a value.  Within each case, `this` is the
+underlying value with the matched type, so it can be operated on without
+a type error:
+```mdtest-spq {data-layout="stacked"}
+# spq
 values
-  {u:1::(int64|string|ip)},
-  {u:"foo"::(int64|string|ip)},
-  {u:192.168.1.1::(int64|string|ip)}
-| switch typeof(under(u))
-    case <int64> ( ... )
-    case <string> ( ... )
-    case <ip> ( ... )
-    default ( values error({message: "unknown type", on:this}) )
-| ...
+  match u
+  when int64 then this+1
+  when string then upper(this)
+  when ip then network_of(this)
+  end
+# input
+{u:1::(int64|string|ip)}
+{u:"foo"::(int64|string|ip)}
+{u:192.168.1.1::(int64|string|ip)}
+# expected output
+2
+"FOO"
+192.168.1.0/24
 ```
->[!NOTE]
-> Note the presence of a default case above.  In statically typed languages with
-> sum types, the compiler can ensure that all possible cases for a union are covered
-> and report an error otherwise.  In this case, there would be no need for a default.
-> A future version of SuperSQL will include more comprehensive compile-time type
-> checking and will include a mechanism for explicit union dispatch with
-> static type checking.
+A value that matches no case yields `none`, or the result of an
+`else` clause if there is one.
 
-A `case` expression can also be used to dispatch union values inside of
-an expression as in
+To route union values to different branches of a query instead, use the
+[`switch`](../operators/switch.md) operator, e.g.,
 ```
-values
-  {u:1::(int64|string|ip)},
-  {u:"foo"::(int64|string|ip)},
-  {u:192.168.1.1::(int64|string|ip)}
-| values
-    case typeof(under(u))
-      when <int64> then u+1
-      when <string> then upper(u)
-      when <ip> then network_of(u)
-      else "unknown"
-    end
+switch typeof(under(u))
+  case <int64> ( ... )
+  case <string> ( ... )
+  case <ip> ( ... )
 ```
 
 ## Examples
