@@ -82,7 +82,7 @@ func (t Ts) Time() time.Time {
 }
 
 func (t Ts) Trunc(bin Duration) Ts {
-	return Ts(Duration(t) / bin * bin)
+	return Ts(Duration(t).Trunc(bin))
 }
 
 func (t Ts) Midnight() Ts {

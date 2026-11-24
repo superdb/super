@@ -83,3 +83,18 @@ values bucket(this, 15m)
 15m
 0s
 ```
+
+---
+
+_Timestamps before 1970 round down to the start of their bucket too_
+
+```mdtest-spq
+# spq
+values {ts, day:bucket(ts, 1d)}
+# input
+{ts:1969-07-20T20:17:40Z}
+{ts:1969-12-31T23:30:00Z}
+# expected output
+{ts:1969-07-20T20:17:40Z,day:1969-07-20T00:00:00Z}
+{ts:1969-12-31T23:30:00Z,day:1969-12-31T00:00:00Z}
+```
