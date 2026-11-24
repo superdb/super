@@ -1,0 +1,9 @@
+# A subquery whose source fails when the query is compiled reports that error
+# rather than panicking.  Port 1 on localhost is expected to be closed.  The
+# connection error text is OS-specific, so only the stable prefix is matched.
+script: |
+  ! super -c 'unnest [1] into (from "http://127.0.0.1:1/x" (format json))'
+
+outputs:
+  - name: stderr
+    regexp: '^http://127\.0\.0\.1:1/x: Get "http://127\.0\.0\.1:1/x": dial tcp 127\.0\.0\.1:1: '

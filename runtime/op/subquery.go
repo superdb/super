@@ -20,7 +20,7 @@ type Subquery struct {
 	ctx    context.Context
 	sctx   *super.Context
 	sql    bool
-	create func() *Subquery
+	create func() (*Subquery, error)
 
 	body vio.Puller
 	ch   chan vector.Any
@@ -30,7 +30,7 @@ type Subquery struct {
 	tos   int
 }
 
-func NewSubquery(ctx context.Context, sctx *super.Context, sql bool, create func() *Subquery) *Subquery {
+func NewSubquery(ctx context.Context, sctx *super.Context, sql bool, create func() (*Subquery, error)) *Subquery {
 	return &Subquery{
 		ctx:    ctx,
 		sctx:   sctx,
@@ -61,7 +61,11 @@ func (s *Subquery) Eval(this vector.Any) vector.Any {
 			return vector.NewWrappedError(s.sctx, "subquery recursion depth exceeded", this)
 		}
 		if s.tos >= len(s.stack) {
-			s.stack = append(s.stack, s.create())
+			dup, err := s.create()
+			if err != nil {
+				return vector.NewStringError(s.sctx, err.Error(), this.Len())
+			}
+			s.stack = append(s.stack, dup)
 		}
 		return s.stack[s.tos].Eval(this)
 	}

@@ -326,21 +326,25 @@ func (b *Builder) compileVamSubquery(query *dag.SubqueryExpr) (expr.Evaluator, e
 		body := b.combineVam(exits)
 		return op.NewCachedSubquery(b.sctx(), body, query.SQL), nil
 	}
-	var create func() *op.Subquery
-	create = func() *op.Subquery {
-		subquery := op.NewSubquery(b.rctx.Context, b.sctx(), query.SQL, func() *op.Subquery {
+	var create func() (*op.Subquery, error)
+	create = func() (*op.Subquery, error) {
+		subquery := op.NewSubquery(b.rctx.Context, b.sctx(), query.SQL, func() (*op.Subquery, error) {
 			b.mu.Lock()
 			defer b.mu.Unlock()
 			return create()
 		})
 		exits, err := b.compileVamSeq(query.Body, []vio.Puller{subquery})
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		subquery.SetBody(b.combineVam(exits))
-		return subquery
+		return subquery, nil
 	}
-	return create(), nil
+	subquery, err := create()
+	if err != nil {
+		return nil, err
+	}
+	return subquery, nil
 }
 
 func (b *Builder) compileVamRegexpMatch(match *dag.RegexpMatchExpr) (expr.Evaluator, error) {
