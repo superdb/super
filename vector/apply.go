@@ -97,7 +97,7 @@ func Apply(opt ApplyOpt, eval func(...Any) Any, vecs ...Any) Any {
 	}
 	// stitch removes nils and replaces Dynamics with their values.
 	out := stitch(d.Tags, results)
-	if od, ok := out.(*Dynamic); ok && sameTags(od.Tags, d.Tags) {
+	if od, ok := out.(*Dynamic); ok && len(od.Values) == len(d.Values) && sameTags(od.Tags, d.Tags) {
 		// The tag maps depend only on the tags, so share any that d
 		// has already computed.
 		od.forwardTagMap.Store(d.forwardTagMap.Load())
@@ -106,9 +106,9 @@ func Apply(opt ApplyOpt, eval func(...Any) Any, vecs ...Any) Any {
 	return out
 }
 
-// sameTags returns true if a and b are the same slice.
+// sameTags returns true if a and b hold the same tags.
 func sameTags(a, b []uint32) bool {
-	return len(a) == len(b) && (len(a) == 0 || &a[0] == &b[0])
+	return len(a) == len(b) && (len(a) == 0 || &a[0] == &b[0] || slices.Equal(a, b))
 }
 
 // zippable returns true if vec can be ripped along d's tags without d's
@@ -117,7 +117,7 @@ func sameTags(a, b []uint32) bool {
 func zippable(vec Any, d *Dynamic) bool {
 	switch vec := vec.(type) {
 	case *Dynamic:
-		return vec == d || sameTags(vec.Tags, d.Tags) && len(vec.Values) == len(d.Values)
+		return vec == d || len(vec.Values) == len(d.Values) && sameTags(vec.Tags, d.Tags)
 	case *Error:
 		return zippable(vec.Vals, d)
 	case *Named:
@@ -178,7 +178,11 @@ func findDynamic(vecs []Any) (*Dynamic, bool) {
 
 func rip(vecs []Any, d *Dynamic) iter.Seq2[int, []Any] {
 	return func(yield func(int, []Any) bool) {
-		if !slices.ContainsFunc(vecs, func(vec Any) bool { return !zippable(vec, d) }) {
+		zips := make([]bool, len(vecs))
+		for j, vec := range vecs {
+			zips[j] = zippable(vec, d)
+		}
+		if !slices.Contains(zips, false) {
 			for i, v := range d.Values {
 				if v == nil || v.Len() == 0 {
 					continue
@@ -199,7 +203,7 @@ func rip(vecs []Any, d *Dynamic) iter.Seq2[int, []Any] {
 			}
 			ripped := make([]Any, len(vecs))
 			for j, vec := range vecs {
-				if IsDynamic(vec) && zippable(vec, d) {
+				if IsDynamic(vec) && zips[j] {
 					ripped[j] = zip(vec, d, i)
 				} else {
 					ripped[j] = Pick(vec, rev)
