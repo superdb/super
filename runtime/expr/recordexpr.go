@@ -66,6 +66,18 @@ func (r *recordExpr) Eval(this vector.Any) vector.Any {
 }
 
 func (r *recordExpr) eval(vecs ...vector.Any) vector.Any {
+	for k, vec := range vecs {
+		if _, ok := r.elems[k].(*SpreadElem); !ok {
+			continue
+		}
+		if union, ok := vector.Under(vec).(*vector.Union); ok {
+			// As with field access, spread the value under a union so
+			// that each record in the union contributes its fields.
+			vecs = slices.Clone(vecs)
+			vecs[k] = union.Dynamic()
+			return vector.Apply(vector.ApplyNone, r.eval, vecs...)
+		}
+	}
 	r.fields = r.fields[:0]
 	clear(r.fieldIndexes)
 	r.fieldVecs = make([]vector.Any, 0, len(r.elems))
@@ -121,7 +133,7 @@ func (r *recordExpr) deleteField(name string) {
 }
 
 func (r *recordExpr) spread(vec vector.Any) {
-	// Ignore non-record values.
+	// A value that isn't a record contributes no fields.
 	switch vec := vector.Under(vec).(type) {
 	case *vector.Record:
 		for k, f := range super.TypeRecordOf(vec.Type()).Fields {

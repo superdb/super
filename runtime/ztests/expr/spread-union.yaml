@@ -1,0 +1,64 @@
+# Spreading a union value spreads the record under the union, as field access
+# does, so each record member contributes its fields.  A member that isn't a
+# record contributes no fields, just as spreading any non-record value does.
+# The type checker types the result as the records formed from each member.
+script: |
+  super -s -c 'values {...this, big:true}' shapes.sup
+  echo ===
+  super -s -c 'values {...this, big:true}' - < shapes.sup
+  echo ===
+  super -s -c 'values {...this, x:1}' unnamed.sup
+  echo ===
+  super -s -c 'values {...this, x:1}' nonrecord.sup
+  echo ===
+  super -s -c 'values {...u, ...w, x:1}' two.sup
+  echo ===
+  super -s -c 'values {...this, big:true} | values {id, r:this?.dimensions?.radius ?? 0}' shapes.sup
+  ! super -s -c 'values {...this, big:true} | values nope' shapes.sup
+
+inputs:
+  - name: shapes.sup
+    data: |
+      type Circle={id:int64,type:string,dimensions:{radius:int64}}
+      type Rectangle={id:int64,type:string,dimensions:{width:int64,height:int64}}
+      type Shape=Circle|Rectangle
+      {id:1,type:"Rectangle",dimensions:{width:2,height:1}}::Rectangle::Shape
+      {id:2,type:"Circle",dimensions:{radius:3}}::Circle::Shape
+  - name: unnamed.sup
+    data: |
+      {a:1}::({a:int64}|{b:string})
+      {b:"x"}::({a:int64}|{b:string})
+  - name: nonrecord.sup
+    data: |
+      1::(int64|{a:int64})
+      {a:2}::(int64|{a:int64})
+  - name: two.sup
+    data: |
+      {u:{a:1}::({a:int64}|{b:string}),w:{c:3}::({c:int64}|int64)}
+      {u:{b:"y"}::({a:int64}|{b:string}),w:5::({c:int64}|int64)}
+
+outputs:
+  - name: stdout
+    data: |
+      {id:1,type:"Rectangle",dimensions:{width:2,height:1},big:true}
+      {id:2,type:"Circle",dimensions:{radius:3},big:true}
+      ===
+      {id:1,type:"Rectangle",dimensions:{width:2,height:1},big:true}
+      {id:2,type:"Circle",dimensions:{radius:3},big:true}
+      ===
+      {a:1,x:1}
+      {b:"x",x:1}
+      ===
+      {x:1}
+      {a:2,x:1}
+      ===
+      {a:1,c:3,x:1}
+      {b:"y",x:1}
+      ===
+      {id:1,r:0}
+      {id:2,r:3}
+  - name: stderr
+    data: |
+      no such field "nope" at line 1, column 37:
+      values {...this, big:true} | values nope
+                                          ~~~~
