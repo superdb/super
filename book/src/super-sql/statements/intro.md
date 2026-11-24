@@ -38,8 +38,8 @@ any values the statement itself produces.  A status record has the form
 {
   kind: string,
   stmt: string,
-  start: time,
-  end: time,
+  start: timestamp,
+  end: timestamp,
   info: <info>,
   error: string
 }

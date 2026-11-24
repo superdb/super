@@ -1,15 +1,13 @@
 # Date/Times
 
->[!WARNING]
-> These data types are going to change in a forthcoming release of SuperSQL.
-
-The `time` type represents an unsigned 64-bit number of nanoseconds since epoch.
+The `timestamp` type represents a signed 64-bit number of nanoseconds since the
+Unix epoch, i.e., an instant in UTC.
 
 The `duration` type represents a signed 64-bit number of nanoseconds.
 
-For backward compatibility with SQL, `INTERVAL` is a syntactic alias for type `duration`.
-
-These data types are incompatible with SQL data and time types.  A future version
-of SuperSQL will change the `time` type to be SQL compatible and add support for other
-SQL date/time and interval types.  At that time, detailed syntax and semantics
-for these types will be documented here.
+>[!NOTE]
+> Other SQL date and time types (e.g., `date`, `time` for a time of day, and
+> `interval`) are reserved for a future version of SuperSQL.  At that time,
+> detailed syntax and semantics for these types will be documented here.
+> Until then, a SQL `DATE` literal such as `DATE '2020-01-01'`, or a SQL cast
+> like `CAST(x AS DATE)`, produces a `timestamp` at midnight UTC.

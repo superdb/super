@@ -124,7 +124,7 @@ Values of type [net](../types/network.md) are ordered by address family
 (IPv4 before IPv6), then by network address, and then by prefix length.
 
 Any other comparison is a type mismatch, e.g., a number and a string, a number
-and a `time` or `duration`, or an `ip` and a `net`.  The compiler reports a
+and a `timestamp` or `duration`, or an `ip` and a `net`.  The compiler reports a
 type mismatch as an error when it knows the types of the operands.  Otherwise,
 the result of the comparison at runtime is an error value.
 
