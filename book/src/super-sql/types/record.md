@@ -51,6 +51,21 @@ The spread form inserts all of the fields from the resulting record.
 If a spread expression results in a non-record type (e.g., errors), then that
 part of the record is simply elided.  Note that the field names for
 the spread come from the constituent record values.
+When the spread expression results in a [union](union.md) value, the value
+under the union is spread, so a record member of the union contributes its
+fields and a member that isn't a record contributes none, e.g.,
+```mdtest-spq {data-layout="stacked"}
+# spq
+values {...this, x:1}
+# input
+{a:1}::({a:int64}|{b:string})
+{b:"foo"}::({a:int64}|{b:string})
+1::(int64|{a:int64})
+# expected output
+{a:1,x:1}
+{b:"foo",x:1}
+{x:1}
+```
 
 The fields of a record expression are evaluated left to right and when
 field names collide the rightmost instance of the name determines that

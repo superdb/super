@@ -895,7 +895,56 @@ func (c *checker) recordElems(typ super.Type, elems []sem.RecordElem) super.Type
 	return c.formRecordElems(elems, types)
 }
 
+// maxSpreadAlternatives limits the number of combinations of union members
+// that formRecordElems considers for spreads of unions.
+const maxSpreadAlternatives = 64
+
 func (c *checker) formRecordElems(elems []sem.RecordElem, types []super.Type) super.Type {
+	// The value spread from a union is one of its members, so the record
+	// is one of the records formed from each combination of the members
+	// of the spread unions.
+	alts := [][]super.Type{nil}
+	for k, elem := range elems {
+		if _, ok := elem.(*sem.SpreadElem); !ok {
+			continue
+		}
+		union, ok := coerce.Under(types[k]).(*super.TypeUnion)
+		if !ok {
+			continue
+		}
+		if len(alts)*len(union.Types) > maxSpreadAlternatives {
+			return c.unknown
+		}
+		var next [][]super.Type
+		for _, alt := range alts {
+			for _, t := range union.Types {
+				next = append(next, append(slices.Clone(alt), t))
+			}
+		}
+		alts = next
+	}
+	if len(alts[0]) == 0 {
+		return c.formRecord(elems, types)
+	}
+	var out []super.Type
+	for _, alt := range alts {
+		altTypes := slices.Clone(types)
+		var i int
+		for k, elem := range elems {
+			if _, ok := elem.(*sem.SpreadElem); !ok {
+				continue
+			}
+			if _, ok := coerce.Under(types[k]).(*super.TypeUnion); ok {
+				altTypes[k] = alt[i]
+				i++
+			}
+		}
+		out = append(out, c.formRecord(elems, altTypes))
+	}
+	return c.fuse(out)
+}
+
+func (c *checker) formRecord(elems []sem.RecordElem, types []super.Type) super.Type {
 	var fields []super.Field
 	order := make(map[string]int)
 	for k, elem := range elems {
@@ -907,11 +956,10 @@ func (c *checker) formRecordElems(elems []sem.RecordElem, types []super.Type) su
 				// know the result at all.  Return unknown for the whole thing.
 				return c.unknown
 			}
-			// If it's not unknown, it should have passed type checking as a record.
+			// A value that isn't a record contributes no fields.
 			recType, ok := coerce.Under(typ).(*super.TypeRecord)
 			if !ok {
-				//XXX
-				return c.unknown
+				continue
 			}
 			for _, f := range recType.Fields {
 				if k, ok := order[f.Name]; ok {
