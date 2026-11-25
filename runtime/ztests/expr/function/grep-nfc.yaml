@@ -1,0 +1,12 @@
+# A computed pattern is normalized to NFC, as strings read from SUP and JSON
+# are, so a decomposed pattern from CSV matches a precomposed string.
+
+script: |
+  printf 'p,s\ncafe\314\201,caf\303\251\ncaf\303\251,caf\303\251\n' > nfc.csv
+  super -s -c "from nfc.csv | values grep(p, s)"
+
+outputs:
+  - name: stdout
+    data: |
+      true
+      true

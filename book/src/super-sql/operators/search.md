@@ -95,16 +95,18 @@ followed by any of these characters or digits `0` through `9`.
 
 A keyword search is equivalent to
 ```
-grep(<keyword>, this)
+grep(<pattern>, this)
 ```
-where `<keyword>` is the quoted string-literal of the unquoted string.
+where `<pattern>` is a quoted string literal that holds `(?i)` followed by
+the keyword, with any regular expression metacharacters escaped, so that it
+matches the keyword's text as is and ignores case.
 For example,
 ```
 search foo
 ```
 is equivalent to
 ```
-where grep("foo", this)
+where grep("(?i)foo", this)
 ```
 
 Note that the shorthand `?` may be used in lieu of the "search" keyword.
@@ -135,8 +137,9 @@ of the same text.
 A search for a value `<value>` represented as the string `<string>` is
 equivalent to
 ```
-<value> in this or grep(<string>, this)
+<value> in this or grep(<pattern>, this)
 ```
+where `<pattern>` is formed from `<string>` as for a keyword.
 For example,
 ```
 search 123 and 10.0.0.1
@@ -147,8 +150,8 @@ which can be abbreviated
 ```
 is equivalent to
 ```
-where (123 in this or grep("123", this))
-  and (10.0.0.1 in this or grep("10.0.0.1", this))
+where (123 in this or grep("(?i)123", this))
+  and (10.0.0.1 in this or grep("(?i)10\\.0\\.0\\.1", this))
 ```
 
 Complex values are not supported as search terms but may be queried with
@@ -193,7 +196,7 @@ For example,
 ```
 means
 ```
-((not grep("foo", this)) and grep("bar", this)) or grep("baz", this)
+((not grep("(?i)foo", this)) and grep("(?i)bar", this)) or grep("(?i)baz", this)
 ```
 while
 ```
@@ -201,7 +204,7 @@ while
 ```
 means
 ```
-grep("foo", this) and (grep("bar", this) or grep("baz", this))
+grep("(?i)foo", this) and (grep("(?i)bar", this) or grep("(?i)baz", this))
 ```
 
 ## Examples

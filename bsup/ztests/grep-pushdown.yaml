@@ -1,0 +1,26 @@
+# grep over this skips frames that can't contain a literal or case-insensitive
+# literal pattern, but not when it searches a computed value.
+
+script: |
+  seq 100 | super -o t.bsup -framecap 10 -inputcap 10 -c 'values {s:f"foo{this}"}' -
+  for q in "grep('foo18', this)" "grep('FOO18', this)" "grep('(?i)FOO18', this)" "grep('zzz', [this, 'zzz'])"; do
+    echo "=== $q"
+    super -stats -s -c "where $q | count()" t.bsup 2> stats
+    grep -o 'frames_skipped_search_filter:[0-9]*' stats
+  done
+
+outputs:
+  - name: stdout
+    data: |
+      === grep('foo18', this)
+      1
+      frames_skipped_search_filter:9
+      === grep('FOO18', this)
+      0
+      frames_skipped_search_filter:10
+      === grep('(?i)FOO18', this)
+      1
+      frames_skipped_search_filter:9
+      === grep('zzz', [this, 'zzz'])
+      100
+      frames_skipped_search_filter:0

@@ -10,6 +10,11 @@ script: |
   echo // ===
   echo '{x:"a"}' | super -o x.parquet -
   super -s -c "SELECT x FROM x.parquet WHERE x LIKE 'a%'"
+  echo // ===
+  super compile -C -O -dynamic 'from test.bsup | where grep("(?i)^cslab", x)'
+  echo // ===
+  echo '{x:"cslab1"}' | super -o y.bsup -
+  super -s -c "from y.bsup | where grep('(?i)^cslab', x) | count()"
 
 outputs:
   - name: stdout
@@ -41,3 +46,11 @@ outputs:
       {x:"a"}
       // ===
       {x:"a"}
+      // ===
+      file test.bsup format bsup
+        data-filter project [x] (
+          regexp_search(r"(?i)^cslab", x)
+        )
+      | output main
+      // ===
+      1

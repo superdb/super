@@ -15,13 +15,9 @@ The `grep` function searches all of the strings in its input value `e`
 [regular expression](../../queries.md#regular-expression).
 If the pattern matches for any string, then the result is `true`.  Otherwise, it is `false`.
 
->[!NOTE]
-> If `re` can match only one fixed string, as when it has no regular
-> expression metacharacters (e.g., `"baz"`), `grep` looks for that string as
-> a substring and ignores case, as a
-> [keyword search](../../operators/search.md#keyword) does.
-> Otherwise, the match is case-sensitive, so
-> to ignore case in a regular expression, start it with `(?i)`.
+The match is case-sensitive, unlike a
+[keyword search](../../operators/search.md#keyword). To ignore case, start
+`re` with `(?i)`.
 
 The entire input value is traversed:
 * for records, each field value is traversed or descended if a complex type,
@@ -91,18 +87,28 @@ grep('b.*', s.ok())
 
 ---
 
-_A pattern without metacharacters ignores case, but a regular expression doesn't_
+_Start the pattern with `(?i)` to ignore case_
 
 ```mdtest-spq
 # spq
-values {
-  input: this,
-  plain: grep("BAZ", this),
-  regexp: grep("B.Z", this),
-  ignore_case: grep("(?i)B.Z", this)
-}
+values {input:this, match_case:grep("BAZ", this), ignore_case:grep("(?i)BAZ", this)}
 # input
 "baz"
 # expected output
-{input:"baz",plain:true,regexp:false,ignore_case:true}
+{input:"baz",match_case:false,ignore_case:true}
+```
+
+---
+
+_The pattern can come from the input_
+
+```mdtest-spq
+# spq
+values {input:this, match:grep(pattern, s)}
+# input
+{pattern:"foo|baz",s:"baz"}
+{pattern:"^a",s:"bar"}
+# expected output
+{input:{pattern:"foo|baz",s:"baz"},match:true}
+{input:{pattern:"^a",s:"bar"},match:false}
 ```

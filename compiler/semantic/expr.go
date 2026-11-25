@@ -868,18 +868,9 @@ func (t *translator) semCallByName(call *ast.CallExpr, name string, args []sem.E
 		if !ok {
 			return sem.NewCall(call, "grep", args), super.TypeBool
 		}
-		re, err := expr.CompileRegexp(pattern)
-		if err != nil {
+		if _, err := expr.CompileRegexp(pattern); err != nil {
 			t.error(call.Args[0], err)
 			return badExpr, t.checker.unknown
-		}
-		if s, ok := re.LiteralPrefix(); ok {
-			return &sem.SearchTermExpr{
-				Node:  call,
-				Text:  s,
-				Value: sup.QuotedString(s),
-				Expr:  args[1],
-			}, super.TypeBool
 		}
 		return &sem.RegexpSearchExpr{
 			Node:    call,

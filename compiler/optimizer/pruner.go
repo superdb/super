@@ -194,7 +194,8 @@ func regexpPrefix(s string) string {
 	if re.Op == syntax.OpConcat &&
 		len(re.Sub) >= 2 &&
 		re.Sub[0].Op == syntax.OpBeginText &&
-		re.Sub[1].Op == syntax.OpLiteral {
+		re.Sub[1].Op == syntax.OpLiteral &&
+		re.Sub[1].Flags&syntax.FoldCase == 0 {
 		return string(re.Sub[1].Rune)
 	}
 	return ""

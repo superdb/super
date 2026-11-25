@@ -1,12 +1,16 @@
 package expr
 
 import (
+	"bytes"
 	"net/netip"
 	"regexp"
 	"slices"
+	"unicode"
+	"unicode/utf8"
 	"unsafe"
 
 	"github.com/superdb/super"
+	"github.com/superdb/super/pkg/stringsearch"
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/vector"
 )
@@ -46,7 +50,56 @@ func NewSearch(sctx *super.Context, s string, val super.Value, e Evaluator) Eval
 }
 
 func NewSearchRegexp(sctx *super.Context, re *regexp.Regexp, e Evaluator) Evaluator {
-	return &search{sctx, e, nil, re.Match}
+	return &search{sctx, e, nil, regexpPred(re)}
+}
+
+// regexpPred returns a function equivalent to re.Match that avoids the
+// regexp engine when re is a literal or a case-insensitive literal.
+func regexpPred(re *regexp.Regexp) func([]byte) bool {
+	literal, fold, ok := expr.ParseLiteral(re.String())
+	if !ok {
+		return re.Match
+	}
+	if !fold {
+		b := []byte(literal)
+		return func(s []byte) bool {
+			return bytes.Contains(s, b)
+		}
+	}
+	contains := foldContains(literal)
+	var odd [][]byte
+	for _, o := range expr.OddFoldVariants(literal) {
+		odd = append(odd, []byte(o))
+	}
+	return func(s []byte) bool {
+		if contains(s) {
+			return true
+		}
+		for _, o := range odd {
+			if bytes.Contains(s, o) {
+				return re.Match(s)
+			}
+		}
+		return false
+	}
+}
+
+// foldContains returns a function that reports whether its argument contains
+// literal, ignoring case as StringContainsFold does.
+func foldContains(literal string) func([]byte) bool {
+	for _, r := range literal {
+		if r >= utf8.RuneSelf && (unicode.SimpleFold(r) != r || unicode.ToLower(r) != r) {
+			return func(s []byte) bool {
+				return expr.StringContainsFold(string(s), literal)
+			}
+		}
+	}
+	// Ignoring ASCII case is enough when no other letter in literal has a
+	// case variant, as long as NewCaseFinder's lowering leaves it as is.
+	f := stringsearch.NewCaseFinder(literal)
+	return func(s []byte) bool {
+		return f.Next(unsafe.String(unsafe.SliceData(s), len(s))) >= 0
+	}
 }
 
 func NewSearchString(sctx *super.Context, s string, e Evaluator) Evaluator {

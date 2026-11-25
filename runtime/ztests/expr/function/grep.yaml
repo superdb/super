@@ -1,6 +1,5 @@
 # This test tests grep as a function call which only happens when the pattern
-# arg is not a glob, regular expression, or resolvable to a string at compile
-# time.
+# arg is not resolvable to a string at compile time.
 
 spq: |
   [grep(pattern,this),grep(pattern,input)]
@@ -30,3 +29,60 @@ output: |
   [true,true]
   [error({message:"grep: pattern argument must be a string",on:1}),error({message:"grep: pattern argument must be a string",on:1})]
   [error({message:"grep: pattern argument must be a string",on:null}),error({message:"grep: pattern argument must be a string",on:null})]
+
+---
+
+# A computed pattern is a case-sensitive regular expression.
+
+spq: values grep(pattern, s)
+
+input: |
+  {pattern:"BAZ",s:"baz"}
+  {pattern:"(?i)BAZ",s:"baz"}
+  {pattern:"foo|baz",s:"baz"}
+  {pattern:"foo|baz",s:"qux"}
+  {pattern:"(",s:"baz"}
+  {pattern:"(",s:"("}
+  {pattern:"b.z",s:"bar"}
+
+output: |
+  false
+  true
+  true
+  false
+  error({message:"grep: invalid regular expression: missing closing )",on:"("})
+  error({message:"grep: invalid regular expression: missing closing )",on:"("})
+  false
+
+---
+
+# A constant pattern is a case-sensitive regular expression too.
+
+spq: values {match_case:grep("BAZ", this), ignore_case:grep("(?i)BAZ", this), literal:grep("baz", this)}
+
+input: |
+  "baz"
+  "BAZ"
+
+output: |
+  {match_case:false,ignore_case:true,literal:true}
+  {match_case:true,ignore_case:true,literal:false}
+
+---
+
+# Anchors keep their meaning in a pattern that is otherwise a literal, and so
+# do non-ASCII letters in a case-insensitive one.
+
+spq: values {s, const:grep("^foo$", s), computed:grep(p, s), dotted_i:grep("(?i)İa", s)}
+
+input: |
+  {s:"xfooy",p:"^foo$"}
+  {s:"foo",p:"^foo$"}
+  {s:"İA",p:"^foo$"}
+  {s:"xia",p:"^foo$"}
+
+output: |
+  {s:"xfooy",const:false,computed:false,dotted_i:false}
+  {s:"foo",const:true,computed:true,dotted_i:false}
+  {s:"İA",const:false,computed:false,dotted_i:true}
+  {s:"xia",const:false,computed:false,dotted_i:false}
