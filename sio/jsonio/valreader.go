@@ -31,7 +31,9 @@ func (r *valReader) Next() ([]byte, error) {
 			return nil, io.EOF
 		}
 		start, end := jsonskip.Skip(r.cursor)
-		if start < 0 {
+		// A number ending at the end of the buffer may continue in input
+		// not yet read, so read more first.
+		if start < 0 || (end == len(r.cursor) && !r.EOF && isNumberStart(r.cursor[start])) {
 			if !hasFilled && !r.EOF {
 				if err := r.fill(); err != nil {
 					return nil, err
@@ -99,6 +101,10 @@ func firstNonWhitespaceCharacter(b []byte) int {
 	return bytes.IndexFunc(b, func(r rune) bool {
 		return r != ' ' && r != '\t' && r != '\n' && r != '\r'
 	})
+}
+
+func isNumberStart(c byte) bool {
+	return c == '-' || (c >= '0' && c <= '9')
 }
 
 func (r *valReader) parseError() error {

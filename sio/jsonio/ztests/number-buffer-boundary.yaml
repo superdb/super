@@ -1,0 +1,16 @@
+# Bare numbers that straddle a boundary of the JSON reader's 512 KiB input
+# buffer are read whole, not split into two values or rejected as invalid,
+# from stdin and from a file.
+
+script: |
+  seq 999999 | super -s -c 'aggregate count(), sum(this)' -
+  echo ===
+  seq 999999 | sed 's/$/.5/' > floats.json
+  super -s -c 'aggregate count(), sum(this)' floats.json
+
+outputs:
+  - name: stdout
+    data: |
+      {count:999999,sum:499999500000}
+      ===
+      {count:999999,sum:4.999999999995e+11}
