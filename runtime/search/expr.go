@@ -1,6 +1,7 @@
 package search
 
 import (
+	"strings"
 	"unicode/utf8"
 
 	"github.com/superdb/super/pkg/stringsearch"
@@ -68,4 +69,17 @@ func NewExprForStringCase(pattern string) Expr {
 		}
 	}
 	return &leaf{stringsearch.NewCaseFinder(pattern).Next}
+}
+
+// NewExprForAnyString returns an Expr that is true for text containing any of
+// patterns.  Unlike NewExprForString, it is meant for short patterns.
+func NewExprForAnyString(patterns []string) Expr {
+	return &leaf{func(text string) int {
+		for _, p := range patterns {
+			if i := strings.Index(text, p); i >= 0 {
+				return i
+			}
+		}
+		return -1
+	}}
 }

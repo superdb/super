@@ -3,6 +3,7 @@ package rungen
 import (
 	"github.com/superdb/super"
 	"github.com/superdb/super/compiler/dag"
+	samexpr "github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/runtime/search"
 	"github.com/superdb/super/sup"
 	"golang.org/x/text/unicode/norm"
@@ -62,6 +63,22 @@ func CompileSearch(sctx *super.Context, e dag.Expr) (search.Expr, error) {
 		}
 		pattern := norm.NFC.Bytes(literal.Bytes())
 		return search.NewExprForStringCase(string(pattern)), nil
+	case *dag.RegexpSearchExpr:
+		if _, ok := e.Expr.(*dag.ThisExpr); !ok {
+			return nil, nil
+		}
+		literal, fold, ok := samexpr.ParseLiteral(e.Pattern)
+		if !ok {
+			return nil, nil
+		}
+		if !fold {
+			return search.NewExprForString(literal), nil
+		}
+		expr := search.NewExprForStringCase(literal)
+		if odd := samexpr.OddFoldVariants(literal); expr != nil && len(odd) > 0 {
+			expr = search.NewOrExpr(expr, search.NewExprForAnyString(odd))
+		}
+		return expr, nil
 	default:
 		return nil, nil
 	}

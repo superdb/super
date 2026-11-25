@@ -1,6 +1,8 @@
 package function
 
 import (
+	"regexp"
+
 	"github.com/superdb/super"
 	"github.com/superdb/super/runtime/expr"
 	"github.com/superdb/super/vector"
@@ -9,8 +11,10 @@ import (
 
 type Grep struct {
 	sctx    *super.Context
-	expr    expr.Evaluator
+	search  expr.Evaluator
+	err     error
 	pattern string
+	cached  bool
 }
 
 func (g *Grep) Call(args ...vector.Any) vector.Any {
@@ -28,25 +32,48 @@ func (g *Grep) Call(args ...vector.Any) vector.Any {
 		return vec
 	}
 	if _, ok := vector.Under(patternVec).(*vector.Const); ok {
-		pattern := vector.StringValue(patternVec, 0)
-		if g.expr == nil || g.pattern != pattern {
-			pattern = norm.NFC.String(pattern)
-			g.expr = expr.NewSearchString(g.sctx, pattern, &expr.This{})
-			g.pattern = pattern
+		if err := g.compile(vector.StringValue(patternVec, 0)); err != nil {
+			return vector.NewWrappedError(g.sctx, regexpErrMsg("grep", err), patternVec)
 		}
-		return g.expr.Eval(inputVec)
+		return g.search.Eval(inputVec)
 	}
 	var index [1]uint32
-	out := vector.NewFalse(patternVec.Len())
+	errMsg := vector.NewStringEmpty(0)
+	var errs, matches []uint32
 	for i := range patternVec.Len() {
-		pattern := vector.StringValue(patternVec, i)
-		pattern = norm.NFC.String(pattern)
-		search := expr.NewSearchString(g.sctx, pattern, &expr.This{})
+		if err := g.compile(vector.StringValue(patternVec, i)); err != nil {
+			errMsg.Append(regexpErrMsg("grep", err))
+			errs = append(errs, i)
+			continue
+		}
 		index[0] = i
-		v := search.Eval(vector.Pick(inputVec, index[:]))
+		v := g.search.Eval(vector.Pick(inputVec, index[:]))
 		if vector.BoolValue(v, 0) {
-			out.Set(i)
+			matches = append(matches, i-uint32(len(errs)))
 		}
 	}
-	return out
+	out := vector.NewFalse(patternVec.Len() - uint32(len(errs)))
+	for _, k := range matches {
+		out.Set(k)
+	}
+	if len(errs) == 0 {
+		return out
+	}
+	c := vector.NewCombiner(out)
+	c.Add(errs, vector.NewVecWrappedError(g.sctx, errMsg, vector.Pick(patternVec, errs)))
+	return c.Result()
+}
+
+func (g *Grep) compile(pattern string) error {
+	if g.cached && g.pattern == pattern {
+		return g.err
+	}
+	g.pattern, g.cached = pattern, true
+	re, err := regexp.Compile(norm.NFC.String(pattern))
+	if err != nil {
+		g.search, g.err = nil, err
+		return err
+	}
+	g.search, g.err = expr.NewSearchRegexp(g.sctx, re, &expr.This{}), nil
+	return nil
 }

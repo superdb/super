@@ -6,6 +6,8 @@ script: |
   super -s -c "from s.json | values a LIKE 'f%'"
   echo ===
   super -s -c "from s.json | values a NOT LIKE 'f%'"
+  echo ===
+  super -s -c "from s.json | values {exact:a LIKE 'foo', part:a LIKE 'oo', not_part:a NOT LIKE 'oo'}"
 
 inputs:
   - name: s.json
@@ -25,3 +27,6 @@ outputs:
       ===
       false
       true
+      ===
+      {exact:true,part:false,not_part:true}
+      {exact:false,part:false,not_part:true}

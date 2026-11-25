@@ -20,11 +20,11 @@ outputs:
       ===
       null
       | switch
-        case search("a") (
+        case regexp_search(r"a", this) (
           head 1
           | output main
         )
-        case search("c") (
+        case regexp_search(r"c", this) (
           tail 1
           | output main
         )
@@ -39,7 +39,7 @@ outputs:
       ===
       null
       | switch
-        case search("a") (
+        case regexp_search(r"a", this) (
           head 1
           | output main
         )
