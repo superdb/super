@@ -112,9 +112,9 @@ emits its header and the super footer:
 ```mdtest-output
 type Version={Major:uint8,Minor:uint16}
 type ColumnHeader={Version:Version,FrameSize:uint64,FusedType:uint32,VectorTypedefsSize:uint64,LocatorsSize:uint64,TypedefsSize:uint64}
-{Version:{Major:0,Minor:31},FrameSize:183,FusedType:50,VectorTypedefsSize:16,LocatorsSize:21,TypedefsSize:18}::ColumnHeader
+{Version:{Major:2,Minor:0},FrameSize:183,FusedType:50,VectorTypedefsSize:16,LocatorsSize:21,TypedefsSize:18}::ColumnHeader
 type SuperFooter={Version:Version,FooterSize:uint64,FusedTypeSize:uint64,StatsSize:uint64,SuperFrameSize:uint64}
-{Version:{Major:0,Minor:31},FooterSize:98,FusedTypeSize:12,StatsSize:40,SuperFrameSize:183}::SuperFooter
+{Version:{Major:2,Minor:0},FooterSize:98,FusedTypeSize:12,StatsSize:40,SuperFrameSize:183}::SuperFooter
 ```
 
 ---
@@ -128,9 +128,9 @@ super dev bsup -s rows.bsup
 ```mdtest-output
 type Version={Major:uint8,Minor:uint16}
 type RowHeader={Version:Version,FrameSize:uint64,FusedType:uint32,TypedefsSize:uint64,Control:bool}
-{Version:{Major:0,Minor:31},FrameSize:79,FusedType:52,TypedefsSize:33,Control:false}::RowHeader
+{Version:{Major:2,Minor:0},FrameSize:79,FusedType:52,TypedefsSize:33,Control:false}::RowHeader
 type SuperFooter={Version:Version,FooterSize:uint64,FusedTypeSize:uint64,StatsSize:uint64,SuperFrameSize:uint64}
-{Version:{Major:0,Minor:31},FooterSize:58,FusedTypeSize:12,StatsSize:0,SuperFrameSize:79}::SuperFooter
+{Version:{Major:2,Minor:0},FooterSize:58,FusedTypeSize:12,StatsSize:0,SuperFrameSize:79}::SuperFooter
 ```
 
 ---
