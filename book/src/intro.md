@@ -178,8 +178,10 @@ Could not convert string 'foo' to INT32
 LINE 1: SELECT [1,'foo']
                   ^^^^^
 $ datafusion-cli -c "SELECT [1,'foo']"
-DataFusion CLI v52.1.0
+DataFusion CLI v56.0.0
 Error: Optimizer rule 'simplify_expressions' failed
+caused by
+Failed to cast field 'lit' from Utf8 to Int64
 caused by
 Arrow error: Cast error: Cannot cast string 'foo' to value of Int64 type
 ```
