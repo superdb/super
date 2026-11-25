@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	Version     = 7
+	Version     = 8
 	TablesTag   = "tables"
 	MagicFile   = "superdb.bsup"
 	MagicString = "SUPERDB"
