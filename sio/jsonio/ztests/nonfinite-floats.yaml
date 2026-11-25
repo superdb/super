@@ -1,0 +1,16 @@
+# Infinities and NaN, which JSON numbers can't represent, are written as
+# strings in their SUP form, including by json_stringify().
+
+spq: |
+  values 1.0/0, -1.0/0, 0.0/0,
+    {a:+Inf::float32,b:[-Inf::float16,NaN],c:1.5},
+    json_stringify([+Inf,1.5])
+
+flags: -f json
+
+output: |
+  "+Inf"
+  "-Inf"
+  "NaN"
+  {"a":"+Inf","b":["-Inf","NaN"],"c":1.5}
+  "[\"+Inf\",1.5]"
