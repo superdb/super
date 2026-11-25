@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
+	"strconv"
 	"time"
 
 	"github.com/superdb/super"
@@ -234,7 +236,11 @@ func (w *Writer) writePrimitive(val super.Value) {
 	case super.IsUnsigned(id):
 		v, c = val.Uint(), numberColor
 	case super.IsFloat(id):
-		v, c = val.Float(), numberColor
+		if f := val.Float(); math.IsInf(f, 0) || math.IsNaN(f) {
+			v = strconv.FormatFloat(f, 'g', -1, 64)
+		} else {
+			v, c = f, numberColor
+		}
 	case id == super.IDBool:
 		v, c = val.AsBool(), boolColor
 	case id == super.IDBytes:
