@@ -20,8 +20,9 @@ import (
 // a development version encoded before major and minor versions were
 // introduced (when the version was a plain uint16) decodes as major version 0.
 //
+// Last major version: 2.
 // Last dev minor version: 31
-var CurrentVersion = Version{0, 31}
+var CurrentVersion = Version{2, 0}
 
 const (
 	VersionSize = 2
