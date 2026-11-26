@@ -25,7 +25,10 @@ and lists, but a relation is still a single product type that every row must
 have, and JSON data in general doesn't have one.  So, just as Pavlo and Stonebraker
 describe, the RM absorbed this challenge by embedding JSON as its own
 standalone type inside the RM's type system, with a parallel set of semantics
-and manipulation logic.
+and manipulation logic.  The newer
+[Variant type](https://parquet.apache.org/docs/file-format/types/variantencoding/),
+while more performant than JSON, is no better semantically.  A Variant is
+merely a JSON type with some additional primitive types.
 
 The result is two different design patterns bolted together and forced to
 interoperate in unnatural ways.  Borrowing a
@@ -34,7 +37,7 @@ we call the juxtaposition of these mismatched type systems a _frankentype_.
 
 ## The Frankentype
 
-As opposed to a freakish building, here's an example of a frankentype _data type_.
+As opposed to a freakish building, here's an example of a frankentype as a _data type_.
 Suppose we have some data describing shapes (`shapes.json`), which we will use throughout
 this section:
 ```mdtest-input shapes.json
