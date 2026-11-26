@@ -35,7 +35,7 @@ we call the juxtaposition of these mismatched type systems a _frankentype_.
 ## The Frankentype
 
 As opposed to a freakish building, here's an example of a frankentype _data type_.
-Suppose we have some data describing shapes, which we will use throughout
+Suppose we have some data describing shapes (`shapes.json`), which we will use throughout
 this section:
 ```mdtest-input shapes.json
 {"id":1,"type":"Rectangle","dimensions":{"width":2,"height":1}}
@@ -247,10 +247,19 @@ Under the covers, SuperDB [fuses](super-sql/type-fusion.md) these types into
 one type that describes the whole collection, which the type checker uses to
 check queries:
 ```mdtest-command
-super -s -c 'from shapes.bsup | aggregate fuse(this)'
+super -S -c 'from shapes.bsup | aggregate fuse(this)'
 ```
 ```mdtest-output
-<{id:int64,type:string,dimensions:{width:int64|missing,height:int64|missing,radius:int64|missing,side:int64|missing}|[int64]}>
+<{
+  id: int64,
+  type: string,
+  dimensions: {
+    width: int64|missing,
+    height: int64|missing,
+    radius: int64|missing,
+    side: int64|missing
+  }|[int64]
+}>
 ```
 Here `dimensions` is a sum type: either a record or an array of integers.
 And a field that only some shapes have is marked `missing` rather than
@@ -339,7 +348,10 @@ A [type assertion](super-sql/expressions/type-assertions.md) picks out the
 dimensions that are arrays, the other shapes produce nothing, and
 `with` carries along the shape's `id`:
 ```mdtest-command
-super -s -c 'from shapes.bsup | unnest d:=dimensions.([int64]) with id'
+super -s -c '
+  from shapes.bsup
+  | unnest d:=dimensions.([int64]) with id
+'
 ```
 ```mdtest-output
 {d:1,id:5}
@@ -361,7 +373,7 @@ super -s -c 'from shapes.bsup | unnest d:=dimensions.([int64]) with id into (agg
 
 In SQL, comparing `NULL` to anything yields `NULL`, which `WHERE` treats as
 false.  So with the wide table above, the rows returned by
-`WHERE radius > 5` and by `WHERE NOT (radius > 5)` don't add up to the
+`WHERE dimensions.radius > 5` and by `WHERE NOT (dimensions.radius > 5)` don't add up to the
 whole table: every shape that isn't a circle silently disappears from both.
 And a misspelled JSON path just returns `NULL`, so the query still runs
 and gives the wrong answer.

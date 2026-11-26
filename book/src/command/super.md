@@ -13,7 +13,7 @@ the [db](db.md) subcommand and specify an optional query with `-c`:
 super -c "SELECT 'hello, world'"
 ```
 To interact with a SuperDB database, invoke the [db](db.md) subcommands
-of `super` and/or program against the database API.
+of `super` and/or program against the [database API](../database/api.md).
 
 SuperDB does not have a [REPL like SQLite](https://sqlite.org/cli.html).
 Instead, your shell is your REPL and the `super` command lets you:

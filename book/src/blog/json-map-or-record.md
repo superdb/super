@@ -28,7 +28,7 @@ information that tells a record from a map.
 
 ## A messy data set
 
-Here are some shapes:
+Here are some shapes (`shapes.json`):
 ```mdtest-input shapes.json
 {"id":1,"type":"Rectangle","dimensions":{"width":2,"height":1}}
 {"id":2,"type":"Circle","dimensions":{"radius":3}}
@@ -40,10 +40,19 @@ Most `dimensions` are objects with different fields, and one is an array.
 SuperDB reads each object as a record, and fusing their types gives a
 single type that describes all of them:
 ```mdtest-command
-super -s -c 'from shapes.json | aggregate fuse(this)'
+super -S -c 'from shapes.json | aggregate fuse(this)'
 ```
 ```mdtest-output
-<{id:int64,type:string,dimensions:{width:int64|missing,height:int64|missing,radius:int64|missing,side:int64|missing}|[int64]}>
+<{
+  id: int64,
+  type: string,
+  dimensions: {
+    width: int64|missing,
+    height: int64|missing,
+    radius: int64|missing,
+    side: int64|missing
+  }|[int64]
+}>
 ```
 `dimensions` is either a record whose fields may be missing or an array of
 integers.  We'll come back to this type at the end.
@@ -52,7 +61,7 @@ integers.  We'll come back to this type at the end.
 
 Now let's throw that information away on purpose.  When a database stores
 JSON in a column, the column's type is effectively this recursive union,
-which we can write in SuperSQL as:
+which we can write in SuperSQL and save in `json.spq` as:
 ```mdtest-input json.spq
 type JSON =
   float64 | int64 | bool | string | null
@@ -106,7 +115,10 @@ it out.
 That works, but look what happens with a typo, `dimension` for
 `dimensions`:
 ```mdtest-command
-super -I json.spq -s -c 'from shapes.json | values this::JSON | values this.(map{string:JSON})?.dimension.(map{string:JSON}) ?? 1'
+super -I json.spq -s -c '
+  from shapes.json
+  | values this::JSON
+  | values this.(map{string:JSON})?.dimension.(map{string:JSON}) ?? 1'
 ```
 ```mdtest-output
 1

@@ -76,7 +76,7 @@ super -S -c "aggregate fuse(this)" gha.bsup | wc -l
     1253
 ```
 This is SuperDB's version of schema inference, with one difference that
-matters.  The fused type is something the compiler computes to check
+matters: The fused type is something the compiler computes to check
 your queries.  The data doesn't have to be rewritten to fit it.
 
 ## The Same Queries
@@ -302,7 +302,7 @@ super -s -c "
 {action:"closed",count:174914}
 {action:"reopened",count:2080}
 ```
-and for finding who gets assigned the most pull requests.  A pull request
+We can also find who gets assigned the most pull requests.  A pull request
 has both a single `assignee` and a list of `assignees`, and the DuckDB post
 combines the two with a `UNION ALL`.  Here an array expression with a spread
 does the same job, and [unnest](../super-sql/operators/unnest.md) turns the
