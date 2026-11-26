@@ -63,7 +63,17 @@ func main() {
 
 func genFunc(name, op, typ string, lhs, rhs vector.Form) string {
 	s := fmt.Sprintf("func %s(lhs, rhs vector.Any) vector.Any {\n", name)
-	s += genVarInit("l", typ, lhs)
+	if (lhs == vector.FormDict && rhs == vector.FormConst) || (lhs == vector.FormConst && rhs == vector.FormDict) {
+		s += genDictConstBody(op, typ, rhs)
+	} else {
+		s += genFuncBody(op, typ, lhs, rhs)
+	}
+	s += "}\n"
+	return s
+}
+
+func genFuncBody(op, typ string, lhs, rhs vector.Form) string {
+	s := genVarInit("l", typ, lhs)
 	s += genVarInit("r", typ, rhs)
 	lexpr := genExpr("l", lhs)
 	rexpr := genExpr("r", rhs)
@@ -80,17 +90,51 @@ func genFunc(name, op, typ string, lhs, rhs vector.Form) string {
 			s += fmt.Sprintf("a, b := %s, %s\n", lexpr, rexpr)
 		}
 		s += fmt.Sprintf("return vector.NewConstBool(%s, lhs.Len())\n", cond)
-	} else {
-		s += "n := lhs.Len()\n"
-		s += "out := vector.NewFalse(n)\n"
-		s += "for k := range n {\n"
-		if typ == "Float" {
-			s += fmt.Sprintf("a, b := %s, %s\n", lexpr, rexpr)
-		}
-		s += fmt.Sprintf("if %s { out.Set(k) }}\n", cond)
-		s += "return out\n"
+		return s
 	}
-	s += "}\n"
+	s += "n := lhs.Len()\n"
+	s += "out := vector.NewFalse(n)\n"
+	s += "for k := range n {\n"
+	if typ == "Float" {
+		s += fmt.Sprintf("a, b := %s, %s\n", lexpr, rexpr)
+	}
+	s += fmt.Sprintf("if %s { out.Set(k) }}\n", cond)
+	s += "return out\n"
+	return s
+}
+
+func genDictConstBody(op, typ string, rhs vector.Form) string {
+	d, c := "lhs", "rhs"
+	if rhs == vector.FormDict {
+		d, c = c, d
+	}
+	s := fmt.Sprintf("d := %s.(*vector.Dict)\n", d)
+	s += fmt.Sprintf("dv := d.Any.(*vector.%s)\n", typ)
+	s += fmt.Sprintf("c := %s.(*vector.Const).Any.(*vector.%s).Value(0)\n", c, typ)
+	s += "result := make([]bool, dv.Len())\n"
+	lexpr := "dv.Value(k)"
+	rexpr := "c"
+	if rhs == vector.FormDict {
+		lexpr, rexpr = rexpr, lexpr
+	}
+	if typ == "Bytes" {
+		lexpr = fmt.Sprintf("string(%s)", lexpr)
+		rexpr = fmt.Sprintf("string(%s)", rexpr)
+	}
+	cond := fmt.Sprintf("%s %s %s", lexpr, op, rexpr)
+	if typ == "Float" {
+		cond = floatCond(op)
+	}
+	s += "for k := range dv.Len() {\n"
+	if typ == "Float" {
+		s += fmt.Sprintf("a, b := %s, %s\n", lexpr, rexpr)
+	}
+	s += fmt.Sprintf("result[k] = %s}\n", cond)
+	s += "n := lhs.Len()\n"
+	s += "out := vector.NewFalse(n)\n"
+	s += "for k := range n {\n"
+	s += "if result[d.Index[k]] { out.Set(k) }}\n"
+	s += "return out\n"
 	return s
 }
 
