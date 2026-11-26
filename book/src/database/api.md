@@ -109,7 +109,7 @@ PUT /table/{table}
 ```
 curl -X PUT \
      -H 'Content-Type: application/json' \
-     -d '{"name": "catalog"}' \
+     -d '{"name": "products"}' \
      http://localhost:9867/table/parts
 ```
 
@@ -135,7 +135,7 @@ DELETE /table/{table}
 
 ```
 curl -X DELETE \
-     http://localhost:9867/table/catalog
+     http://localhost:9867/table/products
 ```
 
 On success, HTTP 204 is returned with no response payload.

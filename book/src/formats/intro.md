@@ -1,20 +1,22 @@
 # Formats
 
-This section contains the [data model definition](model.md) for super-structured data
-along with a set of concrete formats that all implement this same data model,
-providing a unified approach to row, columnar, and human-readable formats:
+This section defines the [super data model](model.md), which is SuperDB's
+implementation of the [algebraic data model](../adm.md) (ADM), along with
+the two formats that serialize it:
 
-* [Super (SUP)](sup.md) is a human-readable format for super-structured data.  All JSON
-documents are SUP values as the SUP format is a strict superset of the JSON syntax.
-* [Super Binary (BSUP)](bsup.md) is an efficient binary representation of
-a sequence of arbitrarily-typed values in row form, somewhat like
-[Avro](https://avro.apache.org/), or columnar form, somewhat like
-[Parquet](https://parquet.apache.org/),
-[ORC](https://orc.apache.org/), or
-[Arrow](https://arrow.apache.org/), but for super-structured data.
+* [Super (SUP)](sup.md) is a human-readable text format.  It is a strict
+  superset of JSON syntax, so every JSON document is also a SUP value.
+* [Super Binary (BSUP)](bsup.md) is an efficient binary format for a
+  sequence of arbitrarily-typed values, in row form, a bit like
+  [Parquet's Variant encoding](https://parquet.apache.org/docs/file-format/types/variantencoding/),
+  or in columnar form, somewhat like
+  [Parquet](https://parquet.apache.org/),
+  [ORC](https://orc.apache.org/), or
+  [Arrow](https://arrow.apache.org/).
 
-Because all of the formats conform to the same super-structured data model,
-conversions between a human-readable form and a binary row or columnar form can
-be carried out with no loss of information.  This provides the best of both worlds:
-the same data can be easily expressed in and converted between a human-friendly
-and easy-to-program text form alongside efficient row and columnar formats.
+Both formats are self-describing: the types travel with the values, so
+there is no schema to agree on before data can be written or read.
+
+And because both formats implement the same data model, converting between
+the human-readable form and the binary row or columnar form loses no
+information.  A value has the same type whichever format it is in.

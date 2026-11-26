@@ -1,0 +1,4 @@
+[codespell]
+# Deliberate misspelling in src/blog/gharchive.md (a field name typo that the
+# type checker catches).
+ignore-words-list = asignees

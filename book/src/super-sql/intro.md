@@ -69,6 +69,56 @@ SELECT * FROM f1.json JOIN f2.json ON f1.id=f2.id
 SELECT watchers FROM https://api.github.com/repos/superdb/super
 ```
 
+## Not Just a Better SQL
+
+Despite SQL's enduring success,
+it is widely accepted that there are serious flaws with the language.
+Here are some noteworthy arguments that build the case:
+
+* [A Critique of the SQL Database Language](https://dl.acm.org/doi/pdf/10.1145/984549.984551)
+a 1983 paper by
+[C.J. Date](https://en.wikipedia.org/wiki/Christopher_J._Date),
+* [Against SQL](https://www.scattered-thoughts.net/writing/against-sql/)
+by [Jamie Brandon](https://www.scattered-thoughts.net/),
+* [A Critique of Modern SQL And A Proposal Towards A Simple and Expressive
+Query Language](https://www.cidrdb.org/cidr2024/papers/p48-neumann.pdf)
+by [Neumann](https://db.in.tum.de/~neumann/)
+and [Leis](https://www.cs.cit.tum.de/dis/team/prof-dr-viktor-leis/),
+which proposes SaneQL.
+
+These publications all argue that SQL is so problematic it should
+be replaced outright. In contrast, the authors of
+[SQL Has Problems. We Can Fix Them: Pipe Syntax In SQL](https://research.google/pubs/sql-has-problems-we-can-fix-them-pipe-syntax-in-sql/) propose that SQL
+should be merely improved upon by creating a superset of SQL.
+Except for compositional syntax, the paper says SQL is
+perfectly reasonable and we should live with its anachronisms (see Section 2.4).
+[PRQL](https://prql-lang.org/) takes a similar path with a new syntax that
+compiles to SQL.
+
+But better syntax doesn't fix the type system, and bolting JSON or variant
+types onto the RM adds a second type system with its own operators rather than
+fixing the first (see [The Frankentype](../adm.md#the-frankentype)).
+SuperSQL instead keeps backward compatibility in its SQL clauses while its pipe operators work natively on algebraic types, e.g.,
+
+* array indexing [can be configured](declarations/pragmas.md)
+  as 1-based in SQL clauses but 0-based in pipe operators,
+* column names in SQL clauses are case insensitive while record field references
+are case sensitive in pipe operators,
+* complex scoping rules for table aliases and column references are required in
+relational SQL while binding from names to data in pipe operators is managed
+in a uniform and simple way as dereferenced paths on [this](#pipe-scoping),
+* the syntactic structure of SQL clauses means all data must conform to a table
+whereas pipe operators can emit any data type desired in a varying fashion, and
+* [sum types](types/union.md) are integral to piped data allowing mix-typed data processing
+and results that need not fit in a uniform table.
+
+> [!NOTE]
+> Case insensitive column names in SQL clauses are not yet supported.
+> ([super#6066](https://github.com/superdb/super/issues/6066))
+
+With this approach, SuperSQL can be adopted for existing use cases
+based on SQL while incrementally embracing the pipe model and algebraic types.
+
 ## Pipe Queries
 
 The entities that transform data within a SuperSQL pipeline are called

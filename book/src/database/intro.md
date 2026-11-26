@@ -16,9 +16,11 @@ like `CREATE TABLE` and `INSERT`, or over HTTP with the database
 A database lives entirely at its _storage path_, which is a directory
 on a local file system or a location in cloud storage (currently
 [Amazon S3](../dev/integrations/s3.md)).  All of its data and metadata
-are stored there as [BSUP](../formats/bsup.md) objects, so there is no
-catalog, metastore, or other service to set up, and a copy of the storage
-path is a complete copy of the database.
+are stored there as [BSUP](../formats/bsup.md) objects: each table in the
+[SuperTable](format.md#supertable) format and the database's list of tables in
+the [SuperCatalog](format.md#supercatalog) format.  There is no separate
+metastore or catalog service to set up, as the catalog is just objects at the
+storage path, and a copy of the storage path is a complete copy of the database.
 
 ## Getting Started
 
@@ -138,9 +140,11 @@ any past snapshot can be queried.
 ## Storage
 
 The storage layer is designed for cloud object stores and separates
-compute from storage.  All of the objects that make up a database,
-i.e., data objects, commits, and the journals that track tables and
-branches, are immutable and stored as BSUP, so caching them is easy
+compute from storage.  A database comprises one SuperCatalog, which records
+its tables and their configuration, and one SuperTable for each table, which
+holds the table's data objects, commits, and branches.
+All of these objects are stored as BSUP and, apart from the heads of the
+journals that track tables and branches, are immutable, so caching them is easy
 and backup, migration, and replication are simple copies.
 The [format](format.md) section describes the layout in detail.
 

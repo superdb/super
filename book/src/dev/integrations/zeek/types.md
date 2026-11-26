@@ -1,6 +1,6 @@
 # Type System
 
-As the [super-structured data model](../../../formats/model.md) was in many ways inspired by the
+As the [super data model](../../../formats/model.md) was in many ways inspired by the
 [Zeek TSV log format](https://docs.zeek.org/en/current/tutorial/logs.html#zeek-log-formats),
 SuperDB's rich storage formats ([SUP](../../../formats/sup.md),
 [BSUP](../../../formats/bsup.md), etc.) maintain comprehensive interoperability

@@ -3,7 +3,7 @@
 Many commands produce output, which always originates in super-structured form,
 but can be serialized into a number of [supported formats](formats.md).
 The super-structured formats are generally
-preferred because they retain the full richness of the super-structured
+preferred because they retain the full richness of the super
 data model.
 
 Output is written to standard output by default or, if `-o` is specified,

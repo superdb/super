@@ -414,7 +414,7 @@ preparation, union types are really quite powerful.  They allow records
 with fields of different types or mixed-type arrays to be easily expressed
 while also having a very precise type definition.  This is the essence
 of the new
-[super-structured data model](../formats/model.md).
+[super data model](../formats/model.md).
 
 ### First-class Types
 

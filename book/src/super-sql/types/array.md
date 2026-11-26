@@ -2,7 +2,7 @@
 
 Arrays conform to the
 [array type](../../formats/model.md#22-array)
-in the super-structured data model and follow the
+in the super data model and follow the
 [syntax](../../formats/sup.md#252-array-type)
 of arrays in the [SUP format](../../formats/sup.md), i.e.,
 an array type has the form
