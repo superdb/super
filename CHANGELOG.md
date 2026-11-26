@@ -4,6 +4,190 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - YYYY-MM-DD
+
+### Highlights
+
+- **The algebraic data model and a blog:** The docs now open with a chapter on [the algebraic data model](https://superdb.org/adm.html) behind SuperDB, and a new [blog](https://superdb.org/blog/intro.html) starts with posts on the sum type hiding in GitHub Archive JSON and on JSON's map-or-record problem.
+- **Faster aggregations:** For faster performance, aggregations and `distinct` now use a vectorized hash table, and scans of BSUP files read less data for queries that use only a value's type, a type assertion, or some of a record's fields.
+- **AI agents via MCP:** `super db mcp` and `super db serve -mcp` let AI agents describe, query, and load a database through the Model Context Protocol.
+- **Working with sum types:** Type assertions (e.g., `x.(int64) ?? 0`), `match` expressions on a value's type, functions that construct types, and type narrowing in the type checker make values of union types easier to work with.
+- **Consistent comparisons:** Comparisons are now type-checked by the same rules at compile time and at run time, and values of every type have an order.
+
+### **BREAKING CHANGES**
+
+Users of earlier releases should expect to regenerate any saved binary files and databases from their original sources, and to update some queries. If you have valuable saved data you can't easily regenerate, please speak up on [community Slack](https://www.brimdata.io/join-slack/) or [open an issue](https://github.com/superdb/super/issues) for assistance.
+
+- BSUP files and databases written by earlier releases, or by builds of `main` since v0.4.0, can't be read by this release and fail with a `version mismatch` error. The BSUP format has changed for faster type handling, and the database version has advanced with it ([#7605], [#7609], [#7619], [#7726], [#7727]).
+- Comparisons are no longer polymorphic. Comparing values of different types (e.g., `1 == "a"`, which was `false`) now converts the operands when possible and is otherwise an error, reported by the compiler when the types are known and as an error value at run time otherwise. The `in` operator now reports the same errors at run time as at compile time. `compare()` still compares values of any types ([#7663], [#7667]).
+- Static type checking is stricter. These are now compile errors: arithmetic on a union with a non-numeric type (e.g., `x+1` where `x` is `int64|string`; narrow it first with a type assertion like `x.(int64) ?? 0` or a filter like `where is(x, <int64>)`), a reference inside `ok()` to a field that no input can have, and `LIKE` on a value that isn't a string (e.g., `bytes`, where it was silently `false`) ([#7652], [#7670], [#7698]).
+- After an outer join, the side that may be unmatched is now typed as possibly missing, so a bare reference such as `right.color` is a compile error where it was `error("no such field right")` at run time. Use `ok()` or `?.`, which now turns a missing field into `none`, e.g., `this?.right?.color ?? "unpainted"` ([#7704]).
+- `unnest` no longer treats a two-field record specially, so `unnest {id,a}` is now an error. Use `unnest a with id`, which puts the element first (`{a:1,id:1}`), or name the element with `:=`, as in `unnest item:=a with id` ([#7600]).
+- `grep()` now always treats its pattern as a regular expression, so a pattern without metacharacters is now case-sensitive, where it was a case-insensitive substring search (e.g., `grep("BAR", "foobar")` is now `false`). Start the pattern with `(?i)` to ignore case. Search expressions such as `search BAR` are unchanged ([#7723]).
+- The unnamed columns of SQL `VALUES` rows and tuples are now named `column1`, `column2`, and so on, as in PostgreSQL, where they were `c0`, `c1` (e.g., `values (1,2)` is now `{column1:1,column2:2}`) ([#7669]).
+
+### Added
+
+- Model Context Protocol (MCP) support for AI agents: `super db mcp` runs an MCP server over standard input and output, and `super db serve -mcp` adds an MCP endpoint to a running service (see also `-mcp.readonly` and `-mcp.include`). Its tools list and describe tables, run queries, and load data, including CSV with a `delim` argument ([#7602], [#7677]).
+- Type assertions: `e.(T)` is `e` if it has type `T` and `none` otherwise, e.g., `x.(int64) ?? 0`, or `x.(Push)?.ref` to pick a member of a sum type ([#7592]).
+- `match` expressions select a result by the type of a value, e.g., `match this when int64 "int" when string "str" else "other"` ([#7595], [#7604]).
+- New functions that construct types from other types: `array_type()`, `enum_type()`, `error_type()`, `fusion_type()`, `map_type()`, `named_type()`, `option_type()`, `record_type()`, `set_type()`, and `union_type()`, e.g., `array_type(<int64>)` is `<[int64]>` ([#7579]).
+- The type checker now narrows types after a filter, e.g., after `where is(x, <int64>)`, `x` is treated as an `int64` ([#7629]).
+- New `supertypeof()` function, which returns a value's type including any fusion types, which `typeof()` leaves out ([#7577]).
+- New `has()` function, which tests whether a record (or record type) has a field or a map has a key ([#7635]).
+- Records can now be cast to maps (e.g., `map{string:any}`) and maps to records ([#7591]).
+- Materialized subqueries: `let q = materialized (...)`, `with t as materialized (...)`, and `values materialized (...)` run their query once and reuse its output ([#7640]).
+- The `output` operator can now end a subquery (including the body of `unnest ... into`), sending its values to the query's output ([#7639]).
+- `from` with a computed (f-string) URL now accepts the `method`, `headers`, and `body` options, and when `from` has a parent, these options are evaluated for each input value ([#7624]).
+- New `delim` option on `from` for CSV sources, e.g., `from data.csv (delim ';')`, and on SQL `FROM` ([#7675]).
+- `super -c <query> -- -` and `super db -c <query> -` read the lines of standard input into the `args` constant ([#7574]).
+
+### Changed
+
+- A `none` value (e.g., from `ok()` or `?.`) is now dropped from query output, and a pipe subquery that produces no values is now `none` rather than `null`, so it disappears from a record, array, or map (e.g., `{s:(unnest a | where this > 1)}` is `{}` where it was `{s:null}`). SQL subqueries still give `null` ([#7584], [#7635]).
+- `optionize()` now treats a field whose type includes `null` like a missing field (e.g., `{y?:string}` rather than `{y?:string|null}`), and casting `null` to an option type that doesn't admit `null` now gives `none` ([#7590]).
+- Accessing a field of a `null` record now gives `null` rather than an error, and the fields of a nullable record (e.g., `null|{b:int32}`) can now be accessed ([#7613], [#7617]).
+- The comparison operators `<`, `<=`, `>`, and `>=` now order values of every type, including `bool` (`false < true`), `net`, arrays, sets, maps, records, enums, and type values, and NaN now sorts after all other numbers in comparisons, `compare()`, and `sort` ([#7664], [#7665], [#7674], [#7685], [#7687], [#7689], [#7690], [#7706], [#7707], [#7709], [#7711]).
+- `under()` of a value of a named union type now removes only the name, so the value keeps its union type (e.g., `under(1::U)` is `1::(int64|string)` where it was `1`) ([#7620]).
+- JSON input is now batched by size as well as by count, with a batch ending at 16 MB of input by default (set with the new `-json.inputcapbytes` flag), so inputs with large values use much less memory ([#7701]).
+
+### Fixed
+
+- Fix `distinct` returning duplicate values when it ran in parallel (e.g., on BSUP files) ([#7589]).
+- Fix `switch` sending a value down a case whose result was `null` or not a Boolean, and a related panic ([#7632]).
+- Fix filters after an outer join returning extra rows, e.g., `LEFT JOIN ... WHERE p.color='red'` returned every left row. An outer join is now turned into an inner join when such a filter can't be true for unmatched values, so the filter is still pushed down ([#7703], [#7705]).
+- Fix subtracting two timestamps, which gave a timestamp rather than a duration ([#7593]).
+- Fix `bucket()` returning constant values unchanged (e.g., timestamps in a BSUP frame that all have the same value, or SQL `CAST(... AS DATE)` of a constant), and rounding up rather than down before 1970 and for negative durations ([#7713], [#7716]).
+- Fix `position()` counting bytes rather than characters ([#7720]).
+- Fix search expressions and `grep()` matching the wrong values inside arrays, sets, and maps after a filter, `search` panics on nulls and on unions inside errors, and `has_error()` panics and wrong results after a filter ([#7644], [#7645], [#7646]).
+- Fix the JSON reader splitting a number that straddled a 512 KiB buffer boundary, and typing an empty array as `[missing]` when the same field is a non-empty array elsewhere. Fix JSON output panicking on infinite and NaN floats, which are now written as the strings `"+Inf"`, `"-Inf"`, and `"NaN"` ([#7578], [#7724], [#7725]).
+- Fix reading BSUP frames larger than 100 MB, a race that could panic with `type "foo" redefined` or give wrong values when a query reads the same BSUP file more than once, and lost type names and panics when projecting fields from a union of named record types ([#7598], [#7642], [#7651]).
+- Fix `super db` panics loading values of a named record type into a sorted table and compacting a table of mixed types, a crash when filtering a table with more than one data object, and the service's `/compile` endpoint ([#7661], [#7686], [#7699]).
+- Fix `unnest` of an array expression whose elements all disappear (e.g., spreads of non-arrays), and panics after `unnest` or `values` over values of mixed types ([#7612], [#7672]).
+- Fix casting `none` to a named type, which gave a wrong value (e.g., `-128::named`), and the field name derived from a `?.` expression (e.g., `put o?.y` added a field named `"o?.y"`) ([#7601], [#7676]).
+- Fix SQL queries dropping columns when the input mixes a named record type with other record types ([#7603]).
+- Fix writing Parquet when a field from `fuse` is `null` wherever it's present, which failed with `unsupported type: not implemented: support for DENSE_UNION` ([#7694]).
+- Fix a leading UTF-8 byte order mark (as written by Excel and Windows Notepad) ending up in the first CSV or TSV column name, or making JSON, SUP, and Zeek input fail to parse or be auto-detected. It's now skipped ([#7668]).
+- Fix subqueries over a computed `from` (e.g., `[from f"{this}"]`) returning nothing or hanging after an earlier value hit an error ([#7662]).
+- Fix a record spread of a union value, which contributed no fields ([#7719]).
+- Fix panics: in `substring()`; when a user function calls an unknown function; when a recursive function is used as an operator (now an error asking for `values` or `where`); when indexing gives an error (e.g., `[1][2]`); in a conditional expression over database data; and in `from` with a computed path over mixed-type input ([#7583], [#7627], [#7658], [#7659], [#7660], [#7678]).
+
+### Performance
+
+- Faster aggregations and `distinct`, using a new vectorized hash table ([#7607], [#7631], [#7643], [#7648], [#7650], [#7654], [#7655], [#7656]).
+- Scans of BSUP files read only types, not values, for queries that use only a value's type (e.g., `typeof()` or `kind()`), and read only the selected member of a union for a type assertion ([#7653], [#7657], [#7683]).
+- Fields of a `values` record that nothing downstream uses are no longer read from files ([#7587], [#7673]).
+- Faster `in` with a constant list, and faster comparisons of dictionary-encoded columns with constants ([#7679], [#7680], [#7696], [#7721]).
+- Faster field access through unions with `missing`, as in fused JSON data ([#7708]).
+- Faster queries over values of mixed types and unions ([#7691], [#7692], [#7693], [#7717]).
+- Faster conditional (`?:`) expressions, notably in recursive functions, and less memory used by `any()` ([#7586], [#7596]).
+
+[#7574]: https://github.com/superdb/super/pull/7574
+[#7577]: https://github.com/superdb/super/pull/7577
+[#7578]: https://github.com/superdb/super/pull/7578
+[#7579]: https://github.com/superdb/super/pull/7579
+[#7583]: https://github.com/superdb/super/pull/7583
+[#7584]: https://github.com/superdb/super/pull/7584
+[#7586]: https://github.com/superdb/super/pull/7586
+[#7587]: https://github.com/superdb/super/pull/7587
+[#7589]: https://github.com/superdb/super/pull/7589
+[#7590]: https://github.com/superdb/super/pull/7590
+[#7591]: https://github.com/superdb/super/pull/7591
+[#7592]: https://github.com/superdb/super/pull/7592
+[#7593]: https://github.com/superdb/super/pull/7593
+[#7595]: https://github.com/superdb/super/pull/7595
+[#7596]: https://github.com/superdb/super/pull/7596
+[#7598]: https://github.com/superdb/super/pull/7598
+[#7600]: https://github.com/superdb/super/pull/7600
+[#7601]: https://github.com/superdb/super/pull/7601
+[#7602]: https://github.com/superdb/super/pull/7602
+[#7603]: https://github.com/superdb/super/pull/7603
+[#7604]: https://github.com/superdb/super/pull/7604
+[#7605]: https://github.com/superdb/super/pull/7605
+[#7607]: https://github.com/superdb/super/pull/7607
+[#7609]: https://github.com/superdb/super/pull/7609
+[#7612]: https://github.com/superdb/super/pull/7612
+[#7613]: https://github.com/superdb/super/pull/7613
+[#7617]: https://github.com/superdb/super/pull/7617
+[#7619]: https://github.com/superdb/super/pull/7619
+[#7620]: https://github.com/superdb/super/pull/7620
+[#7624]: https://github.com/superdb/super/pull/7624
+[#7627]: https://github.com/superdb/super/pull/7627
+[#7629]: https://github.com/superdb/super/pull/7629
+[#7631]: https://github.com/superdb/super/pull/7631
+[#7632]: https://github.com/superdb/super/pull/7632
+[#7635]: https://github.com/superdb/super/pull/7635
+[#7639]: https://github.com/superdb/super/pull/7639
+[#7640]: https://github.com/superdb/super/pull/7640
+[#7642]: https://github.com/superdb/super/pull/7642
+[#7643]: https://github.com/superdb/super/pull/7643
+[#7644]: https://github.com/superdb/super/pull/7644
+[#7645]: https://github.com/superdb/super/pull/7645
+[#7646]: https://github.com/superdb/super/pull/7646
+[#7648]: https://github.com/superdb/super/pull/7648
+[#7650]: https://github.com/superdb/super/pull/7650
+[#7651]: https://github.com/superdb/super/pull/7651
+[#7652]: https://github.com/superdb/super/pull/7652
+[#7653]: https://github.com/superdb/super/pull/7653
+[#7654]: https://github.com/superdb/super/pull/7654
+[#7655]: https://github.com/superdb/super/pull/7655
+[#7656]: https://github.com/superdb/super/pull/7656
+[#7657]: https://github.com/superdb/super/pull/7657
+[#7658]: https://github.com/superdb/super/pull/7658
+[#7659]: https://github.com/superdb/super/pull/7659
+[#7660]: https://github.com/superdb/super/pull/7660
+[#7661]: https://github.com/superdb/super/pull/7661
+[#7662]: https://github.com/superdb/super/pull/7662
+[#7663]: https://github.com/superdb/super/pull/7663
+[#7664]: https://github.com/superdb/super/pull/7664
+[#7665]: https://github.com/superdb/super/pull/7665
+[#7667]: https://github.com/superdb/super/pull/7667
+[#7668]: https://github.com/superdb/super/pull/7668
+[#7669]: https://github.com/superdb/super/pull/7669
+[#7670]: https://github.com/superdb/super/pull/7670
+[#7672]: https://github.com/superdb/super/pull/7672
+[#7673]: https://github.com/superdb/super/pull/7673
+[#7674]: https://github.com/superdb/super/pull/7674
+[#7675]: https://github.com/superdb/super/pull/7675
+[#7676]: https://github.com/superdb/super/pull/7676
+[#7677]: https://github.com/superdb/super/pull/7677
+[#7678]: https://github.com/superdb/super/pull/7678
+[#7679]: https://github.com/superdb/super/pull/7679
+[#7680]: https://github.com/superdb/super/pull/7680
+[#7683]: https://github.com/superdb/super/pull/7683
+[#7685]: https://github.com/superdb/super/pull/7685
+[#7686]: https://github.com/superdb/super/pull/7686
+[#7687]: https://github.com/superdb/super/pull/7687
+[#7689]: https://github.com/superdb/super/pull/7689
+[#7690]: https://github.com/superdb/super/pull/7690
+[#7691]: https://github.com/superdb/super/pull/7691
+[#7692]: https://github.com/superdb/super/pull/7692
+[#7693]: https://github.com/superdb/super/pull/7693
+[#7694]: https://github.com/superdb/super/pull/7694
+[#7696]: https://github.com/superdb/super/pull/7696
+[#7698]: https://github.com/superdb/super/pull/7698
+[#7699]: https://github.com/superdb/super/pull/7699
+[#7701]: https://github.com/superdb/super/pull/7701
+[#7703]: https://github.com/superdb/super/pull/7703
+[#7704]: https://github.com/superdb/super/pull/7704
+[#7705]: https://github.com/superdb/super/pull/7705
+[#7706]: https://github.com/superdb/super/pull/7706
+[#7707]: https://github.com/superdb/super/pull/7707
+[#7708]: https://github.com/superdb/super/pull/7708
+[#7709]: https://github.com/superdb/super/pull/7709
+[#7711]: https://github.com/superdb/super/pull/7711
+[#7713]: https://github.com/superdb/super/pull/7713
+[#7716]: https://github.com/superdb/super/pull/7716
+[#7717]: https://github.com/superdb/super/pull/7717
+[#7719]: https://github.com/superdb/super/pull/7719
+[#7720]: https://github.com/superdb/super/pull/7720
+[#7721]: https://github.com/superdb/super/pull/7721
+[#7723]: https://github.com/superdb/super/pull/7723
+[#7724]: https://github.com/superdb/super/pull/7724
+[#7725]: https://github.com/superdb/super/pull/7725
+[#7726]: https://github.com/superdb/super/pull/7726
+[#7727]: https://github.com/superdb/super/pull/7727
+
 ## [0.4.0] - 2026-10-31
 
 ### Highlights
