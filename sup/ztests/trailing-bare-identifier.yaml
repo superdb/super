@@ -1,0 +1,27 @@
+script: |
+  ! super -i sup xyz.sup
+  ! super -i sup 1xyz.sup
+  ! super -i sup garbage.sup
+  ! super -i sup two.sup
+
+inputs:
+  - name: xyz.sup
+    data: |- # no trailing newline
+      xyz
+  - name: 1xyz.sup
+    data: |-
+      1xyz
+  - name: garbage.sup
+    data: |-
+      {a:1} garbage
+  - name: two.sup
+    data: |-
+      1 2 xyz
+
+outputs:
+  - name: stderr
+    data: |
+      xyz.sup: line 1: syntax error
+      1xyz.sup: line 1: syntax error
+      garbage.sup: line 1: syntax error
+      two.sup: line 1: syntax error
