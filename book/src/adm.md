@@ -231,7 +231,9 @@ With algebraic types, the diverse shapes from our example above
 need no workaround, and no types need to be declared to get started.
 When SuperDB reads the JSON, each
 shape becomes a record with its own precise type, and saving the shapes as
-[BSUP](formats/bsup.md) keeps these types with the data:
+[BSUP](formats/bsup.md) keeps these types with the data.  (If the `values`
+operator in these queries is new to you, see
+[Values, Not Columns](blog/values.md).)
 ```mdtest-command
 super -o shapes.bsup shapes.json
 super -s -c 'from shapes.bsup | values typeof(this)'

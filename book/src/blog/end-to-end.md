@@ -140,7 +140,8 @@ each variant.  There is no `"type"` string, because the variant is in
 the type where it belongs.
 
 SuperDB can query the file as is, and because the file carries its types,
-a query can refer to the Rust variants by name:
+a query can refer to the Rust variants by name (if the `values` operator is
+new to you, see [Values, Not Columns](values.md)):
 ```
 super -s -c 'values {id, radius: dimensions.(Dimensions_Circle)?.radius ?? 0}' shapes.bsup
 ```

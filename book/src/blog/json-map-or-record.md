@@ -71,7 +71,8 @@ type JSON =
 A `JSON` value is a number, a boolean, a string, null, an array of `JSON`,
 or a map from strings to `JSON`.  Every JSON object becomes a map, because
 a map is the only thing an arbitrary object is guaranteed to be.  Casting
-our shapes to this type gives us exactly what a JSON column holds:
+our shapes to this type gives us exactly what a JSON column holds (if the
+`values` operator is new to you, see [Values, Not Columns](values.md)):
 ```mdtest-command
 super -I json.spq -s -c 'from shapes.json | values this::JSON | head 1'
 ```

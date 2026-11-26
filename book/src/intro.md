@@ -85,7 +85,8 @@ from the ground up.  For example, there's no need for a set of Parquet input fil
 to all be schema-compatible and it's easy to mix and match Parquet with
 JSON across queries.
 
-Unlike SQL, the output of an operator is not constrained to be a table.
+Unlike SQL, the output of an operator is not constrained to be a table
+(see [Values, Not Columns](blog/values.md)).
 Instead the ADM provides a query model based on heterogeneously-typed sequences
 of values, sometimes ordered and sometimes unordered.
 And since a special case of a heterogeneously-typed sequence of values is a table,

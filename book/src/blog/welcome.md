@@ -58,9 +58,10 @@ quarters, we'll be building production-quality infrastructure on the ADM,
 and we'll use this blog to explain the ideas along the way.  The first
 posts start with a day of real-world data in
 [The Sum Type Hiding in Your JSON](gharchive.md), look at what JSON throws
-away in [JSON Can't Tell a Map from a Record](json-map-or-record.md), and
+away in [JSON Can't Tell a Map from a Record](json-map-or-record.md),
 show where this is all headed in
-[Algebraic Types, End to End](end-to-end.md).
+[Algebraic Types, End to End](end-to-end.md), and explain the operator you'll
+see in nearly every query in [Values, Not Columns](values.md).
 
 We're optimistic about where this leads.  Programming languages worked out
 years ago how to describe data that varies in shape, and there's no reason
