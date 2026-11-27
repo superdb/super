@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"unicode"
 )
 
 // preprocess is a reader, meant to sit in front of the go csv reader, that
@@ -72,6 +73,10 @@ func (p *preprocess) parseField() ([]byte, error) {
 			return p.scratch, err
 		}
 		if c == '"' {
+			if !hasstr {
+				// Space before the opening quote isn't part of the field.
+				p.scratch = bytes.TrimLeftFunc(p.scratch, unicode.IsSpace)
+			}
 			hasstr = true
 			var s []byte
 			s, err = p.parseString()
@@ -90,12 +95,12 @@ func (p *preprocess) parseField() ([]byte, error) {
 			}
 			if hasstr {
 				// If field had quotes wrap entire field in quotes.
-				if last := len(p.scratch) - 1; last > 0 && p.scratch[last] == '\r' {
+				if last := len(p.scratch) - 1; last >= 0 && p.scratch[last] == '\r' {
 					ending = []byte("\r\n")
 					p.scratch = p.scratch[:last]
 				}
 				p.scratch = append(p.scratch, '"')
-				p.scratch = append([]byte{'"'}, bytes.TrimSpace(p.scratch)...)
+				p.scratch = append([]byte{'"'}, p.scratch...)
 			}
 			p.scratch = append(p.scratch, ending...)
 			return p.scratch, err
