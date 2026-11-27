@@ -11,3 +11,13 @@ output: |
   null
   error({message:"parse_sup: string arg required",on:{}})
   error({message:"parse_sup: line 1: syntax error",on:"!"})
+
+---
+
+# Text with an identifier that doesn't begin a valid value is an error,
+# not null or a partial value.
+spq: values parse_sup("xyz"), parse_sup("[1,xyz]")
+
+output: |
+  error({message:"parse_sup: line 1: syntax error",on:"xyz"})
+  error({message:"parse_sup: line 1: syntax error",on:"[1,xyz]"})

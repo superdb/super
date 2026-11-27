@@ -104,6 +104,7 @@ func (p *Parser) matchValueOrDecl() (ast.Value, *ast.TypeDecl, error) {
 	if err != nil {
 		return nil, nil, noEOF(err)
 	}
+	line := p.lexer.line
 	if typ, err := p.matchTypeDecl(name); typ != nil || err != nil {
 		return nil, typ, err
 	}
@@ -119,10 +120,10 @@ func (p *Parser) matchValueOrDecl() (ast.Value, *ast.TypeDecl, error) {
 		val, err := p.decorate(val, err)
 		return val, nil, err
 	}
-	// An identifier that matched nothing is a syntax error.  At EOF the
-	// lexer has already consumed it, so it must not be reported as end of input.
+	// An identifier that matched none of the forms above is a syntax error.
+	// It has already been consumed, so returning no value would drop it.
 	if name != "" {
-		return nil, nil, fmt.Errorf("line %d: syntax error", p.lexer.line)
+		return nil, nil, fmt.Errorf("line %d: syntax error", line)
 	}
 	return nil, nil, nil
 }
