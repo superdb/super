@@ -19,7 +19,7 @@ queries, and this post explains why.
 `SELECT` projects columns.  Its input is a table and its output is a table,
 so every result is a row and every expression in the list is a column of
 that row.
-```mdtest-spq
+```mdtest-spq {data-layout="stacked"}
 # spq
 SELECT id, type
 # input
@@ -30,7 +30,7 @@ SELECT id, type
 {id:2,type:"Circle"}
 ```
 Ask for just one thing and you still get a row:
-```mdtest-spq
+```mdtest-spq {data-layout="stacked"}
 # spq
 SELECT id
 # input
@@ -42,7 +42,7 @@ SELECT id
 ```
 And because every expression is a column, every expression needs a name.
 When you don't supply one, SQL has to make one up:
-```mdtest-spq
+```mdtest-spq {data-layout="stacked"}
 # spq
 SELECT type, type
 # input
@@ -63,7 +63,7 @@ there's no need for the idea of projecting columns.  The
 expression on each input value and emits the result, whatever it is.
 
 It can be a number:
-```mdtest-spq
+```mdtest-spq {data-layout="stacked"}
 # spq
 values id
 # input
@@ -74,7 +74,7 @@ values id
 2
 ```
 It can be something different for every input:
-```mdtest-spq
+```mdtest-spq {data-layout="stacked"}
 # spq
 values dimensions
 # input
@@ -90,9 +90,9 @@ That's three values of three different types.  There is no table here and
 no need for one.
 
 When you do want a record, you build one with a
-[record expression](../super-sql/types/record.md).  The record is
+[record expression](../super-sql/types/record.md#record-expressions).  The record is
 something you ask for, not something the operator imposes:
-```mdtest-spq
+```mdtest-spq {data-layout="stacked"}
 # spq
 values {id, kind:type}
 # input
@@ -104,7 +104,7 @@ values {id, kind:type}
 ```
 You can give it several expressions, and each one is its own output value
 rather than a column of a shared row:
-```mdtest-spq
+```mdtest-spq {data-layout="stacked"}
 # spq
 values id, type
 # input
@@ -118,9 +118,9 @@ values id, type
 ```
 And when an expression has nothing to say for some input, `values` says
 nothing.  Here [ok](../super-sql/functions/generics/ok.md) turns a missing
-`radius` into `none`, which `values` drops instead of padding the output
-with a `NULL`:
-```mdtest-spq
+`radius` into [none](../super-sql/types/none.md), which `values` drops
+instead of padding the output with a `NULL`:
+```mdtest-spq {data-layout="stacked"}
 # spq
 values dimensions.radius.ok()
 # input
