@@ -33,9 +33,11 @@ Common idioms:
   `values {id, kind:type}` or `values dimensions`. The `values` keyword is
   optional.
 - A field that some values lack must be handled explicitly: `x.ok()` turns a
-  missing field or an error into `none`, `a?.b` stops at `none`, and `a ?? b`
-  supplies a default, e.g., `values dimensions.radius.ok() ?? 0`.
-  `is_ok(x)` tests whether a value is present.
+  missing field or an error into `none`, `a?.b` is `none` when `a` is `none`
+  or lacks `b` (use `?.` at each step of a path that may be absent, e.g.,
+  `this?.a?.b`), and `a ?? b` supplies a default, e.g.,
+  `values dimensions.radius.ok() ?? 0`. `is_ok(x)` tests whether a value is
+  present.
 - A type assertion `x.(T)` is `x` when `x` has type `T` and `none` otherwise,
   e.g., `values this.(Circle)`. A cast is written `x::T`.
 - `aggregate fuse(this)` shows the one type that describes all of the input,
@@ -112,4 +114,5 @@ Avoid outdated syntax from earlier versions (when the project was called Zed):
 - [Blog: The Sum Type Hiding in Your JSON](https://superdb.org/blog/gharchive.html): Querying a day of GitHub Archive events and shaping them into a sum type
 - [Blog: JSON Can't Tell a Map from a Record](https://superdb.org/blog/json-map-or-record.html): What JSON columns cost and how typed data avoids it
 - [Blog: Algebraic Types, End to End](https://superdb.org/blog/end-to-end.html): Rust and TypeScript types that survive a round trip through SuperDB
+- [Blog: Values, Not Columns](https://superdb.org/blog/values.html): Why `values` is what `SELECT` becomes when a result doesn't have to be a table
 - [GitHub Repository](https://github.com/superdb/super): Source code, issues, and releases
