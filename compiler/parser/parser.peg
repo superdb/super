@@ -1338,6 +1338,10 @@ Exprs
 
 Primary
   = Record
+  / "[" __ &(VALUES _ "(") !(Expr __ "]") expr:SubqueryExpr __ "]" {
+      expr.(*ast.SubqueryExpr).Array = true
+      return expr, nil
+    }
   / Array
   / Set
   / Map
