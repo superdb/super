@@ -3,6 +3,7 @@ package rungen
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/superdb/super"
@@ -326,6 +327,11 @@ func (b *Builder) compileVamSubquery(query *dag.SubqueryExpr) (expr.Evaluator, e
 		body := b.combineVam(exits)
 		return op.NewCachedSubquery(b.sctx(), body, query.SQL), nil
 	}
+	// Duplicates of this subquery are compiled lazily at run time, so they
+	// must see the UDFs being compiled now.  Otherwise a recursive call
+	// inside a duplicate gets a new UDF whose depth counter never grows,
+	// and the recursion is never cut off.
+	inProgress := maps.Clone(b.compiledVamUDFs)
 	var create func() *op.Subquery
 	create = func() *op.Subquery {
 		subquery := op.NewSubquery(b.rctx.Context, b.sctx(), query.SQL, func() *op.Subquery {
@@ -333,7 +339,10 @@ func (b *Builder) compileVamSubquery(query *dag.SubqueryExpr) (expr.Evaluator, e
 			defer b.mu.Unlock()
 			return create()
 		})
+		saved := b.compiledVamUDFs
+		b.compiledVamUDFs = maps.Clone(inProgress)
 		exits, err := b.compileVamSeq(query.Body, []vio.Puller{subquery})
+		b.compiledVamUDFs = saved
 		if err != nil {
 			panic(err)
 		}

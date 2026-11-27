@@ -1,0 +1,8 @@
+# A recursive function whose body is a subquery reports a stack overflow
+# error instead of overflowing the Go stack.
+spq: |
+  fn rec(n): (values n | values rec(this+1))
+  values rec(1)
+
+output: |
+  error("stack overflow in function \"rec\"")
