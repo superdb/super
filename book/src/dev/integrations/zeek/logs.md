@@ -69,7 +69,7 @@ such records typically need no adjustment to their data types
 once they've been read in as is. The
 [Zeek Type Compatibility](types.md) document
 provides further detail on how the rich data types in Zeek TSV map to the
-equivalent [super-structured types](../../../formats/model.md#1-primitive-types).
+equivalent [primitive types](../../../formats/model.md#1-primitive-types).
 
 ## The Role of `_path`
 

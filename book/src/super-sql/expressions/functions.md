@@ -21,8 +21,8 @@ Each argument `<arg>` is either
 and passed as a value, or
 * a [function reference](#function-references).
 
-Functions are not first-class values and cannot be assigned to super-structured values
-as there are no function values in the [super data model](../../formats/model.md).
+Functions are not first-class values and cannot be assigned to values
+as there are no function values in the [ADM](../../formats/model.md).
 Instead, functions may only be called or passed as a reference to another function.
 
 ## Lambda Expressions
@@ -144,7 +144,7 @@ true
 
 ---
 
-_Function references may not be assigned to super-structured values_
+_Function references may not be assigned to values_
 
 ```mdtest-spq fails
 # spq

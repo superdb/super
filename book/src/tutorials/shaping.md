@@ -13,7 +13,7 @@ a well-defined set of schemas, which combines the data into a unified
 store like a data warehouse.
 
 In Zed, this cleansing process is called "shaping" the data, and Zed leverages
-its rich, [super-structured](../formats/model.md)
+its rich, [ADM](../formats/model.md)
 type system to perform core aspects of data transformation.
 In a data model with nesting and multiple scalar types (such as Zed or JSON),
 shaping includes converting the type of leaf fields, adding or removing fields

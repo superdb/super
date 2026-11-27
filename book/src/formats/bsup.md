@@ -666,7 +666,7 @@ their symbols.  The values of named, error, option, union, and fusion vectors
 values of other complex types (e.g., the elements of arrays) are not
 summarized.  Since the values at a path may have different types (e.g., the
 members of a union), a zone map's minimum and maximum may have different
-types, which are compared by the order of super-structured values.
+types, which are compared by the order of values.
 
 A frame whose root values are not records summarizes them at the empty path.
 

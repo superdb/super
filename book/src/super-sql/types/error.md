@@ -2,7 +2,7 @@
 
 Errors in SuperSQL are _first class_ and conform
 with the [error type](../../formats/model.md#27-error) in the
-super data model.
+ADM.
 
 Error types have the form
 ```

@@ -1,6 +1,6 @@
 # Database
 
-A SuperDB database stores super-structured data persistently in _tables_.
+A SuperDB database stores [super-structured data](../formats/model.md) persistently in _tables_.
 You manage and query a database with the [`super db`](../command/db.md)
 command, with SuperSQL [statements](../super-sql/statements/intro.md)
 like `CREATE TABLE` and `INSERT`, or over HTTP with the database

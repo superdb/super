@@ -180,7 +180,7 @@ produced the following response:
 
 The query result just shown reflects the minimal data typing available in JSON
 format. Meanwhile, the
-[super data model](../../formats/model.md) provides much
+[ADM](../../formats/model.md) provides much
 richer data typing options, including some types well-suited to Zeek data such
 as `ip`, `time`, and `duration`. In Zed, the task of cleaning up data to
 improve its typing is known as [shaping](../../tutorials/shaping.md).

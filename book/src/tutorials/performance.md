@@ -2,7 +2,7 @@
 
 > **TODO: update this?**
 
-You might think that the overhead involved in managing super-structured types
+You might think that the overhead involved in managing algebraic types
 and the generality of heterogeneous data would confound the performance of
 the `super` command, but it turns out that `super` can hold its own when
 compared to other analytics systems.
@@ -335,7 +335,7 @@ decent performance, we used it as the baseline for all of the speed-up factors.
 To summarize,
 `super` with BSUP is substantially faster than multiple relational systems for
 the search use cases, and with Parquet performs on par with the others for traditional OLAP queries,
-except for the _union_ query, where the super data model trounces the relational
+except for the _union_ query, where the ADM trounces the relational
 model (by over 60x!) for stitching together disparate data types for analysis in an aggregation.
 
 ## Appendix 1: Preparing the Test Data
@@ -406,8 +406,8 @@ duckdb gha.db -c "CREATE TABLE gha AS FROM read_json('gharchive_gz/*.json.gz', u
 ```
 We now have the DuckDB database file for our GitHub Archive data called `gha.db`
 containing a single table called `gha` embedded in that database.
-What about the super-structured
-format for the `super` command?  There is no need to futz with sample sizes,
+What about the super
+formats for the `super` command?  There is no need to futz with sample sizes,
 schema inference, or union by name. Just run this to create a BSUP file:
 ```
 super gharchive_gz/*.json.gz > gha.bsup

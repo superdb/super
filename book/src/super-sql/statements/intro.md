@@ -5,7 +5,7 @@ A statement is either a [query](../queries.md) or one of these commands:
 
 * [CREATE TABLE](create-table.md) creates a table whose rows have typed columns,
 * [CREATE SUPER TABLE](create-super-table.md) creates a table whose values
-  have any super-structured type,
+  have any type,
 * [DROP TABLE](drop-table.md) removes a table, and
 * [INSERT](insert.md) adds the results of a query to a table.
 

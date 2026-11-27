@@ -1,7 +1,7 @@
 # Types
 
 SuperSQL has a comprehensive types system that adheres to the
-[super data model](../../formats/model.md)
+[ADM](../../formats/model.md)
 comprising
 [primitive types](../../formats/model.md#1-primitive-types),
 [complex types](../../formats/model.md#2-complex-types),

@@ -6,8 +6,8 @@ Fusions let values of many different types be stored and processed as
 values of a single type without losing their original types.
 
 Fusions conform with the definition of the
-[fusion type](../../formats/model.md#28-fusion) in the super-structured data
-model and follow the [syntax](../../formats/sup.md#259-fusion-type) of
+[fusion type](../../formats/model.md#28-fusion) in the ADM
+and follow the [syntax](../../formats/sup.md#259-fusion-type) of
 fusions in the [SUP format](../../formats/sup.md), i.e., a fusion type has
 the form
 ```

@@ -221,9 +221,9 @@ emulated.  A relational schema and the JSON type are both just types that
 can be written down, and the relational operators work on all of them.
 
 The ADM is a general idea, like the relational model or the document model.
-SuperDB's implementation of it is the [super data model](formats/model.md),
+SuperDB's implementation of it is [specified here](formats/model.md),
 and the examples in this section use its types and the syntax of SuperSQL.
-The super data model rounds out records and unions with arrays, sets, and
+SuperDB's ADM rounds out records and unions with arrays, sets, and
 maps (a map being an
 [exponential type](https://en.wikipedia.org/wiki/Exponential_object) in the
 algebraic nomenclature), along with first-class types and first-class errors.
@@ -491,9 +491,9 @@ The types exist at both ends and nowhere in between, and every hop is a
 place where the two ends can drift apart.
 
 With the ADM, there is nothing to erase because each of these types has a
-direct counterpart, shown here for the super data model:
+direct counterpart, shown here for SuperDB's ADM:
 
-| Rust | TypeScript | Super data model |
+| Rust | TypeScript | ADM |
 |---|---|---|
 | `struct` | object type | [record](super-sql/types/record.md) |
 | `enum` with data | discriminated union | [union](super-sql/types/union.md) of [named types](super-sql/types/named.md) |

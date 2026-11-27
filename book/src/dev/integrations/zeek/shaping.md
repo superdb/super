@@ -75,7 +75,7 @@ on the numbers, these limitations may be acceptable. However, if you intended
 to perform operations like
 [aggregations with time-based grouping](../../../super-sql/functions/time/bucket.md)
 or [CIDR matches](../../../super-sql/functions/network/network_of.md)
-on IP addresses, you would likely want to restore the rich Super data types as
+on IP addresses, you would likely want to restore the rich types as
 the records are being read. The document on [shaping Zeek JSON](shaping.md)
 provides details on how this can be done.
 

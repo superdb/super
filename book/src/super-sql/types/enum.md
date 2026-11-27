@@ -4,7 +4,7 @@ The `enum` type represents a set of symbols, e.g., to represent
 categories by name.
 It conforms to the definition of the
 [enum type](../../formats/model.md#26-enum)
-in the super data model and follows the
+in the ADM and follows the
 [syntax](../../formats/sup.md#256-enum-type)
 of enums in the [SUP format](../../formats/sup.md), i.e.,
 an enum type has the form

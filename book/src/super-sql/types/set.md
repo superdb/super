@@ -2,7 +2,7 @@
 
 Sets conform to the
 [set type](../../formats/model.md#23-set)
-in the super data model and follow the
+in the ADM and follow the
 [syntax](../../formats/sup.md#253-set-type)
 of sets in the [SUP format](../../formats/sup.md), i.e.,
 a set type has the form

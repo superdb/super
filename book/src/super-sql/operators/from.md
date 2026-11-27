@@ -285,7 +285,7 @@ super -s -c 'from hello.json | values greeting'
 
 ---
 
-_Source super-structured data from a local file_
+_Source SUP data from a local file_
 ```mdtest-command
 echo '1 2 {x:1} {s:1::(int64|string)} {s:"hello"::(int64|string)}' > vals.sup
 super -s -c 'from vals.sup'
