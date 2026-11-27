@@ -66,6 +66,10 @@ func (p *Parser) parseTypes(types []string) error {
 		p.needfields = true
 	}
 	for k, name := range types {
+		if name == "" {
+			// zeek-cut leaves empty columns for missing fields.
+			continue
+		}
 		typ, err := p.parseType(name)
 		if err != nil {
 			return err
@@ -309,6 +313,9 @@ func coalesceRecordFields(fields []super.Field) ([]super.Field, []int) {
 	var outFields []super.Field
 	var sourceFields []int
 	for i, f := range fields {
+		if f.Name == "" {
+			continue
+		}
 		outFields = append(outFields, f)
 		sourceFields = append(sourceFields, i)
 		prefix := getPrefix(f.Name)
@@ -370,5 +377,5 @@ func (p *Parser) ParseValue(line []byte) (*super.Value, error) {
 		// each time here
 		path = []byte(p.Path)
 	}
-	return p.builder.build(p.descriptor, p.sourceFields, path, line)
+	return p.builder.build(p.descriptor, len(p.fields), p.sourceFields, path, line)
 }
