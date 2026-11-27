@@ -548,7 +548,7 @@ purpose.  This approach allows external applications to implement arbitrary
 data provenance and audit capabilities by embedding custom metadata in the
 commit history.
 
-Since commit objects are stored as super-structured data, the metadata can easily be
+Since commit objects are stored as BSUP, the metadata can easily be
 queried by running the `log -f bsup` to retrieve the log in BSUP format,
 for example, and using [super](super.md) to pull the metadata out
 as in:

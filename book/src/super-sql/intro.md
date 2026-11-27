@@ -123,8 +123,8 @@ based on SQL while incrementally embracing the pipe model and algebraic types.
 
 The entities that transform data within a SuperSQL pipeline are called
 [pipe operators](operators/intro.md)
-and take super-structured input from the upstream operator or data source,
-operate upon the input, and produce zero or more super-structured
+and take input from the upstream operator or data source,
+operate upon the input, and produce zero or more ADM
 values as output.
 
 Unlike relational SQL, SuperSQL pipe queries define their computation in terms of [dataflow](https://en.wikipedia.org/wiki/Dataflow)
@@ -135,7 +135,7 @@ propagating from one pipe operator to another
 any sequence of potentially heterogeneously typed data
 may flow between SuperSQL pipe operators.
 
-When a super-structured sequence conforms to a single, homogeneous
+When a sequence of values conforms to a single, homogeneous
 [record type](types/record.md),
 then the data is equivalent to a SQL relation.
 And because [any SQL query is also a valid pipe operator](sql/intro.md),
@@ -439,9 +439,9 @@ the data sources for their fused type and uses these types (instead of
 relational schemas) to perform type checking.  This is called _fused type checking_.
 
 Because a relational schema is a special case of a fused type, fused type checking
-works for both traditional SQL as well as for super-structured pipe queries.
-These fused types are maintained in the super-structured database and the binary
-forms of super-structured file formats provide efficient ways to retrieve their
+works for both traditional SQL as well as for pipe queries.
+These fused types are maintained in the SuperDB database and the binary
+forms of the super file formats provide efficient ways to retrieve their
 fused type.
 
 For traditional formats like JSON or CSV, computing the fused type requires

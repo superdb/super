@@ -1,6 +1,6 @@
 # Type System
 
-As the [super data model](../../../formats/model.md) was in many ways inspired by the
+As the [ADM](../../../formats/model.md) was in many ways inspired by the
 [Zeek TSV log format](https://docs.zeek.org/en/current/tutorial/logs.html#zeek-log-formats),
 SuperDB's rich storage formats ([SUP](../../../formats/sup.md),
 [BSUP](../../../formats/bsup.md), etc.) maintain comprehensive interoperability
@@ -12,10 +12,10 @@ this can be restored by following the guidance for [shaping Zeek JSON](shaping.m
 On the other hand, Zeek TSV can be converted to Zed storage formats and back to
 Zeek TSV without any loss of information.
 
-This document describes how the super-structured type system is able to represent each of
+This document describes how SuperDB's type system is able to represent each of
 the types that may appear in Zeek logs.
 
-SuperDB maintains an internal super-structured
+SuperDB maintains an internal ADM
 representation of any Zeek data that is read or imported. Therefore, knowing
 the equivalent types will prove useful when performing operations in the
 [SuperSQL](../../../super-sql/intro.md) such as
@@ -223,8 +223,8 @@ convert both of them into a Zed union of `string` and `bytes`.  If you have
 interest in a capability like this, please [let us know](https://www.brimdata.io/join-slack/) and we can elevate
 the priority.
 
-If Zeek were to provide an option to output logs directly in a super-structured
-storage formats, this would create an opportunity to
+If Zeek were to provide an option to output logs directly in one of the
+super formats, this would create an opportunity to
 assign the appropriate SuperDB `bytes` or `string` type at the point of origin,
 depending on what's known about how the field's value is intended to be
 populated and used.

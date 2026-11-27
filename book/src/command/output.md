@@ -1,10 +1,9 @@
 # Output
 
-Many commands produce output, which always originates in super-structured form,
-but can be serialized into a number of [supported formats](formats.md).
-The super-structured formats are generally
-preferred because they retain the full richness of the super
-data model.
+Many commands produce output, which
+can be serialized into a number of [supported formats](formats.md).
+The SUP or BSUP formats are generally
+preferred because they retain the full richness of the algebraic data model.
 
 Output is written to standard output by default or, if `-o` is specified,
 to the indicated file or directory.  If the file indicated by `-o` ends
@@ -97,12 +96,12 @@ in each frame (default 10000).
 Though it's a compressed format, BSUP data is self-describing and
 stream-oriented and thus is pipeline friendly.
 
-Since data is self-describing you can simply take super-structured output
+Since data is self-describing you can simply take BSUP output
 of one command and pipe it to the input of another.  It doesn't matter if the value
 sequence is scalars, complex types, or records.  There is no need to declare
 or register schemas or "protos" with the downstream entities.
 
-In particular, super-structured data can simply be concatenated together, e.g.,
+In particular, BSUP data can simply be concatenated together, e.g.,
 ```mdtest-command
 super -f bsup -c 'values 1, [1,2,3]' > a.bsup
 super -f bsup -c "values {s:'hello'}, {s:'world'}" > b.bsup
@@ -126,7 +125,7 @@ must conform to this schema.
 
 SuperDB, however, has a fine-grained type system instead of schemas such that a sequence
 of data values is completely self-describing and may be heterogeneous in nature.
-This creates a challenge converting the type-flexible super-structured data formats to a schema-rigid format like Arrow and Parquet.
+This creates a challenge converting the type-flexible super formats to a schema-rigid format like Arrow and Parquet.
 
 For example, this seemingly simple conversion:
 ```mdtest-command fails

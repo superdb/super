@@ -203,7 +203,7 @@ the first place.
 SuperDB's [algebraic data model](../adm.md) keeps the information JSON
 throws away.  Records and maps are different types.  Unions are
 first-class types, so a value whose type varies from row to row has a
-precise type rather than "JSON".  And the super-structured
+precise type rather than "JSON".  And the super
 [formats](../formats/intro.md) serialize values with their types intact,
 so a type the data had when it was written is still there when it is read.
 

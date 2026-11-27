@@ -5,7 +5,7 @@ The union type provides the foundation for
 
 Unions conform with the definition of the
 [union type](../../formats/model.md#25-union) in the
-super data model and follow the
+ADM and follow the
 [syntax](../../formats/sup.md#255-union-type)
 of unions in the [SUP format](../../formats/sup.md), i.e.,
 a union type has the form

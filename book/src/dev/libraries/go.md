@@ -13,7 +13,7 @@ Some of the key packages are:
 
 * [super](https://pkg.go.dev/github.com/superdb/super) - Super values and types
 * [sup](https://pkg.go.dev/github.com/superdb/super/sup) - SUP support
-* [sio](https://pkg.go.dev/github.com/superdb/super/sio) - I/O interfaces for Super data following the Reader/Writer patterns
+* [sio](https://pkg.go.dev/github.com/superdb/super/sio) - I/O interfaces for super-structured data following the Reader/Writer patterns
 * [sio/bsupio](https://pkg.go.dev/github.com/superdb/super/sio/bsupio) - BSUP reader/writer
 * [sio/supio](https://pkg.go.dev/github.com/superdb/super/sio/supio) - SUP reader/writer
 * [db/api](https://pkg.go.dev/github.com/superdb/super/db/api) - interact with a SuperDB database

@@ -50,12 +50,12 @@ fortunately does not require a fused schema to persist data, type fusion
 is nonetheless very useful:
 * for _data exploration_, when sampling or filtering data to look at
 slices of raw data that are fused together;
-* for _exporting super-structured data_ to other systems and formats,
+* for _exporting ADM data_ to other systems and formats,
 where formats like Parquet or a tabular structure like CSV require fixed schemas; and,
 * for _ETL_, where data might be gathered from APIs using SuperDB,
 transformed in a SuperDB pipeline, and written to another data warehouse.
 
-Unfortunately, when data leaves a super-structured format using
+Unfortunately, when data leaves a super format using
 type fusion to accomplish this, the original data must be altered
 to fit into the rigid structure of these output formats.
 

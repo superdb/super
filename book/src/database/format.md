@@ -13,11 +13,11 @@ A SuperDB table holds super-structured data, and a relational table is
 just a special case, i.e., a table whose values all have the same record
 type.  Since relations, schemas, data frames,
 Parquet files, Avro files, JSON, CSV, and so forth are all subsets of
-SuperDB's super-structured type system, the same format can represent
+SuperDB's type system, the same format can represent
 all of these different approaches to data, whether a table has columns,
 a type of any kind, or [no type at all](intro.md#tables).
 
-All data and metadata in a database conforms to the super data model, which materially
+All data and metadata in a database conforms to the [ADM](../adm.md), which materially
 simplifies development, test, introspection, and so forth.
 
 The format has two parts:

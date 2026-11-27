@@ -165,11 +165,19 @@ FROM f'{this}'
 
 ---
 
->[!NOTE]
-> The SuperDB database will soon support super-structured types, which
-> are required for SQL compatibility.  Currently, database queries
-> should be done with the pipe form of the [from](../operators/from.md)
-> operator.  SQL examples utilizing a SuperDB database will be documented
-> here in a future version of SuperDB.
+_Query a database table with SQL_
+
+```mdtest-command
+super db init -q db
+super db attach -q db
+super db -c "
+  create table t (a int64, b string);
+  insert into t values (1, 'x'), (2, 'y')
+" > /dev/null
+super db -s -c "SELECT b, a+1 AS c FROM t WHERE a > 1"
+```
+```mdtest-output
+{b:"y",c:3}
+```
 
 ---

@@ -255,7 +255,7 @@ of values as record fields:
 }
 ```
 The first seven values are all [primitive types](../formats/model.md#1-primitive-types)
-in the [super data model](../formats/model.md).
+in the [ADM](../formats/model.md).
 
 Here, `v1` is a 64-bit IEEE floating-point value just like JSON.
 
@@ -276,7 +276,7 @@ which is a type written as `[int64]`.
 enclosing syntax `|[` and `]|`.
 
 `v10` is a "[map](../formats/model.md#24-map)" type, which in other languages is often called a "table"
-or a "dictionary".  In the super data model, a value of any type can be used for key or
+or a "dictionary".  In the ADM, a value of any type can be used for key or
 value in a map though all of the keys and all of the values must have the same type.
 
 Finally, `v11` is a "[record](../formats/model.md#21-record)", which is similar to a JSON "object", but the
@@ -365,7 +365,7 @@ produces the very same output:
 {s:"foo",val:123,pi:3.14}
 {s:"bar",val:123,pi:3.14}
 ```
-Finally, it's worth mentioning that errors in the super data model are
+Finally, it's worth mentioning that errors in the ADM are
 [first class](https://en.wikipedia.org/wiki/First-class_citizen).
 This means they can just show up in the data as values.  In particular,
 a common error pattern occurs when referencing
@@ -414,13 +414,13 @@ preparation, union types are really quite powerful.  They allow records
 with fields of different types or mixed-type arrays to be easily expressed
 while also having a very precise type definition.  This is the essence
 of the new
-[super data model](../formats/model.md).
+[ADM](../formats/model.md).
 
 ### First-class Types
 
 Note that in the type value above, the type is wrapped in angle brackets.
 This is how SUP represents types when expressed as values.
-In other words, the super data model has
+In other words, the ADM has
 [first-class](https://en.wikipedia.org/wiki/First-class_citizen) types.
 
 The type of any value in `super` can be accessed via the
@@ -485,7 +485,7 @@ true
 ```
 i.e., they match even though their underlying shape is different.
 
-With `super` of course, these are different super-structured types so
+With `super` of course, these are different types so
 the result is false, e.g.,
 ```mdtest-command
 echo '{"a":{"s":"foo"},"b":{"x":1,"y":2}}' |
@@ -538,7 +538,7 @@ when reading JSON and converting it to super-structured data.
 
 This is where you might have to spend a little bit of time coding up
 the right query logic to disentangle a JSON mess. But once the data is cleaned up,
-you can leave it in a super-structured format and not worry again.
+you can leave it in a super format and not worry again.
 
 To do so, the [fuse](../super-sql/operators/fuse.md) operator comes in handy.
 Let's say you have this sequence of data:
@@ -806,7 +806,7 @@ which produces this string:
 ```mdtest-output
 "2019-11-11T19:50:46Z"
 ```
-Since the super data model has a native `timestamp` type and we might want to do native date comparisons
+Since the ADM has a native `timestamp` type and we might want to do native date comparisons
 on these time fields, we can easily translate the string to a time with a cast, e.g.,
 ```mdtest-command dir=book/src/tutorials
 super -s -c 'unnest this | head 1 | values created_at::timestamp' prs.json
@@ -1261,10 +1261,10 @@ produces
 
 ### Key Takeaways
 
-So to summarize, we gave you a tour here of how `super` the super data model
+So to summarize, we gave you a tour here of how `super` the ADM
 provide a powerful way do search, transformation, and analytics in a structured-like
 way on data that begins its life as semi-structured JSON and is transformed
-into the powerful super-structured format without having to create relational
+into the powerful super format without having to create relational
 tables and schemas.
 
 As you can see, `super` is a general-purpose tool that you can add to your bag

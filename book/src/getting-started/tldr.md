@@ -15,7 +15,7 @@ super -c "SELECT * FROM file.[csv|csv.gz|json|json.gz|parquet]"
 ```
 super -I path/to/query.sql
 ```
-## Pretty-print a sample value as super-structured data
+## Pretty-print a sample value as SUP
 ```
 super -S -c "limit 1" file.[csv|csv.gz|json|json.gz|parquet]
 ```

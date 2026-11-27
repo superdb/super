@@ -1,23 +1,22 @@
-# Super Data Model
+# Data Model
 
-The _super data model_ is the data model that SuperDB implements.
-It is an instance of the [algebraic data model](../adm.md) (ADM) in the same
-way that the tables and column types of a particular SQL database are an
-instance of the relational model.  The ADM says that data is typed by
-product types and sum types that compose freely.  The super data model
+This section specifies SuperDB's implementation of the
+[algebraic data model](../adm.md) (ADM).  SuperDB's ADM is an instance of the
+ADM in the same way that the tables and column types of a particular SQL
+database are an instance of the relational model.  The ADM says that data is
+typed by product types and sum types that compose freely.  SuperDB's ADM
 says exactly which types there are, what their values are, and how they
 are ordered.
 
 In addition to the [records](#21-record) and [unions](#25-union) that
-provide its product and sum types, the super data model has first-class
+provide its product and sum types, SuperDB's ADM has first-class
 [types](#1-primitive-types), [errors](#27-error),
 [fusion types](#28-fusion), and distinct values for
 [null, missing, and none](#11-null-missing-and-none).
 
-Data that conforms to the super data model is called _super-structured data_,
-in contrast to the structured data of relational tables and the
-semi-structured data of JSON.  Super-structured data is a sequence of one or
-more typed values.
+Data in SuperDB's ADM is called _super-structured data_, in contrast to
+the structured data of relational tables and the semi-structured data of
+JSON.  Super-structured data is a sequence of one or more typed values.
 Each value's type is either a "primitive type", a "complex type",
 or a "named type".
 

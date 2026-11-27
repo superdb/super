@@ -2,7 +2,7 @@
 
 Types in SuperSQL are _first class_ and conform
 with the [`type`](../../formats/model.md#1-primitive-types) type in the
-super data model.
+ADM.
 The `type` type represents the type of a type value.
 
 A type value is formed by enclosing a type specification in

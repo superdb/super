@@ -29,7 +29,7 @@ expressions, `NaN` is equal to `NaN` and greater than any other number.
 
 >[!NOTE]
 > A future version of SuperSQL will collate values polymorphically using a well-defined
-> total order that embodies the super-structured
+> total order that embodies the ADM
 > [type order](../../../formats/model.md).
 
 `nullsMax` is an optional value (true by default) that determines whether `null`

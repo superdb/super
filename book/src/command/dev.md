@@ -42,7 +42,7 @@ super dev bsup [ options ] file
 
 The `super dev bsup` command decodes the structure of a
 [BSUP](../formats/bsup.md) file and emits a description of it as a
-sequence of super-structured values rather than the values the file holds.
+sequence of metadata values rather than the actual values the file holds.
 It is useful for debugging BSUP encoders and decoders, understanding how a
 file is laid out, and seeing why a query reads the data that it does.
 

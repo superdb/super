@@ -16,7 +16,7 @@ interacts with the database via the REST API provided by
 > integers, floats, timestamps, strings, booleans, nested records, arrays, and
 > maps all arrive as natural Python types — but Arrow is *schema-rigid*: every
 > record in a result must share a single type, and a handful of rich types in the
-> [super data model](../../formats/model.md) arrive as plain Python strings
+> [ADM](../../formats/model.md) arrive as plain Python strings
 > rather than richer objects. The full picture is in
 > [type mapping and limitations](#type-mapping-and-limitations)
 > below.
@@ -98,7 +98,7 @@ operations:
 `query()` uses the Apache Arrow IPC streaming format to transport query
 responses from the SuperDB services back to the client, then converts each
 Arrow record batch to Python objects via PyArrow's `to_pylist()`. Most
-types in the [super data model](../../formats/model.md) survive the round
+types in the [ADM](../../formats/model.md) survive the round
 trip cleanly, but several do not.
 
 ### Types that convert cleanly

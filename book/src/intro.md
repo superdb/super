@@ -127,7 +127,7 @@ to another, there is no need for the two sides to agree up front what the schema
 must be in order to communicate and land the data.
 
 The two super formats are:
-* [SUP](formats/sup.md) a human-readable form of super data, and
+* [SUP](formats/sup.md) a human-readable form of super-structured data, and
 * [BSUP](formats/bsup.md) a binary-optimized form for performance.
 
 SUP is a superset of JSON in that all valid JSON values are also SUP values.
