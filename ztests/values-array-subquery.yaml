@@ -1,0 +1,7 @@
+spq: |
+  values [VALUES
+    (1, 'Alice Chen', 10, 'Manager', 'Sales'),
+    (2, 'Bob Smith', 10, 'Manager', 'Marketing')]
+
+output: |
+  [{column1:1,column2:"Alice Chen",column3:10,column4:"Manager",column5:"Sales"},{column1:2,column2:"Bob Smith",column3:10,column4:"Manager",column5:"Marketing"}]
