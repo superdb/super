@@ -219,6 +219,8 @@ The subquery fuses the events of each `type` separately, makes a
 value of the `type` field as its name, and forms the
 [sum type](../super-sql/functions/types/sum_type.md) of all of them.  That
 type is called `Event`, and the last line casts every event to it.
+(If the `values` operator is new to you, see
+[Values, Not Columns](values.md).)
 
 Now count the types again:
 ```
