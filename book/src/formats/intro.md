@@ -1,7 +1,7 @@
 # Formats
 
-This section defines SuperDB's [data model](model.md), which is SuperDB's
-implementation of the [algebraic data model](../adm.md) (ADM), along with
+This section defines SuperDB's [data model](model.md), a specific
+instance of the [algebraic data model](../adm.md) (ADM), along with
 the two formats that serialize it:
 
 * [Super (SUP)](sup.md) is a human-readable text format.  It is a strict

@@ -196,7 +196,7 @@ record types, enum symbols, and type names.
 ### 2.4 Complex Values
 
 Complex values are built from primitive values and/or other complex values
-and conform to the ADM's complex types:
+and conform to the [ADM's](model.md) complex types:
 [record](model.md#21-record),
 [array](model.md#22-array),
 [set](model.md#23-set),
