@@ -2018,7 +2018,7 @@ MinusIntString
   = "-" UIntString { return string(c.text), nil }
 
 FloatString
-  = "-"? [0-9]+ "." [0-9]* ExponentPart? { return string(c.text), nil }
+  = "-"? [0-9]+ ("." [0-9]* ExponentPart? / ExponentPart) { return string(c.text), nil }
   / "-"? "." [0-9]+ ExponentPart? { return string(c.text), nil }
   / (NaN / Infinity) { return string(c.text), nil }
 

@@ -52,7 +52,7 @@ followed optionally by one or more decimal digits forms
 a 64-bit IEEE floating point value of type `float64`.
 Alternatively, a floating point value may appear in scientific notation
 having the form of a mantissa number (integer or with decimal point)
-followed by the character `e` and in turn followed by a signed integer exponent.
+followed by the character `e` or `E` and in turn followed by a signed integer exponent.
 
 Also `Inf`, `+Inf`, `-Inf`, or `NaN` are valid 64-bit floating point numbers.
 
@@ -182,7 +182,7 @@ _Floating-point numbers_
 
 ```mdtest-spq
 # spq
-values 1., 1.23, 18446744073709551615., 1.e100, +Inf, -Inf, NaN
+values 1., 1.23, 18446744073709551615., 1.e100, 1e6, +Inf, -Inf, NaN
 | values f"{this} is type {typeof(this)}"
 # input
 
@@ -191,6 +191,7 @@ values 1., 1.23, 18446744073709551615., 1.e100, +Inf, -Inf, NaN
 "1.23 is type <float64>"
 "1.8446744073709552e+19 is type <float64>"
 "1e+100 is type <float64>"
+"1e+06 is type <float64>"
 "+Inf is type <float64>"
 "-Inf is type <float64>"
 "NaN is type <float64>"

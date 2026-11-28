@@ -1,0 +1,30 @@
+# A float's mantissa can be an integer, e.g., 1e6, or 1e-07, which is how
+# super prints 0.0000001.
+spq: values 1e6, 1E6, -1e6, 1e+6, 1e-07, 2e3::int64, typeof(1e6)
+
+output: |
+  1000000.
+  1000000.
+  -1000000.
+  1000000.
+  1e-07
+  2000
+  <float64>
+
+---
+
+# The same in SQL.
+spq: SELECT 1e6 AS x, 1e-07 AS y
+
+output: |
+  {x:1000000.,y:1e-07}
+
+---
+
+# IPv6 addresses that begin like a float with an exponent are still addresses.
+spq: values 1e6::1, 1e6::, typeof(1e6::1)
+
+output: |
+  1e6::1
+  1e6::
+  <ip>
