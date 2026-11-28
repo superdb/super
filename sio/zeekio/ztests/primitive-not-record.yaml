@@ -1,0 +1,11 @@
+script: |
+  ! super -f zeek -
+
+inputs:
+  - name: stdin
+    data: |
+      "hello"
+
+outputs:
+  - name: stderr
+    regexp: "zeekio: not a record"

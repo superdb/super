@@ -9,6 +9,7 @@ import (
 	"github.com/superdb/super"
 	"github.com/superdb/super/runtime/sam/expr"
 	"github.com/superdb/super/sbuf"
+	"github.com/superdb/super/sup"
 	"github.com/superdb/super/vector"
 )
 
@@ -37,6 +38,9 @@ func (w *Writer) Close() error {
 }
 
 func (w *Writer) Write(r super.Value) error {
+	if super.TypeRecordOf(r.Type()) == nil {
+		return fmt.Errorf("zeekio: not a record: %s", sup.FormatValue(r))
+	}
 	r, err := w.flattener.Flatten(r)
 	if err != nil {
 		return err
