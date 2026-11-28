@@ -1,0 +1,40 @@
+# Space inside quotes is part of a field, even at the start, so "  42" is a
+# string and "   " isn't null. Space before the opening quote isn't part of it.
+spq: pass
+
+flags: -i csv
+
+input: |
+  a,b,c
+  "  x  ",  "  y",  "A"
+  "   ","  42","
+  two"
+
+output: |
+  {a:"  x  ",b:"  y",c:"A"}
+  {a:"   ",b:"  42",c:"\ntwo"}
+
+---
+
+# The same with CRLF line endings, where an empty quoted field at the end of
+# a line is still null.
+spq: pass
+
+flags: -i csv
+
+input: "a,b,c\r\n\"  x\",  \"y\",\"\"\r\n"
+
+output: |
+  {a:"  x",b:"y",c:null}
+
+---
+
+# The same for TSV.
+spq: pass
+
+flags: -i tsv
+
+input: "a\tb\n\"  x\"\t\"  y\"\n"
+
+output: |
+  {a:"  x",b:"  y"}
