@@ -242,3 +242,4 @@
     - [JSON Can't Tell a Map from a Record](blog/json-map-or-record.md)
     - [Algebraic Types, End to End](blog/end-to-end.md)
     - [Values, Not Columns](blog/values.md)
+    - [SuperDB Is Hiring](blog/hiring.md)
