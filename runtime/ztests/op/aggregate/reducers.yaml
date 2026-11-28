@@ -9,7 +9,7 @@ input: |
 output: |
   {key1:"a",any:1::int32,sum:3,avg:1.5,min:1,max:2}
   {key1:"b",any:1::int32,sum:1,avg:1.,min:1,max:1}
-  {key1:"c",any:error("missing"),sum:null,avg:null,min:null,max:null}
+  {key1:"c",any:error("missing")}
 
 ---
 

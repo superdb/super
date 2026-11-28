@@ -51,6 +51,9 @@ func (f *fuse) Consume(groups []uint32, vec vector.Any) {
 }
 
 func (f *fuse) consume(g uint32, typ super.Type) {
+	if super.TypeUnder(typ) == super.TypeNone {
+		return
+	}
 	key := groupType{g, typ}
 	if _, ok := f.seen[key]; !ok {
 		f.seen[key] = struct{}{}

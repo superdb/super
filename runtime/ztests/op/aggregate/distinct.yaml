@@ -25,7 +25,7 @@ input: |
 output: |
   {key:"a",and:false,any:1,array_agg:["a"],avg:1.5,collect:["a"],count:2,dcount:2,max:2,min:1,or:true,sum:3,union:set[1,2]}
   {key:"b",and:true,any:1,array_agg:["b"],avg:0.5,collect:["b"],count:2,dcount:2,max:1,min:0,or:true,sum:1,union:set[0,1]}
-  {key:"c",and:null,any:error("missing"),array_agg:["c"],avg:null,collect:["c"],count:1,dcount:1,max:null,min:null,or:null,sum:null,union:set[error("missing")]}
+  {key:"c",any:error("missing"),array_agg:["c"],collect:["c"],count:1,dcount:1,union:set[error("missing")]}
 
 ---
 

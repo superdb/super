@@ -19,8 +19,9 @@ A plain `none` is the result of an expression that produces nothing, e.g.,
   `a` is missing,
 * a [type assertion](../expressions/type-assertions.md) that fails,
 * a [match](../expressions/match.md) with no matching case and no `else`,
-  or
-* a pipe subquery that produces no values.
+* a pipe subquery that produces no values, or
+* an [aggregate function](../aggregates/intro.md) with no values to
+  aggregate in a pipe query.
 
 A `none` is handled quietly rather than reported:
 * it's dropped from the output of the [values](../operators/values.md)

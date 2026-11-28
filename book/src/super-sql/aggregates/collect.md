@@ -16,8 +16,9 @@ of union of the types encountered.  If no values are aggregated, the
 return value is an empty array.
 
 >[!NOTE]
->See [array_agg](array_agg.md) for a variant that returns `null` when no values
->are aggregated, following the SQL standard.
+>See [array_agg](array_agg.md) for a variant that returns
+>[none](../types/none.md) (or, in a SQL query, `null`, following the SQL
+>standard) when no values are aggregated.
 
 ## Examples
 
@@ -76,6 +77,6 @@ aggregate
 {a:2,k:2}
 {a:3,k:2}
 # expected output
-{k:1,collect:[],array_agg:null}
+{k:1,collect:[]}
 {k:2,collect:[2,3],array_agg:[2,3]}
 ```

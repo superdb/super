@@ -18,15 +18,22 @@ type scalarAggregate struct {
 	builder     *vector.RecordBuilder
 	partialsIn  bool
 	partialsOut bool
+	noneResults bool
 
 	funcs []expr.AggFunc
 	zeros []uint32 // groups for consume, as all values are in group 0
 }
 
-func NewScalar(parent vio.Puller, sctx *super.Context, aggs []*expr.Aggregator, aggNames []field.Path, aggExprs []expr.Evaluator, partialsIn, partialsOut bool) (vio.Puller, error) {
+func NewScalar(parent vio.Puller, sctx *super.Context, aggs []*expr.Aggregator, aggNames []field.Path, aggExprs []expr.Evaluator, partialsIn, partialsOut, sql bool) (vio.Puller, error) {
 	builder, err := vector.NewRecordBuilder(sctx, aggNames)
 	if err != nil {
 		return nil, err
+	}
+	// Outside of SQL, a none result disappears from the output record (see
+	// Aggregate).
+	noneResults := !partialsOut && !sql
+	if noneResults {
+		builder.NoneDrops = len(aggNames)
 	}
 	return &scalarAggregate{
 		parent:      parent,
@@ -36,6 +43,7 @@ func NewScalar(parent vio.Puller, sctx *super.Context, aggs []*expr.Aggregator, 
 		builder:     builder,
 		partialsIn:  partialsIn,
 		partialsOut: partialsOut,
+		noneResults: noneResults,
 		funcs:       newFuncs(aggs),
 	}, nil
 }
@@ -113,5 +121,8 @@ func (s *scalarAggregate) result() vector.Any {
 		vecs = append(vecs, vec)
 	}
 	s.funcs = nil
+	if s.noneResults {
+		nullsToNone(vecs)
+	}
 	return s.builder.New(vecs)
 }

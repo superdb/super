@@ -1,0 +1,100 @@
+# In a pipe query, an aggregate function's result for a group with no values
+# (or only values it skips, like nulls) is none, which disappears from the
+# output record like a none group key.  count() is still 0.
+spq: aggregate s:=sum(v), m:=min(v), a:=any(v), c:=count() by k | sort k
+
+input: |
+  {k:1,v:1}
+  {k:2,v:null}
+
+output: |
+  {k:1,s:1,m:1,a:1,c:1}
+  {k:2,c:1}
+
+---
+
+# The same for an aggregate with no grouping keys and no input.
+spq: where false | aggregate s:=sum(this), a:=any(this), c:=count()
+
+input: '1'
+
+output: |
+  {c:0}
+
+---
+
+# When every result is none, the record is empty.
+spq: where false | aggregate s:=sum(this), a:=any(this)
+
+input: '1'
+
+output: |
+  {}
+
+---
+
+# A single unnamed aggregate function outputs its value, so a none result
+# produces no output.
+spq: where false | aggregate sum(this)
+
+input: '1'
+
+output: ""
+
+---
+
+# The same for the shortcut form.
+spq: where false | sum(this)
+
+input: '1'
+
+output: ""
+
+---
+
+# A none result disappears from a nested record.
+spq: aggregate r.s:=sum(v), r.c:=count() by k | sort k
+
+input: |
+  {k:1,v:1}
+  {k:2,v:null}
+
+output: |
+  {k:1,r:{s:1,c:1}}
+  {k:2,r:{c:1}}
+
+---
+
+# Scanning a file splits the aggregation into partials, where a none result
+# is still dropped only from the final record.  In SQL, the result is null.
+script: |
+  super -s -c 'from in.sup | aggregate s:=sum(v), a:=any(v), c:=count() by k | sort k'
+  echo ===
+  super -s -c 'from in.sup | where k==2 | aggregate s:=sum(v), a:=any(v), c:=count()'
+  echo ===
+  super -s -c 'from in.sup | where k==2 | sum(v)'
+  echo ===
+  super -s -c "SELECT k, sum(v) AS s, any(v) AS a, count(*) AS c FROM 'in.sup' GROUP BY k ORDER BY k"
+  echo ===
+  super -s -c "SELECT sum(v) AS s, any(v) AS a FROM 'in.sup' WHERE k=2"
+
+inputs:
+  - name: in.sup
+    data: |
+      {k:1,v:1}
+      {k:2,v:null}
+      {k:2,v:null}
+
+outputs:
+  - name: stdout
+    data: |
+      {k:1,s:1,a:1,c:1}
+      {k:2,c:2}
+      ===
+      {c:2}
+      ===
+      ===
+      {k:1,s:1,a:1,c:1}
+      {k:2,s:null,a:null,c:2}
+      ===
+      {s:null,a:null}

@@ -38,5 +38,4 @@ spq: union(this) filter(false)
 
 input: '1'
 
-output: |
-  null
+output: ""

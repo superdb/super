@@ -166,6 +166,7 @@ func (d *dagen) op(op sem.Op) dag.Op {
 			Limit: op.Limit,
 			Keys:  d.assignments(op.Keys),
 			Aggs:  d.aggAssignments(op.Aggs),
+			SQL:   op.SQL,
 		}
 	case *sem.CountOp:
 		var e dag.Expr

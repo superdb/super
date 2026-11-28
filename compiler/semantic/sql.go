@@ -292,6 +292,7 @@ func (t *translator) genAggregate(loc ast.Loc, scope *selectScope, seq sem.Seq) 
 		Node: loc,
 		Aggs: aggCols,
 		Keys: keyCols,
+		SQL:  true,
 	})
 }
 

@@ -41,5 +41,5 @@ outputs:
       | combine
       | aggregate partials-in
           count:=count()
-      | values count
+      | values (has(this, "count")) ? count : none
       | output main

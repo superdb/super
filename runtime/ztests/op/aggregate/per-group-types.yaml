@@ -22,11 +22,11 @@ input: |
 output: |
   {k:1,sum:3,min:1,max:2,avg:1.5,collect:[1,2],array_agg:[1,2]}
   {k:2,sum:3.5,min:1.5,max:2.,avg:1.75,collect:[1.5,2::uint8],array_agg:[1.5,2::uint8]}
-  {k:3,sum:null,min:"a",max:"b",avg:null,collect:["b","a"],array_agg:["b","a"]}
+  {k:3,min:"a",max:"b",collect:["b","a"],array_agg:["b","a"]}
   {k:5,sum:1s,min:1s,max:1s,avg:1000000000.,collect:[1s],array_agg:[1s]}
-  {k:6,sum:null,min:null,max:null,avg:null,collect:[],array_agg:null}
-  {k:7,sum:null,min:null,max:null,avg:null,collect:[null],array_agg:[null]}
-  {k:8,sum:null,min:"y",max:"y",avg:null,collect:["y",[1,2]],array_agg:["y",[1,2]]}
+  {k:6,collect:[]}
+  {k:7,collect:[null],array_agg:[null]}
+  {k:8,min:"y",max:"y",collect:["y",[1,2]],array_agg:["y",[1,2]]}
   {k:9,sum:error("mixture of string and numeric values"),min:error("mixture of string and numeric values"),max:error("mixture of string and numeric values"),avg:1.,collect:[1,"x"],array_agg:[1,"x"]}
 
 ---

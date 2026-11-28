@@ -59,12 +59,18 @@ As in a record expression, a grouping key whose value
 is a plain `none` (e.g., `ok(x)` when `x` is missing) disappears from its
 output record, so the values whose key is `none` form a group whose record
 has no field for that key.
+Likewise, an aggregate function with no values to aggregate (see
+[aggregate functions](../aggregates/intro.md)) produces `none`, which
+disappears from the output record, so a downstream reference to its field
+should use `?.`, e.g., `this?.sum ?? 0`, and a test for such groups should use
+[has](../functions/records/has.md), e.g., `where !has(this, "sum")`.  (In a SQL
+query, the result is `null` instead.)
 
 When the result of `aggregate` is a single value (e.g., a single aggregate
 function without grouping expressions or a single grouping expression without aggregates)
 and there is no field name specified, then
 the output is that single value rather than a single-field record
-containing that value.
+containing that value.  If that value is a plain `none`, there is no output.
 
 If the cardinality of grouping expressions causes the memory footprint to exceed
 a limit, then each aggregate's partial results are spilled to temporary storage
@@ -193,8 +199,8 @@ array:=collect(v) filter (k=="foo")
 
 ---
 
-_Results are included for `by` groupings that generate null results when `filter`
-clauses are used inside `aggregate`_
+_A `by` grouping whose values are all excluded by a `filter` clause is
+still output, but without the aggregate function's field_
 ```mdtest-spq
 # spq
 sum(v) filter (k=="bar") by key:=k | sort key
@@ -205,13 +211,32 @@ sum(v) filter (k=="bar") by key:=k | sort key
 {k:"baz",v:4}
 # expected output
 {key:"bar",sum:2}
-{key:"baz",sum:null}
-{key:"foo",sum:null}
+{key:"baz"}
+{key:"foo"}
 ```
 
 ---
 
-_To avoid null results for `by` groupings as just shown, filter before `aggregate`_
+_To give such groupings a default value, read the field with `?.` and `??`_
+```mdtest-spq
+# spq
+sum(v) filter (k=="bar") by key:=k
+| values {key, sum:this?.sum ?? 0}
+| sort key
+# input
+{k:"foo",v:1}
+{k:"bar",v:2}
+{k:"foo",v:3}
+{k:"baz",v:4}
+# expected output
+{key:"bar",sum:2}
+{key:"baz",sum:0}
+{key:"foo",sum:0}
+```
+
+---
+
+_To leave out such groupings, filter before `aggregate`_
 ```mdtest-spq
 # spq
 k=="bar" | sum(v) by key:=k | sort

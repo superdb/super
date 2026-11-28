@@ -22,5 +22,4 @@ spq: array_agg(this) filter (false)
 
 input: '1'
 
-output: |
-  null
+output: ""

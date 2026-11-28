@@ -17,6 +17,7 @@ type superTable struct {
 	builder     *vector.RecordBuilder
 	partialsIn  bool
 	partialsOut bool
+	noneResults bool
 	table       *vhash.Table
 	funcs       []expr.AggFunc // one per aggregation, holding every group
 	sctx        *super.Context
@@ -33,6 +34,7 @@ func newSuperTable(a *Aggregate, keyTypes []super.Type) *superTable {
 		builder:     a.builder,
 		partialsIn:  a.partialsIn,
 		partialsOut: a.partialsOut,
+		noneResults: a.noneResults,
 		table:       vhash.NewTable(keyTypes),
 		funcs:       funcs,
 		sctx:        a.sctx,
@@ -68,7 +70,23 @@ func (s *superTable) materialize() vector.Any {
 		}
 	}
 	// Since aggs can return dynamic values need to do apply to create record.
+	nkeys := len(vecs) - len(s.funcs)
 	return vector.Apply(vector.ApplyNone, func(vecs ...vector.Any) vector.Any {
+		if s.noneResults {
+			nullsToNone(vecs[nkeys:])
+		}
 		return s.builder.New(vecs)
 	}, vecs...)
+}
+
+// nullsToNone replaces each null vector in vecs, the aggregate function
+// results of a pipe query, with none.  A function's result is null for a
+// group with no values (or only values it skips, like nulls), and none
+// disappears from the output record.
+func nullsToNone(vecs []vector.Any) {
+	for k, vec := range vecs {
+		if vec.Type() == super.TypeNull {
+			vecs[k] = vector.NewNone(vec.Len())
+		}
+	}
 }

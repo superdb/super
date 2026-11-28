@@ -10,7 +10,7 @@ outputs:
       | distinct a
       | aggregate
           count:=count()
-      | values count
+      | values (has(this, "count")) ? count : none
       | output main
       ===
       file test.bsup format bsup unordered

@@ -23,6 +23,14 @@ When aggregate functions appear in context of grouping
 then the aggregate function produces one output value for each
 unique combination of grouping expressions.
 
+When an aggregate function has no values to aggregate, e.g., when its
+input is empty, a `filter` clause excludes every value, or every value is
+one the function skips (like a null for [sum](sum.md)), the result is
+[none](../types/none.md), which disappears from the output record of the
+[aggregate](../operators/aggregate.md) operator, or, in a SQL query, `null`.
+[count](count.md) and [dcount](dcount.md) return 0 and
+[collect](collect.md) returns an empty array instead.
+
 If the case-insensitive `distinct` option is present, then the inputs
 to the aggregate function are filtered to unique values for each
 unique grouping.

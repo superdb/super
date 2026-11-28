@@ -3,7 +3,7 @@ spq: |
   | count(*), sum(this), and(this), or(this), min(this), avg(this), collect(this), array_agg(this)
 
 output: |
-  {count:0,sum:null,and:null,or:null,min:null,avg:null,collect:[],array_agg:null}
+  {count:0,collect:[]}
 
 ---
 

@@ -11,5 +11,5 @@ input: |
   {key:"b",x:1::int32}
 
 output: |
-  {key:"a",t1:false,t2:false,t3:false,t4:false,t5:null}
-  {key:"b",t1:false,t2:false,t3:true,t4:false,t5:null}
+  {key:"a",t1:false,t2:false,t3:false,t4:false}
+  {key:"b",t1:false,t2:false,t3:true,t4:false}

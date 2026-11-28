@@ -21,6 +21,9 @@ type Aggregate struct {
 	builder     *vector.RecordBuilder
 	partialsIn  bool
 	partialsOut bool
+	// noneResults is true if a null aggregate function result becomes
+	// none (see nullsToNone).
+	noneResults bool
 	// noFastPath disables specialized tables (for benchmarking).
 	noFastPath bool
 
@@ -29,16 +32,21 @@ type Aggregate struct {
 	results []aggTable
 }
 
-func New(parent vio.Puller, sctx *super.Context, aggNames []field.Path, aggExprs []expr.Evaluator, aggs []*expr.Aggregator, keyNames []field.Path, keyExprs []expr.Evaluator, partialsIn, partialsOut bool) (*Aggregate, error) {
+func New(parent vio.Puller, sctx *super.Context, aggNames []field.Path, aggExprs []expr.Evaluator, aggs []*expr.Aggregator, keyNames []field.Path, keyExprs []expr.Evaluator, partialsIn, partialsOut, sql bool) (*Aggregate, error) {
 	builder, err := vector.NewRecordBuilder(sctx, append(keyNames, aggNames...))
 	if err != nil {
 		return nil, err
 	}
 	// A plain none group key (e.g., from ok() or ?.) disappears from an
-	// output record.  It's kept in a partial so the downstream aggregate can
-	// group by it.
+	// output record, as does a none aggregate function result outside of
+	// SQL.  A key is kept in a partial so the downstream aggregate can group
+	// by it.
+	noneResults := !partialsOut && !sql
 	if !partialsOut {
 		builder.NoneDrops = len(keyNames)
+		if noneResults {
+			builder.NoneDrops += len(aggNames)
+		}
 	}
 	return &Aggregate{
 		parent:      parent,
@@ -53,6 +61,7 @@ func New(parent vio.Puller, sctx *super.Context, aggNames []field.Path, aggExprs
 		builder:     builder,
 		partialsIn:  partialsIn,
 		partialsOut: partialsOut,
+		noneResults: noneResults,
 	}, nil
 }
 

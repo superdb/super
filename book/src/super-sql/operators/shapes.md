@@ -17,8 +17,8 @@ in the input.  It ignores null values and errors.
 `shapes` is a shorthand for
 ```
 where <expr> is not null
-| aggregate sample:=any(<expr>) by typeof(this)
-| values sample
+| aggregate sample:=any(<expr>) by typeof(<expr>)
+| values this?.sample
 ```
 
 If `<expr>` is not present, then `this` is presumed.

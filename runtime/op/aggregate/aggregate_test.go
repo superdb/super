@@ -89,7 +89,7 @@ func newBenchAggregate(b *testing.B, sctx *super.Context, parent *slicePuller, k
 		aggExprs = append(aggExprs, expr.NewDottedExpr(sctx, field.NewChain(a.output)))
 		aggregators = append(aggregators, aggregator)
 	}
-	op, err := New(parent, sctx, aggNames, aggExprs, aggregators, keyNames, keyExprs, partialsIn, partialsOut)
+	op, err := New(parent, sctx, aggNames, aggExprs, aggregators, keyNames, keyExprs, partialsIn, partialsOut, false)
 	if err != nil {
 		b.Fatal(err)
 	}

@@ -10,5 +10,5 @@ outputs:
       | count {...this,row_number}
       | aggregate
           sum:=sum(x)
-      | values sum
+      | values (has(this, "sum")) ? sum : none
       | output main

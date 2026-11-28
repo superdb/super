@@ -6,6 +6,5 @@ input: |
   {a:[3,2,1]}
 
 output: |
-  null
   15
   6

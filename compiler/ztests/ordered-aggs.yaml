@@ -14,13 +14,13 @@ outputs:
       file /dev/null project [a]
       | aggregate
           array_agg:=array_agg(a)
-      | values array_agg
+      | values (has(this, "array_agg")) ? array_agg : none
       | output main
       === collect
       file /dev/null project [a]
       | aggregate
           collect:=collect(a)
-      | values collect
+      | values (has(this, "collect")) ? collect : none
       | output main
       === array_agg and collect with an unordered aggregate
       file /dev/null project [a]

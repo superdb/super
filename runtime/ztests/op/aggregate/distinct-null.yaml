@@ -5,4 +5,4 @@ input: |
   null
 
 output: |
-  {avg:null,array_agg:[null],count:0,collect:[null],sum:null}
+  {array_agg:[null],count:0,collect:[null]}

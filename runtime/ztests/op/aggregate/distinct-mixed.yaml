@@ -15,4 +15,4 @@ input: |
 
 output: |
   {k:1,count:3,avg:2.}
-  {k:2,count:0,avg:null}
+  {k:2,count:0}

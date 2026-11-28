@@ -1199,7 +1199,7 @@ func (t *translator) semOp(o ast.Op, seq sem.Seq, inType super.Type) (sem.Seq, s
 				},
 			},
 		})
-		return append(seq, sem.NewValues(o, sem.NewThis(o, field.NewChain("sample")))), t.checker.unknown
+		return append(seq, sem.NewValues(o, fieldOrNone(o, sem.NewThis(o, field.NewChain("sample"))))), t.checker.unknown
 	case *ast.AssertOp:
 		cond, _ := t.expr(o.Expr, inType)
 		// 'assert EXPR' is equivalent to
@@ -1442,7 +1442,7 @@ func (t *translator) singletonAgg(assignment *ast.Assignment, seq sem.Seq, inTyp
 			Node: assignment,
 			Aggs: []sem.Assignment{out},
 		},
-		sem.NewValues(assignment, this),
+		sem.NewValues(assignment, fieldOrNone(assignment, this)),
 	), path.typ
 }
 
@@ -1455,24 +1455,28 @@ func (t *translator) singletonKey(agg ast.Assignment, seq sem.Seq, inType super.
 	if !ok || len(this.Chain) != 1 {
 		return nil, nil
 	}
-	// A plain none key disappears from the aggregate's record (see the
-	// aggregate operator), so the key's value is none when the record
-	// doesn't have its field, and values drops it.  (ok() would turn an error
-	// key into none too.)
-	name := &sem.PrimitiveExpr{Node: out.Node, Value: sup.QuotedString(this.Chain[0].ID)}
-	key := &sem.CondExpr{
-		Node: out.Node,
-		Cond: sem.NewCall(out.Node, "has", []sem.Expr{sem.NewThis(out.Node, nil), name}),
-		Then: this,
-		Else: &sem.PrimitiveExpr{Node: out.Node, Value: "none"},
-	}
 	return append(seq,
 		&sem.AggregateOp{
 			Node: out.Node,
 			Keys: []sem.Assignment{out},
 		},
-		sem.NewValues(out.Node, key),
+		sem.NewValues(out.Node, fieldOrNone(out.Node, this)),
 	), t.checker.values([]super.Type{path.typ})
+}
+
+// fieldOrNone returns an expression for the field of an aggregate's output
+// record named by this.  A plain none key or (outside of SQL) aggregate
+// function result disappears from the record (see the aggregate operator), so
+// the value is none when the record doesn't have the field, and values drops
+// it.  (ok() would turn an error value into none too.)
+func fieldOrNone(n ast.Node, this *sem.ThisExpr) sem.Expr {
+	name := &sem.PrimitiveExpr{Node: n, Value: sup.QuotedString(this.Chain[0].ID)}
+	return &sem.CondExpr{
+		Node: n,
+		Cond: sem.NewCall(n, "has", []sem.Expr{sem.NewThis(n, nil), name}),
+		Then: this,
+		Else: &sem.PrimitiveExpr{Node: n, Value: "none"},
+	}
 }
 
 // semDecls enters a block of declarations into the current scope.  We do late binding
@@ -1891,7 +1895,7 @@ func (t *translator) maybeCallShortcut(call *ast.CallExpr, seq sem.Seq, inType s
 				},
 			},
 		}
-		values := sem.NewValues(call, sem.NewThis(call, field.NewChain(name)))
+		values := sem.NewValues(call, fieldOrNone(call, sem.NewThis(call, field.NewChain(name))))
 		return append(append(seq, aggregate), values), typ
 	}
 	if !function.HasBoolResult(strings.ToLower(name)) {
@@ -1916,7 +1920,7 @@ func (t *translator) aggFuncShortcut(agg *ast.AggFuncExpr, seq sem.Seq, inType s
 			},
 		},
 	}
-	values := sem.NewValues(agg, sem.NewThis(agg, field.NewChain(name)))
+	values := sem.NewValues(agg, fieldOrNone(agg, sem.NewThis(agg, field.NewChain(name))))
 	return append(seq, aggregate, values), typ
 }
 

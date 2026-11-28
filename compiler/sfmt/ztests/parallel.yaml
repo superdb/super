@@ -14,7 +14,7 @@ outputs:
         (
           aggregate
               sum:=sum(x)
-          | values sum
+          | values (has(this, "sum")) ? sum : none
         )
         (
           put a:=b*c

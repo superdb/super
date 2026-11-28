@@ -63,7 +63,7 @@ func eqOp(aop, bop sem.Op) bool {
 	//
 	case *sem.AggregateOp:
 		b, ok := bop.(*sem.AggregateOp)
-		return ok && eqAssignments(a.Keys, b.Keys) && eqAssignments(a.Aggs, b.Aggs)
+		return ok && a.SQL == b.SQL && eqAssignments(a.Keys, b.Keys) && eqAssignments(a.Aggs, b.Aggs)
 	case *sem.BadOp:
 		return false
 	case *sem.CutOp:

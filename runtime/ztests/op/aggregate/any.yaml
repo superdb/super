@@ -9,6 +9,6 @@ input: |
 
 output: |
   {k:"k1",any:1}
-  {k:"k2",any:null}
+  {k:"k2"}
   {k:"k3",any:error("missing")}
   {k:"k4",any:{a:1}}

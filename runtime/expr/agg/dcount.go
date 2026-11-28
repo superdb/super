@@ -26,7 +26,7 @@ func (d *dcount) Resize(n uint32) {
 }
 
 func (d *dcount) Consume(groups []uint32, vec vector.Any) {
-	if vec.Kind() == vector.KindNull {
+	if k := vec.Kind(); k == vector.KindNull || k == vector.KindNone {
 		return
 	}
 	// append type id to vals so we get a unique count where the bytes are same

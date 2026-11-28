@@ -6,4 +6,4 @@ input: |
   {x:fusion(null::(int64|null),<null>)}
 
 output: |
-  {avg:null,count:0,dcount:0,any:null,max:null,min:null,sum:null}
+  {count:0,dcount:0}

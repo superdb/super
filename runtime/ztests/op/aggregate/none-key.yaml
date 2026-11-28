@@ -1,10 +1,10 @@
 # A plain none group key (e.g., from ok()) disappears from its output record,
 # including when the aggregate is split into partials (as for a file scan)
 # and for a nested key.  With a single unnamed key and no aggregate
-# functions, the none key is dropped, but an error key isn't.  An aggregate
-# function's none result isn't a key, so it isn't dropped (as for shapes,
-# whose sample is from any).  Keys and aggregate values interleaved in
-# nested records are assigned to the right fields.
+# functions, the none key is dropped, but an error key isn't.  For shapes,
+# the none values form a group with no sample, so it outputs no value.  Keys
+# and aggregate values interleaved in nested records are assigned to the
+# right fields.
 script: |
   super -s -c 'values {a:1},{b:2},{b:3} | count() by k:=ok(a) | sort count'
   echo ===

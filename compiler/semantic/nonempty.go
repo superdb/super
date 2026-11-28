@@ -7,9 +7,9 @@ import (
 )
 
 // mayBeEmpty returns false if the body of subquery e always produces a value,
-// e.g., (values a) or (sum(x)), and true if it might not, in which case the
-// value of a pipe subquery is none.  It's conservative: a body that's not
-// known to produce a value may be empty.
+// e.g., (values a) or (aggregate s:=sum(x)), and true if it might not, in
+// which case the value of a pipe subquery is none.  It's conservative: a body
+// that's not known to produce a value may be empty.
 func (t *translator) mayBeEmpty(e *sem.SubqueryExpr) bool {
 	// An unmaterialized subquery runs on the value of its outer expression.
 	return !t.producesValues(e.Body, !e.Materialized)

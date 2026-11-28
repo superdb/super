@@ -10,7 +10,7 @@ outputs:
         case true (
           aggregate
               count:=count()
-          | values count
+          | values (has(this, "count")) ? count : none
         )
       | sort count asc nulls last
       | output main

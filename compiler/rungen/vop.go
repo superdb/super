@@ -505,9 +505,9 @@ func (b *Builder) compileVamAggregate(s *dag.AggregateOp, parent vio.Puller) (vi
 		keyExprs = append(keyExprs, rhs)
 	}
 	if len(keyExprs) == 0 {
-		return aggregate.NewScalar(parent, b.sctx(), aggs, aggNames, aggExprs, s.PartialsIn, s.PartialsOut)
+		return aggregate.NewScalar(parent, b.sctx(), aggs, aggNames, aggExprs, s.PartialsIn, s.PartialsOut, s.SQL)
 	}
-	return aggregate.New(parent, b.sctx(), aggNames, aggExprs, aggs, keyNames, keyExprs, s.PartialsIn, s.PartialsOut)
+	return aggregate.New(parent, b.sctx(), aggNames, aggExprs, aggs, keyNames, keyExprs, s.PartialsIn, s.PartialsOut, s.SQL)
 }
 
 func (b *Builder) compileVamAgg(ag *dag.AggExpr) (*expr.Aggregator, error) {

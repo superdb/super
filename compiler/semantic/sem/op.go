@@ -109,6 +109,9 @@ type (
 		Limit int
 		Keys  []Assignment
 		Aggs  []Assignment
+		// SQL is true for the aggregate of a SQL query (see
+		// dag.AggregateOp).
+		SQL bool
 	}
 	BadOp struct {
 		ast.Node
@@ -375,6 +378,7 @@ func CopyOp(op Op) Op {
 			Limit: op.Limit,
 			Keys:  copyAssignments(op.Keys),
 			Aggs:  copyAssignments(op.Aggs),
+			SQL:   op.SQL,
 		}
 	case *BadOp:
 		return &BadOp{Node: op.Node}

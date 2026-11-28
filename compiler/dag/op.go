@@ -66,6 +66,10 @@ type (
 		Aggs        []Assignment `json:"aggs"`
 		PartialsIn  bool         `json:"partials_in,omitempty"`
 		PartialsOut bool         `json:"partials_out,omitempty"`
+		// SQL is true for the aggregate of a SQL query, whose aggregate
+		// function results are null for a group with no values.
+		// Otherwise, they're none and disappear from the output record.
+		SQL bool `json:"sql,omitempty"`
 	}
 	CombineOp struct {
 		Kind string `json:"kind" unpack:""`

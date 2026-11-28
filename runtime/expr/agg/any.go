@@ -30,7 +30,7 @@ func (a *Any) Consume(groups []uint32, vec vector.Any) {
 			continue
 		}
 		val := vector.ValueAt(&b, vec, uint32(slot))
-		if underVal := val.Under(); !underVal.IsNull() && !underVal.IsMissing() && !underVal.IsNone() {
+		if underVal := val.Under(); !underVal.IsNull() && !underVal.IsMissing() && !underVal.IsNone() && underVal.Type() != super.TypeNone {
 			a.vals[g] = val.Copy()
 		}
 	}

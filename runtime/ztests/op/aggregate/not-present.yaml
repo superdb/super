@@ -6,4 +6,4 @@ input: |
   {key:"key1"}
 
 output: |
-  {key:"key1",max:null}
+  {key:"key1"}
