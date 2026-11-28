@@ -54,7 +54,7 @@ func (h HasError) hasError(in vector.Any) vector.Any {
 		vals := listHasError(h.hasError(vec.Values), index, vec.Offsets, n)
 		return expr.EvalOr(nil, keys, vals)
 	default:
-		return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipFusions, IsErr{}.Call, in)
+		return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipSupers, IsErr{}.Call, in)
 	}
 }
 
@@ -162,7 +162,7 @@ type TypeOf struct {
 
 func (t *TypeOf) ApplyOpt() vector.ApplyOpt { return vector.ApplyNone }
 
-// NoDefuse is true so the type of a fusion value can be computed from its
+// NoDefuse is true so the type of a super value can be computed from its
 // subtypes without its data (which might not be loaded; see the optimizer's
 // demand analysis).
 func (*TypeOf) NoDefuse() bool { return true }
@@ -172,7 +172,7 @@ func (t *TypeOf) Call(args ...vector.Any) vector.Any {
 }
 
 // SuperTypeOf is typeof without superdefusing its argument, so the type of
-// a value with fusion types (e.g., from superfuse) includes the fusion types.
+// a value with super types (e.g., from superfuse) includes the super types.
 type SuperTypeOf struct {
 	sctx *super.Context
 }
@@ -235,12 +235,12 @@ func (*Kind) NoDefuse() bool { return true }
 
 func (k *Kind) Call(args ...vector.Any) vector.Any {
 	vec := args[0]
-	if k.defuse.HasFusion(vec.Type()) {
-		// Superdefuse changes the kind only of a fusion value (or a
+	if k.defuse.HasSuper(vec.Type()) {
+		// Superdefuse changes the kind only of a super value (or a
 		// union containing one).
 		switch vec.Kind() {
-		case vector.KindFusion:
-			return k.fusionKind(vector.PushViewOrConst(vec).(*vector.Fusion))
+		case vector.KindSuper:
+			return k.superKind(vector.PushViewOrConst(vec).(*vector.Super))
 		case vector.KindUnion:
 			u := vector.PushViewOrConst(vec).(*vector.Union)
 			return vector.Apply(vector.ApplyNone, k.Call, u.Dynamic())
@@ -249,11 +249,11 @@ func (k *Kind) Call(args ...vector.Any) vector.Any {
 	return k.kind(vec)
 }
 
-// fusionKind returns the kinds of the superdefused values of fusion, which
+// superKind returns the kinds of the superdefused values of sup, which
 // are the kinds of their subtypes except for type values, whose kind is the
 // kind of the type value.  Only the type values are superdefused.
-func (k *Kind) fusionKind(fusion *vector.Fusion) vector.Any {
-	types := fusion.Subtypes.Types()
+func (k *Kind) superKind(sup *vector.Super) vector.Any {
+	types := sup.Subtypes.Types()
 	var index []uint32
 	for i, typ := range types {
 		if super.TypeUnder(typ) == super.TypeType {
@@ -261,11 +261,11 @@ func (k *Kind) fusionKind(fusion *vector.Fusion) vector.Any {
 		}
 	}
 	if len(index) == 0 {
-		return k.kind(fusion.Subtypes)
+		return k.kind(sup.Subtypes)
 	}
-	defused := k.defuse.Eval(vector.Pick(fusion, index))
+	defused := k.defuse.Eval(vector.Pick(sup, index))
 	typeKinds := vector.Apply(vector.ApplyNone, k.kind, defused)
-	out := vector.NewStringEmpty(fusion.Len())
+	out := vector.NewStringEmpty(sup.Len())
 	var j uint32
 	for i, typ := range types {
 		if int(j) < len(index) && index[j] == uint32(i) {
@@ -288,8 +288,8 @@ func (k *Kind) kind(args ...vector.Any) vector.Any {
 			out.Append(typ.Kind().String())
 		}
 		return out
-	case vector.KindFusion:
-		return k.kind(vector.PushViewOrConst(vec).(*vector.Fusion).Subtypes)
+	case vector.KindSuper:
+		return k.kind(vector.PushViewOrConst(vec).(*vector.Super).Subtypes)
 	default:
 		return vector.NewConstString(vec.Type().Kind().String(), vec.Len())
 	}

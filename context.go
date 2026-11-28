@@ -365,10 +365,10 @@ func (c *Context) LookupByName(name string) *TypeNamed {
 // valid UTF-8 string or is a primitive type name.
 func (c *Context) LookupTypeNamed(name string, inner Type) (*TypeNamed, error) {
 	// Named types are types of the data model (values carry them) so any
-	// in the body of a named type is fusion(all).  A type from another
+	// in the body of a named type is super(all).  A type from another
 	// context is translated into c so it can be compared with an existing
 	// binding.
-	inner, err := c.TranslateType(c.AnyToFusion(inner))
+	inner, err := c.TranslateType(c.AnyToSuper(inner))
 	if err != nil {
 		return nil, err
 	}
@@ -466,9 +466,9 @@ func (c *Context) declareBlock(compIDs []compID) []patch {
 }
 
 func (c *Context) BindTypeNamed(patch int, named *TypeNamed, inner Type) error {
-	// See LookupTypeNamed.  This is done before locking c as AnyToFusion
+	// See LookupTypeNamed.  This is done before locking c as AnyToSuper
 	// and TranslateType look up types in c.
-	inner, err := c.TranslateType(c.AnyToFusion(inner))
+	inner, err := c.TranslateType(c.AnyToSuper(inner))
 	if err != nil {
 		// Bind to missing so waiters are released and fail below.
 		inner = TypeMissing
@@ -500,8 +500,8 @@ func (c *Context) BindTypeNamed(patch int, named *TypeNamed, inner Type) error {
 	if cycle {
 		return fmt.Errorf("named type %q is bound to itself", named.Name)
 	}
-	if containsFusion(inner) {
-		return fmt.Errorf("named type %q cannot contain a fusion", named.Name)
+	if containsSuper(inner) {
+		return fmt.Errorf("named type %q cannot contain a super type", named.Name)
 	}
 	return nil
 }
@@ -548,7 +548,7 @@ func (c *Context) LookupTypeError(inner Type) *TypeError {
 	return typ
 }
 
-func (c *Context) LookupTypeFusion(inner Type) (*TypeFusion, error) {
+func (c *Context) LookupTypeSuper(inner Type) (*TypeSuper, error) {
 	c.mu.Lock()
 	innerID, ok := c.localID(inner)
 	if !ok {
@@ -557,76 +557,76 @@ func (c *Context) LookupTypeFusion(inner Type) (*TypeFusion, error) {
 		if err != nil {
 			return nil, err
 		}
-		return c.LookupTypeFusion(inner)
+		return c.LookupTypeSuper(inner)
 	}
 	defer c.mu.Unlock()
-	id := c.typedefs.BindTypeWrapped(TypeDefFusion, innerID)
+	id := c.typedefs.BindTypeWrapped(TypeDefSuper, innerID)
 	if typ, ok := c.byID[id]; ok {
-		return typ.(*TypeFusion), nil
+		return typ.(*TypeSuper), nil
 	}
-	typ := NewTypeFusion(int(id), inner)
+	typ := NewTypeSuper(int(id), inner)
 	c.byID[id] = typ
 	return typ, nil
 }
 
-func (c *Context) MustLookupTypeFusion(inner Type) *TypeFusion {
-	typ, err := c.LookupTypeFusion(inner)
+func (c *Context) MustLookupTypeSuper(inner Type) *TypeSuper {
+	typ, err := c.LookupTypeSuper(inner)
 	if err != nil {
 		panic(err)
 	}
 	return typ
 }
 
-// FusionAll returns fusion(all), the data model's type for a value of any
+// SuperAll returns super(all), the data model's type for a value of any
 // type, which carries the value's own type.
-func (c *Context) FusionAll() *TypeFusion {
-	return c.MustLookupTypeFusion(TypeAll)
+func (c *Context) SuperAll() *TypeSuper {
+	return c.MustLookupTypeSuper(TypeAll)
 }
 
-// AnyToFusion returns typ with each occurrence of any, which exists only in
-// the type system, replaced by fusion(all) so that the result is a type of
-// the data model.  A union with any as a member is replaced by fusion(all)
-// as a value of fusion(all) carries its own type, which may be any member of
+// AnyToSuper returns typ with each occurrence of any, which exists only in
+// the type system, replaced by super(all) so that the result is a type of
+// the data model.  A union with any as a member is replaced by super(all)
+// as a value of super(all) carries its own type, which may be any member of
 // the union.  The body of a named type never contains any (see
 // LookupTypeNamed).
-func (c *Context) AnyToFusion(typ Type) Type {
+func (c *Context) AnyToSuper(typ Type) Type {
 	if !HasAny(typ) {
 		return typ
 	}
 	switch typ := typ.(type) {
 	case *TypeOfAny:
-		return c.FusionAll()
+		return c.SuperAll()
 	case *TypeRecord:
 		fields := make([]Field, len(typ.Fields))
 		for k, f := range typ.Fields {
-			fields[k] = NewField(f.Name, c.AnyToFusion(f.Type))
+			fields[k] = NewField(f.Name, c.AnyToSuper(f.Type))
 		}
 		return c.MustLookupTypeRecord(fields)
 	case *TypeArray:
-		return c.LookupTypeArray(c.AnyToFusion(typ.Type))
+		return c.LookupTypeArray(c.AnyToSuper(typ.Type))
 	case *TypeSet:
-		return c.LookupTypeSet(c.AnyToFusion(typ.Type))
+		return c.LookupTypeSet(c.AnyToSuper(typ.Type))
 	case *TypeMap:
-		return c.LookupTypeMap(c.AnyToFusion(typ.KeyType), c.AnyToFusion(typ.ValType))
+		return c.LookupTypeMap(c.AnyToSuper(typ.KeyType), c.AnyToSuper(typ.ValType))
 	case *TypeUnion:
 		types := make([]Type, len(typ.Types))
 		for k, t := range typ.Types {
 			if _, ok := t.(*TypeOfAny); ok {
-				return c.FusionAll()
+				return c.SuperAll()
 			}
-			types[k] = c.AnyToFusion(t)
+			types[k] = c.AnyToSuper(t)
 		}
 		return c.MustLookupTypeUnion(types)
 	case *TypeError:
-		return c.LookupTypeError(c.AnyToFusion(typ.Type))
+		return c.LookupTypeError(c.AnyToSuper(typ.Type))
 	case *TypeOption:
-		return c.LookupTypeOption(c.AnyToFusion(typ.Type))
-	case *TypeFusion:
-		inner := c.AnyToFusion(typ.Type)
-		if IsFusionAll(inner) {
+		return c.LookupTypeOption(c.AnyToSuper(typ.Type))
+	case *TypeSuper:
+		inner := c.AnyToSuper(typ.Type)
+		if IsSuperAll(inner) {
 			return inner
 		}
-		return c.MustLookupTypeFusion(inner)
+		return c.MustLookupTypeSuper(inner)
 	}
 	return typ
 }
@@ -652,7 +652,7 @@ func HasAny(typ Type) bool {
 		return HasAny(typ.Type)
 	case *TypeOption:
 		return HasAny(typ.Type)
-	case *TypeFusion:
+	case *TypeSuper:
 		return HasAny(typ.Type)
 	}
 	return false
@@ -915,12 +915,12 @@ func (c *Context) DecodeTypeValue(tv []byte) (Type, []byte) {
 			return nil, nil
 		}
 		return typ, tv
-	case TypeValueFusion:
+	case TypeValueSuper:
 		inner, tv := c.DecodeTypeValue(tv)
 		if tv == nil {
 			return nil, nil
 		}
-		typ, err := c.LookupTypeFusion(inner)
+		typ, err := c.LookupTypeSuper(inner)
 		if typ == nil || err != nil {
 			return nil, nil
 		}
@@ -1113,7 +1113,7 @@ const (
 	TypeDefEnum    = 5
 	TypeDefError   = 6
 	TypeDefNamed   = 7
-	TypeDefFusion  = 8
+	TypeDefSuper   = 8
 	TypeDefOption  = 9
 	TypeDefDecimal = 10
 )
@@ -1323,7 +1323,7 @@ func (t *TypeDefsBuilder) BindTypeRecord(names []string, ids []uint32) uint32 {
 }
 
 // BindTypeWrapped returns the ID of the type with code typedef (i.e., an
-// array, set, error, fusion, or option type) whose inner type has ID inner.
+// array, set, error, super, or option type) whose inner type has ID inner.
 func (t *TypeDefsBuilder) BindTypeWrapped(typedef int, inner uint32) uint32 {
 	at := t.begin(typedef)
 	t.appendUvarint(uint64(inner))
@@ -1483,8 +1483,8 @@ func (t *TypeDefsEncoder) LookupType(typ Type) uint32 {
 		id = t.BindTypeWrapped(TypeDefError, t.LookupType(typ.Type))
 	case *TypeNamed:
 		return t.lookupTypeNamed(typ)
-	case *TypeFusion:
-		id = t.BindTypeWrapped(TypeDefFusion, t.LookupType(typ.Type))
+	case *TypeSuper:
+		id = t.BindTypeWrapped(TypeDefSuper, t.LookupType(typ.Type))
 	case *TypeOption:
 		id = t.BindTypeWrapped(TypeDefOption, t.LookupType(typ.Type))
 	default:
@@ -1605,7 +1605,7 @@ func (t *TypeDefs) loops(id uint32, scoreboard map[string]comp) bool {
 				return false
 			}
 		}
-	case TypeDefArray, TypeDefSet, TypeDefError, TypeDefFusion, TypeDefOption:
+	case TypeDefArray, TypeDefSet, TypeDefError, TypeDefSuper, TypeDefOption:
 		_, ok = child(b)
 		return ok
 	case TypeDefMap:
@@ -1812,7 +1812,7 @@ func (t *TypeDefsMapper) lookupType(id uint32) Type {
 			// inner type may refer to it.
 			typ.Wait()
 			t.cache[id] = typ
-			if inner := t.LookupType(innerID); inner == nil || t.sctx.AnyToFusion(inner) != typ.Type {
+			if inner := t.LookupType(innerID); inner == nil || t.sctx.AnyToSuper(inner) != typ.Type {
 				delete(t.cache, id)
 				return nil
 			}
@@ -1996,7 +1996,7 @@ func (t *TypeDefsMapper) lookupType(id uint32) Type {
 			return nil
 		}
 		return t.sctx.LookupTypeError(inner)
-	case TypeDefFusion:
+	case TypeDefSuper:
 		cid, b := DecodeID(b)
 		if b == nil {
 			return nil
@@ -2005,7 +2005,7 @@ func (t *TypeDefsMapper) lookupType(id uint32) Type {
 		if inner == nil {
 			return nil
 		}
-		typ, err := t.sctx.LookupTypeFusion(inner)
+		typ, err := t.sctx.LookupTypeSuper(inner)
 		if err != nil {
 			return nil
 		}
@@ -2034,7 +2034,7 @@ func (t *TypeDefsMapper) lookupType(id uint32) Type {
 // on demand as external ID are looked up and converted to shared IDs.  This is
 // used, for example, by the BSUP writer to collapse multiple typedefs tables
 // into one table to be written to the BSUP metadata and copying only the typedefs
-// that are used by subtypes in the serialized fusion vectors.  LookupID panics if any
+// that are used by subtypes in the serialized super vectors.  LookupID panics if any
 // malformed data is encountered.
 type TypeDefsMerger struct {
 	*TypeDefsBuilder
@@ -2162,11 +2162,11 @@ func (t *TypeDefsMerger) LookupID(extID uint32) uint32 {
 		at = len(t.bytes)
 		t.bytes = append(t.bytes, TypeDefError)
 		t.bytes = binary.AppendUvarint(t.bytes, uint64(id))
-	case TypeDefFusion:
+	case TypeDefSuper:
 		id, bytes = MustDecodeID(bytes)
 		id = t.lookupChild(id, extID)
 		at = len(t.bytes)
-		t.bytes = append(t.bytes, TypeDefFusion)
+		t.bytes = append(t.bytes, TypeDefSuper)
 		t.bytes = binary.AppendUvarint(t.bytes, uint64(id))
 	case TypeDefOption:
 		id, bytes = MustDecodeID(bytes)
@@ -2253,9 +2253,9 @@ func (c *Context) OptionizeMissing(typ Type) Type {
 			}
 			return c.LookupTypeOption(t)
 		}
-	case *TypeFusion:
+	case *TypeSuper:
 		if t := c.OptionizeMissing(typ.Type); t != typ.Type {
-			return c.MustLookupTypeFusion(t)
+			return c.MustLookupTypeSuper(t)
 		}
 	case *TypeUnion:
 		return c.optionizeUnion(typ)

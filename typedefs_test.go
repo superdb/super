@@ -24,7 +24,7 @@ func TestTypeDefsRoundTrip(t *testing.T) {
 		"enum(a,b)",
 		"decimal(10,2)",
 		"option(int64)",
-		"fusion(int64|string)",
+		"super(int64|string)",
 	} {
 		typ, err := sup.ParseType(sctx, s)
 		require.NoError(t, err, s)

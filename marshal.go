@@ -216,10 +216,10 @@ func (m *Marshaler) encodeAny(v reflect.Value) (Type, error) {
 		m.builder.Append(val.Bytes())
 		return val.Type(), nil
 	case Value:
-		// Encode as {Fusion:<any>,Bytes:bytes,Subtype:typ}
-		anyType := m.sctx.FusionAll()
+		// Encode as {Super:<any>,Bytes:bytes,Subtype:typ}
+		anyType := m.sctx.SuperAll()
 		typeVal := m.sctx.LookupTypeValue(v.Type())
-		BuildFusion(&m.builder, v.Bytes(), typeVal.Bytes())
+		BuildSuper(&m.builder, v.Bytes(), typeVal.Bytes())
 		return anyType, nil
 	}
 	switch v.Kind() {
@@ -494,12 +494,12 @@ func (m *Marshaler) lookupType(t reflect.Type) (Type, error) {
 	case reflect.Float64:
 		typ = TypeFloat64
 	case reflect.Interface:
-		// Encode Type as type any (aka fusion(all)) so that the types
+		// Encode Type as type any (aka super(all)) so that the types
 		// for entities with embedded Values will not vary and otherwise
 		// caused redefinition errors.  Otherwise, since we don't know the
 		// underlying concrete type of interfaces, we encode them as the null type.
 		if t.PkgPath() == "super" && t.Name() == "Type" {
-			typ = m.sctx.FusionAll()
+			typ = m.sctx.SuperAll()
 		} else {
 			typ = TypeNull
 		}
@@ -650,15 +650,15 @@ func (u *Unmarshaler) decodeAny(val Value, v reflect.Value) (x error) {
 	case Value:
 		// For Values we simply set the reflect value to the
 		// a Value we create from the underlying Typeval/Bytes structure.
-		fusionType, ok := val.Type().(*TypeFusion)
-		if !ok || fusionType.Type != TypeAll {
-			return errors.New("super value is not type fusion(all)")
+		superType, ok := val.Type().(*TypeSuper)
+		if !ok || superType.Type != TypeAll {
+			return errors.New("super value is not type super(all)")
 		}
 		//XXX
 		if u.sctx == nil {
 			u.sctx = NewContext()
 		}
-		bytes, typ := fusionType.Deref(u.sctx, val.Bytes())
+		bytes, typ := superType.Deref(u.sctx, val.Bytes())
 		val := NewValue(typ, bytes)
 		v.Set(reflect.ValueOf(val.Copy()))
 		return nil

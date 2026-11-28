@@ -4,7 +4,7 @@ input: |
   "<int64>"
   <ip>
   "<{x:string}>"
-  fusion("<{x:string}>"::(string|null),<string>)
+  super("<{x:string}>"::(string|null),<string>)
   "{x:\"foo\"}"
   "<int>"
   1
@@ -12,7 +12,7 @@ input: |
   null
   null::({}|null)
   error("bad")
-  fusion(error(1)::(error(int64)|int64),<error(int64)>)
+  super(error(1)::(error(int64)|int64),<error(int64)>)
 
 output: |
   <int64>

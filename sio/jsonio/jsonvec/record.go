@@ -22,7 +22,7 @@ type Record struct {
 	// they are tracked in the permutation map and each unique arrangement
 	// assigned a unique tag.  Note that there may ultimately be
 	// more types that unique tags because each field underneath
-	// may have fusion types but this is handled in materialize.
+	// may have super types but this is handled in materialize.
 	tags []uint32
 	// perm keeps track of each unique permutation of fields
 	// as they appear in the fused record.  We index this map with

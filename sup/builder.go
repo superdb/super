@@ -45,8 +45,8 @@ func buildValue(b *scode.Builder, val Value) error {
 		return buildTypeValue(b, val)
 	case *Error:
 		return buildValue(b, val.value)
-	case *Fusion:
-		return buildFusion(b, val)
+	case *Super:
+		return buildSuper(b, val)
 	case *Option:
 		return buildOption(b, val)
 	case *Missing, *None, *Null:
@@ -242,7 +242,7 @@ func buildUnion(b *scode.Builder, union *Union) error {
 	return nil
 }
 
-func buildFusion(b *scode.Builder, f *Fusion) error {
+func buildSuper(b *scode.Builder, f *Super) error {
 	b.BeginContainer()
 	// supertype value
 	if err := buildValue(b, f.value); err != nil {

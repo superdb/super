@@ -4,7 +4,7 @@ spq: |
 input: |
   false
   true
-  fusion(true::(bool|null),<bool>)
+  super(true::(bool|null),<bool>)
   -1
   null
   null::({}|null)

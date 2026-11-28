@@ -6,7 +6,7 @@ input: |
   type named=string
   "bar"::named
   ""
-  fusion("a"::(string|null),<string>)
+  super("a"::(string|null),<string>)
   null
   null::({}|null)
   {x:"foo"}

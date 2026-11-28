@@ -116,7 +116,7 @@ func noneIndex(tags []uint32) []uint32 {
 }
 
 // Returns the underlying Option for any vector having KindOption.
-// To be clear, this does not reach through fusion values.
+// To be clear, this does not reach through super values.
 func UnderOption(vec Any) *Option {
 	return PushViewOrConst(Under(vec)).(*Option)
 }

@@ -165,7 +165,7 @@ func (b *Bytes) project(loader *FrameLoader, projection field.Projection) vector
 	case super.IDString:
 		return vector.NewString(table)
 	case super.IDBytes, super.IDAll:
-		// The values of a fusion(all) vector are bytes.
+		// The values of a super(all) vector are bytes.
 		return vector.NewBytes(table)
 	case super.IDUUID:
 		vals := make([]uuid.UUID, table.Len())
@@ -184,7 +184,7 @@ func (b *Bytes) vectorType() super.Type {
 	case super.IDString:
 		return super.TypeString
 	case super.IDBytes, super.IDAll:
-		// The values of a fusion(all) vector are bytes.
+		// The values of a super(all) vector are bytes.
 		return super.TypeBytes
 	case super.IDUUID:
 		return super.TypeUUID
@@ -326,7 +326,7 @@ func (m *Missing) project(*FrameLoader, field.Projection) vector.Any {
 // TypeValue is a vector of type values, whose IDs are in the frame's typedefs
 // table (as opposed to its vector typedefs table) and whose locators are its
 // kind, count, and the segment of its IDs.  It is also the subtypes of a
-// fusion vector, whose locator is just the segment of the IDs.
+// super vector, whose locator is just the segment of the IDs.
 type TypeValue struct {
 	Node
 	Values bsup.Segment

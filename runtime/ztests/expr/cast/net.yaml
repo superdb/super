@@ -3,7 +3,7 @@ spq: this::net
 input: |
   "192.168.1.0/24"
   "2001:db8::/32"
-  fusion("2001:db8::/33"::(string|null),<string>)
+  super("2001:db8::/33"::(string|null),<string>)
   null
   null::({}|null)
   10.0.0.0/8

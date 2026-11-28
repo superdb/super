@@ -205,7 +205,7 @@ and conform to the [ADM's](model.md) complex types:
 [enum](model.md#26-enum),
 [error](model.md#27-error),
 [option](model.md#29-option), and
-[fusion](model.md#28-fusion).
+[super](model.md#28-super).
 
 Complex values have an implied type when their constituent values all have
 implied types.
@@ -305,19 +305,19 @@ error(<value>)
 ```
 where `<value>` is any value.
 
-#### 2.4.8 Fusion Value
+#### 2.4.8 Super Value
 
-A fusion value has the form:
+A super value has the form:
 ```
-fusion(<value>, <type-value>)
+super(<value>, <type-value>)
 ```
-where `<value>` is a value of the fusion's supertype and `<type-value>`
+where `<value>` is a value of the super type's fused type and `<type-value>`
 is a [type value](#23-primitive-values) of its subtype, e.g.,
 ```
-fusion(1::(int64|string), <int64>)
+super(1::(int64|string), <int64>)
 ```
 
-A value of type `fusion(all)` has the form:
+A value of type `super(all)` has the form:
 ```
 <value>::any
 ```
@@ -433,13 +433,13 @@ where `<type>` is the type of the underlying values wrapped as an error.
 A named type is referenced by its name, which is a [SUP name](#21-names),
 and is defined by a [type declaration](#27-type-declarations).
 
-#### 2.5.9 Fusion Type
+#### 2.5.9 Super Type
 
-A _fusion type_ has the form:
+A _super type_ has the form:
 ```
-fusion( <type> )
+super( <type> )
 ```
-where `<type>` is the fusion's supertype.
+where `<type>` is its _fused type_.
 
 #### 2.5.10 Option Type
 
@@ -601,7 +601,7 @@ that defines their type.
 <decorators> = "::" <type> | <decorators> "::" <type>
 
 <any> = <primitive> | <type-value> | <record> | <array> | <set> | <map> |
-        <error-value> | <fusion-value> | <some-value>
+        <error-value> | <super-value> | <some-value>
 
 <primitive> = primitive value as defined above
 
@@ -633,13 +633,13 @@ that defines their type.
 
 <error-value> = "error(" <value> ")"
 
-<fusion-value> = "fusion(" <value> "," <type-value> ")"
+<super-value> = "super(" <value> "," <type-value> ")"
 
 <some-value> = "some(" <value> ")"
 
 <type> = <primitive-type> | <record-type> | <array-type> | <set-type> |
          <map-type> | <union-type> | <enum-type> | <error-type> |
-         <fusion-type> | <option-type> | <decimal-type> | <name> |
+         <super-type> | <option-type> | <decimal-type> | <name> |
          "(" <type> ")"
 
 <primitive-type> = uint8 | uint16 | etc. as defined above
@@ -666,7 +666,7 @@ that defines their type.
 
 <error-type> = "error(" <type> ")"
 
-<fusion-type> = "fusion(" <type> ")"
+<super-type> = "super(" <type> ")"
 
 <option-type> = "option(" <type> ")"
 

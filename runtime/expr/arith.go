@@ -25,7 +25,7 @@ func NewArith(sctx *super.Context, op string, lhs, rhs Evaluator) *Arith {
 }
 
 func (a *Arith) Eval(val vector.Any) vector.Any {
-	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipFusions, a.eval, a.lhs.Eval(val), a.rhs.Eval(val))
+	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipSupers, a.eval, a.lhs.Eval(val), a.rhs.Eval(val))
 }
 
 func (a *Arith) eval(vecs ...vector.Any) (out vector.Any) {

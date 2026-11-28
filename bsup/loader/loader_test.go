@@ -212,12 +212,12 @@ func TestLoaderRoundtrip(t *testing.T) {
 	// Each input, written to a frame and loaded in its entirety, gives back
 	// the input.
 	cases := map[string]string{
-		"fusion": `
-{f:fusion(1::(int64|string),<int64>)}
-{f:fusion("a"::(int64|string),<string>)}
-{f:fusion(2::(int64|string),<int64>)}
+		"super": `
+{f:super(1::(int64|string),<int64>)}
+{f:super("a"::(int64|string),<string>)}
+{f:super(2::(int64|string),<int64>)}
 `,
-		"fusion(all)": `
+		"super(all)": `
 {x:1::any}
 {x:"a"::any}
 {x:{y:1}::any}

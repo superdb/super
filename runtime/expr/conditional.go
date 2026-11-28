@@ -75,7 +75,7 @@ func (c *conditional) eval(vecs ...vector.Any) vector.Any {
 
 // BoolMask returns the slots of mask that are true and the slots that are errors.
 func BoolMask(mask vector.Any) (*roaring.Bitmap, *roaring.Bitmap) {
-	mask = vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, func(vecs ...vector.Any) vector.Any {
+	mask = vector.Apply(vector.ApplyRipSupers|vector.ApplyRipUnions, func(vecs ...vector.Any) vector.Any {
 		return vecs[0]
 	}, mask)
 	bools := roaring.New()

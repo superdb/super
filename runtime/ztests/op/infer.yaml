@@ -39,7 +39,7 @@ input: |
   {b:["1","2"]}
   {ts:"Jun 2, 2025"}
   {y:"foo"}
-  fusion({x?:"4",y?:none::string},<{x:string}>)
+  super({x?:"4",y?:none::string},<{x:string}>)
 
 output: |
   {a:[true,false]}

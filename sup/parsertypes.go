@@ -79,8 +79,8 @@ func (p *Parser) matchTypeName() (ast.Type, error) {
 	if name == "error" {
 		return p.matchTypeErrorBody()
 	}
-	if name == "fusion" {
-		return p.matchTypeFusionBody()
+	if name == "super" {
+		return p.matchTypeSuperBody()
 	}
 	if name == "option" {
 		return p.matchTypeOptionBody()
@@ -486,13 +486,13 @@ func (p *Parser) matchTypeErrorBody() (*ast.TypeError, error) {
 	}, nil
 }
 
-func (p *Parser) matchTypeFusionBody() (*ast.TypeFusion, error) {
-	typ, err := p.matchTypeBody("fusion")
+func (p *Parser) matchTypeSuperBody() (*ast.TypeSuper, error) {
+	typ, err := p.matchTypeBody("super")
 	if err != nil {
 		return nil, err
 	}
-	v := &ast.TypeFusion{
-		Kind: "TypeFusion",
+	v := &ast.TypeSuper{
+		Kind: "TypeSuper",
 		Type: typ,
 	}
 	return v, nil

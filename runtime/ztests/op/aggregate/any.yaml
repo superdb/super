@@ -5,7 +5,7 @@ input: |
   {k:"k1",v:1}
   {k:"k2",v:null}
   {k:"k3",v:error("missing")}
-  {k:"k4",v:fusion({a:1,b?:none::int64},<{a:int64}>)}
+  {k:"k4",v:super({a:1,b?:none::int64},<{a:int64}>)}
 
 output: |
   {k:"k1",any:1}

@@ -7,8 +7,8 @@ input: |
   {a:{b:1::(int64|string)}}
   {a:{b:1}::(int64|{b:int64})}
   {a:{b:1}}::(int64|{a:{b:int64}})
-  {a:fusion({b:1}::(null|{b:int64}),<{b:int64}>)}
-  {a:fusion(null::(null|{b:int64}),<null>)}
+  {a:super({b:1}::(null|{b:int64}),<{b:int64}>)}
+  {a:super(null::(null|{b:int64}),<null>)}
   {a:{b?:none::option(int64|string)}}
   {a:1}
   {}

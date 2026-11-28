@@ -1,0 +1,22 @@
+spq: |
+  type foo=super(int64)
+  values foo
+
+error: |
+  named type "foo" cannot contain a super type at line 1, column 10:
+  type foo=super(int64)
+           ~~~~~~~~~~~~
+  no such field "foo": . applied to null at line 2, column 8:
+  values foo
+         ~~~
+
+---
+
+spq: |
+  type foo=super(all)
+  values foo
+
+output: |
+  type foo=super(all)
+  <foo>
+

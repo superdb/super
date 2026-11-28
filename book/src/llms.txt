@@ -16,7 +16,7 @@ Key facts for writing SuperDB queries and commands:
   A query may begin with `from` or with any operator.
 - Data in SuperDB, called super-structured data, is strongly typed without a
   schema: every value carries its own type (records, arrays, sets, maps,
-  unions, options, enums, errors, fusion types, and named types), so data of
+  unions, options, enums, errors, super types, and named types), so data of
   different shapes can coexist, and queries are statically type checked
   against the types of the data.
 - SUP is the human-readable text format and is a superset of JSON.
@@ -52,7 +52,7 @@ Avoid outdated syntax from earlier versions (when the project was called Zed):
 - The command is `super`, not `zq` or `zed`, and the formats are SUP and BSUP,
   not ZSON, ZNG, VNG, CSUP, or JSUP.
 - Use `values`, not `yield`, and `unnest`, not `over`.
-- Use `fuse`, not `blend`. `superfuse` produces fusion types, and `defuse()`
+- Use `fuse`, not `blend`. `superfuse` produces super types, and `defuse()`
   and `superdefuse()` undo them.
 - Use `ok()` and `is_ok()`, not `has()`, `missing()`, or `quiet()`.
 - A database has tables, not pools, and a database is selected with

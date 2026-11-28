@@ -95,8 +95,8 @@ func (s *shared) typ(t ast.Type) {
 		s.write("option(")
 		s.typ(t.Type)
 		s.write(")")
-	case *ast.TypeFusion:
-		s.write("fusion(")
+	case *ast.TypeSuper:
+		s.write("super(")
 		s.typ(t.Type)
 		s.write(")")
 	case *ast.TypeDecimal:

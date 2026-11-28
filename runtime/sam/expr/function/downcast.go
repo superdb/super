@@ -39,16 +39,16 @@ func (d *downcast) downcast(typ super.Type, bytes scode.Bytes, to super.Type) (s
 		return super.NewValue(to, bytes), nil
 	}
 	if _, ok := to.(*super.TypeUnion); !ok {
-		if fusionType, ok := typ.(*super.TypeFusion); ok {
-			superBytes, subtype := fusionType.Deref(d.sctx, bytes)
+		if superType, ok := typ.(*super.TypeSuper); ok {
+			superBytes, subtype := superType.Deref(d.sctx, bytes)
 			if subtype != to {
-				val, errVal := d.defuse(fusionType, bytes)
+				val, errVal := d.defuse(superType, bytes)
 				if errVal != nil {
 					panic(errVal)
 				}
 				return super.Value{}, d.errSubtype(val.Type(), val.Bytes(), to)
 			}
-			return d.downcast(fusionType.Type, superBytes, subtype)
+			return d.downcast(superType.Type, superBytes, subtype)
 		}
 	}
 	typ, bytes = deunion(typ, bytes)
@@ -73,9 +73,9 @@ func (d *downcast) downcast(typ super.Type, bytes scode.Bytes, to super.Type) (s
 		return d.toEnum(typ, bytes, to)
 	case *super.TypeError:
 		return d.toError(typ, bytes, to)
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		// Can't downcast to a super type
-		return super.Value{}, d.sctx.WrapError("downcast: cannot downcast to a fusion type", super.NewValue(typ, bytes)).Ptr()
+		return super.Value{}, d.sctx.WrapError("downcast: cannot downcast to a super type", super.NewValue(typ, bytes)).Ptr()
 	default:
 		if typ == to {
 			return super.NewValue(typ, bytes), nil
@@ -92,9 +92,9 @@ func (d *downcast) downcast(typ super.Type, bytes scode.Bytes, to super.Type) (s
 	}
 }
 
-func (d *downcast) defuse(fusionType *super.TypeFusion, bytes scode.Bytes) (super.Value, *super.Value) {
-	superBytes, subtype := fusionType.Deref(d.sctx, bytes)
-	return d.downcast(fusionType.Type, superBytes, subtype)
+func (d *downcast) defuse(superType *super.TypeSuper, bytes scode.Bytes) (super.Value, *super.Value) {
+	superBytes, subtype := superType.Deref(d.sctx, bytes)
+	return d.downcast(superType.Type, superBytes, subtype)
 }
 
 func (d *downcast) toRecord(typ super.Type, bytes scode.Bytes, to *super.TypeRecord) (super.Value, *super.Value) {
@@ -113,7 +113,7 @@ func (d *downcast) toRecord(typ super.Type, bytes scode.Bytes, to *super.TypeRec
 		}
 		if super.IsOptionType(toField.Type) {
 			fromFieldType := elemType
-			if f, ok := fromFieldType.(*super.TypeFusion); ok {
+			if f, ok := fromFieldType.(*super.TypeSuper); ok {
 				fromFieldType = f.Type
 			}
 			if !super.IsOptionType(fromFieldType) {
@@ -235,9 +235,9 @@ func (d *downcast) toEnum(typ super.Type, bytes scode.Bytes, to *super.TypeEnum)
 }
 
 // subTypeOf finds the tag in the union array types that this value should be
-// downcast to.  If the child value is a fusion value, then the type must match
-// the subtype of the fusion value.  Otherwise, the child wasn't fused, and by
-// definition of a fusion type, one of the union types must exactly match the
+// downcast to.  If the child value is a super value, then the type must match
+// the subtype of the super value.  Otherwise, the child wasn't fused, and by
+// definition of a super type, one of the union types must exactly match the
 // child type.
 func (d *downcast) subTypeOf(typ super.Type, bytes scode.Bytes, types []super.Type) (int, super.Type, []byte) {
 	val := d.defuser.eval(super.NewValue(typ, bytes))

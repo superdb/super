@@ -10,14 +10,14 @@ output: |
 
 ---
 
-# Test spreads on union and fusion values.
+# Test spreads on union and super values.
 spq: values set[...this]
 
 input: |
   set[1,2]::(null|set[int64])
   null::(null|set[int64])
-  fusion(set[1,2]::(null|set[int64]),<set[int64]>)
-  fusion(null::(null|set[int64]),<null>)
+  super(set[1,2]::(null|set[int64]),<set[int64]>)
+  super(null::(null|set[int64]),<null>)
 
 output: |
   set[1,2]

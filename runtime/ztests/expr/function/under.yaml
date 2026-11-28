@@ -62,7 +62,7 @@ output: |
 
 ---
 
-# A fusion type value (e.g., from supertypeof) is unwrapped to its supertype.
+# A super type value (e.g., from supertypeof) is unwrapped to its supertype.
 spq: superfuse | values under(supertypeof(a))
 
 input: |

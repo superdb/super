@@ -1,9 +1,9 @@
 # A fused value inside an option compares by the value's own type.
 spq: |
   values
-    {x:upcast(some(1), <option(fusion(int64|float64))>)},
-    {x:upcast(some(1), <option(fusion(int64|string))>)},
-    {x:upcast(none::int64, <option(fusion(int64|float64))>)}
+    {x:upcast(some(1), <option(super(int64|float64))>)},
+    {x:upcast(some(1), <option(super(int64|string))>)},
+    {x:upcast(none::int64, <option(super(int64|float64))>)}
   | values [this=={x:some(1)}, this=={x:some(2)}, this=={x:none::int64}]
 
 output: |
@@ -14,11 +14,11 @@ output: |
 ---
 
 # Function arguments are defused, including the values in options, and an
-# option with no values defuses each fusion type in its payload type.
+# option with no values defuses each super type in its payload type.
 spq: |
   values
-    upcast(some(1), <option(fusion(int64|string))>),
-    upcast(none::{a:int64}, <option({a:fusion(int64|string)})>)
+    upcast(some(1), <option(super(int64|string))>),
+    upcast(none::{a:int64}, <option({a:super(int64|string)})>)
   | values typeof(this)
 
 output: |
@@ -28,7 +28,7 @@ output: |
 ---
 
 spq: |
-  values {x:upcast(none::{a:int64}, <option({a:fusion(int64|string)})>)}
+  values {x:upcast(none::{a:int64}, <option({a:super(int64|string)})>)}
   | values this=={x:some({a:1})}, this=={x:none::{a:int64}}
 
 output: |

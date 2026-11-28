@@ -63,7 +63,7 @@ type (
 		typ   super.Type
 		value Value
 	}
-	Fusion struct {
+	Super struct {
 		typ     super.Type
 		value   Value
 		subtype scode.Bytes
@@ -95,7 +95,7 @@ func (m *Map) Type() super.Type       { return m.typ }
 func (n *Null) Type() super.Type      { return n.typ }
 func (t *TypeValue) Type() super.Type { return t.typ }
 func (e *Error) Type() super.Type     { return e.typ }
-func (f *Fusion) Type() super.Type    { return f.typ }
+func (f *Super) Type() super.Type     { return f.typ }
 func (m *Missing) Type() super.Type   { return m.typ }
 func (n *None) Type() super.Type      { return n.typ }
 func (o *Option) Type() super.Type    { return o.typ }
@@ -228,8 +228,8 @@ func (a *Analyzer) convertValue(val ast.Value) (Value, error) {
 		return a.convertMap(val)
 	case *ast.Error:
 		return a.convertError(val)
-	case *ast.Fusion:
-		return a.convertFusion(val)
+	case *ast.Super:
+		return a.convertSuper(val)
 	case *ast.Some:
 		return a.convertSome(val)
 	default:
@@ -463,7 +463,7 @@ func (a Analyzer) convertError(val *ast.Error) (Value, error) {
 	}, nil
 }
 
-func (a Analyzer) convertFusion(val *ast.Fusion) (Value, error) {
+func (a Analyzer) convertSuper(val *ast.Super) (Value, error) {
 	superVal, err := a.convertValue(val.Value)
 	if err != nil {
 		return nil, err
@@ -472,11 +472,11 @@ func (a Analyzer) convertFusion(val *ast.Fusion) (Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	typ, err := a.sctx.LookupTypeFusion(superVal.Type())
+	typ, err := a.sctx.LookupTypeSuper(superVal.Type())
 	if err != nil {
 		return nil, err
 	}
-	return &Fusion{
+	return &Super{
 		value:   superVal,
 		typ:     typ,
 		subtype: a.sctx.LookupTypeValue(subType.(*TypeValue).value).Bytes(),
@@ -502,8 +502,8 @@ func (a Analyzer) convertSome(val *ast.Some) (Value, error) {
 
 func (a *Analyzer) decorate(val Value, typ super.Type) (Value, error) {
 	// Decorating a value with any (e.g., 1::any) makes it a value of type
-	// fusion(all) as no value has type any.
-	typ = a.sctx.AnyToFusion(typ)
+	// super(all) as no value has type any.
+	typ = a.sctx.AnyToSuper(typ)
 	if val.Type() == typ {
 		return val, nil
 	}
@@ -522,7 +522,7 @@ func (a *Analyzer) decorate(val Value, typ super.Type) (Value, error) {
 	if _, ok := super.TypeUnder(typ).(*super.TypeUnion); ok {
 		return a.createUnion(val, typ)
 	}
-	if super.IsFusionAll(typ) {
+	if super.IsSuperAll(typ) {
 		return a.createAny(val), nil
 	}
 	if union, ok := val.(*Union); ok {
@@ -590,8 +590,8 @@ func (a *Analyzer) decorate(val Value, typ super.Type) (Value, error) {
 		return a.decorateTypeValue(val, typ)
 	case *Error:
 		return a.decorateError(val, typ)
-	case *Fusion:
-		return nil, fmt.Errorf("fusion values cannot be decorated: %q", FormatType(typ))
+	case *Super:
+		return nil, fmt.Errorf("super values cannot be decorated: %q", FormatType(typ))
 	case *Option:
 		if val.value != nil {
 			// typ cannot be an option type as that case is handled above
@@ -632,12 +632,12 @@ func (a *Analyzer) createUnion(val Value, decorator super.Type) (Value, error) {
 }
 
 func (a *Analyzer) createAny(val Value) Value {
-	if super.IsFusionAll(val.Type()) {
+	if super.IsSuperAll(val.Type()) {
 		return val
 	}
-	return &Fusion{
+	return &Super{
 		value:   val,
-		typ:     a.sctx.FusionAll(),
+		typ:     a.sctx.SuperAll(),
 		subtype: a.sctx.LookupTypeValue(val.Type()).Bytes(),
 	}
 }
@@ -842,12 +842,12 @@ func (a Analyzer) convertType(typ ast.Type) (super.Type, error) {
 			return nil, fmt.Errorf("no such type name: %q", t.Name)
 		}
 		return typ, nil
-	case *ast.TypeFusion:
+	case *ast.TypeSuper:
 		typ, err := a.convertType(t.Type)
 		if err != nil {
 			return nil, err
 		}
-		return a.sctx.LookupTypeFusion(typ)
+		return a.sctx.LookupTypeSuper(typ)
 	case *ast.TypeDecimal:
 		if err := super.CheckDecimal(t.Precision, t.Scale); err != nil {
 			return nil, err

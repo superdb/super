@@ -11,7 +11,7 @@ input: |
   "foo"
   -1e9
   1
-  fusion(1::(int64|null),<int64>)
+  super(1::(int64|null),<int64>)
   null
   null::({}|null)
   1e200

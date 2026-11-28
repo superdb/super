@@ -3,7 +3,7 @@ spq: avg(x), count(x), dcount(x), any(x), max(x), min(x), sum(x)
 input: |
   {x:null}
   {x:null::(int64|null)}
-  {x:fusion(null::(int64|null),<null>)}
+  {x:super(null::(int64|null),<null>)}
 
 output: |
   {avg:null,count:0,dcount:0,any:null,max:null,min:null,sum:null}

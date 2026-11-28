@@ -12,16 +12,16 @@ output: |
 spq: |
   upcast(this[0], this[1])
 
-flags: -fusion
+flags: -superfused
 
 input: |
   [[1,"a"],<[int8|string]>]
   [[1::int8,"a"],<[int8|string]>]
   [[1]::[int64|string],<[int64|string|null]>]
-  [map{1:map{2:3},4:map{5:null}},<fusion(map{int64:fusion(map{int64:fusion(int64|null)})})>]
-  ["x"::enum(x,y),<fusion(enum(x,y,z))>]
-  ["x"::enum(x,y),<fusion(enum(y,z))>]
-  [fusion(1::(int64|string),<int64>),<fusion(int64|string)>]
+  [map{1:map{2:3},4:map{5:null}},<super(map{int64:super(map{int64:super(int64|null)})})>]
+  ["x"::enum(x,y),<super(enum(x,y,z))>]
+  ["x"::enum(x,y),<super(enum(y,z))>]
+  [super(1::(int64|string),<int64>),<super(int64|string)>]
   type n31=int64
   [1::n31,<n31>]
   type n41=int64
@@ -59,16 +59,16 @@ input: |
   type n91=enum(a,b)
   ["a"::n91,<n91>]
   type n101=int64
-  [1::n101,<fusion(n101|string)>]
+  [1::n101,<super(n101|string)>]
 
 output: |
   error({message:"upcast: value not a subtype of [int8|string]",on:[1,"a"]})
   [1::int8,"a"]
   [1]::[int64|string|null]
-  fusion(map{1:fusion(map{2:fusion(3::(int64|null),<int64>)},<map{int64:int64}>),4:fusion(map{5:fusion(null::(int64|null),<null>)},<map{int64:null}>)},<map{int64:map{int64:int64}|map{int64:null}}>)
-  fusion("x"::enum(x,y,z),<enum(x,y)>)
-  error({message:"upcast: value not a subtype of fusion(enum(y,z))",on:"x"::enum(x,y)})
-  fusion(1::(int64|string),<int64>)
+  super(map{1:super(map{2:super(3::(int64|null),<int64>)},<map{int64:int64}>),4:super(map{5:super(null::(int64|null),<null>)},<map{int64:null}>)},<map{int64:map{int64:int64}|map{int64:null}}>)
+  super("x"::enum(x,y,z),<enum(x,y)>)
+  error({message:"upcast: value not a subtype of super(enum(y,z))",on:"x"::enum(x,y)})
+  super(1::(int64|string),<int64>)
   type n31=int64
   1::n31
   type n46=int64
@@ -94,7 +94,7 @@ output: |
   type n91=enum(a,b)
   "a"::n91
   type n101=int64
-  fusion(1::n101::(n101|string),<n101>)
+  super(1::n101::(n101|string),<n101>)
 
 ---
 

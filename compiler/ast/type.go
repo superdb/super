@@ -53,7 +53,7 @@ type (
 		Type Type   `json:"type"`
 		Loc  `json:"loc"`
 	}
-	TypeFusion struct {
+	TypeSuper struct {
 		Kind string `json:"kind" unpack:""`
 		Type Type   `json:"type"`
 		Loc  `json:"loc"`
@@ -84,7 +84,7 @@ func (*TypeUnion) typeNode()     {}
 func (*TypeEnum) typeNode()      {}
 func (*TypeMap) typeNode()       {}
 func (*TypeError) typeNode()     {}
-func (*TypeFusion) typeNode()    {}
+func (*TypeSuper) typeNode()     {}
 func (*TypeOption) typeNode()    {}
 func (*TypeRef) typeNode()       {}
 func (*TypeDecimal) typeNode()   {}

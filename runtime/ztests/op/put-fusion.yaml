@@ -1,9 +1,0 @@
-spq: x := 10
-
-input: |
-  fusion({x?:1,y?:none::int64},<{x:int64}>)
-  fusion({x?:none::int64,y?:2},<{y:int64}>)
-
-output: |
-  {x:10}
-  {y:2,x:10}

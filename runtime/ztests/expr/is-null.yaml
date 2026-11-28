@@ -3,10 +3,10 @@ spq: values [this IS NULL, this IS NOT NULL]
 input: |
   "foo"
   "foo"::(string|null)
-  fusion("foo"::(string|null),<string>)
+  super("foo"::(string|null),<string>)
   null
   null::(int64|null)
-  fusion(null::(int64|null),<null>)
+  super(null::(int64|null),<null>)
   error("missing")
   error("foo")
 

@@ -68,8 +68,8 @@ func kindOf(typ super.Type) Kind {
 			return KindEnum
 		case *super.TypeError:
 			return KindError
-		case *super.TypeFusion:
-			return KindFusion
+		case *super.TypeSuper:
+			return KindSuper
 		case *super.TypeOption:
 			return KindOption
 		case *super.TypeOfUnimplemented, *super.TypeDecimal:

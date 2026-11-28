@@ -165,13 +165,13 @@ output: |
 
 ---
 
-# Test fuse on fusion values
+# Test fuse on super values
 spq: unnest this into ( superfuse )
 
 input: |
-  [fusion({x?:1,y?:none::int64},<{x:int64}>)]
-  [fusion({x?:1,y?:none::int64},<{x:int64}>),fusion({x?:none::int64,y?:2},<{y:int64}>)]
-  [1,fusion(2::(int64|null),<int64>)]
+  [super({x?:1,y?:none::int64},<{x:int64}>)]
+  [super({x?:1,y?:none::int64},<{x:int64}>),super({x?:none::int64,y?:2},<{y:int64}>)]
+  [1,super(2::(int64|null),<int64>)]
 
 output: |
   {x:1}
@@ -184,14 +184,14 @@ output: |
 
 spq: superfuse | values x
 
-flags: -fusion -dynamic
+flags: -superfused -dynamic
 
 input: |
   {x:{y:1}}
   {}
 
 output: |
-  fusion({y:1}::(missing|{y:int64}),<{y:int64}>)
+  super({y:1}::(missing|{y:int64}),<{y:int64}>)
   error("no such field x")
 
 ---

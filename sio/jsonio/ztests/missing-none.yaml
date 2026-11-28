@@ -1,7 +1,7 @@
 # This must go JSON -> BSUP -> query; don't rewrite it as an SPQ test.
-# 1. The JSON reader (jsonvec) builds its own fusion types instead of
+# 1. The JSON reader (jsonvec) builds its own super types instead of
 #    using the fuser, and that's where missing fields used to produce an
-#    invalid (none|T) union without its own fusion.
+#    invalid (none|T) union without its own super.
 # 2. Reading the BSUP file applies projection pushdown ("values a"
 #    projects [a]) through the fused value in the column loader, which is
 #    where the bad shape surfaced. In-memory or direct JSON input doesn't

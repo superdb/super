@@ -110,11 +110,11 @@ func New(typ super.Type) Builder {
 		return &errorBuilder{typ: typ, vals: New(typ.Type)}
 	case *super.TypeNamed:
 		return newNamedBuilder(typ)
-	case *super.TypeFusion:
-		if super.IsFusionAll(typ) {
+	case *super.TypeSuper:
+		if super.IsSuperAll(typ) {
 			return newAnyBuilder(typ)
 		}
-		return newFusionBuilder(typ)
+		return newSuperBuilder(typ)
 	case *super.TypeOption:
 		return newOptionBuilder(typ)
 	default:

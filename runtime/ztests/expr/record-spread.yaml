@@ -11,7 +11,7 @@ input: |
   {b:3,r:{x:3,c:3}}
   {b:3,r:{x:3,c:3},s:{d:1}}
   {b:3,r:{y:true,z:false}}
-  {r:fusion({x?:1},<{x:int64}>),b:3}
+  {r:super({x?:1},<{x:int64}>),b:3}
   null
 
 output: |

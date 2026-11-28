@@ -7,7 +7,7 @@ script: |
   super db load -q -use tableB b.sup
   super db -S -c 'from :tables | drop id | sort name | drop ts'
   echo ===
-  super db -fusion -S -c 'from tableA@main:objects | {nameof:nameof(this),...this} | drop id'
+  super db -superfused -S -c 'from tableA@main:objects | {nameof:nameof(this),...this} | drop id'
   super db -S -c 'from tableA:log | cut nameof(this)'
 
 inputs:

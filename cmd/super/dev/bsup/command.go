@@ -376,11 +376,11 @@ func (m *shadowMarshaler) marshal(path []string, shadow loader.Shadow) error {
 	case *loader.Named:
 		node, name = &s.Node, "Named"
 		children = []child{{"", s.Values}}
-	case *loader.FusionAll:
-		node, name, segs = &s.Node, "Fusion", []bsup.Segment{s.Subtypes.Values}
+	case *loader.SuperAll:
+		node, name, segs = &s.Node, "Super", []bsup.Segment{s.Subtypes.Values}
 		children = []child{{"values", s.Values}}
-	case *loader.Fusion:
-		node, name, segs = &s.Node, "Fusion", []bsup.Segment{s.Subtypes.Values}
+	case *loader.Super:
+		node, name, segs = &s.Node, "Super", []bsup.Segment{s.Subtypes.Values}
 		children = []child{{"values", s.Values}}
 	case *loader.Option:
 		node, name, segs = &s.Node, "Option", []bsup.Segment{s.Tags}
@@ -643,8 +643,8 @@ func decodeTypeDef(slot uint32, bytes []byte) ([]byte, any) {
 		bytes, out = wrapped(bytes, "TypeDefSet", slot)
 	case super.TypeDefError:
 		bytes, out = wrapped(bytes, "TypeDefError", slot)
-	case super.TypeDefFusion:
-		bytes, out = wrapped(bytes, "TypeDefFusion", slot)
+	case super.TypeDefSuper:
+		bytes, out = wrapped(bytes, "TypeDefSuper", slot)
 	case super.TypeDefOption:
 		bytes, out = wrapped(bytes, "TypeDefOption", slot)
 	case super.TypeDefDecimal:

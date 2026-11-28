@@ -11,7 +11,7 @@ output: *input
 
 ---
 
-# Test fusion on record leaves.
+# Test super on record leaves.
 spq: pass
 
 flags: -i json -f json

@@ -321,25 +321,25 @@ func NormalizeSet(zv scode.Bytes) scode.Bytes {
 	return norm
 }
 
-type TypeFusion struct {
+type TypeSuper struct {
 	id   int
 	Type Type
 }
 
-func NewTypeFusion(id int, typ Type) *TypeFusion {
-	return &TypeFusion{id: id, Type: typ}
+func NewTypeSuper(id int, typ Type) *TypeSuper {
+	return &TypeSuper{id: id, Type: typ}
 }
 
-func (t *TypeFusion) ID() int {
+func (t *TypeSuper) ID() int {
 	return t.id
 }
 
-func (t *TypeFusion) Kind() Kind {
-	return FusionKind
+func (t *TypeSuper) Kind() Kind {
+	return SuperKind
 }
 
-// Deref decodes the supertype value bytes and the subtype from a fusion type.
-func (t *TypeFusion) Deref(sctx *Context, bytes scode.Bytes) (scode.Bytes, Type) {
+// Deref decodes the supertype value bytes and the subtype from a super type.
+func (t *TypeSuper) Deref(sctx *Context, bytes scode.Bytes) (scode.Bytes, Type) {
 	it := bytes.Iter()
 	superBytes := it.Next()
 	subType, err := sctx.LookupByValue(it.Next())
@@ -349,23 +349,23 @@ func (t *TypeFusion) Deref(sctx *Context, bytes scode.Bytes) (scode.Bytes, Type)
 	return superBytes, subType
 }
 
-func (t *TypeFusion) DerefFusion(bytes scode.Bytes) (Type, scode.Bytes) {
+func (t *TypeSuper) DerefSuper(bytes scode.Bytes) (Type, scode.Bytes) {
 	it := bytes.Iter()
 	return t.Type, it.Next()
 }
 
-func BuildFusion(b *scode.Builder, superVal scode.Bytes, subType scode.Bytes) {
+func BuildSuper(b *scode.Builder, superVal scode.Bytes, subType scode.Bytes) {
 	b.BeginContainer()
 	b.Append(superVal)
 	b.Append(subType)
 	b.EndContainer()
 }
 
-// IsFusionAll returns true if typ is fusion(all), the type of a value of
+// IsSuperAll returns true if typ is super(all), the type of a value of
 // any type.
-func IsFusionAll(typ Type) bool {
-	fusion, ok := TypeUnder(typ).(*TypeFusion)
-	return ok && fusion.Type == TypeAll
+func IsSuperAll(typ Type) bool {
+	sup, ok := TypeUnder(typ).(*TypeSuper)
+	return ok && sup.Type == TypeAll
 }
 
 type TypeUnion struct {
@@ -524,34 +524,34 @@ func Flatten(types []Type) []Type {
 	return UniqueTypes(out)
 }
 
-func containsFusion(typ Type) bool {
+func containsSuper(typ Type) bool {
 	switch typ := typ.(type) {
-	case *TypeFusion:
-		// fusion(all) is the any type: each value carries its own type, so it
+	case *TypeSuper:
+		// super(all) is the any type: each value carries its own type, so it
 		// doesn't describe structure that the named barrier needs to protect.
 		return typ.Type != TypeAll
 	case *TypeRecord:
 		for _, f := range typ.Fields {
-			if containsFusion(f.Type) {
+			if containsSuper(f.Type) {
 				return true
 			}
 		}
 	case *TypeUnion:
 		for _, t := range typ.Types {
-			if containsFusion(t) {
+			if containsSuper(t) {
 				return true
 			}
 		}
 	case *TypeArray:
-		return containsFusion(typ.Type)
+		return containsSuper(typ.Type)
 	case *TypeSet:
-		return containsFusion(typ.Type)
+		return containsSuper(typ.Type)
 	case *TypeMap:
-		return containsFusion(typ.KeyType) || containsFusion(typ.ValType)
+		return containsSuper(typ.KeyType) || containsSuper(typ.ValType)
 	case *TypeError:
-		return containsFusion(typ.Type)
+		return containsSuper(typ.Type)
 	case *TypeOption:
-		return containsFusion(typ.Type)
+		return containsSuper(typ.Type)
 	}
 	return false
 }

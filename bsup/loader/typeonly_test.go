@@ -58,18 +58,18 @@ func TestTypeOnlyProjectionWithData(t *testing.T) {
 	requireTypeOnly(t, b.Fields[1])
 }
 
-func TestTypeOnlyProjectionFusion(t *testing.T) {
+func TestTypeOnlyProjectionSuper(t *testing.T) {
 	sctx := super.NewContext()
 	typesOnly := field.NewProjectionMaybe(true, nil, []field.Path{{}}, nil)
 	vec := loadTypes(t, sctx, typesOnly,
-		`fusion({x?:1,y?:none::string},<{x:int64}>)`,
-		`fusion({x?:none::int64,y?:"foo"},<{y:string}>)`)
-	fusion := vec.(*vector.Fusion)
-	require.Equal(t, `fusion({x?:int64,y?:string})`, sup.FormatType(fusion.Type()))
+		`super({x?:1,y?:none::string},<{x:int64}>)`,
+		`super({x?:none::int64,y?:"foo"},<{y:string}>)`)
+	sv := vec.(*vector.Super)
+	require.Equal(t, `super({x?:int64,y?:string})`, sup.FormatType(sv.Type()))
 	// The subtypes are loaded but the values are not.
-	require.Equal(t, `{x:int64}`, sup.FormatType(fusion.Subtypes.Value(0)))
-	require.Equal(t, `{y:string}`, sup.FormatType(fusion.Subtypes.Value(1)))
-	require.Panics(t, func() { fusion.Values.Serialize(scode.NewBuilder(), 0) })
+	require.Equal(t, `{x:int64}`, sup.FormatType(sv.Subtypes.Value(0)))
+	require.Equal(t, `{y:string}`, sup.FormatType(sv.Subtypes.Value(1)))
+	require.Panics(t, func() { sv.Values.Serialize(scode.NewBuilder(), 0) })
 }
 
 func TestAssertProjection(t *testing.T) {

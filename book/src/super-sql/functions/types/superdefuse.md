@@ -10,8 +10,8 @@ superdefuse(val any) -> any
 
 ## Description
 
-The `superdefuse` function converts a value `val` containing any fusion types
-into its original type by downcasting all instances of fusion values to their
+The `superdefuse` function converts a value `val` containing any super types
+into its original type by downcasting all instances of super values to their
 subtype equivalent.
 
 ## Examples
@@ -24,8 +24,8 @@ _Remove union types_
 # spq
 superdefuse(this)
 # input
-fusion({a:1::(int64|string)},<{a:int64}>)
-fusion({a:"foo"::(int64|string)},<{a:string}>)
+super({a:1::(int64|string)},<{a:int64}>)
+super({a:"foo"::(int64|string)},<{a:string}>)
 # expected output
 {a:1}
 {a:"foo"}
@@ -54,7 +54,7 @@ _Defuse the value in an option_
 
 ```mdtest-spq {data-layout="stacked"}
 # spq
-values {x:upcast(some(1), <option(fusion(int64|string))>)}
+values {x:upcast(some(1), <option(super(int64|string))>)}
 | values superdefuse(this), typeof(x)
 # input
 

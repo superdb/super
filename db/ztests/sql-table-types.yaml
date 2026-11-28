@@ -1,4 +1,4 @@
-# Table types must be their own fusion, INSERT shapes only values that pass
+# Table types must be their own super, INSERT shapes only values that pass
 # a filter, and a table type's named types must agree with their uses.
 script: |
   super db init -q test

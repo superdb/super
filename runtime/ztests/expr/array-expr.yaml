@@ -10,7 +10,7 @@ input: |
   {a:"foo",b:1,c:127.0.0.1}
   {a:"bar",b:2,c:127.0.0.2}
   {a:0,b:"1"::(int64|string),c:null::(int64|string|null)}
-  {a:0,b:1,c:fusion([2]::(null|[int64]),<[int64]>)}
+  {a:0,b:1,c:super([2]::(null|[int64]),<[int64]>)}
 
 output: |
   [error("missing"),error(0),null]

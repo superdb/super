@@ -4,7 +4,7 @@ input: |
   "foo"
   "127.0.0.1"
   "2001:0000:130F:0000:0000:09C0:876A:130B"
-  fusion("3000::"::(string|null),<string>)
+  super("3000::"::(string|null),<string>)
   null
   null::({}|null)
   1.1.1.1

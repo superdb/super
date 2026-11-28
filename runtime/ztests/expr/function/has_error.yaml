@@ -14,7 +14,7 @@ input: |
   <{x:error(int64)}>
   1::(int64|null)
   null::(int64|null)
-  {x:fusion(error(0)::(null|error(int64)),<error(int64)>)}
+  {x:super(error(0)::(null|error(int64)),<error(int64)>)}
 
 output: |
   false

@@ -27,7 +27,7 @@ input: |
   [{id:1,s:"foo"},{id:2,s:null}]
 
 output: |
-  <fusion([fusion({id:int64,s:fusion(string|null)})])>
+  <super([super({id:int64,s:super(string|null)})])>
 
 ---
 
@@ -38,7 +38,7 @@ input: |
   []
 
 output: |
-  <fusion([fusion({id:int64,s:fusion(string|null)})])>
+  <super([super({id:int64,s:super(string|null)})])>
 
 ---
 
@@ -80,7 +80,7 @@ input: |
   2
 
 output: |
-  <fusion(int64|option(int64))>
+  <super(int64|option(int64))>
 
 ---
 
@@ -91,13 +91,13 @@ input: |
   some(1)
 
 output: |
-  <fusion(int64|option(int64))>
+  <super(int64|option(int64))>
 
 ---
 
 spq: superfuse
 
-flags: -fusion
+flags: -superfused
 
 input: |
   {x:true}
@@ -106,16 +106,16 @@ input: |
   {x:2}
 
 output: |
-  {x:fusion(true::(int64|bool|missing|option(int64)),<bool>)}
-  {x:fusion(missing::(int64|bool|missing|option(int64)),<missing>)}
-  {x:fusion(some(1)::(int64|bool|missing|option(int64)),<option(int64)>)}
-  {x:fusion(some(2)::(int64|bool|missing|option(int64)),<int64>)}
+  {x:super(true::(int64|bool|missing|option(int64)),<bool>)}
+  {x:super(missing::(int64|bool|missing|option(int64)),<missing>)}
+  {x:super(some(1)::(int64|bool|missing|option(int64)),<option(int64)>)}
+  {x:super(some(2)::(int64|bool|missing|option(int64)),<int64>)}
 
 ---
 
 spq: superfuse | values x
 
-flags: -fusion -dynamic
+flags: -superfused -dynamic
 
 input: |
   {x:true}
@@ -124,22 +124,22 @@ input: |
   {x:2}
 
 output: |
-  fusion(true::(int64|bool|missing|option(int64)),<bool>)
+  super(true::(int64|bool|missing|option(int64)),<bool>)
   error("no such field x")
-  fusion(some(1)::(int64|bool|missing|option(int64)),<option(int64)>)
-  fusion(some(2)::(int64|bool|missing|option(int64)),<int64>)
+  super(some(1)::(int64|bool|missing|option(int64)),<option(int64)>)
+  super(some(2)::(int64|bool|missing|option(int64)),<int64>)
 
 ---
 
 spq: superfuse
 
-flags: -fusion
+flags: -superfused
 
 input: |
   {x:1}
   {x?:2}
 
-# note no fusion on outer record
+# note no super on outer record
 output: |
-  {x:fusion(some(1)::(int64|option(int64)),<int64>)}
-  {x:fusion(some(2)::(int64|option(int64)),<option(int64)>)}
+  {x:super(some(1)::(int64|option(int64)),<int64>)}
+  {x:super(some(2)::(int64|option(int64)),<option(int64)>)}

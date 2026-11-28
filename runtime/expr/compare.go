@@ -24,7 +24,7 @@ type Compare struct {
 	op      string
 	lenient bool
 
-	hasFusion samfunc.FusionChecker
+	hasSuper samfunc.SuperChecker
 	// comparisonTypes caches coerce.ComparisonType for pairs of operand
 	// types.
 	comparisonTypes map[[2]super.Type]comparisonType
@@ -83,7 +83,7 @@ func (c *Compare) evalCaught(vecs ...vector.Any) vector.Any {
 	if vecs[0].Kind() == vector.KindOption || vecs[1].Kind() == vector.KindOption {
 		return c.compareOptions(vecs[0], vecs[1])
 	}
-	lhs, rhs := vector.Super(vecs[0]), vector.Super(vecs[1])
+	lhs, rhs := vector.Fused(vecs[0]), vector.Fused(vecs[1])
 	ltyp, rtyp := lhs.Type(), rhs.Type()
 	lhs, rhs = vector.Under(lhs), vector.Under(rhs)
 	if vec, ok := c.compareNone(lhs, rhs); ok {
@@ -169,7 +169,7 @@ func (c *Compare) compareOptions(lhs, rhs vector.Any) vector.Any {
 		if vec, ok := c.compareNone(lhs, rhs); ok {
 			return vec
 		}
-		return vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, c.evalAllowingOption, lhs, rhs)
+		return vector.Apply(vector.ApplyRipSupers|vector.ApplyRipUnions, c.evalAllowingOption, lhs, rhs)
 	}, lhs, rhs)
 }
 
@@ -228,7 +228,7 @@ func (c *Compare) compareMixedInts(lhs, rhs vector.Any) (vector.Any, bool) {
 
 // coerce returns the comparison type of lhs and rhs and them cast as needed
 // to it or false if their types can't be compared.  If their types contain
-// fusion types that leave the comparison type unknown, it instead returns them
+// super types that leave the comparison type unknown, it instead returns them
 // defused, with defused true, to be compared again.
 func (c *Compare) coerce(lhs, rhs vector.Any) (super.Type, vector.Any, vector.Any, bool, bool) {
 	ltyp, rtyp := lhs.Type(), rhs.Type()
@@ -238,7 +238,7 @@ func (c *Compare) coerce(lhs, rhs vector.Any) (super.Type, vector.Any, vector.An
 	key := [2]super.Type{ltyp, rtyp}
 	ct, cached := c.comparisonTypes[key]
 	if !cached {
-		ct.typ, ct.ok = coerce.ComparisonType(c.sctx, c.hasFusion.Check, ltyp, rtyp)
+		ct.typ, ct.ok = coerce.ComparisonType(c.sctx, c.hasSuper.Check, ltyp, rtyp)
 		if c.comparisonTypes == nil {
 			c.comparisonTypes = make(map[[2]super.Type]comparisonType)
 		}
@@ -249,9 +249,9 @@ func (c *Compare) coerce(lhs, rhs vector.Any) (super.Type, vector.Any, vector.An
 		return nil, lhs, rhs, false, false
 	}
 	if coerce.IsUnknown(typ) {
-		if c.hasFusion.Check(ltyp) || c.hasFusion.Check(rtyp) {
+		if c.hasSuper.Check(ltyp) || c.hasSuper.Check(rtyp) {
 			lhs, rhs := c.defuse.Eval(lhs), c.defuse.Eval(rhs)
-			// Compare again only if defusing removed the fusion types so
+			// Compare again only if defusing removed the super types so
 			// this can't recur forever.
 			if c.defused(lhs) && c.defused(rhs) {
 				return nil, lhs, rhs, true, true
@@ -272,10 +272,10 @@ func (c *Compare) coerce(lhs, rhs vector.Any) (super.Type, vector.Any, vector.An
 	return typ, vector.Under(lhs), vector.Under(rhs), true, false
 }
 
-// defused reports whether vec, the result of defusing a vector, has no fusion
+// defused reports whether vec, the result of defusing a vector, has no super
 // types (or is a Dynamic, whose parts are checked when compared).
 func (c *Compare) defused(vec vector.Any) bool {
-	return vector.IsDynamic(vec) || !c.hasFusion.Check(vec.Type())
+	return vector.IsDynamic(vec) || !c.hasSuper.Check(vec.Type())
 }
 
 // compareBool orders false before true.
@@ -704,7 +704,7 @@ func NewIsNull(e Evaluator) Evaluator {
 }
 
 func (i *isNull) Eval(this vector.Any) vector.Any {
-	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipFusions, i.eval, i.expr.Eval(this))
+	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipSupers, i.eval, i.expr.Eval(this))
 }
 
 func (i *isNull) eval(vecs ...vector.Any) vector.Any {

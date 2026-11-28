@@ -58,7 +58,7 @@ for SuperDB include:
   no schema required up front (try out [SuperLens](https://lens.superdb.org)),
 * **type-safe ETL**, where pipelines are type checked so upstream schema
   changes are caught before they reach production,
-* **JSON analytics at scale**, where columnar BSUP and fusion types make
+* **JSON analytics at scale**, where columnar BSUP and super types make
   messy JSON fast to query,
 * **observability and security**, where logs and events of many shapes
   are searched and analyzed side by side, and
@@ -104,12 +104,12 @@ To ease adoption, SuperSQL's SQL compatibility targets
 and operators that take advantage of the ADM.
 
 Under the covers, SuperSQL makes extensive use of a novel data type called a
-[fusion type](super-sql/types/fusion.md).  Using [type fusion](super-sql/type-fusion.md),
+[super type](super-sql/types/super.md).  Using [type fusion](super-sql/type-fusion.md),
 the varying types of messy data like JSON are combined into a single algebraic
-type, and fusion values provide a means to recover the original type of any
+type, and super values provide a means to recover the original type of any
 fused value.
 
-Fusion types are invaluable to the ADM because they provide:
+Super types are invaluable to the ADM because they provide:
 * a means to statically type check arbitrary data no matter how messy or incoherent it is, and
 * a high-performance foundation for a query engine operating on heterogeneously typed data.
 

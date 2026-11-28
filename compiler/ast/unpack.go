@@ -47,7 +47,7 @@ var unpacker = unpack.New(
 	FuncDecl{},
 	FuncNameExpr{},
 	FuseOp{},
-	Fusion{},
+	Super{},
 	GlobExpr{},
 	HeadOp{},
 	IDExpr{},

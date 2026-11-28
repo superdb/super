@@ -6,23 +6,23 @@ import (
 )
 
 type anyBuilder struct {
-	typ      *super.TypeFusion
+	typ      *super.TypeSuper
 	bytes    Builder
-	subtypes fusionTypeBuilder
+	subtypes superTypeBuilder
 }
 
-func newAnyBuilder(typ *super.TypeFusion) Builder {
+func newAnyBuilder(typ *super.TypeSuper) Builder {
 	return &anyBuilder{typ: typ, bytes: newBytesBuilder(super.TypeBytes)}
 }
 
 func (a *anyBuilder) Write(vec vector.Any) {
-	fusion := vector.PushViewOrConst(vec).(*vector.Fusion)
-	a.bytes.Write(fusion.Values)
-	a.subtypes.Write(fusion.Subtypes)
+	sup := vector.PushViewOrConst(vec).(*vector.Super)
+	a.bytes.Write(sup.Values)
+	a.subtypes.Write(sup.Subtypes)
 }
 
 func (a *anyBuilder) Build() vector.Any {
-	return &vector.Fusion{
+	return &vector.Super{
 		Typ:      a.typ,
 		Values:   a.bytes.Build(),
 		Subtypes: a.subtypes.Build().(*vector.TypeValue),

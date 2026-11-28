@@ -14,8 +14,8 @@ spq: values is(a,b)
 
 input: |
   {a:1::(int64|string),b:<int64>}
-  {a:fusion(1::(int64|string),<int64>),b:fusion(<int64>::(type|string),<type>)}
-  {a:fusion(1::(int64|string),<int64>),b:fusion("foo"::(type|string),<string>)}
+  {a:super(1::(int64|string),<int64>),b:super(<int64>::(type|string),<type>)}
+  {a:super(1::(int64|string),<int64>),b:super("foo"::(type|string),<string>)}
 
 output: |
   false

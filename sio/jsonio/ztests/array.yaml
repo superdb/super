@@ -38,7 +38,7 @@ output: *input
 
 ---
 
-# Test array with fusion records
+# Test array with super records
 spq: pass
 
 flags: -i json -f json

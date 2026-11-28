@@ -36,7 +36,7 @@ output: |
 ---
 
 # The member of a union value, the some value of an option, and the subtype
-# of a fusion value are asserted.
+# of a super value are asserted.
 spq: values this.(int64) ?? -1
 
 input: |
@@ -44,8 +44,8 @@ input: |
   "a"::(int64|string)
   some(2)
   none::int64
-  fusion(3::(int64|string),<int64>)
-  fusion("b"::(int64|string),<string>)
+  super(3::(int64|string),<int64>)
+  super("b"::(int64|string),<string>)
 
 output: |
   1

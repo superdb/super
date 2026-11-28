@@ -28,7 +28,7 @@ output: |
 
 ---
 
-# Test slice on union and fusion values
+# Test slice on union and super values
 spq: this[1:]
 
 flags: -dynamic
@@ -37,8 +37,8 @@ input: |
   [1,2,3]::(null|[int64])
   set[1,2,3]::(null|set[int64])
   "food"::(null|string)
-  fusion("foo"::(string|[int64]),<string>)
-  fusion([1,2,3]::(string|[int64]),<[int64]>)
+  super("foo"::(string|[int64]),<string>)
+  super([1,2,3]::(string|[int64]),<[int64]>)
 
 
 output: |

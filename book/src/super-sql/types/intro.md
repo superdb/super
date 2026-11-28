@@ -6,7 +6,7 @@ comprising
 [primitive types](../../formats/model.md#1-primitive-types),
 [complex types](../../formats/model.md#2-complex-types),
 [sum types](union.md),
-[fusion types](fusion.md),
+[super types](super.md),
 [named types](named.md),
 the [null type](null.md),
 the [none and missing types](none.md),

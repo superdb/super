@@ -27,7 +27,7 @@ func NewIndexExpr(sctx *super.Context, container, index Evaluator, base1 bool) E
 }
 
 func (i *Index) Eval(this vector.Any) vector.Any {
-	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipFusions, i.eval, i.container.Eval(this), i.index.Eval(this))
+	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipSupers, i.eval, i.container.Eval(this), i.index.Eval(this))
 }
 
 func (i *Index) eval(args ...vector.Any) vector.Any {
@@ -160,7 +160,7 @@ func indexMap(keyEq *Compare, vec, indexVec vector.Any) vector.Any {
 		}
 	}
 	var valIndexes, nones []uint32
-	hits := vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, keyEq.evalAllowingOption, vector.Pick(indexVec, pick), m.Keys)
+	hits := vector.Apply(vector.ApplyRipSupers|vector.ApplyRipUnions, keyEq.evalAllowingOption, vector.Pick(indexVec, pick), m.Keys)
 	bits := FlattenBool(hits).Bits
 	for i := range vec.Len() {
 		selected := -1
@@ -260,7 +260,7 @@ func indexType(sctx *super.Context, typ super.Type, k int64, base1 bool) super.T
 		return unionOfTypes(sctx, typ, func(typ super.Type) super.Type {
 			return indexType(sctx, typ, k, base1)
 		})
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		return indexType(sctx, typ.Type, k, base1)
 	case *super.TypeOption:
 		return indexType(sctx, typ.Type, k, base1)

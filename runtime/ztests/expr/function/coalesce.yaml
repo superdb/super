@@ -10,7 +10,7 @@ input: |
   {a:null, b:"gotme", c:"ted sando"}
   {a:null, b:error({x:1}), c:"foo"}
   {a:null::(string|null), b:error(0)::(error(int64)|null), c:"foo"::(string|null)}
-  {a:fusion(null::(string|null),<null>), b:fusion(error(0)::(null|error(int64)),<error(int64)>), c:fusion("baz"::(int64|string|null),<string|null>)}
+  {a:super(null::(string|null),<null>), b:super(error(0)::(null|error(int64)),<error(int64)>), c:super("baz"::(int64|string|null),<string|null>)}
 
 output: |
   "foo"::(uint64|string)

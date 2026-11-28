@@ -16,7 +16,7 @@ func (c *Coalesce) Call(vecs ...vector.Any) vector.Any {
 		if !containsNullOrError(vec) {
 			return vec
 		}
-		if k := vec.Kind(); k == vector.KindUnion || k == vector.KindFusion {
+		if k := vec.Kind(); k == vector.KindUnion || k == vector.KindSuper {
 			return c.slow(vecs[i:])
 		}
 	}
@@ -73,7 +73,7 @@ func containsNullOrError(vec vector.Any) bool {
 		return true
 	case *vector.Named:
 		return containsNullOrError(vec.Any)
-	case *vector.Fusion:
+	case *vector.Super:
 		return containsNullOrError(vec.Values)
 	case *vector.Const:
 		return containsNullOrError(vec.Any)
@@ -106,7 +106,7 @@ func slotIsNullOrError(vec vector.Any, slot uint32) bool {
 		return slotIsNullOrError(vec.Values[tag], vec.ForwardTagMap()[slot])
 	case *vector.View:
 		return slotIsNullOrError(vec.Any, vec.Index[slot])
-	case *vector.Fusion:
+	case *vector.Super:
 		return slotIsNullOrError(vec.Values, slot)
 	}
 	return false

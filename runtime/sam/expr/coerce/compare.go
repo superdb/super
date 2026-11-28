@@ -21,20 +21,20 @@ import (
 // comparable with a type that one of its types holds or with a union that
 // shares one of its types.  (The caller handles a top-level union by
 // comparing each of its types.)  Names are ignored.  A value of unknown type
-// (any or fusion(all)) is comparable with anything.
+// (any or super(all)) is comparable with anything.
 //
-// A fusion type, which only the type checker has, stands for values that
+// A super type, which only the type checker has, stands for values that
 // each have one of the fused types, so every one of those types must be
-// comparable with the other type.  hasFusion reports whether a type is or
-// contains a fusion type (see function.FusionChecker).
-func ComparisonType(sctx *super.Context, hasFusion func(super.Type) bool, a, b super.Type) (super.Type, bool) {
-	if a == b && !hasFusion(a) {
+// comparable with the other type.  hasSuper reports whether a type is or
+// contains a super type (see function.SuperChecker).
+func ComparisonType(sctx *super.Context, hasSuper func(super.Type) bool, a, b super.Type) (super.Type, bool) {
+	if a == b && !hasSuper(a) {
 		return a, true
 	}
 	if IsUnknown(a) || IsUnknown(b) {
 		return super.TypeAny, true
 	}
-	aFused, bFused := isFusion(a), isFusion(b)
+	aFused, bFused := isSuper(a), isSuper(b)
 	a, b = Under(a), Under(b)
 	if IsUnknown(a) || IsUnknown(b) {
 		return super.TypeAny, true
@@ -42,14 +42,14 @@ func ComparisonType(sctx *super.Context, hasFusion func(super.Type) bool, a, b s
 	if aFused || bFused {
 		for _, ta := range fusedTypes(a, aFused) {
 			for _, tb := range fusedTypes(b, bFused) {
-				if _, ok := ComparisonType(sctx, hasFusion, ta, tb); !ok {
+				if _, ok := ComparisonType(sctx, hasSuper, ta, tb); !ok {
 					return nil, false
 				}
 			}
 		}
 		return super.TypeAny, true
 	}
-	if a == b && !hasFusion(a) {
+	if a == b && !hasSuper(a) {
 		return a, true
 	}
 	// Type none has no values (e.g., it's the element type of an empty
@@ -71,7 +71,7 @@ func ComparisonType(sctx *super.Context, hasFusion func(super.Type) bool, a, b s
 		if a == nil {
 			return super.TypeNull, true
 		}
-		typ, ok := ComparisonType(sctx, hasFusion, a, b)
+		typ, ok := ComparisonType(sctx, hasSuper, a, b)
 		if !ok {
 			return nil, false
 		}
@@ -91,7 +91,7 @@ func ComparisonType(sctx *super.Context, hasFusion func(super.Type) bool, a, b s
 	_, aUnion := a.(*super.TypeUnion)
 	_, bUnion := b.(*super.TypeUnion)
 	if aUnion || bUnion {
-		return unionComparisonType(sctx, hasFusion, a, b)
+		return unionComparisonType(sctx, hasSuper, a, b)
 	}
 	switch a := a.(type) {
 	case *super.TypeRecord:
@@ -105,7 +105,7 @@ func ComparisonType(sctx *super.Context, hasFusion func(super.Type) bool, a, b s
 			if f.Name != b.Fields[i].Name {
 				return nil, false
 			}
-			typ, ok := ComparisonType(sctx, hasFusion, f.Type, b.Fields[i].Type)
+			typ, ok := ComparisonType(sctx, hasSuper, f.Type, b.Fields[i].Type)
 			if !ok {
 				return nil, false
 			}
@@ -119,7 +119,7 @@ func ComparisonType(sctx *super.Context, hasFusion func(super.Type) bool, a, b s
 		return typ, err == nil
 	case *super.TypeArray:
 		if b, ok := b.(*super.TypeArray); ok {
-			typ, ok := ComparisonType(sctx, hasFusion, a.Type, b.Type)
+			typ, ok := ComparisonType(sctx, hasSuper, a.Type, b.Type)
 			if !ok || IsUnknown(typ) {
 				return typ, ok
 			}
@@ -127,7 +127,7 @@ func ComparisonType(sctx *super.Context, hasFusion func(super.Type) bool, a, b s
 		}
 	case *super.TypeSet:
 		if b, ok := b.(*super.TypeSet); ok {
-			typ, ok := ComparisonType(sctx, hasFusion, a.Type, b.Type)
+			typ, ok := ComparisonType(sctx, hasSuper, a.Type, b.Type)
 			if !ok || IsUnknown(typ) {
 				return typ, ok
 			}
@@ -135,11 +135,11 @@ func ComparisonType(sctx *super.Context, hasFusion func(super.Type) bool, a, b s
 		}
 	case *super.TypeMap:
 		if b, ok := b.(*super.TypeMap); ok {
-			key, ok := ComparisonType(sctx, hasFusion, a.KeyType, b.KeyType)
+			key, ok := ComparisonType(sctx, hasSuper, a.KeyType, b.KeyType)
 			if !ok {
 				return nil, false
 			}
-			val, ok := ComparisonType(sctx, hasFusion, a.ValType, b.ValType)
+			val, ok := ComparisonType(sctx, hasSuper, a.ValType, b.ValType)
 			if !ok {
 				return nil, false
 			}
@@ -150,7 +150,7 @@ func ComparisonType(sctx *super.Context, hasFusion func(super.Type) bool, a, b s
 		}
 	case *super.TypeOption:
 		if b, ok := b.(*super.TypeOption); ok {
-			typ, ok := ComparisonType(sctx, hasFusion, a.Type, b.Type)
+			typ, ok := ComparisonType(sctx, hasSuper, a.Type, b.Type)
 			if !ok || IsUnknown(typ) {
 				return typ, ok
 			}
@@ -164,14 +164,14 @@ func ComparisonType(sctx *super.Context, hasFusion func(super.Type) bool, a, b s
 // one of which is a union, if they share a type.  A type of one that's
 // comparable with a type of the other only by promoting it isn't shared
 // since a value keeps its type inside a union.
-func unionComparisonType(sctx *super.Context, hasFusion func(super.Type) bool, a, b super.Type) (super.Type, bool) {
+func unionComparisonType(sctx *super.Context, hasSuper func(super.Type) bool, a, b super.Type) (super.Type, bool) {
 	aTypes := unionTypes(a)
 	types := slices.Clone(aTypes)
 	var shared bool
 next:
 	for _, tb := range unionTypes(b) {
 		for _, ta := range aTypes {
-			typ, ok := ComparisonType(sctx, hasFusion, ta, tb)
+			typ, ok := ComparisonType(sctx, hasSuper, ta, tb)
 			if !ok {
 				continue
 			}
@@ -207,8 +207,8 @@ func fusedTypes(typ super.Type, fused bool) []super.Type {
 	return []super.Type{typ}
 }
 
-func isFusion(typ super.Type) bool {
-	_, ok := super.TypeUnder(typ).(*super.TypeFusion)
+func isSuper(typ super.Type) bool {
+	_, ok := super.TypeUnder(typ).(*super.TypeSuper)
 	return ok
 }
 
@@ -218,8 +218,8 @@ func isFusion(typ super.Type) bool {
 // of in are errors.  A null in a union doesn't count since that would make
 // anything containable in a nullable type.  (The caller handles a top-level
 // union by checking each of its types.)
-func Containable(sctx *super.Context, hasFusion func(super.Type) bool, a, b super.Type) bool {
-	if _, ok := ComparisonType(sctx, hasFusion, a, b); ok {
+func Containable(sctx *super.Context, hasSuper func(super.Type) bool, a, b super.Type) bool {
+	if _, ok := ComparisonType(sctx, hasSuper, a, b); ok {
 		return true
 	}
 	switch b := Under(b).(type) {
@@ -227,26 +227,26 @@ func Containable(sctx *super.Context, hasFusion func(super.Type) bool, a, b supe
 		return true
 	case *super.TypeRecord:
 		for _, f := range b.Fields {
-			if Containable(sctx, hasFusion, a, f.Type) {
+			if Containable(sctx, hasSuper, a, f.Type) {
 				return true
 			}
 		}
 	case *super.TypeArray:
-		return Containable(sctx, hasFusion, a, b.Type)
+		return Containable(sctx, hasSuper, a, b.Type)
 	case *super.TypeSet:
-		return Containable(sctx, hasFusion, a, b.Type)
+		return Containable(sctx, hasSuper, a, b.Type)
 	case *super.TypeMap:
-		return Containable(sctx, hasFusion, a, b.KeyType) || Containable(sctx, hasFusion, a, b.ValType)
+		return Containable(sctx, hasSuper, a, b.KeyType) || Containable(sctx, hasSuper, a, b.ValType)
 	case *super.TypeUnion:
 		for _, t := range b.Types {
-			if t != super.TypeNull && Containable(sctx, hasFusion, a, t) {
+			if t != super.TypeNull && Containable(sctx, hasSuper, a, t) {
 				return true
 			}
 		}
 	case *super.TypeOption:
-		return Containable(sctx, hasFusion, a, b.Type)
+		return Containable(sctx, hasSuper, a, b.Type)
 	case *super.TypeError:
-		return Containable(sctx, hasFusion, a, b.Type)
+		return Containable(sctx, hasSuper, a, b.Type)
 	}
 	return false
 }
@@ -284,13 +284,13 @@ func isNumeric(id int) bool {
 }
 
 // Under returns typ without its names and (as for a type from the type
-// checker) without its fusion types.
+// checker) without its super types.
 func Under(typ super.Type) super.Type {
 	for {
 		switch t := typ.(type) {
 		case *super.TypeNamed:
 			typ = t.Type
-		case *super.TypeFusion:
+		case *super.TypeSuper:
 			if t.Type == super.TypeAll {
 				return super.TypeAny
 			}
@@ -301,10 +301,10 @@ func Under(typ super.Type) super.Type {
 	}
 }
 
-// IsUnknown reports whether typ is any or fusion(all), the type of a value
+// IsUnknown reports whether typ is any or super(all), the type of a value
 // whose type isn't known.
 func IsUnknown(typ super.Type) bool {
-	return typ == super.TypeAny || super.IsFusionAll(typ)
+	return typ == super.TypeAny || super.IsSuperAll(typ)
 }
 
 // withoutNull returns typ without null and whether typ is null or a union

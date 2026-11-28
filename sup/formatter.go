@@ -67,7 +67,7 @@ func (s *StreamFormatter) formatTypeDecls(typ super.Type) bool {
 		return s.formatTypeDecls(typ.KeyType) || s.formatTypeDecls(typ.ValType)
 	case *super.TypeError:
 		return s.formatTypeDecls(typ.Type)
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		return s.formatTypeDecls(typ.Type)
 	case *super.TypeOption:
 		return s.formatTypeDecls(typ.Type)
@@ -211,9 +211,9 @@ func (f *formatter) formatValue(indent int, typ super.Type, bytes scode.Bytes, p
 		f.build("(")
 		f.formatValue(indent, t.Type, bytes, known, true, false)
 		f.build(")")
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		it := bytes.Iter()
-		if super.IsFusionAll(t) {
+		if super.IsSuperAll(t) {
 			bytes := it.Next()
 			typ, err := f.sctx().LookupByValue(it.Next())
 			if err != nil {
@@ -226,14 +226,14 @@ func (f *formatter) formatValue(indent int, typ super.Type, bytes scode.Bytes, p
 			return
 		}
 		f.startColor(color.Green)
-		f.build("fusion")
+		f.build("super")
 		f.endColor()
 		f.build("(")
 		f.formatValue(indent, t.Type, it.Next(), known, true, false)
 		f.build(",")
 		f.formatTypeValue(indent, it.Next())
 		f.build(")")
-		// We don't need to decorate a fusion value because
+		// We don't need to decorate a super value because
 		// its type is always implied by its value.
 		return
 	case *super.TypeOption:
@@ -319,7 +319,7 @@ func isShortType(typ super.Type) bool {
 		}
 	case *super.TypeError:
 		return isShortType(typ.Type)
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		return isShortType(typ.Type)
 	case *super.TypeOption:
 		return isShortType(typ.Type)
@@ -589,8 +589,8 @@ func formatPrimitive(b *strings.Builder, typ super.Type, bytes scode.Bytes) {
 		b.WriteString(hex.EncodeToString(bytes))
 	case *super.TypeOfAll:
 		// Write out all values as byte encoded as they only place
-		// they may appear is inside of a fusion(all), which includes
-		// the type to go with the bytes as the fusion subtype.
+		// they may appear is inside of a super(all), which includes
+		// the type to go with the bytes as the super subtype.
 		b.WriteString("0x")
 		b.WriteString(hex.EncodeToString(bytes))
 	default:
@@ -655,8 +655,8 @@ func (f *formatterT) formatType(indent int, typ super.Type, parens bool) {
 		f.build("error(")
 		f.formatType(indent, typ.Type, false)
 		f.build(")")
-	case *super.TypeFusion:
-		f.build("fusion(")
+	case *super.TypeSuper:
+		f.build("super(")
 		f.formatType(indent, typ.Type, false)
 		f.build(")")
 	case *super.TypeOption:

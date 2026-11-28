@@ -26,7 +26,7 @@ const (
 	KindBool    = 15
 	KindUnion   = 16
 	KindEnum    = 17
-	KindFusion  = 19
+	KindSuper   = 19
 	KindMissing = 20
 	KindOption  = 21
 	KindNone    = 22

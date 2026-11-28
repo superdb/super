@@ -93,7 +93,7 @@ func (a *Aggregate) Pull(done bool) (vector.Any, error) {
 				vals = append(vals, e.Eval(vec))
 			}
 		}
-		vector.Apply(vector.ApplyRipUnions|vector.ApplyRipFusions, func(args ...vector.Any) vector.Any {
+		vector.Apply(vector.ApplyRipUnions|vector.ApplyRipSupers, func(args ...vector.Any) vector.Any {
 			// XXX need to call Catch here on args and keys and push errors out of the table here
 			// in addition to the table results at the end.  agg func Consume methods should
 			// decide whether they want to process the errors (like collect?) or have the errors

@@ -15,11 +15,11 @@ import (
 )
 
 type checker struct {
-	t         *translator
-	checked   map[super.Type]super.Type
-	unknown   super.Type
-	estack    []errlist
-	hasFusion samfunc.FusionChecker
+	t        *translator
+	checked  map[super.Type]super.Type
+	unknown  super.Type
+	estack   []errlist
+	hasSuper samfunc.SuperChecker
 }
 
 func newChecker(t *translator) *checker {
@@ -228,7 +228,7 @@ func (c *checker) orMissing(typ super.Type) super.Type {
 		return typ
 	}
 	types := super.Flatten([]super.Type{typ, super.TypeMissing})
-	return c.t.sctx.MustLookupTypeFusion(c.t.sctx.MustLookupTypeUnion(types))
+	return c.t.sctx.MustLookupTypeSuper(c.t.sctx.MustLookupTypeUnion(types))
 }
 
 // unnest returns the type of the values produced by unnesting a value of type
@@ -580,7 +580,7 @@ func isErrorType(typ super.Type) bool {
 	return ok
 }
 
-// orNone returns fusion(typ|none), the type of a value that is either of
+// orNone returns super(typ|none), the type of a value that is either of
 // type typ or a bare none, as for ok(e), which the runtime produces as
 // plain values of typ or none rather than as options.
 func (c *checker) orNone(typ super.Type) super.Type {
@@ -592,7 +592,7 @@ func (c *checker) orNone(typ super.Type) super.Type {
 		return typ
 	}
 	types := super.Flatten([]super.Type{typ, super.TypeNone})
-	return c.t.sctx.MustLookupTypeFusion(c.t.sctx.MustLookupTypeUnion(types))
+	return c.t.sctx.MustLookupTypeSuper(c.t.sctx.MustLookupTypeUnion(types))
 }
 
 // withoutTypes returns typ with the types for which drop is true removed
@@ -679,10 +679,10 @@ func (c *checker) optionize(typ super.Type) super.Type {
 	return c.t.sctx.Optionize(typ)
 }
 
-// defuse returns the supertype of a fusion type, where the supertype of
-// fusion(all), the data model's type for a value of any type, is any.
+// defuse returns the supertype of a super type, where the supertype of
+// super(all), the data model's type for a value of any type, is any.
 func defuse(typ super.Type) super.Type {
-	if typ, ok := typ.(*super.TypeFusion); ok {
+	if typ, ok := typ.(*super.TypeSuper); ok {
 		if typ.Type == super.TypeAll {
 			return super.TypeAny
 		}
@@ -1002,7 +1002,7 @@ func (c *checker) formRecord(elems []sem.RecordElem, types []super.Type) super.T
 }
 
 // noneAsMissing returns typ with plain none replaced by missing if typ is a
-// union (or the fusion of a union) with plain none as a member, i.e., the type
+// union (or the super value of a union) with plain none as a member, i.e., the type
 // of a field whose value may be none, which disappears from a record, so the
 // field may be missing.  A named type is a value and is returned as is.
 func (c *checker) noneAsMissing(typ super.Type) super.Type {
@@ -1021,9 +1021,9 @@ func (c *checker) noneAsMissing(typ super.Type) super.Type {
 		types = append(types, t)
 	}
 	out := c.unionOf(super.Flatten(types))
-	if _, isFusion := typ.(*super.TypeFusion); isFusion {
+	if _, isSuper := typ.(*super.TypeSuper); isSuper {
 		if _, isUnion := out.(*super.TypeUnion); isUnion {
-			return c.t.sctx.MustLookupTypeFusion(out)
+			return c.t.sctx.MustLookupTypeSuper(out)
 		}
 	}
 	return out
@@ -1037,45 +1037,45 @@ func (c *checker) unionOf(types []super.Type) super.Type {
 	return c.union(types)
 }
 
-// formatType formats typ for an error message without its fusion types, which
+// formatType formats typ for an error message without its super types, which
 // describe how values were combined rather than what they can be, so they
-// don't help a query writer understand a type error.  (fusion(all), the any
+// don't help a query writer understand a type error.  (super(all), the any
 // type, is kept.)
 func (c *checker) formatType(typ super.Type) string {
-	return sup.FormatType(c.stripFusion(typ))
+	return sup.FormatType(c.stripSuper(typ))
 }
 
-func (c *checker) stripFusion(typ super.Type) super.Type {
+func (c *checker) stripSuper(typ super.Type) super.Type {
 	switch typ := typ.(type) {
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		if typ.Type == super.TypeAll {
 			return typ
 		}
-		return c.stripFusion(typ.Type)
+		return c.stripSuper(typ.Type)
 	case *super.TypeRecord:
 		fields := slices.Clone(typ.Fields)
 		for i := range fields {
-			fields[i].Type = c.stripFusion(fields[i].Type)
+			fields[i].Type = c.stripSuper(fields[i].Type)
 		}
 		if out, err := c.t.sctx.LookupTypeRecord(fields); err == nil {
 			return out
 		}
 	case *super.TypeArray:
-		return c.t.sctx.LookupTypeArray(c.stripFusion(typ.Type))
+		return c.t.sctx.LookupTypeArray(c.stripSuper(typ.Type))
 	case *super.TypeSet:
-		return c.t.sctx.LookupTypeSet(c.stripFusion(typ.Type))
+		return c.t.sctx.LookupTypeSet(c.stripSuper(typ.Type))
 	case *super.TypeMap:
-		return c.t.sctx.LookupTypeMap(c.stripFusion(typ.KeyType), c.stripFusion(typ.ValType))
+		return c.t.sctx.LookupTypeMap(c.stripSuper(typ.KeyType), c.stripSuper(typ.ValType))
 	case *super.TypeOption:
-		return c.t.sctx.LookupTypeOption(c.stripFusion(typ.Type))
+		return c.t.sctx.LookupTypeOption(c.stripSuper(typ.Type))
 	case *super.TypeError:
-		return c.t.sctx.LookupTypeError(c.stripFusion(typ.Type))
+		return c.t.sctx.LookupTypeError(c.stripSuper(typ.Type))
 	case *super.TypeUnion:
 		var types []super.Type
 		for _, t := range typ.Types {
-			types = append(types, c.stripFusion(t))
+			types = append(types, c.stripSuper(t))
 		}
-		// A member that was a fusion of a union is now a union, whose
+		// A member that was a super value of a union is now a union, whose
 		// types are members of the union.
 		types = super.Flatten(types)
 		if len(types) == 1 {
@@ -1118,7 +1118,7 @@ func (c *checker) callBuiltin(call *sem.CallExpr, args []super.Type) super.Type 
 // someType returns the type of some(x) for x of type typ.  Like the runtime,
 // some passes an option, an error, or missing through unchanged.
 func (c *checker) someType(typ super.Type) super.Type {
-	if hasUnknown(typ) || c.hasFusion.Check(typ) {
+	if hasUnknown(typ) || c.hasSuper.Check(typ) {
 		return c.unknown
 	}
 	switch coerce.Under(typ).(type) {
@@ -1640,7 +1640,7 @@ func (c *checker) uncontaining(a, b super.Type) super.Type {
 		}
 		return nil
 	}
-	if passesComparison(a) || passesComparison(b) || coerce.Containable(c.t.sctx, c.hasFusion.Check, a, b) {
+	if passesComparison(a) || passesComparison(b) || coerce.Containable(c.t.sctx, c.hasSuper.Check, a, b) {
 		return nil
 	}
 	return b
@@ -1715,7 +1715,7 @@ func (c *checker) compares(a, b super.Type) bool {
 	if passesComparison(a) || passesComparison(b) {
 		return true
 	}
-	_, ok := coerce.ComparisonType(c.t.sctx, c.hasFusion.Check, a, b)
+	_, ok := coerce.ComparisonType(c.t.sctx, c.hasSuper.Check, a, b)
 	return ok
 }
 
@@ -1844,7 +1844,7 @@ func hasString(typ super.Type) bool {
 }
 
 // isUnknown reports whether typ is the checker's unknown type, which is
-// any (or fusion(all), the data model's type for a value of any type, whose
+// any (or super(all), the data model's type for a value of any type, whose
 // supertype is any).
 func isUnknown(typ super.Type) bool {
 	return coerce.IsUnknown(typ)
@@ -2165,17 +2165,17 @@ func (c *checker) withoutPlainNone(typ super.Type) (super.Type, bool) {
 		// A none of a named type (including a named union) is a value.
 		return typ, true
 	}
-	fusion, isFusion := typ.(*super.TypeFusion)
+	sup, isSuper := typ.(*super.TypeSuper)
 	out, ok := c.withoutTypes(defuse(typ), func(typ super.Type) bool {
 		return typ == super.TypeNone
 	})
 	if !ok {
 		return nil, false
 	}
-	if isFusion && out != fusion.Type {
+	if isSuper && out != sup.Type {
 		if _, isUnion := out.(*super.TypeUnion); isUnion {
-			// The values are still those of a fusion.
-			return c.t.sctx.MustLookupTypeFusion(out), true
+			// The values are still those of a super value.
+			return c.t.sctx.MustLookupTypeSuper(out), true
 		}
 	}
 	return out, true

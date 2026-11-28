@@ -4,7 +4,7 @@ spq: count() by this
 input: |
   1
   1::(int64|null)
-  fusion(1::(int64|null),<int64>)
+  super(1::(int64|null),<int64>)
 
 output: |
   {that:1,count:3}

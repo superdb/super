@@ -34,7 +34,7 @@ input: |
   {a:"hour",b:2001-10-09T01:46:40Z::(timestamp|null)}
   {a:"hour",b:null::(timestamp|null)}
   {a:null,b:2001-10-09T01:46:40Z::(timestamp|null)}
-  {a:"hour",b:fusion({x:1,y?:none::int64},<{x:int64}>)}
+  {a:"hour",b:super({x:1,y?:none::int64},<{x:int64}>)}
 
 output: |
   1

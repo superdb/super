@@ -14,7 +14,7 @@ input: |
   "true"
   "F"
   "false"
-  fusion("false"::(string|null),<string>)
+  super("false"::(string|null),<string>)
   "blah"
   null
   null::({}|null)

@@ -574,7 +574,7 @@ func isRecursive(typ super.Type, seen map[string]struct{}) bool {
 		return isRecursive(typ.Type, seen)
 	case *super.TypeError:
 		return isRecursive(typ.Type, seen)
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		return isRecursive(typ.Type, seen)
 	}
 	return false

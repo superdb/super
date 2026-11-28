@@ -5,7 +5,7 @@ input: |
   {a:null,b:1}
   {a:null,b:null}
   {a:null::(int64|null),b:2::(int64|null)}
-  {a:fusion(null::(int64|null),<null>),b:fusion(2::(int64|null),<int64>)}
+  {a:super(null::(int64|null),<null>),b:super(2::(int64|null),<int64>)}
 
 output: |
   null

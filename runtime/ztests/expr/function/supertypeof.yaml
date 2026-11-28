@@ -1,5 +1,5 @@
 # supertypeof is typeof without superdefusing its argument, so it reveals the
-# fusion types of superfused values.
+# super types of superfused values.
 spq: superfuse | values supertypeof(this), typeof(this), supertypeof(a), typeof(a)
 
 input: |
@@ -7,19 +7,19 @@ input: |
   {a:"x",b:2}
 
 output: |
-  <{a:fusion(int64|string),b:fusion(int64|missing)}>
+  <{a:super(int64|string),b:super(int64|missing)}>
   <{a:int64}>
-  <fusion(int64|string)>
+  <super(int64|string)>
   <int64>
-  <{a:fusion(int64|string),b:fusion(int64|missing)}>
+  <{a:super(int64|string),b:super(int64|missing)}>
   <{a:string,b:int64}>
-  <fusion(int64|string)>
+  <super(int64|string)>
   <string>
 
 ---
 
-# Without fusion types, supertypeof is typeof.  (The values are in the query
-# since superfusing input values, as SUPER_FUSEINPUT does, gives them fusion
+# Without super types, supertypeof is typeof.  (The values are in the query
+# since superfusing input values, as SUPER_FUSEINPUT does, gives them super
 # types.)
 spq: |
   values 1, 1::(int64|string), {a:[1,"x"]}

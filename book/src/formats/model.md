@@ -11,7 +11,7 @@ are ordered.
 In addition to the [records](#21-record) and [unions](#25-union) that
 provide its product and sum types, SuperDB's ADM has first-class
 [types](#1-primitive-types), [errors](#27-error),
-[fusion types](#28-fusion), and distinct values for
+[super types](#28-super), and distinct values for
 [null, missing, and none](#11-null-missing-and-none).
 
 Data in SuperDB's ADM is called _super-structured data_, in contrast to
@@ -72,7 +72,7 @@ The primitive types are defined as follows:
 | `null`             | the type of the `null` value |
 | `missing`          | the type of the `missing` value |
 | `none`             | the type of the `none` value |
-| `all`              | the type of a value of any type held by a [fusion](#28-fusion) |
+| `all`              | the type of a value of any type held by a [super](#28-super) |
 | `any`              | the top type, to which every type conforms |
 
 A type marked "reserved" is part of the type system, so it may appear in
@@ -113,11 +113,11 @@ treats these two values.
 
 The _any_ type is the top type of the type system: every type conforms
 to `any`, but no value has type `any`.  A value cast to `any` has type
-[`fusion(all)`](#28-fusion), which holds a value of any type along with its
+[`super(all)`](#28-super), which holds a value of any type along with its
 type.
 
-The _all_ type is the type of the value held by a `fusion(all)` value.
-It appears only within the type `fusion(all)`.
+The _all_ type is the type of the value held by a `super(all)` value.
+It appears only within the type `super(all)`.
 
 ## 2. Complex Types
 
@@ -132,7 +132,7 @@ the value type,
 * _union_ - a type representing values whose type is any of a specified collection of two or more unique types,
 * _enum_ - a type representing a finite set of symbols typically representing categories,
 * _error_ - any value wrapped as an "error",
-* _fusion_ - a value of a supertype together with the type of the value it represents,
+* _super_ - a value encoded in a fused type together with the subtype that inverts the encoding,
 * _option_ - a value that is either present or absent, and
 * _decimal_ - a fixed-point decimal number of a given precision and scale.
 
@@ -261,25 +261,33 @@ An error type is uniquely defined by the type of its value.
 The type order of two error types is the type order of the types of
 their values.
 
-### 2.8 Fusion
+### 2.8 Super
 
-A fusion value is a value of a type called the fusion's _supertype_ together
-with the type of the value it represents, called its _subtype_.  The
-represented value is recovered by converting the value to its subtype.
+A _super type_ has the form `super(T)`, where `T` is called its _fused type_.
+A super value is a value encoded in the fused type together with a type
+called its _subtype_, which inverts the encoding: the value it represents
+is recovered by converting the encoded value back to its subtype.
 
-Fusion types are created by [type fusion](../super-sql/type-fusion.md),
+A super type is a form of union.  Where a union type lists its member types
+and a union value carries a tag that selects one of them, the fused type of a
+super type is the fusion of its member types and the subtype of a super value
+is the tag that tells which original type the value had.  Unlike a union tag,
+the subtype is not limited to a fixed list: it may be any type whose values
+can be encoded in the fused type.
+
+Super types are created by [type fusion](../super-sql/type-fusion.md),
 which allows values of many different types to be stored as values of
 a single fused type without losing their original types.
 For example, the values `{a:1}` and `{b:"x"}` may be stored as
-fusion values of type `fusion({a:int64|missing,b:string|missing})`
+super values of type `super({a:int64|missing,b:string|missing})`
 whose subtypes are `{a:int64}` and `{b:string}`.
 
-The type `fusion(all)` holds a value of any type, whose subtype is
+The type `super(all)` holds a value of any type, whose subtype is
 the value's type.
 
-A fusion type is uniquely defined by its supertype.
+A super type is uniquely defined by its fused type.
 
-The type order of two fusion types is the type order of their supertypes.
+The type order of two super types is the type order of their fused types.
 
 ### 2.9 Option
 

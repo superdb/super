@@ -220,13 +220,13 @@ func parseMarkdown(source []byte) (map[string]string, []*Test, error) {
 			})
 		case "mdtest-spq":
 			var fails bool
-			var fusion bool
+			var superfused bool
 			for _, word := range fcbInfoWords(fcb, source)[1:] {
 				switch word {
 				case "fails":
 					fails = true
-				case "fusion":
-					fusion = true
+				case "superfused":
+					superfused = true
 				}
 			}
 			lines := fcbLines(fcb, source)
@@ -240,12 +240,12 @@ func parseMarkdown(source []byte) (map[string]string, []*Test, error) {
 				return ast.WalkStop, fcbError(fcb, source, msg)
 			}
 			tests = append(tests, &Test{
-				Expected: sections[3],
-				Fails:    fails,
-				Line:     fcbLineNumber(fcb, source),
-				Input:    sections[2],
-				SPQ:      sections[1],
-				Fusion:   fusion,
+				Expected:   sections[3],
+				Fails:      fails,
+				Line:       fcbLineNumber(fcb, source),
+				Input:      sections[2],
+				SPQ:        sections[1],
+				Superfused: superfused,
 			})
 		}
 		return ast.WalkContinue, nil

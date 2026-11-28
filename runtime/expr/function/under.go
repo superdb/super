@@ -64,7 +64,7 @@ func (u *Under) Call(args ...vector.Any) vector.Any {
 
 // underType returns the type underlying typ as a value: for a named type,
 // the named type's underlying type; for an array or set type, the element
-// type; for an option, error, or fusion type, the type it wraps; for a union
+// type; for an option, error, or super type, the type it wraps; for a union
 // type, an array of the union's types; for a map type, a record
 // {key:<K>,value:<V>} of the key and value types; and otherwise, typ.
 func (u *Under) underType(typ super.Type) super.Value {
@@ -79,7 +79,7 @@ func (u *Under) underType(typ super.Type) super.Value {
 		return u.sctx.LookupTypeValue(t.Type)
 	case *super.TypeError:
 		return u.sctx.LookupTypeValue(t.Type)
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		return u.sctx.LookupTypeValue(t.Type)
 	case *super.TypeUnion:
 		var b scode.Builder

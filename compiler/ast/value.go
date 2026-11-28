@@ -63,7 +63,7 @@ type (
 		Kind  string `json:"kind" unpack:""`
 		Value Value  `json:"value"`
 	}
-	Fusion struct {
+	Super struct {
 		Kind  string     `json:"kind" unpack:""`
 		Value Value      `json:"value"`
 		Type  *TypeValue `json:"type"`
@@ -81,7 +81,7 @@ func (*Set) valueNode()             {}
 func (*Map) valueNode()             {}
 func (*TypeValue) valueNode()       {}
 func (*Error) valueNode()           {}
-func (*Fusion) valueNode()          {}
+func (*Super) valueNode()           {}
 func (*Some) valueNode()            {}
 func (*DoubleQuoteExpr) valueNode() {}
 

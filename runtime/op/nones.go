@@ -87,9 +87,9 @@ func plainNoneSlots(vec vector.Any) ([]uint32, bool) {
 			}
 		}
 		return nones, false
-	case *vector.Fusion:
-		// A fusion value is a plain none if its subtype is none, which is
-		// possible only if the fusion's type has none.  Check the type first
+	case *vector.Super:
+		// A super value is a plain none if its subtype is none, which is
+		// possible only if the super value's type has none.  Check the type first
 		// so the subtypes needn't be loaded.
 		if typ, ok := v.Typ.Type.(*super.TypeUnion); !ok || !hasPlainNoneMember(typ) {
 			if v.Typ.Type != super.TypeNone {

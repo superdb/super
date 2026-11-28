@@ -1,4 +1,4 @@
-# The data of an array, set, or map of options with fusion payloads is read
+# The data of an array, set, or map of options with super payloads is read
 # under a type-only projection since defusing the options accesses it.
 script: |
   super - | super -i bsup -s -c 'values typeof(a)' -
@@ -6,9 +6,9 @@ script: |
 inputs:
   - name: stdin
     data: |
-      {a:[some(fusion(1::(int64|string),<int64>))]}
-      {a:set[some(fusion("x"::(int64|string),<string>))]}
-      {a:map{1:some(fusion("x"::(int64|string),<string>))}}
+      {a:[some(super(1::(int64|string),<int64>))]}
+      {a:set[some(super("x"::(int64|string),<string>))]}
+      {a:map{1:some(super("x"::(int64|string),<string>))}}
 
 outputs:
   - name: stdout
