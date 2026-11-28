@@ -22,7 +22,7 @@ type builder struct {
 	val             super.Value
 }
 
-func (b *builder) build(typ *super.TypeRecord, sourceFields []int, path []byte, data []byte) (*super.Value, error) {
+func (b *builder) build(typ *super.TypeRecord, numColumns int, sourceFields []int, path []byte, data []byte) (*super.Value, error) {
 	b.Truncate()
 	b.Grow(len(data))
 	fields := typ.Fields
@@ -45,7 +45,7 @@ func (b *builder) build(typ *super.TypeRecord, sourceFields []int, path []byte, 
 		}
 	}
 	b.fields = append(b.fields, data[start:])
-	if actual, expected := len(b.fields), len(sourceFields); actual > expected {
+	if actual, expected := len(b.fields), numColumns; actual > expected {
 		return nil, errors.New("too many values")
 	} else if actual < expected {
 		return nil, errors.New("too few values")

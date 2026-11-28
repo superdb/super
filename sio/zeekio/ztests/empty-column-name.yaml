@@ -1,0 +1,18 @@
+spq: pass
+
+# zeek-cut emits an empty column name for fields absent from a log;
+# such columns are skipped.
+input: |
+  #separator \x09
+  #set_separator	,
+  #empty_field	(empty)
+  #unset_field	-
+  #path	p
+  #open	2020-01-14-19-11-57
+  #fields	ts		uid
+  #types	time		string
+  -		e3ad37edfdf
+  #close	2020-01-14-20-00-00
+
+output: |
+  {_path:"p",ts:null::(timestamp|null),uid:"e3ad37edfdf"::(string|null)}
