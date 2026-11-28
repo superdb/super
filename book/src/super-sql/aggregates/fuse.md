@@ -12,7 +12,7 @@ fuse(any) -> type
 
 The _fuse_ aggregate function applies [type fusion](../type-fusion.md)
 to its input and returns the fused type.  Unlike [superfuse](superfuse.md),
-fuse does not employ fusion types and therefore it is not possible in general
+fuse does not employ super types and therefore it is not possible in general
 to recover the original input from a fused input.
 
 It is useful with grouped aggregation for data exploration and discovery

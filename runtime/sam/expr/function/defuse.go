@@ -8,9 +8,9 @@ import (
 )
 
 type Defuse struct {
-	sctx      *super.Context
-	downcast  *downcast
-	hasFusion FusionChecker
+	sctx     *super.Context
+	downcast *downcast
+	hasSuper SuperChecker
 }
 
 func NewDefuse(sctx *super.Context) *Defuse {
@@ -27,7 +27,7 @@ func (d *Defuse) Call(args []super.Value) super.Value {
 }
 
 func (d *Defuse) eval(in super.Value) super.Value {
-	if !d.hasFusion.Check(in.Type()) {
+	if !d.hasSuper.Check(in.Type()) {
 		return in
 	}
 	switch typ := in.Type().(type) {
@@ -88,7 +88,7 @@ func (d *Defuse) eval(in super.Value) super.Value {
 	case *super.TypeError:
 		val := d.eval(super.NewValue(typ.Type, in.Bytes()))
 		return super.NewValue(d.sctx.LookupTypeError(val.Type()), val.Bytes())
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		out, errVal := d.downcast.defuse(typ, in.Bytes())
 		if errVal != nil {
 			return *errVal
@@ -154,36 +154,36 @@ func (d *Defuse) unifyType(vals []super.Value) super.Type {
 	}
 }
 
-type FusionChecker map[super.Type]bool
+type SuperChecker map[super.Type]bool
 
-func (f *FusionChecker) Check(typ super.Type) bool {
+func (f *SuperChecker) Check(typ super.Type) bool {
 	if *f == nil {
 		*f = make(map[super.Type]bool)
 	}
-	return f.hasFusion(typ)
+	return f.hasSuper(typ)
 }
 
-func (f FusionChecker) hasFusion(typ super.Type) bool {
+func (f SuperChecker) hasSuper(typ super.Type) bool {
 	if fused, ok := f[typ]; ok {
 		return fused
 	}
 	var has bool
 	switch typ := typ.(type) {
 	case *super.TypeRecord:
-		has = slices.ContainsFunc(typ.Fields, func(field super.Field) bool { return f.hasFusion(field.Type) })
+		has = slices.ContainsFunc(typ.Fields, func(field super.Field) bool { return f.hasSuper(field.Type) })
 	case *super.TypeArray:
-		has = f.hasFusion(typ.Type)
+		has = f.hasSuper(typ.Type)
 	case *super.TypeSet:
-		has = f.hasFusion(typ.Type)
+		has = f.hasSuper(typ.Type)
 	case *super.TypeUnion:
-		has = slices.ContainsFunc(typ.Types, f.hasFusion)
+		has = slices.ContainsFunc(typ.Types, f.hasSuper)
 	case *super.TypeMap:
-		has = f.hasFusion(typ.KeyType) || f.hasFusion(typ.ValType)
+		has = f.hasSuper(typ.KeyType) || f.hasSuper(typ.ValType)
 	case *super.TypeError:
-		has = f.hasFusion(typ.Type)
+		has = f.hasSuper(typ.Type)
 	case *super.TypeOption:
-		has = f.hasFusion(typ.Type)
-	case *super.TypeFusion:
+		has = f.hasSuper(typ.Type)
+	case *super.TypeSuper:
 		has = true
 	}
 	f[typ] = has

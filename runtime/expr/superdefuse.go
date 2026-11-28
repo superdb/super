@@ -10,9 +10,9 @@ import (
 )
 
 type SuperDefuse struct {
-	sctx      *super.Context
-	downcast  *Downcast
-	hasFusion samfunc.FusionChecker
+	sctx     *super.Context
+	downcast *Downcast
+	hasSuper samfunc.SuperChecker
 }
 
 func NewSuperDefuse(sctx *super.Context) *SuperDefuse {
@@ -31,7 +31,7 @@ func (d *SuperDefuse) Eval(in vector.Any) vector.Any {
 }
 
 func (d *SuperDefuse) eval(in vector.Any) vector.Any {
-	if !d.hasFusion.Check(in.Type()) {
+	if !d.hasSuper.Check(in.Type()) {
 		return in
 	}
 	switch in.Kind() {
@@ -50,15 +50,15 @@ func (d *SuperDefuse) eval(in vector.Any) vector.Any {
 		return d.defuseError(in)
 	case vector.KindOption:
 		return d.defuseOption(in)
-	case vector.KindFusion:
+	case vector.KindSuper:
 		if in.Len() == 0 {
 			return vector.NewMissing(0)
 		}
-		fusion := vector.PushViewOrConst(in).(*vector.Fusion)
-		if super.IsFusionAll(fusion.Type()) {
-			return vector.DefuseAny(fusion)
+		sup := vector.PushViewOrConst(in).(*vector.Super)
+		if super.IsSuperAll(sup.Type()) {
+			return vector.DefuseAny(sup)
 		}
-		return d.downcast.to(fusion.Values, fusion.Subtypes.Types())
+		return d.downcast.to(sup.Values, sup.Subtypes.Types())
 	default:
 		// primitives, named types, enums
 		// BTW, named types are a barrier to defuse.
@@ -92,9 +92,9 @@ func (d *SuperDefuse) defuseRecord(vec vector.Any) vector.Any {
 	}, vecs...)
 }
 
-// defuseOption defuses the payload of an option.  As for a fusion value, each
+// defuseOption defuses the payload of an option.  As for a super value, each
 // value gets its own type: a some's payload type is that of its defused value,
-// while a none's has each fusion type replaced by its supertype.
+// while a none's has each super type replaced by its supertype.
 func (d *SuperDefuse) defuseOption(in vector.Any) vector.Any {
 	option := vector.UnderOption(in)
 	return option.Apply(func(tags []uint32, some vector.Any, none *vector.None) vector.Any {
@@ -140,14 +140,14 @@ func (d *SuperDefuse) defuseOption(in vector.Any) vector.Any {
 	})
 }
 
-// defuseType returns typ with each fusion type replaced by its supertype or
-// false if typ contains fusion(all), whose supertype isn't a type of values.
+// defuseType returns typ with each super type replaced by its supertype or
+// false if typ contains super(all), whose supertype isn't a type of values.
 func (d *SuperDefuse) defuseType(typ super.Type) (super.Type, bool) {
-	if !d.hasFusion.Check(typ) {
+	if !d.hasSuper.Check(typ) {
 		return typ, true
 	}
 	switch typ := typ.(type) {
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		if typ.Type == super.TypeAll {
 			return nil, false
 		}
@@ -304,15 +304,15 @@ func (d *SuperDefuse) defuseError(in vector.Any) vector.Any {
 	}, valsVec)
 }
 
-// HasFusion returns true if a value of type typ is changed by Eval.
-func (d *SuperDefuse) HasFusion(typ super.Type) bool {
-	return d.hasFusion.Check(typ)
+// HasSuper returns true if a value of type typ is changed by Eval.
+func (d *SuperDefuse) HasSuper(typ super.Type) bool {
+	return d.hasSuper.Check(typ)
 }
 
 // Types returns a vector of the types of the values that Eval returns for in.
 // Unlike Eval, Types does not access the data of in, which need not be loaded
 // (see vector.TypeOnly), except for arrays, sets, and maps whose element
-// types have fusion types.  (The BSUP loader loads the data of these
+// types have super types.  (The BSUP loader loads the data of these
 // containers for type-only projections.)
 func (d *SuperDefuse) Types(in vector.Any) vector.Any {
 	return vector.Apply(vector.ApplyNone, func(vecs ...vector.Any) vector.Any {
@@ -321,7 +321,7 @@ func (d *SuperDefuse) Types(in vector.Any) vector.Any {
 }
 
 func (d *SuperDefuse) types(in vector.Any) vector.Any {
-	if !d.hasFusion.Check(in.Type()) {
+	if !d.hasSuper.Check(in.Type()) {
 		return vector.NewConstType(d.sctx, in.Type(), in.Len())
 	}
 	switch in.Kind() {
@@ -338,8 +338,8 @@ func (d *SuperDefuse) types(in vector.Any) vector.Any {
 			types[i] = d.sctx.LookupTypeError(vector.TypeValueValue(vals, i))
 		}
 		return d.typesVector(types)
-	case vector.KindFusion:
-		return d.typesVector(vector.PushViewOrConst(in).(*vector.Fusion).Subtypes.Types())
+	case vector.KindSuper:
+		return d.typesVector(vector.PushViewOrConst(in).(*vector.Super).Subtypes.Types())
 	default:
 		// The type of a superdefused array, set, or map depends on the
 		// types of its elements so we defuse the data.

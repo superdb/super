@@ -1661,9 +1661,9 @@ EasyType
           Loc: loc(c),
       }, nil
     }
-  / FUSION __ "(" __ t:Type __ ")" {
-      return &ast.TypeFusion{
-          Kind: "TypeFusion",
+  / SUPER __ "(" __ t:Type __ ")" {
+      return &ast.TypeSuper{
+          Kind: "TypeSuper",
           Type: t.(ast.Type),
           Loc: loc(c),
       }, nil
@@ -2719,7 +2719,6 @@ FORK       = "FORK"i            !IdentifierRest
 FROM       = "FROM"i            !IdentifierRest
 FULL       = "FULL"i            !IdentifierRest
 FUSE       = "FUSE"i            !IdentifierRest
-FUSION     = "FUSION"i          !IdentifierRest
 GROUP      = "GROUP"i           !IdentifierRest
 HAVING     = "HAVING"i          !IdentifierRest
 HEAD       = "HEAD"i            !IdentifierRest

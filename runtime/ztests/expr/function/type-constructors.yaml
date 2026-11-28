@@ -1,5 +1,5 @@
 # Type constructors with a single type argument.
-spq: values array_type(this), set_type(this), error_type(this), fusion_type(this), option_type(this)
+spq: values array_type(this), set_type(this), error_type(this), super_type(this), option_type(this)
 
 input: |
   <int64>
@@ -9,12 +9,12 @@ output: |
   <[int64]>
   <set[int64]>
   <error(int64)>
-  <fusion(int64)>
+  <super(int64)>
   <option(int64)>
   <[{x:string}]>
   <set[{x:string}]>
   <error({x:string})>
-  <fusion({x:string})>
+  <super({x:string})>
   <option({x:string})>
 
 ---

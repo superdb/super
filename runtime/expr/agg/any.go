@@ -21,7 +21,7 @@ func (a *Any) Resize(n uint32) {
 }
 
 func (a *Any) Consume(groups []uint32, vec vector.Any) {
-	if k := vector.Super(vec).Kind(); k == vector.KindNull || k == vector.KindMissing || k == vector.KindNone {
+	if k := vector.Fused(vec).Kind(); k == vector.KindNull || k == vector.KindMissing || k == vector.KindNone {
 		return
 	}
 	var b scode.Builder

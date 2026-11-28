@@ -24,7 +24,7 @@ func TestFuserSamePrimitiveTypeTwice(t *testing.T) {
 }
 
 // TestFusedTypeRoundTrip checks that the supertype of a set of values has
-// no fusion types and that each value upcasts to the fused type and defuses
+// no super types and that each value upcasts to the fused type and defuses
 // back to itself.
 func TestFusedTypeRoundTrip(t *testing.T) {
 	cases := [][]string{
@@ -56,7 +56,7 @@ func TestFusedTypeRoundTrip(t *testing.T) {
 				vals = append(vals, val)
 				fuser.Fuse(val.Type())
 			}
-			require.NotContains(t, sup.FormatType(fuser.SuperType()), "fusion", "supertype has fusion")
+			require.NotContains(t, sup.FormatType(fuser.SuperType()), "super", "supertype has super")
 			fused := fuser.FusedType()
 			upcast := function.NewUpcast(sctx)
 			defuse := expr.NewSuperDefuse(sctx)
@@ -76,19 +76,19 @@ func TestFuserAny(t *testing.T) {
 		types        []string
 		super, fused string
 	}{
-		{[]string{"any", "int64"}, "any", "fusion(all)"},
-		{[]string{"any", "{a:int64}", "[string]"}, "any", "fusion(all)"},
-		{[]string{"any", "null"}, "any", "fusion(all)"},
+		{[]string{"any", "int64"}, "any", "super(all)"},
+		{[]string{"any", "{a:int64}", "[string]"}, "any", "super(all)"},
+		{[]string{"any", "null"}, "any", "super(all)"},
 		// any absorbs everything but missing.
-		{[]string{"any", "missing"}, "missing|any", "fusion(all)"},
-		{[]string{"any", "int64|missing"}, "missing|any", "fusion(all)"},
-		{[]string{"{a:any}", "{a:int64}"}, "{a:any}", "{a:fusion(all)}"},
-		{[]string{"{a:any}", "{b:int64}"}, "{a:missing|any,b:int64|missing}", "{a:fusion(all),b:fusion(int64|missing)}"},
-		{[]string{"[any]", "[int64]"}, "[any]", "fusion([fusion(all)])"},
-		{[]string{"{a:any}|string", "string"}, "string|{a:any}", "fusion(string|{a:fusion(all)})"},
-		// A fused type with fusion(all) normalizes to any in the supertype.
-		{[]string{"fusion(all)", "int64"}, "any", "fusion(all)"},
-		{[]string{"{a:fusion(all)}", "{a:string}"}, "{a:any}", "{a:fusion(all)}"},
+		{[]string{"any", "missing"}, "missing|any", "super(all)"},
+		{[]string{"any", "int64|missing"}, "missing|any", "super(all)"},
+		{[]string{"{a:any}", "{a:int64}"}, "{a:any}", "{a:super(all)}"},
+		{[]string{"{a:any}", "{b:int64}"}, "{a:missing|any,b:int64|missing}", "{a:super(all),b:super(int64|missing)}"},
+		{[]string{"[any]", "[int64]"}, "[any]", "super([super(all)])"},
+		{[]string{"{a:any}|string", "string"}, "string|{a:any}", "super(string|{a:super(all)})"},
+		// A fused type with super(all) normalizes to any in the supertype.
+		{[]string{"super(all)", "int64"}, "any", "super(all)"},
+		{[]string{"{a:super(all)}", "{a:string}"}, "{a:any}", "{a:super(all)}"},
 	}
 	for _, c := range cases {
 		t.Run(c.super, func(t *testing.T) {
@@ -105,20 +105,20 @@ func TestFuserAny(t *testing.T) {
 	}
 }
 
-func TestAnyToFusion(t *testing.T) {
+func TestAnyToSuper(t *testing.T) {
 	cases := []struct{ in, out string }{
-		{"any", "fusion(all)"},
+		{"any", "super(all)"},
 		{"int64", "int64"},
-		{"{a:any,b:[any],c:int64}", "{a:fusion(all),b:[fusion(all)],c:int64}"},
-		{"any|missing", "fusion(all)"},
-		{"{a:any}|string", "string|{a:fusion(all)}"},
-		{"any|string", "fusion(all)"},
-		{"map{string:any}", "map{string:fusion(all)}"},
+		{"{a:any,b:[any],c:int64}", "{a:super(all),b:[super(all)],c:int64}"},
+		{"any|missing", "super(all)"},
+		{"{a:any}|string", "string|{a:super(all)}"},
+		{"any|string", "super(all)"},
+		{"map{string:any}", "map{string:super(all)}"},
 	}
 	for _, c := range cases {
 		sctx := super.NewContext()
 		typ, err := sup.ParseType(sctx, c.in)
 		require.NoError(t, err)
-		require.Equal(t, c.out, sup.FormatType(sctx.AnyToFusion(typ)), c.in)
+		require.Equal(t, c.out, sup.FormatType(sctx.AnyToSuper(typ)), c.in)
 	}
 }

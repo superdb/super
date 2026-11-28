@@ -3,7 +3,7 @@ spq: |
 
 input: |
   map{}
-  fusion(map{1:map{2:3}}::(null|map{int64:map{int64:int64}}),<map{int64:map{int64:int64}}>)
+  super(map{1:map{2:3}}::(null|map{int64:map{int64:int64}}),<map{int64:map{int64:int64}}>)
   map{1:map{"2":3,4:"5"},"7":8,"9":map{10:[],[]:11,null:null}}
   null
   null::({}|null)

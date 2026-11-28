@@ -118,7 +118,7 @@ func (c *ColumnWriter) Push(vec vector.Any) error {
 
 // pushFrame encodes all of the vectors received so far and flushes a serialized
 // ColumnFrame to the writer.  All the state is flushed and reset and a new frame
-// will begin on the next Push (except for the SuperFooter size and fusion type).
+// will begin on the next Push (except for the SuperFooter size and super type).
 func (c *ColumnWriter) pushFrame() error {
 	vec := c.dynamic.BuildDynamic()
 	if vec.Len() == 0 {

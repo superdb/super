@@ -390,14 +390,14 @@ func (v *Value) MissingAsNull() Value {
 }
 
 // SuperDeunion deunions and returns the super value of arbitrarily nested
-// union and fusion values.
+// union and super values.
 func (v Value) SuperDeunion() Value {
 	for {
 		switch typ := v.Type().(type) {
 		case *TypeUnion:
 			v = NewValue(typ.Untag(v.bytes()))
-		case *TypeFusion:
-			v = NewValue(typ.DerefFusion(v.bytes()))
+		case *TypeSuper:
+			v = NewValue(typ.DerefSuper(v.bytes()))
 		default:
 			return v
 		}
@@ -462,10 +462,10 @@ func (v Value) IsNone() bool {
 }
 
 // Under resolves named types and untags unions repeatedly, returning a value
-// guaranteed not to have a fusion type, named type or union type.
+// guaranteed not to have a super type, named type or union type.
 func (v Value) Under() Value {
 	switch v.Type().(type) {
-	case *TypeUnion, *TypeNamed, *TypeFusion:
+	case *TypeUnion, *TypeNamed, *TypeSuper:
 		return v.under()
 	}
 	// This is the common case; make sure the compiler can inline it.
@@ -479,8 +479,8 @@ func (v Value) under() Value {
 		switch under := TypeUnder(typ).(type) {
 		case *TypeUnion:
 			typ, bytes = under.Untag(bytes)
-		case *TypeFusion:
-			typ, bytes = under.DerefFusion(bytes)
+		case *TypeSuper:
+			typ, bytes = under.DerefSuper(bytes)
 		default:
 			return NewValue(under, bytes)
 		}

@@ -1,15 +1,15 @@
 # any exists only in the type system and is never the type of a
 # concrete value: a value cast to any (or upcast to  a type
-# containing any) has type fusion(all), which carries the value's
+# containing any) has type super(all), which carries the value's
 # own type, while type values may contain any.
 script: |
-  super -s -fusion -c "values 1::any, cast('x', <any>), {a:1}::{a:any}, [1,'a']::[any], upcast({a:1}, <{a:any}>)"
+  super -s -superfused -c "values 1::any, cast('x', <any>), {a:1}::{a:any}, [1,'a']::[any], upcast({a:1}, <{a:any}>)"
   echo ===
   super -s -c "values <any>, <{a:any,b:[any]}>, typeof(<any>), typeof(1::any)"
   echo ===
-  super -s -fusion -c "type foo={a:any} values {a:1}::foo"
+  super -s -superfused -c "type foo={a:any} values {a:1}::foo"
   echo ===
-  echo '<any> {t:<{a:any}>} 1::any {a:"x"::any}' | super -f bsup - | super -s -fusion -
+  echo '<any> {t:<{a:any}>} 1::any {a:"x"::any}' | super -f bsup - | super -s -superfused -
 
 outputs:
   - name: stdout
@@ -25,7 +25,7 @@ outputs:
       <type>
       <int64>
       ===
-      type foo={a:fusion(all)}
+      type foo={a:super(all)}
       {a:1::any}::foo
       ===
       <any>

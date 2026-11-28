@@ -6,7 +6,7 @@ input: |
   {y:5}
   {y:5}
   {y:7}
-  fusion({x?:none::int64,y?:7},<{y:int64}>)
+  super({x?:none::int64,y?:7},<{y:int64}>)
 
 output: |
   {val:{y:5},count:2}

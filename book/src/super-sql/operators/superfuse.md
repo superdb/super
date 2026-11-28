@@ -29,41 +29,41 @@ Because all values of the input must be read to compute the fused type,
 ---
 
 _Fuse two records_
-```mdtest-spq fusion
+```mdtest-spq superfused
 # spq
 superfuse
 # input
 {a:1}
 {b:2}
 # expected output
-{a:fusion(1::(int64|missing),<int64>),b:fusion(missing::(int64|missing),<missing>)}
-{a:fusion(missing::(int64|missing),<missing>),b:fusion(2::(int64|missing),<int64>)}
+{a:super(1::(int64|missing),<int64>),b:super(missing::(int64|missing),<missing>)}
+{a:super(missing::(int64|missing),<missing>),b:super(2::(int64|missing),<int64>)}
 ```
 
 ---
 
 _Fuse records with type variation_
-```mdtest-spq fusion
+```mdtest-spq superfused
 # spq
 superfuse
 # input
 {a:1}
 {a:"foo"}
 # expected output
-{a:fusion(1::(int64|string),<int64>)}
-{a:fusion("foo"::(int64|string),<string>)}
+{a:super(1::(int64|string),<int64>)}
+{a:super("foo"::(int64|string),<string>)}
 ```
 
 ---
 
 _Fuse records with complex type variation_
-```mdtest-spq fusion {data-layout="stacked"}
+```mdtest-spq superfused {data-layout="stacked"}
 # spq
 superfuse
 # input
 {a:[1,2]}
 {a:["foo","bar"],b:10.0.0.1}
 # expected output
-{a:fusion([fusion(1::(int64|string),<int64>),fusion(2::(int64|string),<int64>)],<[int64]>),b:fusion(missing::(ip|missing),<missing>)}
-{a:fusion([fusion("foo"::(int64|string),<string>),fusion("bar"::(int64|string),<string>)],<[string]>),b:fusion(10.0.0.1::(ip|missing),<ip>)}
+{a:super([super(1::(int64|string),<int64>),super(2::(int64|string),<int64>)],<[int64]>),b:super(missing::(ip|missing),<missing>)}
+{a:super([super("foo"::(int64|string),<string>),super("bar"::(int64|string),<string>)],<[string]>),b:super(10.0.0.1::(ip|missing),<ip>)}
 ```

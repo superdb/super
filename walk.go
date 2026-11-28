@@ -39,8 +39,8 @@ func Walk(typ Type, body scode.Bytes, visit Visitor) error {
 		return walkMap(typ, body, visit)
 	case *TypeError:
 		return Walk(typ.Type, body, visit)
-	case *TypeFusion:
-		ftyp, body := typ.DerefFusion(body)
+	case *TypeSuper:
+		ftyp, body := typ.DerefSuper(body)
 		return Walk(ftyp, body, visit)
 	}
 	return nil

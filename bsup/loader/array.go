@@ -22,9 +22,9 @@ type Array struct {
 func (a *Array) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	if projection.TypesOnly() {
 		// The type of an array doesn't depend on its offsets but if the
-		// elements contain a fusion value, then the data is needed to
+		// elements contain a super value, then the data is needed to
 		// compute the type of the superdefused value.
-		if typ := loader.vectorType(a.TypeID); !hasFusion(typ) {
+		if typ := loader.vectorType(a.TypeID); !hasSuper(typ) {
 			return vector.NewTypeOnly(typ, a.Length)
 		}
 	}
@@ -67,7 +67,7 @@ type Set struct {
 func (s *Set) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	if projection.TypesOnly() {
 		// See Array.project.
-		if typ := loader.vectorType(s.TypeID); !hasFusion(typ) {
+		if typ := loader.vectorType(s.TypeID); !hasSuper(typ) {
 			return vector.NewTypeOnly(typ, s.Length)
 		}
 	}

@@ -13,7 +13,7 @@ type AnyEncoder struct {
 	subtypes *TypeValueEncoder
 }
 
-func NewAnyEncoder(typedefs *TypeDefs, vec *vector.Fusion) *AnyEncoder {
+func NewAnyEncoder(typedefs *TypeDefs, vec *vector.Super) *AnyEncoder {
 	return &AnyEncoder{
 		values:   NewPrimitiveEncoder(typedefs, vec.Values, false),
 		subtypes: NewTypeValueEncoder(typedefs, vec.Subtypes),
@@ -32,8 +32,8 @@ func (a *AnyEncoder) Encode(group *errgroup.Group) {
 	a.subtypes.Encode(group)
 }
 
-// Locate encodes the locators of a fusion(all) vector, which are those of any
-// fusion vector (see FusionEncoder.Locate).
+// Locate encodes the locators of a super(all) vector, which are those of any
+// super vector (see SuperEncoder.Locate).
 func (a *AnyEncoder) Locate(w *LocatorWriter) {
 	w.WriteKind(KindPlain)
 	w.Locate(a.values)

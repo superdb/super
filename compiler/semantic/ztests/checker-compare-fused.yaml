@@ -21,7 +21,7 @@ inputs:
 outputs:
   - name: stderr
     data: |
-      type mismatch: [fusion(int64|string)] == [fusion(int64|string)] at line 1, column 8:
+      type mismatch: [super(int64|string)] == [super(int64|string)] at line 1, column 8:
       values a == b
              ~~~~~~
       type mismatch: int64|string >= int64|string at line 1, column 20:
@@ -33,7 +33,7 @@ outputs:
       type mismatch: {x:any,y:int64} == {x:int64,z:int64} at line 1, column 8:
       values {x:a,y:1} == {x:1,z:2}
              ~~~~~~~~~~~~~~~~~~~~~~
-      type mismatch: {x:fusion(option([fusion(int64|string)]))} == {x:fusion(option([fusion(int64|string)]))} at line 1, column 8:
+      type mismatch: {x:super(option([super(int64|string)]))} == {x:super(option([super(int64|string)]))} at line 1, column 8:
       values r == s
              ~~~~~~
   - name: stdout

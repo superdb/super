@@ -12,7 +12,7 @@ input: |
   1e8
   false
   true
-  fusion("2"::(string|null),<string>)
+  super("2"::(string|null),<string>)
   null
   null::({}|null)
 

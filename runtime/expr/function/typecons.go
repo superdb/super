@@ -102,7 +102,7 @@ func listTypes(sctx *super.Context, val super.Value) ([]super.Type, error) {
 func newTypeCons(sctx *super.Context, name string) *typeCons {
 	t := &typeCons{sctx: sctx, name: name}
 	switch name {
-	case "array_type", "set_type", "error_type", "fusion_type", "option_type":
+	case "array_type", "set_type", "error_type", "super_type", "option_type":
 		t.arg = "a type value"
 		t.ok = isTypeType
 		t.make = func(val super.Value) (super.Type, error) {
@@ -117,8 +117,8 @@ func newTypeCons(sctx *super.Context, name string) *typeCons {
 				return sctx.LookupTypeSet(inner), nil
 			case "error_type":
 				return sctx.LookupTypeError(inner), nil
-			case "fusion_type":
-				return sctx.LookupTypeFusion(inner)
+			case "super_type":
+				return sctx.LookupTypeSuper(inner)
 			default:
 				if _, ok := inner.(*super.TypeOption); ok || inner == super.TypeMissing || inner == super.TypeNone {
 					return nil, errors.New("invalid option type")

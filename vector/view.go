@@ -74,11 +74,11 @@ func PushViewOrConst(val Any) Any {
 		keys, offsets := pickList(val.Keys, view.Index, val.Offsets)
 		values, _ := pickList(val.Values, view.Index, val.Offsets)
 		return NewMap(val.Typ, offsets, keys, values)
-	case *Fusion:
+	case *Super:
 		// The picked subtypes are mapped into the query context only if
 		// they're used.
 		subtypes := val.Subtypes.Pick(view.Index)
-		return &Fusion{Typ: val.Typ, Values: Pick(val.Values, view.Index), Subtypes: subtypes}
+		return &Super{Typ: val.Typ, Values: Pick(val.Values, view.Index), Subtypes: subtypes}
 	case *Option:
 		return Pick(val, view.Index)
 	case *TypeValue:

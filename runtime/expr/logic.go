@@ -168,7 +168,7 @@ func (*Or) evalWithNullOrError(boolVec, nullOrErrorVec vector.Any) vector.Any {
 // slot and they are returned as an error.  If all of the value slots are errors,
 // then the return value is nil.
 func evalBool(sctx *super.Context, fn func(...vector.Any) vector.Any, vecs ...vector.Any) vector.Any {
-	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipFusions, func(vecs ...vector.Any) vector.Any {
+	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipSupers, func(vecs ...vector.Any) vector.Any {
 		for i, vec := range vecs {
 			vec := vector.Under(vec)
 			if k := vec.Kind(); k == vector.KindBool || k == vector.KindNull || k == vector.KindError {
@@ -206,12 +206,12 @@ func FlattenBool(vec vector.Any) *vector.Bool {
 }
 
 type In struct {
-	sctx      *super.Context
-	lhs       Evaluator
-	rhs       Evaluator
-	defuse    *SuperDefuse
-	pw        *PredicateWalk
-	hasFusion samfunc.FusionChecker
+	sctx     *super.Context
+	lhs      Evaluator
+	rhs      Evaluator
+	defuse   *SuperDefuse
+	pw       *PredicateWalk
+	hasSuper samfunc.SuperChecker
 	// containable caches coerce.Containable for pairs of operand types.
 	containable map[[2]super.Type]bool
 }
@@ -240,7 +240,7 @@ func (i *In) isContainable(a, b super.Type) bool {
 	key := [2]super.Type{a, b}
 	ok, cached := i.containable[key]
 	if !cached {
-		ok = coerce.Containable(i.sctx, i.hasFusion.Check, a, b)
+		ok = coerce.Containable(i.sctx, i.hasSuper.Check, a, b)
 		if i.containable == nil {
 			i.containable = make(map[[2]super.Type]bool)
 		}

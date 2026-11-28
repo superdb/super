@@ -148,7 +148,7 @@ func (t *translator) recordOf(typ super.Type) *super.TypeRecord {
 			recType, _ := super.TypeUnder(t.checker.fuse(recs)).(*super.TypeRecord)
 			return recType
 		}
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		return t.recordOf(typ.Type)
 	}
 	return nil

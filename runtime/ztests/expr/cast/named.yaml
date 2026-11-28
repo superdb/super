@@ -5,7 +5,7 @@ spq: |
 input: |
   {x:1}
   {x:2}
-  fusion({x:3}::(null|{x:int64}),<{x:int64}>)
+  super({x:3}::(null|{x:int64}),<{x:int64}>)
   "foo"
   "bar"
   type a=string

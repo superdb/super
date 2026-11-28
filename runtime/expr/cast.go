@@ -17,8 +17,8 @@ func NewLiteralCast(sctx *super.Context, expr Evaluator, literal *Literal) (Eval
 		if err != nil {
 			return nil, err
 		}
-		// Casting to any yields fusion(all) values.
-		typ = sctx.AnyToFusion(typ)
+		// Casting to any yields super(all) values.
+		typ = sctx.AnyToSuper(typ)
 		if typ.ID() >= super.IDTypeComplex {
 			return &casterComplex{sctx, NewSuperDefuse(sctx), expr, typ}, nil
 		}

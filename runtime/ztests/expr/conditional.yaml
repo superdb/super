@@ -20,7 +20,7 @@ input: |
   type namedUnion3=int64|bool
   2::namedUnion3
   {x:1}
-  fusion({x?:1,y?:none::int64},<{x:int64}>)
+  super({x?:1,y?:none::int64},<{x:int64}>)
   null
   null::(int64|null)
   type namedNull=null

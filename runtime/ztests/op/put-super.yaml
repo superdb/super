@@ -1,0 +1,9 @@
+spq: x := 10
+
+input: |
+  super({x?:1,y?:none::int64},<{x:int64}>)
+  super({x?:none::int64,y?:2},<{y:int64}>)
+
+output: |
+  {x:10}
+  {y:2,x:10}

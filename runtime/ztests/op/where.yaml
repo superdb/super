@@ -5,7 +5,7 @@ input: |
   null
   true
   true::(bool|null)
-  fusion(true::(bool|null),<bool>)
+  super(true::(bool|null),<bool>)
   error("divide by zero")
   error("missing")
 

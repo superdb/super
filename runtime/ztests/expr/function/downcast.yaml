@@ -110,16 +110,16 @@ output: |
 
 ---
 
-# Test downcast on fusion values.
+# Test downcast on super values.
 spq: downcast(this[0], this[1])
 
 input: |
-  [fusion({x?:1,y?:none::string},<{x:int64}>),<{x:int64}>]
-  [{a:fusion(2::(int64|null),<int64>)},<null|{a:int64}>]
-  [{a:fusion(3::option(int64|string),<option(int64)>)},<{a?:int64}>]
-  [fusion({x?:none::int64,y?:"foo"},<{y:string}>),<{y:int64|string}>]
+  [super({x?:1,y?:none::string},<{x:int64}>),<{x:int64}>]
+  [{a:super(2::(int64|null),<int64>)},<null|{a:int64}>]
+  [{a:super(3::option(int64|string),<option(int64)>)},<{a?:int64}>]
+  [super({x?:none::int64,y?:"foo"},<{y:string}>),<{y:int64|string}>]
   // error cases
-  [fusion({x?:1,y?:none::string},<{x:int64}>),<{y?:string}>]
+  [super({x?:1,y?:none::string},<{x:int64}>),<{y?:string}>]
 
 output: |
   {x:1}

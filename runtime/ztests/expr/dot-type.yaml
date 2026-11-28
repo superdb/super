@@ -8,10 +8,10 @@ output: |
 
 ---
 
-# The dot looks through named, option, fusion, and error types.
+# The dot looks through named, option, super, and error types.
 spq: |
   type foo={a:int64}
-  values <foo>.a, <option({a:string})>.a, <fusion({a:ip})>.a, <error({a:bool})>.a
+  values <foo>.a, <option({a:string})>.a, <super({a:ip})>.a, <error({a:bool})>.a
 
 output: |
   <int64>

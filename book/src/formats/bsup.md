@@ -122,7 +122,7 @@ Each typedef is a 1-byte typedef code followed by its type-specific encoding:
 |   5  |  enum        |
 |   6  |  error       |
 |   7  |  named type  |
-|   8  |  fusion      |
+|   8  |  super       |
 |   9  |  option      |
 |  10  |  decimal     |
 
@@ -209,12 +209,12 @@ type ID later.)
 A name may be bound to only one type in a typedefs table.  It is an error
 to name a type with the name of a primitive type.
 
-### 4.9 Fusion Typedef
+### 4.9 Super Typedef
 
 ```
 |0x08|<type-id>|
 ```
-where `<type-id>` is the fusion's supertype.
+where `<type-id>` is the super type's fused type.
 
 ### 4.10 Option Typedef
 
@@ -279,7 +279,7 @@ _body_ of a value of each type (see [Values](#73-values)).
 | `null`             | 37 | empty                                                      |
 | `missing`          | 38 | empty                                                      |
 | `none`             | 39 | empty                                                      |
-| `all`              | 40 | a value of any type (see [Fusion Values](#733-complex-values)) |
+| `all`              | 40 | a value of any type (see [Super Values](#733-complex-values)) |
 | `any`              | 41 | none: no value has type `any`, the top type of the type system |
 
 IDs 42 through 47 are reserved for future primitive types.  A type whose
@@ -301,7 +301,7 @@ the prefix length.
 ## 6. Type Values
 
 A type value (a value of type `type`, the fused type of a super frame, or the
-subtype of a fusion value) does not depend on any typedefs table, so it is the
+subtype of a super value) does not depend on any typedefs table, so it is the
 same in every frame.  The body of a type value is the type's encoding as
 follows.  A primitive type is its type ID encoded as a single byte.  A complex type is
 encoded recursively as a 1-byte code followed by:
@@ -317,7 +317,7 @@ encoded recursively as a 1-byte code followed by:
 |  54  | error        | value type value                                                     |
 |  55  | named (definition) | name, underlying type value                                    |
 |  56  | named (reference)  | name                                                           |
-|  57  | fusion       | supertype type value                                                 |
+|  57  | super        | fused type type value                                                |
 |  58  | option       | value type value                                                     |
 |  59  | decimal      | `uvarint` precision, `uvarint` scale                                 |
 
@@ -400,7 +400,7 @@ The body of a value of a complex type is:
 | error    | the body of its value                                             |
 | named    | the body of its value as its underlying type                      |
 | option   | container of 0 and its value if it has one, else container of 1  |
-| fusion   | container of its value and the [type value](#6-type-values) of its subtype |
+| super    | container of its value and the [type value](#6-type-values) of its subtype |
 
 The integers in these bodies (e.g., a union's tag) are encoded as
 in [Primitive Types](#5-primitive-types), so a union value of tag 0 begins
@@ -411,9 +411,9 @@ bytes and removing duplicates.  Likewise, a map's entries are normalized
 by sorting them by the length-prefixed bytes of their keys and removing entries
 with duplicate keys.
 
-A fusion value is its value encoded as a value of the fusion's supertype
-followed by the type value of the value's actual type.  A value of type
-`fusion(all)` holds the body of a value of any type, which is
+A super value is its value encoded as a value of the super type's fused type
+followed by the type value of its subtype, which inverts the encoding.  A value of type
+`super(all)` holds the body of a value of any type, which is
 interpreted according to the subtype.
 
 ### 7.4 Control Frames
@@ -466,7 +466,7 @@ The header is followed by four sections:
 * The _locators_ section holds the [locators](#83-locators) of the frame's
   vectors, which refer to types in the vector typedefs table.
 * The _type values_ section is a [typedefs table](#4-typedefs-tables) of
-  the types of the frame's type values and the subtypes of its fusion
+  the types of the frame's type values and the subtypes of its super
   values, and the frame's fused type.  These types are held apart from
   the vector types since a reader typically needs them only for the
   vectors it reads.
@@ -547,7 +547,7 @@ A _plain_ vector is encoded according to its type:
 | enum | `<count><values>`: a segment of 64-bit unsigned integers, each the position of a symbol |
 | error | `<values>` |
 | named | `<values>` |
-| fusion | `<values><subtypes>` |
+| super | `<values><subtypes>` |
 | option | `<count><tags><values>` |
 
 where:
@@ -564,8 +564,8 @@ where:
   empty if all values have tag 0;
 * `<values>` of an error or named vector is the locators of the vector of
   its values, which has its length;
-* `<values>` of a fusion vector is the locators of the vector of its values
-  as values of the fusion's supertype (or of type `all`, for `fusion(all)`),
+* `<values>` of a super vector is the locators of the vector of its values
+  as values of the super type's fused type (or of type `all`, for `super(all)`),
   which has its length, and `<subtypes>` is a segment of unsigned 32-bit
   integers, one for each value, that is the ID of its subtype in the type
   values table; and
@@ -661,8 +661,8 @@ A column's zone map summarizes the values of all the vectors at its path,
 including the values of const and dict vectors.  Only values of integer,
 float, `duration`, `timestamp`, `bytes`, `string`, `uuid`, `ip`, and `net`
 types are summarized, along with enum values as the `uint64` positions of
-their symbols.  The values of named, error, option, union, and fusion vectors
-(other than `fusion(all)`) are summarized at the path of the vector, and the
+their symbols.  The values of named, error, option, union, and super vectors
+(other than `super(all)`) are summarized at the path of the vector, and the
 values of other complex types (e.g., the elements of arrays) are not
 summarized.  Since the values at a path may have different types (e.g., the
 members of a union), a zone map's minimum and maximum may have different

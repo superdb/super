@@ -1,7 +1,7 @@
 # typeof(), kind(), fuse(), and superfuse() of values read from BSUP use
 # type-only projections
 # (see compiler/ztests/pushdown-types.yaml) so the data for these paths isn't
-# read except for type values and for arrays, sets, and maps containing fusion
+# read except for type values and for arrays, sets, and maps containing super
 # values.  The results must be the same as when all the data is read.
 script: |
   super -o in.bsup in.sup
@@ -42,8 +42,8 @@ inputs:
       error({k:"c",v:2}::A)
   - name: nested.sup
     data: |
-      {a:fusion(1::(int64|string),<int64>),arr:[fusion(1::(int64|string),<int64>),fusion("x"::(int64|string),<string>)]}
-      {a:fusion("y"::(int64|string),<string>),arr:[fusion(1::(int64|string),<int64>)]}
+      {a:super(1::(int64|string),<int64>),arr:[super(1::(int64|string),<int64>),super("x"::(int64|string),<string>)]}
+      {a:super("y"::(int64|string),<string>),arr:[super(1::(int64|string),<int64>)]}
 
 outputs:
   - name: stdout
@@ -72,7 +72,7 @@ outputs:
       "record"
       "primitive"
       <int64|{a:int64|string|missing|{x:int64},b:null|missing|{c:string,d:int64|string},e:missing|[int64|string],m:missing|map{string:int64|string},u:int64|string|missing,t:type|missing,w:missing|{x?:int64,y?:string}}>
-      <fusion(int64|{a:fusion(int64|string|missing|{x:int64}),b:fusion(null|missing|{c:string,d:fusion(int64|string)}),e:fusion(missing|[fusion(int64|string)]),m:fusion(missing|map{string:fusion(int64|string)}),u:fusion(int64|string|missing),t:fusion(type|missing),w:fusion(missing|{x?:int64,y?:string})})>
+      <super(int64|{a:super(int64|string|missing|{x:int64}),b:super(null|missing|{c:string,d:super(int64|string)}),e:super(missing|[super(int64|string)]),m:super(missing|map{string:super(int64|string)}),u:super(int64|string|missing),t:super(type|missing),w:super(missing|{x?:int64,y?:string})})>
       === fused.bsup
       <{a:int64,b:{c:string,d:int64},e:[int64],m:map{string:int64},u:int64|string,t:type}>
       <{a:string,b:{c:string,d:string},e:[string],m:map{string:string},u:int64|string,t:type}>
@@ -97,7 +97,7 @@ outputs:
       "record"
       "primitive"
       <int64|{a:int64|string|missing|{x:int64},b:null|missing|{c:string,d:int64|string},e:missing|[int64|string],m:missing|map{string:int64|string},u:int64|string|missing,t:type|missing,w:missing|{x?:int64,y?:string}}>
-      <fusion(int64|{a:fusion(int64|string|missing|{x:int64}),b:fusion(null|missing|{c:string,d:fusion(int64|string)}),e:fusion(missing|[fusion(int64|string)]),m:fusion(missing|map{string:fusion(int64|string)}),u:fusion(int64|string|missing),t:fusion(type|missing),w:fusion(missing|{x?:int64,y?:string})})>
+      <super(int64|{a:super(int64|string|missing|{x:int64}),b:super(null|missing|{c:string,d:super(int64|string)}),e:super(missing|[super(int64|string)]),m:super(missing|map{string:super(int64|string)}),u:super(int64|string|missing),t:super(type|missing),w:super(missing|{x?:int64,y?:string})})>
       === nested.bsup
       <{a:int64,arr:[int64|string]}>
       <[int64|string]>

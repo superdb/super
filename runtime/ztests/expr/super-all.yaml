@@ -1,8 +1,8 @@
 spq: upcast(this,<any>)
 
-flags: -fusion
+flags: -superfused
 
-# note: the syntax for fusion values will change from bytes to values soon
+# note: the syntax for super values will change from bytes to values soon
 # and this test will be updated
 
 input: |

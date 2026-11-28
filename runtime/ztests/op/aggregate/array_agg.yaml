@@ -8,8 +8,8 @@ input: |
   error("missing")
   type foo=int64
   1::foo
-  fusion(1::(int64|null),<int64>)
-  fusion(null::(int64|null),<null>)
+  super(1::(int64|null),<int64>)
+  super(null::(int64|null),<null>)
 
 output: |
   type foo=int64

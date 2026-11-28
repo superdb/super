@@ -23,7 +23,7 @@ output: |
 
 ---
 
-# Unions, options, and fusions match their underlying values.  (An option
+# Unions, options, and super values match their underlying values.  (An option
 # may be none, which no case matches, so an else is needed.)
 spq: values match x when int64 this+1 when string this||"!" else "none"
 

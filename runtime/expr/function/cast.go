@@ -27,8 +27,8 @@ func (c *caster) Call(vecs ...vector.Any) vector.Any {
 	switch to.Type().ID() {
 	case super.IDType:
 		return byTarget(from, to, vector.TypeValueValue, func(from vector.Any, typ super.Type) vector.Any {
-			// Casting to any yields fusion(all) values.
-			return cast.Cast(c.sctx, from, c.sctx.AnyToFusion(typ))
+			// Casting to any yields super(all) values.
+			return cast.Cast(c.sctx, from, c.sctx.AnyToSuper(typ))
 		})
 	case super.IDString:
 		return byTarget(from, to, vector.StringValue, func(from vector.Any, name string) vector.Any {

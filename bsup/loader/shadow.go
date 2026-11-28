@@ -43,25 +43,25 @@ type Shadow interface {
 // typesOnly is the projection for a value whose type is needed but not its data.
 var typesOnly = field.Projection{{Types: true}}
 
-// hasFusion returns true if typ has a fusion type that superdefuse would
-// defuse (see the FusionChecker in runtime/sam/expr/function).
-func hasFusion(typ super.Type) bool {
+// hasSuper returns true if typ has a super type that superdefuse would
+// defuse (see the SuperChecker in runtime/sam/expr/function).
+func hasSuper(typ super.Type) bool {
 	switch typ := typ.(type) {
 	case *super.TypeRecord:
-		return slices.ContainsFunc(typ.Fields, func(f super.Field) bool { return hasFusion(f.Type) })
+		return slices.ContainsFunc(typ.Fields, func(f super.Field) bool { return hasSuper(f.Type) })
 	case *super.TypeArray:
-		return hasFusion(typ.Type)
+		return hasSuper(typ.Type)
 	case *super.TypeSet:
-		return hasFusion(typ.Type)
+		return hasSuper(typ.Type)
 	case *super.TypeUnion:
-		return slices.ContainsFunc(typ.Types, hasFusion)
+		return slices.ContainsFunc(typ.Types, hasSuper)
 	case *super.TypeMap:
-		return hasFusion(typ.KeyType) || hasFusion(typ.ValType)
+		return hasSuper(typ.KeyType) || hasSuper(typ.ValType)
 	case *super.TypeError:
-		return hasFusion(typ.Type)
+		return hasSuper(typ.Type)
 	case *super.TypeOption:
-		return hasFusion(typ.Type)
-	case *super.TypeFusion:
+		return hasSuper(typ.Type)
+	case *super.TypeSuper:
 		return true
 	}
 	return false
@@ -94,7 +94,7 @@ func project(loader *FrameLoader, s Shadow, projection field.Projection) vector.
 // resolveAsserts returns the projection for s of projection, which consists
 // of assertion nodes (see field.Projection), following how a type assertion
 // matches the values of s (see expr.TypeAssert), which it first defuses: all
-// of the data if the values have a fusion type at any depth (since defusing
+// of the data if the values have a super type at any depth (since defusing
 // accesses the data and changes the type); the projection of the node
 // whose type s has (or all of the data if s has more than one); projection
 // itself if s is the dynamic root or a type assertion looks inside its values
@@ -106,7 +106,7 @@ func (f *FrameLoader) resolveAsserts(s Shadow, projection field.Projection) fiel
 		return projection
 	}
 	typ := f.vectorType(s.typeID())
-	if hasFusion(typ) {
+	if hasSuper(typ) {
 		return nil
 	}
 	var match field.Projection
@@ -349,15 +349,15 @@ func (d *decoder) complex(id uint32) Shadow {
 		name := string(td.Name())
 		values := d.vector(td.NamedInner(), inVector)
 		return &Named{Node: Node{id, values.Len()}, Name: name, Values: values}
-	case super.TypeDefFusion:
+	case super.TypeDefSuper:
 		inner := td.Child()
 		values := d.vector(inner, inVector)
 		node := Node{id, values.Len()}
 		subtypes := &TypeValue{Node: Node{super.IDType, node.Length}, Values: d.r.Segment()}
 		if inner == super.IDAll {
-			return &FusionAll{Fusion{Node: node, Values: values, Subtypes: subtypes}}
+			return &SuperAll{Super{Node: node, Values: values, Subtypes: subtypes}}
 		}
-		return &Fusion{Node: node, Values: values, Subtypes: subtypes}
+		return &Super{Node: node, Values: values, Subtypes: subtypes}
 	case super.TypeDefOption:
 		inner := td.Child()
 		o := &Option{Node: Node{id, d.r.ReadCount()}, Tags: d.r.Segment()}

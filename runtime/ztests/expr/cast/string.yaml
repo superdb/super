@@ -30,7 +30,7 @@ input: |
   {foo:"bar"}
   [1,2,3]
   "e2"::enum(e1,e2)
-  fusion(1::(int64|null),<int64>)
+  super(1::(int64|null),<int64>)
   error("bad")
 
 output: |

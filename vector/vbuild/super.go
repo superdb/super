@@ -5,43 +5,43 @@ import (
 	"github.com/superdb/super/vector"
 )
 
-type fusionBuilder struct {
-	typ      *super.TypeFusion
+type superBuilder struct {
+	typ      *super.TypeSuper
 	vals     Builder
-	subtypes fusionTypeBuilder
+	subtypes superTypeBuilder
 }
 
-func newFusionBuilder(typ *super.TypeFusion) *fusionBuilder {
-	return &fusionBuilder{
+func newSuperBuilder(typ *super.TypeSuper) *superBuilder {
+	return &superBuilder{
 		typ:  typ,
 		vals: New(typ.Type),
 	}
 }
 
-func (f *fusionBuilder) Write(vec vector.Any) {
+func (f *superBuilder) Write(vec vector.Any) {
 	if vec.Len() == 0 {
 		return
 	}
-	// A view of a fusion is pushed down to its values and subtypes.
-	fusion := vector.PushViewOrConst(vec).(*vector.Fusion)
-	f.vals.Write(fusion.Values)
-	f.subtypes.Write(fusion.Subtypes)
+	// A view of a super value is pushed down to its values and subtypes.
+	sup := vector.PushViewOrConst(vec).(*vector.Super)
+	f.vals.Write(sup.Values)
+	f.subtypes.Write(sup.Subtypes)
 }
 
-func (f *fusionBuilder) Build() vector.Any {
-	return &vector.Fusion{
+func (f *superBuilder) Build() vector.Any {
+	return &vector.Super{
 		Typ:      f.typ,
 		Values:   f.vals.Build(),
 		Subtypes: f.subtypes.Build().(*vector.TypeValue),
 	}
 }
 
-// fusionTypeBuilder builds the subtypes of a fusion vector.  If the first
+// superTypeBuilder builds the subtypes of a super vector.  If the first
 // subtypes written are foreign (i.e., IDs in a TypeDefs table that haven't
 // been mapped into the query context, as for BSUP), the subtypes are merged
 // into a new TypeDefs table so they're mapped into the query context only if
 // needed.  Otherwise, the subtypes are type IDs in the query context.
-type fusionTypeBuilder struct {
+type superTypeBuilder struct {
 	sctx *super.Context
 	defs *super.TypeDefsBuilder // non-nil if merging foreign subtypes
 	ids  []uint32
@@ -49,8 +49,8 @@ type fusionTypeBuilder struct {
 }
 
 // Write appends subtypes, which are always a flat TypeValue (a view of a
-// fusion's subtypes is picked when the view is pushed down).
-func (t *fusionTypeBuilder) Write(subtypes *vector.TypeValue) {
+// super value's subtypes is picked when the view is pushed down).
+func (t *superTypeBuilder) Write(subtypes *vector.TypeValue) {
 	if t.sctx == nil {
 		t.sctx = subtypes.Sctx()
 		if subtypes.IsForeign() {
@@ -68,7 +68,7 @@ func (t *fusionTypeBuilder) Write(subtypes *vector.TypeValue) {
 	}
 }
 
-func (t *fusionTypeBuilder) Build() vector.Any {
+func (t *superTypeBuilder) Build() vector.Any {
 	if t.defs != nil {
 		return vector.NewTypeValueWithLoader(t.sctx, t)
 	}
@@ -78,7 +78,7 @@ func (t *fusionTypeBuilder) Build() vector.Any {
 	return vector.NewTypeValueFromIDs(t.sctx, t.ids)
 }
 
-func (t *fusionTypeBuilder) Load() (*super.TypeIDMap, []uint32) {
+func (t *superTypeBuilder) Load() (*super.TypeIDMap, []uint32) {
 	if t.tmap == nil {
 		t.tmap = super.NewTypeIDMap(t.sctx, &t.defs.TypeDefs)
 	}

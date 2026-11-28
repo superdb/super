@@ -8,7 +8,7 @@ input: |
   -1.5e12
   type named=int64
   1::named
-  fusion(2::named::(named|null),<named>)
+  super(2::named::(named|null),<named>)
   1e+19
   null
   null::({}|null)

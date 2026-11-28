@@ -124,7 +124,7 @@ func (s *shaperPuller) Pull(done bool) (vector.Any, error) {
 // single type.
 func (s *shaperPuller) shapeAny(vec vector.Any) (vector.Any, error) {
 	var shapeErr error
-	out := vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, func(vecs ...vector.Any) vector.Any {
+	out := vector.Apply(vector.ApplyRipSupers|vector.ApplyRipUnions, func(vecs ...vector.Any) vector.Any {
 		if shapeErr != nil {
 			return vecs[0]
 		}

@@ -18,19 +18,19 @@ func (*This) Eval(val vector.Any) vector.Any {
 }
 
 type DotExpr struct {
-	sctx      *super.Context
-	defuse    *SuperDefuse
-	entity    Evaluator
-	key       string
-	noneish   bool
-	nullish   bool
-	okPush    bool
-	hasFusion samfunc.FusionChecker
-	mapKeyEq  *Compare
+	sctx     *super.Context
+	defuse   *SuperDefuse
+	entity   Evaluator
+	key      string
+	noneish  bool
+	nullish  bool
+	okPush   bool
+	hasSuper samfunc.SuperChecker
+	mapKeyEq *Compare
 	// deref is true when this DotExpr's result is consumed only by
-	// another DotExpr, which rips fusions and unions from its input
+	// another DotExpr, which rips super values and unions from its input
 	// before accessing a field.  This lets eval skip preserving the
-	// fusion or union wrapper of a field's value.
+	// super or union wrapper of a field's value.
 	deref bool
 }
 
@@ -58,7 +58,7 @@ func NewDottedExpr(sctx *super.Context, f field.Chain) Evaluator {
 }
 
 func (d *DotExpr) Eval(vec vector.Any) vector.Any {
-	return vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions|vector.ApplyRipOptions, d.eval, d.entity.Eval(vec))
+	return vector.Apply(vector.ApplyRipSupers|vector.ApplyRipUnions|vector.ApplyRipOptions, d.eval, d.entity.Eval(vec))
 }
 
 func (d *DotExpr) eval(vecs ...vector.Any) vector.Any {
@@ -145,7 +145,7 @@ func (d *DotExpr) missing(vec vector.Any) vector.Any {
 	return d.noFieldErr(vec)
 }
 
-// replaceMissingInUnion handles a field value that is a union, or a fusion of a
+// replaceMissingInUnion handles a field value that is a union, or a super value of a
 // union, with a missing member when the result will only be dereferenced by
 // another DotExpr.  It returns a Dynamic over the union's tags and values with
 // the missing values replaced by nulls (for nullish access) or errors.  This
@@ -156,7 +156,7 @@ func (d *DotExpr) replaceMissingInUnion(vec vector.Any) (vector.Any, bool) {
 	switch vec := vec.(type) {
 	case *vector.Union:
 		union = vec
-	case *vector.Fusion:
+	case *vector.Super:
 		union, _ = vec.Values.(*vector.Union)
 	}
 	if union == nil {
@@ -183,7 +183,7 @@ func (d *DotExpr) noneOfField(vec *vector.Option) vector.Any {
 		if _, ok := t.TypeOfField(d.key); !ok {
 			return d.noFieldErr(vec)
 		}
-	case *super.TypeMap, *super.TypeUnion, *super.TypeFusion:
+	case *super.TypeMap, *super.TypeUnion, *super.TypeSuper:
 	default:
 		return vector.NewStringError(d.sctx, fmt.Sprintf("cannot access field '%s' of %s", d.key, kindName(t)), vec.Len())
 	}
@@ -213,7 +213,7 @@ func (d *DotExpr) derefTypeValue(vec *vector.TypeValue) vector.Any {
 }
 
 // derefType returns the type of field key in typ or nil if there is no
-// such field.  The dot navigates through named, option, fusion, and error
+// such field.  The dot navigates through named, option, super, and error
 // types and into the element types of arrays and sets, so, e.g.,
 // <[{a:{b:string}}]>.a.b is <string>.  A map type has no fields since its
 // keys aren't known.  For a union, the
@@ -235,7 +235,7 @@ func derefType(sctx *super.Context, typ super.Type, key string) super.Type {
 		return unionOfTypes(sctx, typ, func(typ super.Type) super.Type {
 			return derefType(sctx, typ, key)
 		})
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		return derefType(sctx, typ.Type, key)
 	case *super.TypeOption:
 		return derefType(sctx, typ.Type, key)
@@ -303,7 +303,7 @@ func hasUnionMissing(vec vector.Any) bool {
 	switch vec := vec.(type) {
 	case *vector.Union:
 		return hasMissing(vec.Dynamic())
-	case *vector.Fusion:
+	case *vector.Super:
 		return hasUnionMissing(vec.Values)
 	case *vector.Dynamic:
 		return slices.ContainsFunc(vec.Values, hasUnionMissing)
@@ -319,7 +319,7 @@ func hasMissing(vec vector.Any) bool {
 		return vec.Len() > 0
 	case *vector.Union:
 		return hasMissing(vec.Dynamic())
-	case *vector.Fusion:
+	case *vector.Super:
 		return hasMissing(vec.Values)
 	case *vector.Dynamic:
 		return slices.ContainsFunc(vec.Values, hasMissing)

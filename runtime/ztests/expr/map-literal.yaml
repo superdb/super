@@ -15,7 +15,7 @@ input: |
   {k1:"b",v1:1,k2:"a",v2:2}
   {k1:"a",v1:1,k2:"b",v2:2}
   {k1:"a",v1:1,k2:"a",v2:2}
-  {k1:fusion("a"::(null|string),<string>),v1:fusion(1::(null|int64),<int64>),k2:"b",v2:2}
+  {k1:super("a"::(null|string),<string>),v1:super(1::(null|int64),<int64>),k2:"b",v2:2}
 
 output: |
   map{"a":2,"b":1}

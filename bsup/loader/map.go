@@ -22,7 +22,7 @@ type Map struct {
 func (m *Map) project(loader *FrameLoader, projection field.Projection) vector.Any {
 	if projection.TypesOnly() {
 		// See Array.project.
-		if typ := loader.vectorType(m.TypeID); !hasFusion(typ) {
+		if typ := loader.vectorType(m.TypeID); !hasSuper(typ) {
 			return vector.NewTypeOnly(typ, m.Length)
 		}
 	}

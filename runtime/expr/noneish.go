@@ -16,7 +16,7 @@ func NewNoneish(lhs, rhs Evaluator) *Noneish {
 func (i *Noneish) Eval(this vector.Any) vector.Any {
 	lhs := i.lhs.Eval(this)
 	rhs := i.rhs.Eval(this)
-	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipFusions, i.eval, lhs, vector.AddNoRip(rhs))
+	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipSupers, i.eval, lhs, vector.AddNoRip(rhs))
 }
 
 func (i *Noneish) eval(vecs ...vector.Any) vector.Any {

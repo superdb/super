@@ -107,7 +107,7 @@ func (p *Parser) matchValueOrDecl() (ast.Value, *ast.TypeDecl, error) {
 	if typ, err := p.matchTypeDecl(name); typ != nil || err != nil {
 		return nil, typ, err
 	}
-	if val, err := p.matchFusion(name); val != nil || err != nil {
+	if val, err := p.matchSuper(name); val != nil || err != nil {
 		val, err := p.decorate(val, err)
 		return val, nil, err
 	}
@@ -551,8 +551,8 @@ func (p *Parser) matchTypeDecl(keyword string) (*ast.TypeDecl, error) {
 	}, nil
 }
 
-func (p *Parser) matchFusion(name string) (*ast.Fusion, error) {
-	if name != "fusion" {
+func (p *Parser) matchSuper(name string) (*ast.Super, error) {
+	if name != "super" {
 		return nil, nil
 	}
 	l := p.lexer
@@ -573,8 +573,8 @@ func (p *Parser) matchFusion(name string) (*ast.Fusion, error) {
 	if ok, err := l.match(')'); !ok || err != nil {
 		return nil, noEOF(err)
 	}
-	return &ast.Fusion{
-		Kind:  "Fusion",
+	return &ast.Super{
+		Kind:  "Super",
 		Value: val,
 		Type:  tv,
 	}, nil

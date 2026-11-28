@@ -45,7 +45,7 @@ import (
 //
 // Each Frame includes a header with magic that indicates which kind of frame
 // it is: row, control, or column.  Any type values used in a column frame
-// (e.g., for type-value or fusion vectors) are encoded in the Frame's own
+// (e.g., for type-value or super vectors) are encoded in the Frame's own
 // typedefs; they are loaded on demand.
 // This creates some redundancy in the type data as the same type will be recoded
 // again in each Frame.
@@ -82,14 +82,14 @@ type Header interface {
 // S U P C (4 byte string)
 // Version (2 bytes) - 6-bit major and 10-bit minor (see Version)
 // Frame size (8 bytes) - entire frame including header to end of data section
-// Fused type ID (4 bytes) - in the Fusion/TypeValue typedefs
+// Fused type ID (4 bytes) - in the Super/TypeValue typedefs
 // Vector typedefs section size (8 bytes)
 // Locators section size (8 bytes)
-// Fusion/TypeValue typedefs section size (8 bytes)
+// Super/TypeValue typedefs section size (8 bytes)
 // [variable data]
 // Vector typedefs (serialization of the typedefs of the vectors' types)
 // Locators (encoded as described in LocatorWriter)
-// Fusion/TypeValue (serialization of the typedefs of type values, e.g., subtypes)
+// Super/TypeValue (serialization of the typedefs of type values, e.g., subtypes)
 // Data section (encoded as raw bytes with the remaining size of the frame)
 type ColumnHeader struct {
 	Version            Version // off 4

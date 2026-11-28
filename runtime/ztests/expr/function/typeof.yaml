@@ -13,8 +13,8 @@ input: |
   {metric:"B",ts:2020-11-24T16:44:20.726057Z,value:0.86}
   {metric:"A",ts:2020-11-24T16:44:32.201458Z,value:126}
   {metric:"C",ts:2020-11-24T16:44:43.547506Z,value:{x:10,y:101}}
-  fusion({x?:1}::(int64|{x?:int64}),<{x:int64}>)
-  {x:fusion(1::(string|int64),<int64>)}
+  super({x?:1}::(int64|{x?:int64}),<{x:int64}>)
+  {x:super(1::(string|int64),<int64>)}
 
 output: |
   type socket={addr:ip,port:uint16}

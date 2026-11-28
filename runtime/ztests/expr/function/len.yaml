@@ -30,7 +30,7 @@ input: |
   <[int64|string]>
   type Any=int64|string
   <Any>
-  fusion({a:1,b?:none::int64},<{a:int64}>)
+  super({a:1,b?:none::int64},<{a:int64}>)
   error(null)
   error("")
   error("error")

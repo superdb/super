@@ -23,9 +23,9 @@ type Test struct {
 	GoExample string
 
 	// For SPQ tests
-	Input  string
-	SPQ    string
-	Fusion bool // If true do not defuse output
+	Input      string
+	SPQ        string
+	Superfused bool // If true do not defuse output
 }
 
 // Run runs t, returning nil on success.  If t.GoExample is empty, Run runs the
@@ -38,8 +38,8 @@ func (t *Test) Run(dir string) error {
 	var c *exec.Cmd
 	if t.SPQ != "" {
 		c = exec.Command("super", "-i=auto", "-s", "-c", t.SPQ)
-		if t.Fusion {
-			c.Args = append(c.Args, "-fusion")
+		if t.Superfused {
+			c.Args = append(c.Args, "-superfused")
 		}
 		if s := t.Input; strings.TrimSpace(s) != "" {
 			c.Args = append(c.Args, "-")

@@ -32,7 +32,7 @@ func (s *sliceExpr) Eval(vec vector.Any) vector.Any {
 	if s.toEval != nil {
 		vecs = append(vecs, s.toEval.Eval(vec))
 	}
-	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipFusions, s.eval, vecs...)
+	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipSupers, s.eval, vecs...)
 }
 
 func (s *sliceExpr) eval(vecs ...vector.Any) vector.Any {

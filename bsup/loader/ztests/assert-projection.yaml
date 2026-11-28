@@ -3,7 +3,7 @@
 # of the others, which the assertion does not match, for the dynamic root
 # vector, unions (named or not, and with a null member), options, and nested
 # assertions.  Errors pass through an assertion so all of their data is loaded,
-# as are values with fusion types, which the assertion defuses.  An operator
+# as are values with super types, which the assertion defuses.  An operator
 # like put that changes the type of a value before the assertion turns off
 # the assertion projection for that value.
 script: |
@@ -67,9 +67,9 @@ inputs:
       {v:7::(R|int64)}
   - name: fz.sup
     data: |
-      {u:{f:fusion(1::(int64|string),<int64>)}::({f:fusion(int64|string)}|int64),g:1}
-      {u:2::({f:fusion(int64|string)}|int64),g:2}
-      {u:{f:fusion("s"::(int64|string),<string>)}::({f:fusion(int64|string)}|int64),g:3}
+      {u:{f:super(1::(int64|string),<int64>)}::({f:super(int64|string)}|int64),g:1}
+      {u:2::({f:super(int64|string)}|int64),g:2}
+      {u:{f:super("s"::(int64|string),<string>)}::({f:super(int64|string)}|int64),g:3}
 
 outputs:
   - name: stdout

@@ -1,4 +1,4 @@
-# Nested field access through a union or fusion with a missing member.
+# Nested field access through a union or super with a missing member.
 
 spq: values c.a, c?.a
 

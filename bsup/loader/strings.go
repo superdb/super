@@ -50,7 +50,7 @@ func (m *Map) strings(c *collector) {
 	c.spawn(m.Values)
 }
 
-func (f *Fusion) strings(c *collector) { f.Values.strings(c) }
+func (f *Super) strings(c *collector)  { f.Values.strings(c) }
 func (a *Array) strings(c *collector)  { a.Values.strings(c) }
 func (o *Option) strings(c *collector) { o.Values.strings(c) }
 func (n *Named) strings(c *collector)  { n.Values.strings(c) }

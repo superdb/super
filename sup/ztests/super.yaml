@@ -1,0 +1,9 @@
+spq: pass
+
+flags: -superfused
+
+input: &input |
+  {a:super(1::(int64|missing),<int64>),b:super(missing::(int64|missing),<missing>)}
+  {a:super(missing::(int64|missing),<missing>),b:super(2::(int64|missing),<int64>)}
+
+output: *input

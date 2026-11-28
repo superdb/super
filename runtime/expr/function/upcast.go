@@ -66,8 +66,8 @@ func (u *Upcast) Call(args ...vector.Any) vector.Any {
 }
 
 func (u *Upcast) upcastOrError(vec vector.Any, typ super.Type) vector.Any {
-	// Upcasting to any yields fusion(all) values.
-	typ = u.sctx.AnyToFusion(typ)
+	// Upcasting to any yields super(all) values.
+	typ = u.sctx.AnyToSuper(typ)
 	out := u.upcast(vec, typ)
 	if out == nil {
 		out = vector.NewWrappedError(u.sctx, "upcast: value not a subtype of "+sup.FormatType(typ), vec)
@@ -76,19 +76,19 @@ func (u *Upcast) upcastOrError(vec vector.Any, typ super.Type) vector.Any {
 }
 
 func (u *Upcast) Cast(vec vector.Any, to super.Type) (vector.Any, bool) {
-	out := u.upcast(vec, u.sctx.AnyToFusion(to))
+	out := u.upcast(vec, u.sctx.AnyToSuper(to))
 	return out, out != nil
 }
 
 func (u *Upcast) upcast(vec vector.Any, to super.Type) vector.Any {
-	if vec.Type() == to && vec.Kind() != vector.KindFusion {
+	if vec.Type() == to && vec.Kind() != vector.KindSuper {
 		return vec
 	}
 	if vec.Len() == 0 {
 		return vector.NewEmpty(to)
 	}
 	switch vec := vec.(type) {
-	case *vector.Fusion:
+	case *vector.Super:
 		return u.upcast(vec.Values, to)
 	case *vector.Const:
 		switch vec.Kind() {
@@ -119,8 +119,8 @@ func (u *Upcast) upcast(vec vector.Any, to super.Type) vector.Any {
 		return u.toEnum(vec, to)
 	case *super.TypeError:
 		return u.toError(vec, to)
-	case *super.TypeFusion:
-		return u.toFusion(vec, to)
+	case *super.TypeSuper:
+		return u.toSuper(vec, to)
 	case *super.TypeOption:
 		return u.toOption(vec, to)
 	default:
@@ -294,7 +294,7 @@ func (u *Upcast) toError(vec vector.Any, to *super.TypeError) vector.Any {
 	return vector.NewError(to, values)
 }
 
-func (u *Upcast) toFusion(vec vector.Any, to *super.TypeFusion) vector.Any {
+func (u *Upcast) toSuper(vec vector.Any, to *super.TypeSuper) vector.Any {
 	typ := vec.Type()
 	subtypes := make([]super.Type, vec.Len())
 	for i := range subtypes {
@@ -309,7 +309,7 @@ func (u *Upcast) toFusion(vec vector.Any, to *super.TypeFusion) vector.Any {
 			return nil
 		}
 	}
-	return vector.NewFusion(u.sctx, to, values, subtypes)
+	return vector.NewSuper(u.sctx, to, values, subtypes)
 }
 
 func (u *Upcast) toOption(vec vector.Any, to *super.TypeOption) vector.Any {

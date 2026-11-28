@@ -10,11 +10,11 @@ import (
 )
 
 // TypeDefs holds the typedefs table of a column frame for the types of type
-// values (e.g., the subtypes of fusion vectors and any vector.TypeValue types),
+// values (e.g., the subtypes of super vectors and any vector.TypeValue types),
 // as opposed to the frame's vector typedefs table, which holds the types of the
 // frame's vectors (see ColFrame).
 type TypeDefs struct {
-	// The typedefs table is a merge of all the fusion vector subtypes and any
+	// The typedefs table is a merge of all the super vector subtypes and any
 	// vector TypeValue types.  These types are loaded and decoded lazily so the
 	// only overhead in merging everything is in loading the bytes buffer into
 	// memory.  In fact, the advnatage of merging everything is the savings attained

@@ -30,8 +30,8 @@ input: |
   error(1)::(null|error(int64))
   null
   null::(int64|null)
-  fusion(1::(int64|null),<int64>)
-  fusion(error(1)::(error(int64)|int64),<error(int64)>)
+  super(1::(int64|null),<int64>)
+  super(error(1)::(error(int64)|int64),<error(int64)>)
 
 output: |
   -1::int8

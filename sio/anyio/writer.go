@@ -20,13 +20,13 @@ import (
 )
 
 type WriterOpts struct {
-	Format    string
-	SUPFusion bool
-	BSUP      bsup.WriterOpts
-	CSV       csvio.WriterOpts
-	DB        dbio.WriterOpts
-	JSON      jsonio.WriterOpts
-	SUP       supio.WriterOpts
+	Format        string
+	SUPSuperfused bool
+	BSUP          bsup.WriterOpts
+	CSV           csvio.WriterOpts
+	DB            dbio.WriterOpts
+	JSON          jsonio.WriterOpts
+	SUP           supio.WriterOpts
 }
 
 // NewWriter returns a writer of vectors in the format given by opts.  Vectors
@@ -52,7 +52,7 @@ func NewWriter(sctx *super.Context, w io.WriteCloser, opts WriterOpts) (vio.Push
 		return newDefuser(sctx, parquetio.NewWriter(w)), nil
 	case "sup", "":
 		w := vio.PushCloser(supio.NewWriter(w, opts.SUP))
-		if !opts.SUPFusion {
+		if !opts.SUPSuperfused {
 			w = newDefuser(sctx, w)
 		}
 		return w, nil

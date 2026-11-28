@@ -146,10 +146,10 @@ type Field={Name:string,ID:uint32}
 {Kind:"TypeDefRecord",Slot:48::uint32,Fields:[{Name:"a",ID:8}::Field,{Name:"b",ID:29}::Field]}
 {Kind:"TypeDefRecord",Slot:49::uint32,Fields:[{Name:"a",ID:8}::Field]}
 {Kind:"TypeDefUnion",Slot:50::uint32,IDs:[29::uint32,38::uint32]}
-{Kind:"TypeDefFusion",Slot:51::uint32,ID:50::uint32}
+{Kind:"TypeDefSuper",Slot:51::uint32,ID:50::uint32}
 {Kind:"TypeDefRecord",Slot:52::uint32,Fields:[{Name:"a",ID:8}::Field,{Name:"b",ID:51}::Field]}
-{Kind:"RowFrameFusedType",Type:<{a:int64,b:fusion(string|missing)}>}
-{Kind:"SuperFrameFusedType",Type:<{a:int64,b:fusion(string|missing)}>}
+{Kind:"RowFrameFusedType",Type:<{a:int64,b:super(string|missing)}>}
+{Kind:"SuperFrameFusedType",Type:<{a:int64,b:super(string|missing)}>}
 ```
 Here, type IDs 8, 29, and 38 are the primitive types `int64`, `string`,
 and `missing`, and the fused type is type 52.
@@ -191,7 +191,7 @@ super dev bsup -s -headers=false -stats example.bsup
 type FrameStats={Offset:uint64}
 {Offset:0}::FrameStats
 type Path=[string]
-type ColumnStats={Path:Path,Min:fusion(all),Max:fusion(all)}
+type ColumnStats={Path:Path,Min:super(all),Max:super(all)}
 {Path:["a"],Min:1::any,Max:3::any}::ColumnStats
 {Path:["b"],Min:"bar"::any,Max:"foo"::any}::ColumnStats
 ```

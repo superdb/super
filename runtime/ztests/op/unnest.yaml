@@ -6,8 +6,8 @@ input: |
   [7,8,9]
   type foo=int64
   [10::foo,11::foo]
-  [fusion(12::(int64|string),<int64>),"13"]
-  fusion([null,1,"a"],<[int64|string|null]>)
+  [super(12::(int64|string),<int64>),"13"]
+  super([null,1,"a"],<[int64|string|null]>)
   null
 
 output: |
@@ -48,12 +48,12 @@ output: |
 
 ---
 
-# Unnest on fusion values
+# Unnest on super values
 spq: unnest y with x
 
 input: |
-  fusion({x:"foo",y:[1,2],z?:none::int64},<{x:string,y:[int64]}>)
-  fusion({x:"foo",y:[1,2],z?:3},<{x:string,y:[int64],z:int64}>)
+  super({x:"foo",y:[1,2],z?:none::int64},<{x:string,y:[int64]}>)
+  super({x:"foo",y:[1,2],z?:3},<{x:string,y:[int64],z:int64}>)
 
 output: |
   {y:1,x:"foo"}

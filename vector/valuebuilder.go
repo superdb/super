@@ -99,8 +99,8 @@ func NewValueBuilder(typ super.Type) ValueBuilder {
 		return newMapValueBuilder(typ)
 	case *super.TypeUnion:
 		return newUnionValueBuilder(typ)
-	case *super.TypeFusion:
-		return newFusionValueBuilder(typ)
+	case *super.TypeSuper:
+		return newSuperValueBuilder(typ)
 	case *super.TypeOption:
 		return newOptionValueBuilder(typ)
 	case *super.TypeEnum:
@@ -303,23 +303,23 @@ func (u *unionValueBuilder) Build(sctx *super.Context) Any {
 	return NewUnion(u.typ, u.tags, vecs)
 }
 
-type fusionValueBuilder struct {
-	typ      *super.TypeFusion
+type superValueBuilder struct {
+	typ      *super.TypeSuper
 	values   ValueBuilder
 	subtypes []scode.Bytes
 }
 
-func newFusionValueBuilder(typ *super.TypeFusion) ValueBuilder {
-	return &fusionValueBuilder{typ: typ, values: NewValueBuilder(typ.Type)}
+func newSuperValueBuilder(typ *super.TypeSuper) ValueBuilder {
+	return &superValueBuilder{typ: typ, values: NewValueBuilder(typ.Type)}
 }
 
-func (f *fusionValueBuilder) Write(bytes scode.Bytes) {
+func (f *superValueBuilder) Write(bytes scode.Bytes) {
 	it := bytes.Iter()
 	f.values.Write(it.Next())
 	f.subtypes = append(f.subtypes, slices.Clone(it.Next()))
 }
 
-func (f *fusionValueBuilder) Build(sctx *super.Context) Any {
+func (f *superValueBuilder) Build(sctx *super.Context) Any {
 	types := make([]super.Type, 0, len(f.subtypes))
 	for _, tv := range f.subtypes {
 		t, err := sctx.LookupByValue(tv)
@@ -328,7 +328,7 @@ func (f *fusionValueBuilder) Build(sctx *super.Context) Any {
 		}
 		types = append(types, t)
 	}
-	return NewFusion(sctx, f.typ, f.values.Build(sctx), types)
+	return NewSuper(sctx, f.typ, f.values.Build(sctx), types)
 }
 
 type optionValueBuilder struct {
@@ -561,11 +561,11 @@ func (n *noneValueBuilder) Build(*super.Context) Any {
 	return NewNone(n.len)
 }
 
-func DefuseAny(vec *Fusion) Any {
+func DefuseAny(vec *Super) Any {
 	builder := NewDynamicValueBuilder()
 	typesVec := vec.Subtypes
 	for slot := range vec.Len() {
-		// The values may be a view (e.g., of a picked fusion vector), so use
+		// The values may be a view (e.g., of a picked super vector), so use
 		// BytesValue.
 		typ := typesVec.Value(slot)
 		bytes := BytesValue(vec.Values, slot)

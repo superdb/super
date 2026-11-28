@@ -12,7 +12,7 @@ type ApplyOpt uint
 const (
 	ApplyNone      ApplyOpt = 0
 	ApplyRipUnions ApplyOpt = 1 << iota
-	ApplyRipFusions
+	ApplyRipSupers
 	ApplyRipOptions
 	ApplyDefuseMissings
 )
@@ -27,13 +27,13 @@ type NoRip struct {
 // rip the element but unwraps it (i.e, replaces it with NoRip.Any) before
 // calling eval.
 func Apply(opt ApplyOpt, eval func(...Any) Any, vecs ...Any) Any {
-	if opt&ApplyRipFusions != 0 {
+	if opt&ApplyRipSupers != 0 {
 		for k, vec := range vecs {
 			if _, ok := vec.(*NoRip); !ok {
-				if IsFusionAll(vec) {
-					vecs[k] = DefuseAny(vec.(*Fusion))
+				if IsSuperAll(vec) {
+					vecs[k] = DefuseAny(vec.(*Super))
 				} else {
-					vecs[k] = Super(vec)
+					vecs[k] = Fused(vec)
 				}
 			}
 		}
@@ -62,7 +62,7 @@ func Apply(opt ApplyOpt, eval func(...Any) Any, vecs ...Any) Any {
 	if opt&ApplyDefuseMissings != 0 {
 		for k, vec := range vecs {
 			if _, ok := vec.(*NoRip); !ok {
-				if union, ok := Super(vec).(*Union); ok {
+				if union, ok := Fused(vec).(*Union); ok {
 					vecs[k] = defuseMissing(vec, union)
 				}
 			}

@@ -76,7 +76,7 @@ func (d *Downcast) to(from vector.Any, types []super.Type) vector.Any {
 }
 
 // downcast converts the input vector vec to the target type "to" presuming
-// vec resulted from a fusion having an input type "to".  The expected
+// vec resulted from a super value having an input type "to".  The expected
 // return value is a vector of the same length as vec with type "to".
 // If errors are encountered, then the return value is either an error of
 // said length or a Dynamic of said length comprised of a valid component
@@ -84,8 +84,8 @@ func (d *Downcast) to(from vector.Any, types []super.Type) vector.Any {
 // can check for success by comparing the return vector's type with "to".
 func (d *Downcast) downcast(vec vector.Any, to super.Type) vector.Any {
 	vec = vector.PushViewOrConst(vec)
-	// XXX this shouldn't happen but for some reason fusion vectors
-	// show up with dynamics in the fusion.Values fields so this dynamic
+	// XXX this shouldn't happen but for some reason super vectors
+	// show up with dynamics in the sup.Values fields so this dynamic
 	// ends up here.
 	if dynamic, ok := vec.(*vector.Dynamic); ok {
 		return d.downcastDynamic(dynamic, to)
@@ -96,12 +96,12 @@ func (d *Downcast) downcast(vec vector.Any, to super.Type) vector.Any {
 	if vec.Len() == 0 {
 		return vector.NewEmpty(to)
 	}
-	if super.IsFusionAll(vec.Type()) {
-		return vector.DefuseAny(vec.(*vector.Fusion))
+	if super.IsSuperAll(vec.Type()) {
+		return vector.DefuseAny(vec.(*vector.Super))
 	}
 	if _, ok := to.(*super.TypeUnion); !ok {
-		if fusion, ok := vec.(*vector.Fusion); ok {
-			return d.downcastFusion(fusion, to)
+		if sup, ok := vec.(*vector.Super); ok {
+			return d.downcastSuper(sup, to)
 		}
 	}
 	if u, ok := vec.(*vector.Union); ok {
@@ -125,8 +125,8 @@ func (d *Downcast) downcast(vec vector.Any, to super.Type) vector.Any {
 		return d.toEnum(vec, to)
 	case *super.TypeError:
 		return d.toError(vec, to)
-	case *super.TypeFusion:
-		return vector.NewWrappedError(d.sctx, "downcast: cannot downcast to a fusion type", vec)
+	case *super.TypeSuper:
+		return vector.NewWrappedError(d.sctx, "downcast: cannot downcast to a super type", vec)
 	case *super.TypeOption:
 		return d.toOption(vec, to)
 	default:
@@ -134,8 +134,8 @@ func (d *Downcast) downcast(vec vector.Any, to super.Type) vector.Any {
 	}
 }
 
-func (d *Downcast) downcastFusion(fusion *vector.Fusion, to super.Type) vector.Any {
-	vec := d.To(fusion.Values, fusion.Subtypes)
+func (d *Downcast) downcastSuper(sup *vector.Super, to super.Type) vector.Any {
+	vec := d.To(sup.Values, sup.Subtypes)
 	return vector.Apply(vector.ApplyNone, func(vecs ...vector.Any) vector.Any {
 		vec := vecs[0]
 		if vec.Type() != to {

@@ -19,7 +19,7 @@ The result of a dot expression is
 * the type value of the indicated field for a type value.
 
 When navigating a type value, the dot operator looks through named,
-optional, fusion, and error types and into the element type of
+optional, super, and error types and into the element type of
 an array or set, e.g., `<[{a:int64}]>.a` is `<int64>`.  A map type has no
 fields since its keys aren't known.  For a union type, the result is the union of the field's
 types in the union's types that have the field, e.g.,

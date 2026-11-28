@@ -27,14 +27,14 @@ func (u *Upcast) Call(args []super.Value) super.Value {
 	}
 	val, ok := u.Cast(from, typ)
 	if !ok {
-		return u.sctx.WrapError("upcast: value not a subtype of "+sup.FormatType(u.sctx.AnyToFusion(typ)), from)
+		return u.sctx.WrapError("upcast: value not a subtype of "+sup.FormatType(u.sctx.AnyToSuper(typ)), from)
 	}
 	return val
 }
 
 func (u *Upcast) Cast(from super.Value, to super.Type) (super.Value, bool) {
-	// Upcasting to any yields fusion(all) values.
-	to = u.sctx.AnyToFusion(to)
+	// Upcasting to any yields super(all) values.
+	to = u.sctx.AnyToSuper(to)
 	var b scode.Builder
 	if ok := u.upcast(&b, from.Type(), from.Bytes(), to); ok {
 		return super.NewValue(to, b.Bytes().Body()), true
@@ -43,8 +43,8 @@ func (u *Upcast) Cast(from super.Value, to super.Type) (super.Value, bool) {
 }
 
 func (u *Upcast) upcast(b *scode.Builder, typ super.Type, bytes scode.Bytes, to super.Type) bool {
-	if f, ok := typ.(*super.TypeFusion); ok {
-		typ, bytes = f.DerefFusion(bytes)
+	if f, ok := typ.(*super.TypeSuper); ok {
+		typ, bytes = f.DerefSuper(bytes)
 	}
 	switch to := to.(type) {
 	case *super.TypeRecord:
@@ -61,8 +61,8 @@ func (u *Upcast) upcast(b *scode.Builder, typ super.Type, bytes scode.Bytes, to 
 		return u.toEnum(b, typ, bytes, to)
 	case *super.TypeError:
 		return u.toError(b, typ, bytes, to)
-	case *super.TypeFusion:
-		return u.toFusion(b, typ, bytes, to)
+	case *super.TypeSuper:
+		return u.toSuper(b, typ, bytes, to)
 	default:
 		if typ == to {
 			b.Append(bytes)
@@ -185,7 +185,7 @@ func (u *Upcast) toEnum(b *scode.Builder, typ super.Type, bytes scode.Bytes, to 
 	return true
 }
 
-func (u *Upcast) toFusion(b *scode.Builder, typ super.Type, bytes scode.Bytes, to *super.TypeFusion) bool {
+func (u *Upcast) toSuper(b *scode.Builder, typ super.Type, bytes scode.Bytes, to *super.TypeSuper) bool {
 	b.BeginContainer()
 	if to.Type == super.TypeAll {
 		b.Append(bytes)

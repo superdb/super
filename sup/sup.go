@@ -34,7 +34,7 @@ func Implied(typ super.Type) bool {
 		return Implied(typ.KeyType) && Implied(typ.ValType)
 	case *super.TypeError:
 		return Implied(typ.Type)
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		return true
 	}
 	return false

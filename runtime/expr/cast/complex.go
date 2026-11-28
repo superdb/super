@@ -109,11 +109,11 @@ func (c *complexCaster) castOne(vec vector.Any, to super.Type) vector.Any {
 		return c.wrap(c.cast(vec, to.Type), to.Type, func(vec vector.Any) vector.Any {
 			return vector.NewNamed(to, vec)
 		})
-	case *super.TypeFusion:
+	case *super.TypeSuper:
 		if to.Type != super.TypeAll {
 			return c.error(vec, to)
 		}
-		// The values of a fusion(all) are the encoded values of their
+		// The values of a super(all) are the encoded values of their
 		// subtypes.
 		subtypes := make([]super.Type, n)
 		b := vector.NewValueBuilder(super.TypeAll)
@@ -124,7 +124,7 @@ func (c *complexCaster) castOne(vec vector.Any, to super.Type) vector.Any {
 			vec.Serialize(&sb, i)
 			b.Write(sb.Bytes().Body())
 		}
-		return vector.NewFusion(c.sctx, to, b.Build(c.sctx), subtypes)
+		return vector.NewSuper(c.sctx, to, b.Build(c.sctx), subtypes)
 	case *super.TypeDecimal, *super.TypeOfUnimplemented:
 		return vector.NewWrappedError(c.sctx, "cannot cast to "+sup.FormatType(to)+": type not yet implemented", vec)
 	case *super.TypeEnum:
@@ -135,7 +135,7 @@ func (c *complexCaster) castOne(vec vector.Any, to super.Type) vector.Any {
 
 // constOf returns a vector of n copies of the single value in vec.  Since
 // only primitive values may be consts, unions, options, named types, errors,
-// and the unit types are returned as themselves over a const, fusion(all)
+// and the unit types are returned as themselves over a const, super(all)
 // values are copied, and other complex values are repeated with a view.
 func constOf(vec vector.Any, n uint32) vector.Any {
 	switch v := vec.(type) {
@@ -159,7 +159,7 @@ func constOf(vec vector.Any, n uint32) vector.Any {
 		return vector.NewNamed(v.Typ, constOf(v.Any, n))
 	case *vector.Error:
 		return vector.NewError(v.Typ, constOf(v.Vals, n))
-	case *vector.Fusion:
+	case *vector.Super:
 		values, ok := v.Values.(*vector.Bytes)
 		if !ok {
 			break
@@ -172,7 +172,7 @@ func constOf(vec vector.Any, n uint32) vector.Any {
 			b.Write(bytes)
 			subtypes[k] = ids[0]
 		}
-		return &vector.Fusion{Typ: v.Typ, Values: b.Build(nil), Subtypes: v.Subtypes.WithTypeIDs(subtypes)}
+		return &vector.Super{Typ: v.Typ, Values: b.Build(nil), Subtypes: v.Subtypes.WithTypeIDs(subtypes)}
 	case *vector.None:
 		return vector.NewNone(n)
 	case *vector.Null:

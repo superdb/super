@@ -8,12 +8,12 @@ import (
 
 // Fuser constructs a fused supertype for all the types passed to Fuse.
 //
-// The supertype is a type of the type system: it has no fusion types and
+// The supertype is a type of the type system: it has no super types and
 // any absorbs every type except missing (so the fusion of type any with a type
 // that may be missing is any|missing).  A fused type passed to Fuse is
-// normalized to its supertype, with fusion(all) normalized to any.  The
+// normalized to its supertype, with super(all) normalized to any.  The
 // fused type (see FusedType) is a type of the data model, in which any
-// becomes fusion(all).
+// becomes super(all).
 //
 // Fuse computes the supertype incrementally with the fields of each record
 // type in alphabetical order.  SuperType then orders the fields of each
@@ -51,16 +51,16 @@ func (f *Fuser) SuperType() Type {
 }
 
 func (f *Fuser) FusedType() Type {
-	fusion := f.SuperType()
+	sup := f.SuperType()
 	for sub := range f.subtypes {
-		fusion = f.merge(fusion, sub)
+		sup = f.merge(sup, sub)
 	}
 	// Any remaining any (e.g., when a fused type itself contained any) is
 	// replaced since no value has type any.
-	if fusion != nil {
-		fusion = f.sctx.AnyToFusion(fusion)
+	if sup != nil {
+		sup = f.sctx.AnyToSuper(sup)
 	}
-	return fusion
+	return sup
 }
 
 func (f *Fuser) Fuse(t Type) {
@@ -97,10 +97,10 @@ func (f *Fuser) fuse(a, b Type) Type {
 }
 
 func (f *Fuser) fuse1(a, b Type) Type {
-	if typ, ok := a.(*TypeFusion); ok {
+	if typ, ok := a.(*TypeSuper); ok {
 		return f.fuse(typ.Type, b)
 	}
-	if typ, ok := b.(*TypeFusion); ok {
+	if typ, ok := b.(*TypeSuper); ok {
 		return f.fuse(a, typ.Type)
 	}
 	if isAny(a) || isAny(b) {
@@ -261,8 +261,8 @@ func (f *Fuser) normalize(typ Type) Type {
 }
 
 func (f *Fuser) normalize1(typ Type) Type {
-	if typ, ok := typ.(*TypeFusion); ok {
-		// fusion(all) normalizes to all, which is any in the supertype.
+	if typ, ok := typ.(*TypeSuper); ok {
+		// super(all) normalizes to all, which is any in the supertype.
 		return f.normalize(typ.Type)
 	}
 	if isAny(typ) {
@@ -308,18 +308,18 @@ func (f *Fuser) addNamed(types []Type, named *TypeNamed) []Type {
 	return append(types, named)
 }
 
-func noFusion(typ Type) Type {
-	if s, ok := typ.(*TypeFusion); ok {
+func noSuper(typ Type) Type {
+	if s, ok := typ.(*TypeSuper); ok {
 		return s.Type
 	}
 	return typ
 }
 
-func (f *Fuser) fusion(typ Type) Type {
-	if typ, ok := typ.(*TypeFusion); ok {
+func (f *Fuser) toSuper(typ Type) Type {
+	if typ, ok := typ.(*TypeSuper); ok {
 		return typ
 	}
-	return f.sctx.MustLookupTypeFusion(typ)
+	return f.sctx.MustLookupTypeSuper(typ)
 }
 
 func orderPreserved(fused, child *TypeRecord) bool {
@@ -351,28 +351,28 @@ func (f *Fuser) merge(super, sub Type) Type {
 func (f *Fuser) merge1(super, sub Type) Type {
 	if isAny(super) || unionHasAny(super) {
 		// A value fused into any (or a union containing any) is a value
-		// of fusion(all), which carries the value's own type.
-		return f.sctx.FusionAll()
+		// of super(all), which carries the value's own type.
+		return f.sctx.SuperAll()
 	}
 	if super == sub {
 		return super
 	}
-	if super, ok := super.(*TypeFusion); ok {
-		return f.fusion(f.merge(super.Type, sub))
+	if super, ok := super.(*TypeSuper); ok {
+		return f.toSuper(f.merge(super.Type, sub))
 	}
-	if sub, ok := sub.(*TypeFusion); ok {
-		return f.fusion(f.merge(super, sub.Type))
+	if sub, ok := sub.(*TypeSuper); ok {
+		return f.toSuper(f.merge(super, sub.Type))
 	}
 	if union, ok := sub.(*TypeUnion); ok {
 		if _, ok := super.(*TypeUnion); !ok {
 			// The members of sub were fused into the single type super
 			// (e.g., a union of record types fused into one record type).
-			// Merge each member and mark super as a fusion since sub's
+			// Merge each member and wrap super in a super type since sub's
 			// values are union values.
 			for _, t := range union.Types {
-				super = noFusion(f.merge(super, t))
+				super = noSuper(f.merge(super, t))
 			}
-			return f.fusion(super)
+			return f.toSuper(super)
 		}
 	}
 	switch super := super.(type) {
@@ -394,24 +394,24 @@ func (f *Fuser) merge1(super, sub Type) Type {
 		}
 		superType := f.sctx.MustLookupTypeRecord(superFields)
 		// The fused fields record their subtypes (including missing for
-		// a field absent from sub) so the record itself is a fusion only
+		// a field absent from sub) so the record itself is a super value only
 		// when sub's fields are in a different order.
 		if !orderPreserved(super, sub) {
-			return f.fusion(superType)
+			return f.toSuper(superType)
 		}
 		return superType
 	case *TypeArray:
 		sub := sub.(*TypeArray)
 		// always fuse array because when we get here, super != sub
-		return f.fusion(f.sctx.LookupTypeArray(f.mergeElem(super.Type, sub.Type)))
+		return f.toSuper(f.sctx.LookupTypeArray(f.mergeElem(super.Type, sub.Type)))
 	case *TypeSet:
 		sub := sub.(*TypeSet)
-		return f.fusion(f.sctx.LookupTypeSet(f.mergeElem(super.Type, sub.Type)))
+		return f.toSuper(f.sctx.LookupTypeSet(f.mergeElem(super.Type, sub.Type)))
 	case *TypeMap:
 		sub := sub.(*TypeMap)
 		keyType := f.mergeElem(super.KeyType, sub.KeyType)
 		valType := f.mergeElem(super.ValType, sub.ValType)
-		return f.fusion(f.sctx.LookupTypeMap(keyType, valType))
+		return f.toSuper(f.sctx.LookupTypeMap(keyType, valType))
 	case *TypeUnion:
 		// Clone since extendUnionTypes modifies types and super.Types
 		// belongs to the type context's union type.
@@ -420,7 +420,7 @@ func (f *Fuser) merge1(super, sub Type) Type {
 			return types[0]
 		}
 		union := f.sctx.MustLookupTypeUnion(Flatten(types))
-		return f.fusion(union)
+		return f.toSuper(union)
 	case *TypeEnum:
 		sub := sub.(*TypeEnum)
 		var newSymbols []string
@@ -433,13 +433,13 @@ func (f *Fuser) merge1(super, sub Type) Type {
 			return super
 		}
 		symbols := append(slices.Clone(super.Symbols), newSymbols...)
-		return f.fusion(f.sctx.LookupTypeEnum(symbols))
+		return f.toSuper(f.sctx.LookupTypeEnum(symbols))
 	case *TypeError:
 		sub := sub.(*TypeError)
-		return f.fusion(f.sctx.LookupTypeError(f.merge(super.Type, sub.Type)))
+		return f.toSuper(f.sctx.LookupTypeError(f.merge(super.Type, sub.Type)))
 	case *TypeOption:
 		sub := sub.(*TypeOption)
-		return f.fusion(f.sctx.LookupTypeOption(noFusion(f.merge(super.Type, sub.Type))))
+		return f.toSuper(f.sctx.LookupTypeOption(noSuper(f.merge(super.Type, sub.Type))))
 	case *TypeNamed:
 		sub := sub.(*TypeNamed)
 		if super.Name == sub.Name {
@@ -486,7 +486,7 @@ func (f *Fuser) extendUnionTypes(types []Type, typ Type, combine func(a, b Type)
 			types = f.extendUnionTypes(types, t, combine)
 		}
 		return types
-	case *TypeFusion:
+	case *TypeSuper:
 		return f.extendUnionTypes(types, typ.Type, combine)
 	}
 	kind := typ.Kind()
@@ -495,9 +495,9 @@ func (f *Fuser) extendUnionTypes(types []Type, typ Type, combine func(a, b Type)
 		case t == typ:
 			return types
 		case kind != PrimitiveKind && kind == t.Kind() && !IsTypeNamed(t):
-			types[i] = noFusion(combine(t, typ))
+			types[i] = noSuper(combine(t, typ))
 			return types
 		}
 	}
-	return append(types, noFusion(typ))
+	return append(types, noSuper(typ))
 }

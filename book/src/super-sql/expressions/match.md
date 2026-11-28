@@ -15,7 +15,7 @@ where `<expr>` is any [expression](intro.md) and each `<type-n>` is any
 in turn and the result of the first matching `when` becomes the value of the
 match expression.  A value matches a type by the same rules as a
 [type assertion](type-assertions.md), so a value of a
-[union](../types/union.md), option, or fusion type matches the type of
+[union](../types/union.md), option, or super type matches the type of
 its underlying value and [named types](../types/named.md) are distinct.
 
 If no case matches, the result is `<else-result>` or, without an

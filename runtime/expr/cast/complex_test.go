@@ -45,7 +45,7 @@ func TestCastVectorShapes(t *testing.T) {
 		`error(string)`, `error({a:string})`,
 		`{type:string,ref:string}|{type:string,action:string,repo:option(string)}|{type:string,num:int64,ref:option(string)}`,
 		`{a:int64}|{a:string}`, `{a:int64}|{b:string,c:int64}`, `[int64]|[string]`,
-		`decimal(10,2)`, `fusion(all)`, `enum(x,a)`, `[enum(x,a)]`,
+		`decimal(10,2)`, `super(all)`, `enum(x,a)`, `[enum(x,a)]`,
 	}
 	sctx := super.NewContext()
 	var vals []super.Value
@@ -175,7 +175,7 @@ func checkConsts(t *testing.T, vec vector.Any) {
 		checkConsts(t, vec.Vals)
 	case *vector.Option:
 		checkConsts(t, vec.Any)
-	case *vector.Fusion:
+	case *vector.Super:
 		checkConsts(t, vec.Values)
 	}
 }

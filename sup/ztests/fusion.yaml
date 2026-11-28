@@ -1,9 +1,0 @@
-spq: pass
-
-flags: -fusion
-
-input: &input |
-  {a:fusion(1::(int64|missing),<int64>),b:fusion(missing::(int64|missing),<missing>)}
-  {a:fusion(missing::(int64|missing),<missing>),b:fusion(2::(int64|missing),<int64>)}
-
-output: *input

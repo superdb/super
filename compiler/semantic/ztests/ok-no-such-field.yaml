@@ -118,8 +118,8 @@ output: |
 
 ---
 
-# Type errors show types without their fusions (e.g., the type of zip here is
-# a fusion of int64 and missing).
+# Type errors show types without their super values (e.g., the type of zip here is
+# a super value of int64 and missing).
 spq: values addr.cty.ok()
 
 input: |

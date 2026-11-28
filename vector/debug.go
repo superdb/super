@@ -138,7 +138,7 @@ func write(w io.Writer, vec Any, indent, prefix string) {
 			fmt.Fprintln(w)
 			write(w, v, indent, fmt.Sprintf("values[%d]=", k))
 		}
-	case *Fusion:
+	case *Super:
 		fmt.Fprintf(w, " subtype=%s\n", "?" /* sup.FormatType(val.SubTypes) */)
 		write(w, vec.Values, indent, "values=")
 	case *Option:

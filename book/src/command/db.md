@@ -728,8 +728,8 @@ sent twice, a small limit is best),
 * `describe_table` returns a table's declared type or, if it has none,
 the superfused type of its data computed from the types of its data
 objects, which shows where the data's types vary (e.g.,
-`{a:int64,b:fusion(string|missing)}` means `b` is absent from some values),
-or, with form `fused`, the type without fusion types,
+`{a:int64,b:super(string|missing)}` means `b` is absent from some values),
+or, with form `fused`, the type without super types,
 * `health` checks that the database is readable and returns the status, the
 SuperDB version, whether the server is read-only, and the number of tables,
 * `load` loads a file (by path or S3 URI) or inline text data in format `json`,

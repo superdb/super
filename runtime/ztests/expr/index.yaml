@@ -123,8 +123,8 @@ spq: val[1].r
 flags: -dynamic
 
 input: |
-  {val:fusion(2::(int64|[int64|{r:int64}]),<int64>)}
-  {val:fusion([1,{r:3}]::(int64|[int64|{r:int64}]),<[int64|{r:int64}]>)}
+  {val:super(2::(int64|[int64|{r:int64}]),<int64>)}
+  {val:super([1,{r:3}]::(int64|[int64|{r:int64}]),<[int64|{r:int64}]>)}
 
 output: |
   error({message:"value cannot be indexed",on:2})

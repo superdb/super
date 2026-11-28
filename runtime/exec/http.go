@@ -90,7 +90,7 @@ func headerStrings(val super.Value) ([]string, error) {
 	return []string{strings.Clone(val.AsString())}, nil
 }
 
-// present returns val without named, union, fusion, or option types and
+// present returns val without named, union, super, or option types and
 // returns false if val is absent, i.e., null, missing, or none.
 func present(val super.Value) (super.Value, bool) {
 	val = val.Under()

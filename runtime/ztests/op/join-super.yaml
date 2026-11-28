@@ -7,9 +7,9 @@ script: |
 inputs:
   - name: a.sup
     data: |
-      fusion({a:1::(int64|string),b?:none::string},<{a:int64}>)
-      fusion({a:2::(int64|string),b?:"note1"},<{a:int64,b:string}>)
-      fusion({a:"bar"::(int64|string),b?:"note2"},<{a:string,b:string}>)
+      super({a:1::(int64|string),b?:none::string},<{a:int64}>)
+      super({a:2::(int64|string),b?:"note1"},<{a:int64,b:string}>)
+      super({a:"bar"::(int64|string),b?:"note2"},<{a:string,b:string}>)
   - name: b.sup
     data: |
       {b:1}

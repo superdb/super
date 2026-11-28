@@ -39,7 +39,7 @@ type fieldVotes struct {
 }
 
 func (o *fieldOrderer) vote(super, sub Type) {
-	sub = noFusion(sub)
+	sub = noSuper(sub)
 	if union, ok := sub.(*TypeUnion); ok {
 		if _, ok := super.(*TypeUnion); !ok {
 			// The members of sub were fused into the single type super.

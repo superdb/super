@@ -47,11 +47,11 @@ func NewEncoder(typedefs *TypeDefs, vec vector.Any) Encoder {
 		return &ErrorEncoder{NewEncoder(typedefs, vec.Vals)}
 	case *vector.Named:
 		return NewNamedEncoder(typedefs, vec)
-	case *vector.Fusion:
-		if super.IsFusionAll(vec.Type()) {
+	case *vector.Super:
+		if super.IsSuperAll(vec.Type()) {
 			return NewAnyEncoder(typedefs, vec)
 		}
-		return NewFusionEncoder(typedefs, vec)
+		return NewSuperEncoder(typedefs, vec)
 	case *vector.Option:
 		return NewOptionEncoder(typedefs, vec)
 	default:

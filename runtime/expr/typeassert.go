@@ -11,7 +11,7 @@ import (
 // e has type T and none otherwise.  A value whose type is T (or a member of
 // T if T is a union type), including a union, option, or named value, is the
 // value.  Otherwise, a union value is asserted on its member, an option value
-// on its some value (and an option's none is none), and a fusion value on its
+// on its some value (and an option's none is none), and a super value on its
 // subtype (see typeSwitch).
 // A type assertion does not convert values, so, e.g., "1".(int64) is none.
 // An error or missing value is passed through unless it has type T.

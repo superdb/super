@@ -1,6 +1,6 @@
 script: |
   super -o test.bsup in.sup
-  super -s -fusion test.bsup
+  super -s -superfused test.bsup
 
 inputs:
   - name: in.sup

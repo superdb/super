@@ -41,7 +41,7 @@ const (
 	UnionKind
 	EnumKind
 	ErrorKind
-	FusionKind
+	SuperKind
 	OptionKind
 	DecimalKind
 )
@@ -64,8 +64,8 @@ func (k Kind) String() string {
 		return "enum"
 	case DecimalKind:
 		return "decimal"
-	case FusionKind:
-		return "fusion"
+	case SuperKind:
+		return "super"
 	case OptionKind:
 		return "option"
 	case ErrorKind:
@@ -103,8 +103,8 @@ var (
 	// TypeAny is the top type of the type system, to which every type
 	// conforms.  It exists only in the type system: no value has type
 	// any.  A value cast to any (or stored where any is expected) has type
-	// fusion(all), the data model's type for a value of any type, which
-	// carries the value's own type (see Context.AnyToFusion).
+	// super(all), the data model's type for a value of any type, which
+	// carries the value's own type (see Context.AnyToSuper).
 	TypeAny = &TypeOfAny{}
 )
 
@@ -220,7 +220,7 @@ const (
 	TypeValueError   = 54
 	TypeValueNameDef = 55
 	TypeValueNameRef = 56
-	TypeValueFusion  = 57
+	TypeValueSuper   = 57
 	TypeValueOption  = 58
 	TypeValueDecimal = 59
 	TypeValueMax     = TypeValueDecimal
@@ -599,8 +599,8 @@ func CompareTypes(a, b Type) int {
 	case ErrorKind:
 		ea, eb := a.(*TypeError), b.(*TypeError)
 		return CompareTypes(ea.Type, eb.Type)
-	case FusionKind:
-		fa, fb := a.(*TypeFusion), b.(*TypeFusion)
+	case SuperKind:
+		fa, fb := a.(*TypeSuper), b.(*TypeSuper)
 		return CompareTypes(fa.Type, fb.Type)
 	case OptionKind:
 		oa, ob := a.(*TypeOption), b.(*TypeOption)
@@ -698,8 +698,8 @@ func appendTypeValue(b []byte, t Type, typedefs *map[string]Type) []byte {
 	case *TypeError:
 		b = append(b, TypeValueError)
 		return appendTypeValue(b, t.Type, typedefs)
-	case *TypeFusion:
-		b = append(b, TypeValueFusion)
+	case *TypeSuper:
+		b = append(b, TypeValueSuper)
 		return appendTypeValue(b, t.Type, typedefs)
 	case *TypeOption:
 		b = append(b, TypeValueOption)

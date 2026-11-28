@@ -183,9 +183,9 @@ work together:
 * nominal types with recursion to provide alignment with host programming languages,
 * type-safe untagged unions, where a value is used directly with no tag to
   name in a query, so that JSON drops in seamlessly,
-* fusion types to provide warehouse performance for JSON where algebraic types
+* super types to provide warehouse performance for JSON where algebraic types
   have been lost through serialization,
-* first-class types to enable fusion types and flexible exploration and
+* first-class types to enable super types and flexible exploration and
   processing of heterogeneous data, and
 * first-class errors to provide robust error handling, especially when
   encountering unanticipated types, e.g., due to upstream schema changes in APIs.

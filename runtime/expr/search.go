@@ -113,7 +113,7 @@ func NewSearchString(sctx *super.Context, s string, e Evaluator) Evaluator {
 // s.e itself produces are caught here, type by type, rather than searched.
 // Values nested inside the result are data to search (see eval).
 func (s *search) Eval(this vector.Any) vector.Any {
-	return vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions, func(vecs ...vector.Any) vector.Any {
+	return vector.Apply(vector.ApplyRipSupers|vector.ApplyRipUnions, func(vecs ...vector.Any) vector.Any {
 		if out, ok := Catch(s.sctx, CatchAll & ^CatchOption, vecs[0], "search"); ok {
 			return out
 		}
@@ -122,7 +122,7 @@ func (s *search) Eval(this vector.Any) vector.Any {
 }
 
 func (s *search) applyEval(vec vector.Any) vector.Any {
-	return vector.Apply(vector.ApplyRipFusions|vector.ApplyRipUnions|vector.ApplyRipOptions, s.eval, vec)
+	return vector.Apply(vector.ApplyRipSupers|vector.ApplyRipUnions|vector.ApplyRipOptions, s.eval, vec)
 }
 
 func (s *search) eval(vecs ...vector.Any) vector.Any {
@@ -225,7 +225,7 @@ func NewRegexpMatch(sctx *super.Context, re *regexp.Regexp, e Evaluator) Evaluat
 }
 
 func (r *regexpMatch) Eval(this vector.Any) vector.Any {
-	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipFusions, r.eval, r.e.Eval(this))
+	return vector.Apply(vector.ApplyRipUnions|vector.ApplyRipSupers, r.eval, r.e.Eval(this))
 }
 
 func (r *regexpMatch) eval(vecs ...vector.Any) vector.Any {

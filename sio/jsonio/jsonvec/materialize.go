@@ -77,13 +77,13 @@ func (m *materializer) union(u *Union) (vector.Any, []uint32) {
 	}
 	utyp := m.sctx.MustLookupTypeUnion(super.UniqueTypes(types))
 	subtypes := m.makeUnionSubtypes(u.Tags, dynamic, fixed)
-	typ := m.sctx.MustLookupTypeFusion(utyp)
+	typ := m.sctx.MustLookupTypeSuper(utyp)
 	loader := &subtypesLoader{
 		m:        m,
 		subtypes: subtypes,
 	}
 	vec := vector.NewUnion(utyp, u.Tags, vecs)
-	return vector.NewFusionWithLoader(m.sctx, typ, loader, vec), subtypes
+	return vector.NewSuperWithLoader(m.sctx, typ, loader, vec), subtypes
 }
 
 func (m *materializer) makeUnionSubtypes(tags []uint32, dynamic [][]uint32, fixed []uint32) []uint32 {
@@ -115,12 +115,12 @@ func (m *materializer) array(a *Array) (vector.Any, []uint32) {
 		id := m.arrayID(ids[a.Offsets[k]:a.Offsets[k+1]])
 		subtypes = append(subtypes, id)
 	}
-	fusionType := m.sctx.MustLookupTypeFusion(arrayType)
+	superType := m.sctx.MustLookupTypeSuper(arrayType)
 	loader := &subtypesLoader{
 		m:        m,
 		subtypes: subtypes,
 	}
-	return vector.NewFusionWithLoader(m.sctx, fusionType, loader, array), subtypes
+	return vector.NewSuperWithLoader(m.sctx, superType, loader, array), subtypes
 }
 
 func (m *materializer) arrayID(ids []uint32) uint32 {
@@ -166,7 +166,7 @@ func (m *materializer) record(r *Record) (vector.Any, []uint32) {
 	var allFields []super.Field
 	// dynamic and fixed are indexed by the supertype's column number.
 	// dynamic holds the subtype ID vectors of fields that have them
-	// attached (because there is a fusion type below).
+	// attached (because there is a super type below).
 	// Otherwise, fixed holds the constant ID for all all rows in that
 	// field in each column position.
 	dynamic := make([][]uint32, len(r.Fields))
@@ -176,7 +176,7 @@ func (m *materializer) record(r *Record) (vector.Any, []uint32) {
 		vec, ids := m.value(field.Value)
 		dynamic[i] = ids
 		// XXX We shouldn't always pollute the typedefs with this
-		// type... only if there is a demand for fusion, i.e.,
+		// type... only if there is a demand for a super type, i.e.,
 		// don't put the type ID in the typedefs if it's going to
 		// be thrown away?!  This isn't all that big a deal
 		// and we can cleanup later.
@@ -200,26 +200,26 @@ func (m *materializer) record(r *Record) (vector.Any, []uint32) {
 	subtypes := m.makeRecordSubtypes(r.perm, allFields, dynamic, fixed, r.tags)
 	if !fuseHere {
 		// Field order is consistent and varying fields carry their own
-		// fusions, so the record itself isn't fused. Enclosing fusions
+		// super values, so the record itself isn't fused. Enclosing super values
 		// still need the per-row original types for their subtypes.
 		return record, subtypes
 	}
-	typ := m.sctx.MustLookupTypeFusion(rtyp)
+	typ := m.sctx.MustLookupTypeSuper(rtyp)
 	loader := &subtypesLoader{
 		m:        m,
 		subtypes: subtypes,
 	}
-	return vector.NewFusionWithLoader(m.sctx, typ, loader, record), subtypes
+	return vector.NewSuperWithLoader(m.sctx, typ, loader, record), subtypes
 }
 
 // missing wraps a field that is absent in some rows (per rle) as
-// fusion((T|none)): a plain union with none, not option(T). Its subtypes
+// super((T|none)): a plain union with none, not option(T). Its subtypes
 // are none where the field is absent, so defuse removes the field there,
 // and otherwise the field's own subtype. The field doesn't depend on the
 // parent record's subtypes.
 func (m *materializer) missing(vec vector.Any, ids []uint32, fixed uint32, n uint32, rle []uint32) vector.Any {
-	if f, ok := vec.(*vector.Fusion); ok {
-		// Flatten to a single fusion((T1|...|none)) like the fuser does.
+	if f, ok := vec.(*vector.Super); ok {
+		// Flatten to a single super((T1|...|none)) like the fuser does.
 		// ids already carry the child's per-value subtypes.
 		vec = f.Values
 	}
@@ -242,14 +242,14 @@ func (m *materializer) missing(vec vector.Any, ids []uint32, fixed uint32, n uin
 			subtypes = append(subtypes, fixed)
 		}
 	}
-	typ := m.sctx.MustLookupTypeFusion(u.Typ)
+	typ := m.sctx.MustLookupTypeSuper(u.Typ)
 	loader := &subtypesLoader{m: m, subtypes: subtypes}
-	return vector.NewFusionWithLoader(m.sctx, typ, loader, u)
+	return vector.NewSuperWithLoader(m.sctx, typ, loader, u)
 }
 
 // permsOrdered reports whether every key permutation lists its columns in
 // increasing order, i.e., each row's fields appear in the same relative
-// order as the fused record, so no record-level fusion is needed.
+// order as the fused record, so no record-level super type is needed.
 func permsOrdered(perm map[string]uint32) bool {
 	for desc := range perm {
 		r := strings.NewReader(desc)
@@ -322,7 +322,7 @@ func (s *subtypesLoader) Load() (*super.TypeIDMap, []uint32) {
 }
 
 // typeIDMap returns the mapping of m.defs to m.sctx shared by the subtypes of
-// m's fusion vectors.  It's created on first use, which is after the
+// m's super vectors.  It's created on first use, which is after the
 // typedefs have been entered.
 func (m *materializer) typeIDMap() *super.TypeIDMap {
 	m.tmapOnce.Do(func() {

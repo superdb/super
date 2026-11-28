@@ -2,7 +2,7 @@ spq: this::enum(e1,e2)
 
 input: |
   "e1"
-  fusion("e2"::(string|null),<string>)
+  super("e2"::(string|null),<string>)
   "e3"
   0
   null

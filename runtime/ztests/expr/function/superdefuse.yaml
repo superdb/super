@@ -100,10 +100,10 @@ output: *input
 spq: superdefuse(this)
 
 input: |
-  fusion({a?:1,b?:none::int64,c?:none::int64},<{a:int64}>)
-  fusion({a?:none::int64,b?:1,c?:2},<{b:int64,c:int64}>)
+  super({a?:1,b?:none::int64,c?:none::int64},<{a:int64}>)
+  super({a?:none::int64,b?:1,c?:2},<{b:int64,c:int64}>)
   // None-valued record fields.
-  [{a:fusion(missing::(int64|missing),<missing>)},{a:fusion(missing::(string|missing),<missing>)}]
+  [{a:super(missing::(int64|missing),<missing>)},{a:super(missing::(string|missing),<missing>)}]
 
 output: |
   {a:1}
@@ -282,14 +282,14 @@ output: *input
 
 ---
 
-# Superdefuse on a fusion value inside an array/set.
+# Superdefuse on a super value inside an array/set.
 spq: superdefuse(this)
 
 input: |
-  [fusion(1::(int64|null),<int64>),2]
-  [fusion(1::(int64|null),<int64>),2,"foo"]
-  set[fusion(1::(int64|null),<int64>),2]
-  set[fusion(1::(int64|null),<int64>),2,"foo"]
+  [super(1::(int64|null),<int64>),2]
+  [super(1::(int64|null),<int64>),2,"foo"]
+  set[super(1::(int64|null),<int64>),2]
+  set[super(1::(int64|null),<int64>),2,"foo"]
 
 output: |
   [1,2]
@@ -304,10 +304,10 @@ output: |
 spq: values typeof(superdefuse(this))
 
 input: |
-  {x?:fusion(1::(int64|string),<int64>)}
-  {x?:fusion("a"::(int64|string),<string>)}
-  {x?:none::option(fusion(int64|string))}
-  {x?:fusion(2::(int64|string),<int64>)}
+  {x?:super(1::(int64|string),<int64>)}
+  {x?:super("a"::(int64|string),<string>)}
+  {x?:none::option(super(int64|string))}
+  {x?:super(2::(int64|string),<int64>)}
 
 output: |
   <{x?:int64}>
@@ -321,9 +321,9 @@ output: |
 spq: values typeof(superdefuse(this))
 
 input: |
-  {x?:fusion(1::(int64|string),<int64>)}
-  {x?:none::option(fusion(int64|string))}
-  {x?:fusion(2::(int64|string),<int64>)}
+  {x?:super(1::(int64|string),<int64>)}
+  {x?:none::option(super(int64|string))}
+  {x?:super(2::(int64|string),<int64>)}
 
 output: |
   <{x?:int64}>

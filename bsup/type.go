@@ -39,7 +39,7 @@ func (t *TypeValueEncoder) Locate(w *LocatorWriter) {
 }
 
 // locateIDs encodes just the segment of the type IDs, which is how the
-// subtypes of a fusion vector are located.
+// subtypes of a super vector are located.
 func (t *TypeValueEncoder) locateIDs(w *LocatorWriter) {
 	_, loc := t.encoder.Segment(w.Offset())
 	w.Segment(loc)

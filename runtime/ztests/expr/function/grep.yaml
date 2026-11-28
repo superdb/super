@@ -13,7 +13,7 @@ input: |
   {pattern:"z",input:{a:{b:"c"}}}
   {pattern:"a",input:"hello"::(string|null)}
   {pattern:"a",input:null::(string|null)}
-  {pattern:"c",input:{a:fusion({b?:"c",d?:none::string},<{b:string}>)}}
+  {pattern:"c",input:{a:super({b?:"c",d?:none::string},<{b:string}>)}}
   {pattern:1,input:""}
   {pattern:null,input:"a"}
 

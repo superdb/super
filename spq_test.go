@@ -54,7 +54,7 @@ func TestSPQ(t *testing.T) {
 		runAllBoomerangs(t, "bsup", data)
 		runAllBoomerangs(t, "parquet", data)
 		runAllBoomerangs(t, "sup", data)
-		runAllFusionBoomerangs(t, data)
+		runAllSuperBoomerangs(t, data)
 	})
 }
 
@@ -206,19 +206,19 @@ func runOneBoomerang(t *testing.T, format, data string) {
 	require.Equal(t, baseline, boomerang, "baseline and boomerang differ")
 }
 
-func runAllFusionBoomerangs(t *testing.T, data map[string]string) {
-	t.Run("fusion", func(t *testing.T) {
+func runAllSuperBoomerangs(t *testing.T, data map[string]string) {
+	t.Run("super", func(t *testing.T) {
 		t.Parallel()
 		for name, data := range data {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				runOneFusionBoomerang(t, data)
+				runOneSuperBoomerang(t, data)
 			})
 		}
 	})
 }
 
-func runOneFusionBoomerang(t *testing.T, data string) {
+func runOneSuperBoomerang(t *testing.T, data string) {
 	// Create an auto-detecting reader for data.
 	dataSctx := super.NewContext()
 	dataPuller, err := anyio.NewReader(t.Context(), dataSctx, strings.NewReader(data), anyio.ReaderOpts{
@@ -227,14 +227,14 @@ func runOneFusionBoomerang(t *testing.T, data string) {
 	require.NoError(t, err)
 	defer dataPuller.Pull(true)
 
-	// Serialize non-fusion values (other than plain nones) from dataReader
+	// Serialize non-super values (other than plain nones) from dataReader
 	// to baseline as SUP.
-	r := &fusionRemovingReader{sbuf.PullerReader(sbuf.NewMaterializer(dataPuller)), hasFusion{}}
+	r := &superRemovingReader{sbuf.PullerReader(sbuf.NewMaterializer(dataPuller)), hasSuper{}}
 	puller := sbuf.NewDematerializer(dataSctx, sbuf.NewPuller(r))
 	baseline, err := serialize(puller, dataSctx, "sup")
 	require.NoError(t, err)
 	if baseline == "" {
-		t.Skip("skipping because data contains no non-fusion values")
+		t.Skip("skipping because data contains no non-super values")
 	}
 
 	boomerang, err := fuseDefuse(t.Context(), baseline)
@@ -301,16 +301,16 @@ func serialize(p vio.Puller, sctx *super.Context, outputFormat string) (string, 
 	return b.String(), errors.Join(err, err2)
 }
 
-type fusionRemovingReader struct {
+type superRemovingReader struct {
 	r sio.Reader
-	h hasFusion
+	h hasSuper
 }
 
-func (f *fusionRemovingReader) Read() (*super.Value, error) {
+func (f *superRemovingReader) Read() (*super.Value, error) {
 	for {
 		val, err := f.r.Read()
 		if val != nil && err == nil {
-			if f.h.hasFusion(val.Type()) {
+			if f.h.hasSuper(val.Type()) {
 				continue
 			}
 			if val.Deunion().Type() == super.TypeNone {
@@ -323,32 +323,32 @@ func (f *fusionRemovingReader) Read() (*super.Value, error) {
 	}
 }
 
-type hasFusion map[super.Type]bool
+type hasSuper map[super.Type]bool
 
-func (h hasFusion) hasFusion(typ super.Type) bool {
+func (h hasSuper) hasSuper(typ super.Type) bool {
 	if has, ok := h[typ]; ok {
 		return has
 	}
 	var has bool
 	switch typ := typ.(type) {
 	case *super.TypeRecord:
-		has = slices.ContainsFunc(typ.Fields, func(f super.Field) bool { return h.hasFusion(f.Type) })
+		has = slices.ContainsFunc(typ.Fields, func(f super.Field) bool { return h.hasSuper(f.Type) })
 	case *super.TypeArray:
-		has = h.hasFusion(typ.Type)
+		has = h.hasSuper(typ.Type)
 	case *super.TypeSet:
-		has = h.hasFusion(typ.Type)
+		has = h.hasSuper(typ.Type)
 	case *super.TypeMap:
-		has = h.hasFusion(typ.KeyType) || h.hasFusion(typ.ValType)
+		has = h.hasSuper(typ.KeyType) || h.hasSuper(typ.ValType)
 	case *super.TypeUnion:
-		has = slices.ContainsFunc(typ.Types, h.hasFusion)
+		has = slices.ContainsFunc(typ.Types, h.hasSuper)
 	case *super.TypeError:
-		has = h.hasFusion(typ.Type)
-	case *super.TypeFusion:
+		has = h.hasSuper(typ.Type)
+	case *super.TypeSuper:
 		has = true
 	case *super.TypeNamed:
 		// Store false to prevent infinite recursion.
 		h[typ] = false
-		has = h.hasFusion(typ.Type)
+		has = h.hasSuper(typ.Type)
 	}
 	h[typ] = has
 	return has

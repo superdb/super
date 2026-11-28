@@ -80,7 +80,7 @@ func (f *Flags) SetFormatFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&f.forceBinary, "B", false, "allow Super Binary to be sent to a terminal output")
 	fs.BoolVar(&f.jsonPretty, "J", false, "use formatted JSON output independent of -f option")
 	fs.BoolVar(&f.jsonShortcut, "j", false, "use line-oriented JSON output independent of -f option")
-	fs.BoolVar(&f.SUPFusion, "fusion", false, "display fusion values (fusion values are otherwise auto-defused)")
+	fs.BoolVar(&f.SUPSuperfused, "superfused", false, "display super values (super values are otherwise auto-defused)")
 	fs.BoolVar(&f.supPretty, "S", false, "use formatted Super JSON output independent of -f option")
 	fs.BoolVar(&f.supShortcut, "s", false, "use line-oriented Super JSON output independent of -f option")
 }
