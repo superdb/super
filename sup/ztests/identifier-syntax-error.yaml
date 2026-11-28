@@ -1,0 +1,45 @@
+# An identifier that doesn't begin a valid value is a syntax error, even
+# inside another value and with a trailing newline.
+script: |
+  # an array element
+  ! super -i sup array.sup
+  # the value inside error(), some(), and fusion()
+  ! super -i sup error.sup
+  ! super -i sup some.sup
+  ! super -i sup fusion.sup
+  # error( left open at end of input
+  ! super -i sup open-error.sup
+  # a bare keyword, reported on its own line
+  ! super -i sup bare-keyword.sup
+
+inputs:
+  - name: array.sup
+    data: |
+      [1,xyz]
+  - name: error.sup
+    data: |
+      error(xyz)
+  - name: some.sup
+    data: |
+      some(xyz)
+  - name: fusion.sup
+    data: |
+      fusion(xyz,<int64>)
+  - name: open-error.sup
+    data: |-
+      error(1
+  - name: bare-keyword.sup
+    data: |
+      error
+
+      1
+
+outputs:
+  - name: stderr
+    data: |
+      array.sup: line 1: syntax error
+      error.sup: line 1: syntax error
+      some.sup: line 1: syntax error
+      fusion.sup: line 1: syntax error
+      open-error.sup: line 1: syntax error
+      bare-keyword.sup: line 1: syntax error
