@@ -248,7 +248,7 @@ PipeOp
   / "(" __ scope:Scope __ ")" { return scope, nil }
   / a:AssignmentOp &EndOfOp { return a, nil }
   / !(Function EndOfOp) a:Aggregation &EndOfOp { return a, nil }
-  / !CallIDGuard name:Identifier _ !CallExprGuard args:FuncOrExprs {
+  / !(AggFunc EndOfOp) !CallIDGuard name:Identifier _ !CallExprGuard args:FuncOrExprs {
       return &ast.CallOp{Kind:"CallOp", Name: name.(*ast.ID), Args:sliceOf[ast.Expr](args), Loc:loc(c)}, nil
     }
   / !CallIDGuard name:Identifier &EndOfOp {
