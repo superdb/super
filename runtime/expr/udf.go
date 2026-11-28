@@ -27,10 +27,10 @@ func NewUDF(sctx *super.Context, name string, params []string) *UDF {
 
 func (u *UDF) Call(args ...vector.Any) vector.Any {
 	u.stackDepth++
+	defer func() { u.stackDepth-- }()
 	if u.stackDepth > samexpr.MaxStackDepth {
 		return vector.NewStringError(u.sctx, fmt.Sprintf("stack overflow in function %q", u.name), args[0].Len())
 	}
-	defer func() { u.stackDepth-- }()
 	if len(u.fields) == 0 {
 		return u.Body.Eval(vector.NewNull(args[0].Len()))
 	}
